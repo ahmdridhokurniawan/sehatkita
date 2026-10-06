@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import { loginSimulasi } from "@/lib/session";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,7 +40,7 @@ export default function LoginPage() {
     // const data = await auth.login({ email, password });
     // setToken(data.token);
     // router.push("/dashboard");
-
+    loginSimulasi(email);
     // Simulasi sementara — hanya untuk melihat UI bekerja
     setTimeout(() => {
       setLoading(false);
