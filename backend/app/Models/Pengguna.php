@@ -5,11 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Laravel\Sanctum\HasApiTokens;
 
 class Pengguna extends Model
 {
-    // Tabel asli kita pakai nama Indonesia — Eloquent akan menebak "penggunas".
+    use HasApiTokens;
+
     protected $table = 'pengguna';
+
 
     // Kolom yang boleh diisi massal (register / update profil).
     protected $fillable = [

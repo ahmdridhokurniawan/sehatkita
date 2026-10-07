@@ -1,0 +1,27 @@
+# Laravel backend
+/backend/vendor
+/backend/node_modules
+/backend/.env
+/backend/.env.backup
+/backend/.env.production
+
+# Next.js frontend
+/frontend/node_modules
+/frontend/.next
+/frontend/.env
+/frontend/.env.local
+/frontend/.env.production
+/frontend/out
+/frontend/build
+
+# Root seharusnya tidak punya composer/vendor
+/vendor
+/composer.json
+/composer.lock
+
+# Umum
+*.log
+.DS_Store
+.idea/
+.vscode/
+.phpunit.result.cache
