@@ -1,3 +1,5 @@
+import type { ProfilRingkas } from "@/types";
+
 /**
  * Bantuan sesi SEMENTARA (belum tersambung backend).
  * Nanti diganti data asli dari GET /auth/me → kolom `consent_at`.
@@ -61,3 +63,29 @@ export const RIWAYAT_KELUARGA_OPTIONS = [
   { value: "kolesterol", label: "Kolesterol tinggi" },
   { value: "asma", label: "Asma" },
 ] as const;
+
+const PROFIL_KEY = "sehatkita_profil";
+
+function bacaPetaProfil(): Record<string, ProfilRingkas> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(PROFIL_KEY);
+    return raw ? (JSON.parse(raw) as Record<string, ProfilRingkas>) : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Profil tersimpan (simulasi) untuk satu email, atau null kalau belum pernah diubah */
+export function getProfilSimulasi(email: string): ProfilRingkas | null {
+  const peta = bacaPetaProfil();
+  return peta[email.toLowerCase()] ?? null;
+}
+
+/** Simpan profil (simulasi) untuk satu email */
+export function simpanProfilSimulasi(email: string, profil: ProfilRingkas): void {
+  if (typeof window === "undefined") return;
+  const peta = bacaPetaProfil();
+  peta[email.toLowerCase()] = profil;
+  window.localStorage.setItem(PROFIL_KEY, JSON.stringify(peta));
+}

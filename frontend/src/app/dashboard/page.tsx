@@ -121,7 +121,14 @@ export default function DashboardPage() {
             <h1 className="text-xl font-bold text-slate-900">Dashboard</h1>
             <p className="mt-1 text-sm text-slate-500">{email}</p>
           </div>
-                    <div className="flex shrink-0 gap-2">
+          <div className="flex shrink-0 gap-2">
+            <Link
+              href="/profil"
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Profil
+            </Link>
+
             <Link
               href="/catatan-kesehatan"
               className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"

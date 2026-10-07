@@ -10,7 +10,10 @@ import type {
   Sumber,
   JenisGulaDarah,
   KonsumsiManis,
+  JenisKelamin,
+  TingkatAktivitas,
 } from "@/lib/enums";
+
 
 /** Tulisan untuk status kesehatan */
 export const LABEL_STATUS_KESEHATAN: Record<StatusKesehatan, string> = {
@@ -52,4 +55,16 @@ export const LABEL_KONSUMSI_MANIS: Record<KonsumsiManis, string> = {
   jarang: "Jarang",
   sering: "Sering",
   setiap_hari: "Setiap Hari",
+};
+/** Tulisan untuk jenis kelamin */
+export const LABEL_JENIS_KELAMIN: Record<JenisKelamin, string> = {
+  L: "Laki-laki",
+  P: "Perempuan",
+};
+
+/** Tulisan untuk tingkat aktivitas */
+export const LABEL_TINGKAT_AKTIVITAS: Record<TingkatAktivitas, string> = {
+  ringan: "Ringan",
+  sedang: "Sedang",
+  berat: "Berat",
 };
