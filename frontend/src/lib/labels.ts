@@ -13,6 +13,8 @@ import type {
   JenisKelamin,
   TingkatAktivitas,
   StatusRujukan,
+  JenisProgram,
+  StatusProgram,
 } from "@/lib/enums";
 
 
@@ -88,5 +90,20 @@ export const LABEL_STATUS_RUJUKAN: Record<StatusRujukan, string> = {
   dihubungi: "Dihubungi",
   tertangani: "Tertangani",
   ditolak: "Ditolak",
+};
+
+/** Tulisan untuk jenis program (§12) */
+export const LABEL_JENIS_PROGRAM: Record<JenisProgram, string> = {
+  olahraga: "Olahraga",
+  edukasi: "Edukasi",
+  pemeriksaan: "Pemeriksaan",
+  lainnya: "Lainnya",
+};
+
+/** Tulisan untuk status program (§12) */
+export const LABEL_STATUS_PROGRAM: Record<StatusProgram, string> = {
+  akan_datang: "Akan Datang",
+  berjalan: "Berjalan",
+  selesai: "Selesai",
 };
 

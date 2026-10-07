@@ -123,6 +123,12 @@ export default function DashboardPage() {
           </div>
           <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">
             <Link
+              href="/program"
+              className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
+            >
+              Program
+            </Link>
+            <Link
               href="/insight"
               className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600"
             >
