@@ -123,6 +123,12 @@ export default function DashboardPage() {
           </div>
           <div className="flex shrink-0 gap-2">
             <Link
+              href="/dashboard/kelurahan"
+              className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700"
+            >
+              Kelurahan
+            </Link>
+            <Link
               href="/profil"
               className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
             >
