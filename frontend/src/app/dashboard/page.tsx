@@ -2,6 +2,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import { getUserSimulasi, sudahOnboarding, logoutSimulasi } from "@/lib/session";
@@ -120,15 +121,24 @@ export default function DashboardPage() {
             <h1 className="text-xl font-bold text-slate-900">Dashboard</h1>
             <p className="mt-1 text-sm text-slate-500">{email}</p>
           </div>
-          <button
-            onClick={() => {
-              logoutSimulasi();
-              router.push("/login");
-            }}
-            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            Keluar
-          </button>
+                    <div className="flex shrink-0 gap-2">
+            <Link
+              href="/catatan-kesehatan"
+              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+            >
+              Catatan Kesehatan
+            </Link>
+            <button
+              onClick={() => {
+                logoutSimulasi();
+                router.push("/login");
+              }}
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Keluar
+            </button>
+          </div>
+
         </header>
 
         {/* Status kesehatan */}
