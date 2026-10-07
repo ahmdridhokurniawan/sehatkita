@@ -123,6 +123,12 @@ export default function DashboardPage() {
           </div>
           <div className="flex shrink-0 gap-2">
             <Link
+              href="/rujukan"
+              className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
+            >
+              Rujukan
+            </Link>
+            <Link
               href="/tren"
               className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700"
             >

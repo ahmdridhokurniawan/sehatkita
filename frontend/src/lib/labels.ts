@@ -12,6 +12,7 @@ import type {
   KonsumsiManis,
   JenisKelamin,
   TingkatAktivitas,
+  StatusRujukan,
 } from "@/lib/enums";
 
 
@@ -79,5 +80,13 @@ export const LABEL_INDIKATOR: Record<string, string> = {
   kolesterol: "Kolesterol",
   asam_urat: "Asam Urat",
   lingkar_perut: "Lingkar Perut",
+};
+
+/** Tulisan untuk status rujukan (§11) */
+export const LABEL_STATUS_RUJUKAN: Record<StatusRujukan, string> = {
+  baru: "Baru",
+  dihubungi: "Dihubungi",
+  tertangani: "Tertangani",
+  ditolak: "Ditolak",
 };
 
