@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
+import Button from "@/components/ui/Button";
+import CatatanForm from "@/components/catatan/CatatanForm";
 import { getUserSimulasi, sudahOnboarding } from "@/lib/session";
-import { dummyCatatanKesehatan } from "@/lib/dummy";
+import { dummyCatatanKesehatan, dummyUser } from "@/lib/dummy";
 import {
   LABEL_STATUS_KESEHATAN,
   LABEL_KATEGORI_IMT,
@@ -14,16 +16,12 @@ import {
   LABEL_JENIS_GULA_DARAH,
 } from "@/lib/labels";
 import type { StatusKesehatan, KategoriImt } from "@/lib/enums";
+import type { CatatanKesehatan, CatatanKesehatanInput } from "@/types";
 
-// Langganan kosong — hanya untuk tahu "sudah jalan di browser?"
 const langgananKosong = () => () => {};
 
 function useSudahDiBrowser(): boolean {
-  return useSyncExternalStore(
-    langgananKosong,
-    () => true,
-    () => false
-  );
+  return useSyncExternalStore(langgananKosong, () => true, () => false);
 }
 
 const TONE_STATUS: Record<StatusKesehatan, "sukses" | "peringatan" | "bahaya"> = {
@@ -62,6 +60,8 @@ function Baris({ label, value }: { label: string; value: string }) {
 export default function CatatanKesehatanPage() {
   const router = useRouter();
   const diBrowser = useSudahDiBrowser();
+  const [daftar, setDaftar] = useState<CatatanKesehatan[]>(dummyCatatanKesehatan);
+  const [formTerbuka, setFormTerbuka] = useState(false);
 
   const email = diBrowser ? getUserSimulasi() : "";
   const bolehMasuk = email !== "" && sudahOnboarding(email);
@@ -74,6 +74,48 @@ export default function CatatanKesehatanPage() {
       router.replace("/onboarding");
     }
   }, [diBrowser, email, bolehMasuk, router]);
+
+  function tambahCatatan(input: CatatanKesehatanInput) {
+    const tinggi = dummyUser.profil?.tinggi_cm ?? null;
+    const bb = input.bb_kg ?? null;
+    const imt =
+      bb !== null && tinggi !== null
+        ? Math.round((bb / ((tinggi / 100) ** 2)) * 100) / 100
+        : null;
+
+    const baru: CatatanKesehatan = {
+      id: Date.now(),
+      user_id: dummyUser.id,
+      dicatat_pada: input.dicatat_pada,
+      sumber: input.sumber,
+      bb_kg: bb,
+      sistol: input.sistol ?? null,
+      diastol: input.diastol ?? null,
+      gula_darah: input.gula_darah ?? null,
+      jenis_gula_darah: input.jenis_gula_darah ?? null,
+      kolesterol: input.kolesterol ?? null,
+      asam_urat: input.asam_urat ?? null,
+      lingkar_perut: input.lingkar_perut ?? null,
+      tidur_jam: input.tidur_jam ?? null,
+      merokok: input.merokok ?? null,
+      konsumsi_manis: input.konsumsi_manis ?? null,
+      catatan: input.catatan ?? null,
+      tinggi_cm: tinggi,
+      imt,
+      // Kategori & status dihitung SERVER (kontrak 7.1) - di simulasi dibiarkan kosong
+      kategori_imt: null,
+      kategori_tensi: null,
+      kategori_gula_darah: null,
+      kategori_kolesterol: null,
+      kategori_asam_urat: null,
+      status_kesehatan: null,
+      perlu_verifikasi: false,
+      dicatat_oleh: null,
+      created_at: new Date().toISOString(),
+    };
+
+    setDaftar((prev) => [baru, ...prev]);
+  }
 
   if (!bolehMasuk) {
     return (
@@ -90,39 +132,50 @@ export default function CatatanKesehatanPage() {
         <header className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-xl font-bold text-slate-900">Catatan Kesehatan</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Riwayat pengukuran kamu
-            </p>
+            <p className="mt-1 text-sm text-slate-500">Riwayat pengukuran kamu</p>
           </div>
-          <Link
-            href="/dashboard"
-            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            Kembali
-          </Link>
+          <div className="flex shrink-0 gap-2">
+            <Button onClick={() => setFormTerbuka((v) => !v)}>
+              {formTerbuka ? "Tutup" : "Catat Sekarang"}
+            </Button>
+            <Link
+              href="/dashboard"
+              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Kembali
+            </Link>
+          </div>
         </header>
 
+        {/* Form tambah (muncul kalau tombol diklik) */}
+        {formTerbuka && (
+          <Card
+            title="Catatan Baru"
+            subtitle="Isi yang kamu ukur saja - sisanya boleh dikosongkan"
+          >
+            <CatatanForm onTambah={tambahCatatan} />
+          </Card>
+        )}
+
         {/* Daftar catatan */}
-        {dummyCatatanKesehatan.length === 0 ? (
+        {daftar.length === 0 ? (
           <Card>
             <p className="text-sm text-slate-400">Belum ada catatan.</p>
           </Card>
         ) : (
-          dummyCatatanKesehatan.map((c) => (
+          daftar.map((c) => (
             <Card
               key={c.id}
               title={formatTanggal(c.dicatat_pada)}
               subtitle={`Sumber: ${LABEL_SUMBER[c.sumber]}`}
             >
               <div className="space-y-4">
-                {/* Status */}
                 {c.status_kesehatan && (
                   <Badge tone={TONE_STATUS[c.status_kesehatan]}>
                     {LABEL_STATUS_KESEHATAN[c.status_kesehatan]}
                   </Badge>
                 )}
 
-                {/* Angka-angka */}
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3">
                   <Baris label="Berat badan" value={tampil(c.bb_kg, " kg")} />
                   <Baris label="Tinggi badan" value={tampil(c.tinggi_cm, " cm")} />
@@ -152,7 +205,6 @@ export default function CatatanKesehatanPage() {
                   <Baris label="Tidur" value={tampil(c.tidur_jam, " jam")} />
                 </dl>
 
-                {/* Info tambahan */}
                 <div className="space-y-1 border-t border-slate-100 pt-3 text-xs text-slate-500">
                   {c.jenis_gula_darah && (
                     <p>Jenis gula darah: {LABEL_JENIS_GULA_DARAH[c.jenis_gula_darah]}</p>
