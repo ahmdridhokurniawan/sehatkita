@@ -1,35 +1,51 @@
 <?php
 
+// Controller untuk register, login, logout, persetujuan
 use App\Http\Controllers\AuthController;
+// Controller untuk lihat & isi profil (onboarding)
 use App\Http\Controllers\ProfilController;
+// Dibutuhkan untuk route /me (baca user login)
+use Illuminate\Http\Request;
+// Untuk definisi Route::post, Route::get, dll
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| Public endpoints (tidak butuh login/token)
+| Route PUBLIK - tidak butuh token
+| Bisa diakses siapa saja (belum login)
 |--------------------------------------------------------------------------
-| Wajib diawali: register & login. Tanpa ini, FE tidak bisa masuk.
 */
-
+// Daftar akun baru
 Route::post('/register', [AuthController::class, 'register']);
+// Login, dapat token Sanctum
 Route::post('/login',    [AuthController::class, 'login']);
-
 
 /*
 |--------------------------------------------------------------------------
-| Protected endpoints (wajib kirim token Sanctum)
+| Route TERPROTEKSI - wajib kirim token
+| Header: Authorization: Bearer ***
+| Kalau tidak ada token -> 401 Unauthorized
 |--------------------------------------------------------------------------
-| Token didapat setelah login, dikirim di header:
-|   Authorization: Bearer <token>
-|
-| Semua route di dalam group ini memakai middleware 'auth:sanctum',
-| artinya: kalau tidak kirim token -> ditolak (401 Unauthorized).
 */
-
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/logout',  [AuthController::class, 'logout']);
 
-    // Onboarding: GET untuk lihat profil, PUT untuk isi/ubah profil
-    Route::get('/profil',   [ProfilController::class, 'show']);
-    Route::put('/profil',   [ProfilController::class, 'update']);
+    // Hapus semua token (logout)
+    Route::post('/logout', [AuthController::class, 'logout']);
+
+    // Catat persetujuan kebijakan privasi (isi consent_at)
+    Route::post('/persetujuan', [AuthController::class, 'consent']);
+
+    // Cek "siapa saya" - kembalikan user + profil + wilayah
+    Route::get('/me', function (Request $request) {
+        // load() = ambil relasi sekalian biar tidak query lagi
+        return response()->json([
+            'success' => true,
+            'data'    => $request->user()->load('profil', 'wilayah'),
+        ]);
+    });
+
+    // Lihat profil sendiri (hasil null kalau belum onboarding)
+    Route::get('/profil',  [ProfilController::class, 'show']);
+    // Isi / ubah profil (dipakai halaman onboarding daffa)
+    Route::put('/profil',  [ProfilController::class, 'update']);
 });
