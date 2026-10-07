@@ -68,3 +68,16 @@ export const LABEL_TINGKAT_AKTIVITAS: Record<TingkatAktivitas, string> = {
   sedang: "Sedang",
   berat: "Berat",
 };
+
+/** Tulisan untuk kode indikator tren (§8.2) */
+export const LABEL_INDIKATOR: Record<string, string> = {
+  bb_kg: "Berat Badan",
+  imt: "IMT",
+  sistol: "Tekanan Sistol",
+  diastol: "Tekanan Diastol",
+  gula_darah: "Gula Darah",
+  kolesterol: "Kolesterol",
+  asam_urat: "Asam Urat",
+  lingkar_perut: "Lingkar Perut",
+};
+
