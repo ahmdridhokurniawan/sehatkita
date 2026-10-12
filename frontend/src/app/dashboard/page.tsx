@@ -116,12 +116,30 @@ export default function DashboardPage() {
     <main className="min-h-screen bg-slate-50 px-4 py-8">
       <div className="mx-auto max-w-3xl space-y-5">
         {/* Kepala halaman */}
-        <header className="flex items-start justify-between gap-4">
+        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-xl font-bold text-slate-900">Dashboard</h1>
             <p className="mt-1 text-sm text-slate-500">{email}</p>
           </div>
-          <div className="flex shrink-0 gap-2">
+          <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">
+            <Link
+              href="/program"
+              className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
+            >
+              Program
+            </Link>
+            <Link
+              href="/insight"
+              className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600"
+            >
+              Insight
+            </Link>
+            <Link
+              href="/rujukan"
+              className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
+            >
+              Rujukan
+            </Link>
             <Link
               href="/tren"
               className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700"
