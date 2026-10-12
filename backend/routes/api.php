@@ -9,6 +9,9 @@ use App\Http\Controllers\ProfilController;
 // **Tambahan**: controller catatan kesehatan
 use App\Http\Controllers\CatatanKesehatanController;
 
+// **Tambahan**: controller insight (minggu 5)
+use App\Http\Controllers\InsightController;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -57,4 +60,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // -------------------------------------------------
     Route::get('/catatan-kesehatan',  [CatatanKesehatanController::class, 'index']);
     Route::post('/catatan-kesehatan', [CatatanKesehatanController::class, 'store']);
+
+    // -------------------------------------------------
+    // **Endpoint insight (minggu 5)**
+    // -------------------------------------------------
+    Route::get('/insight', [InsightController::class, 'index']);
 });

@@ -2,24 +2,24 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
     /**
-     * Seed the application's database.
+     * Orkestrator: menjalankan semua seeder data master.
+     *
+     * Urutan wajib karena ada relasi antar tabel:
+     *   1. Wilayah   → dipakai FK oleh faskes & pengguna.
+     *   2. Indikator → sekaligus mengisi ambang_kategori (24 baris).
+     *   3. Faskes    → butuh wilayah_id dari langkah pertama.
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        $this->call([
+            WilayahSeeder::class,
+            IndikatorSeeder::class,
+            FaskesSeeder::class,
         ]);
     }
 }
