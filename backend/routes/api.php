@@ -2,11 +2,14 @@
 
 // Controller untuk register, login, logout, persetujuan
 use App\Http\Controllers\AuthController;
+
 // Controller untuk lihat & isi profil (onboarding)
 use App\Http\Controllers\ProfilController;
-// Dibutuhkan untuk route /me (baca user login)
+
+// **Tambahan**: controller catatan kesehatan
+use App\Http\Controllers\CatatanKesehatanController;
+
 use Illuminate\Http\Request;
-// Untuk definisi Route::post, Route::get, dll
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -48,4 +51,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profil',  [ProfilController::class, 'show']);
     // Isi / ubah profil (dipakai halaman onboarding daffa)
     Route::put('/profil',  [ProfilController::class, 'update']);
+
+    // -------------------------------------------------
+    // **Endpoint catatan kesehatan (minggu 4)**
+    // -------------------------------------------------
+    Route::get('/catatan-kesehatan',  [CatatanKesehatanController::class, 'index']);
+    Route::post('/catatan-kesehatan', [CatatanKesehatanController::class, 'store']);
 });
