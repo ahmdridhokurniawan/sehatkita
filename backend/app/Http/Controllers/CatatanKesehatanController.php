@@ -99,3 +99,53 @@ class CatatanKesehatanController extends Controller
         ]);
     }
 }
+
+// GET /api/catatan-kesehatan/{id} — detail 1 catatan (kontrak §7.4)
+    public function show(Request $request, $id)
+    {
+        $catatan = CatatanKesehatan::with(['pengguna.profil', 'pencatat'])
+            ->where('user_id', $request->user()->id)
+            ->find($id);
+
+        if (!$catatan) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Catatan tidak ditemukan',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'OK',
+            'data'    => $catatan,
+        ]);
+    }
+
+    // DELETE /api/catatan-kesehatan/{id} — hapus 1 catatan (kontrak §7.5)
+    public function destroy(Request $request, $id)
+    {
+        $user = $request->user();
+
+        // User biasa hanya boleh hapus miliknya; super_admin boleh hapus apa saja
+        $query = CatatanKesehatan::query();
+        if ($user->role !== 'super_admin') {
+            $query->where('user_id', $user->id);
+        }
+
+        $catatan = $query->find($id);
+
+        if (!$catatan) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Catatan tidak ditemukan',
+            ], 404);
+        }
+
+        $catatan->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Data dihapus',
+            'data'    => null,
+        ]);
+    }
