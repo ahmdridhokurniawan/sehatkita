@@ -7,12 +7,8 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Checkbox from "@/components/ui/Checkbox";
 import { JENIS_KELAMIN, TINGKAT_AKTIVITAS } from "@/lib/enums";
-import {
-  RIWAYAT_KELUARGA_OPTIONS,
-  tandaiOnboardingSelesai,
-  getUserSimulasi,
-
-} from "@/lib/session";
+import { RIWAYAT_KELUARGA_OPTIONS, simpanUserSesi } from "@/lib/session";
+import { profil as profilApi, persetujuan, auth, ApiError } from "@/lib/api";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -73,17 +69,40 @@ export default function OnboardingPage() {
     if (!validasi()) return;
 
     setLoading(true);
-    // TODO (Tahap 3): ganti dengan pemanggilan API sungguhan
-    // await profil.update({ tgl_lahir: tglLahir, jenis_kelamin: jenisKelamin,
-    //   tinggi_cm: Number(tinggiCm), tingkat_aktivitas: aktivitas,
-    //   merokok, riwayat_keluarga: riwayat });
-    // await persetujuan.setuju({ versi_kebijakan: "1.0", setuju: true });
+    setErrors({});
+    try {
+      // §5.2 PUT /profil — simpan data diri
+      await profilApi.update({
+        tgl_lahir: tglLahir,
+        jenis_kelamin: jenisKelamin,
+        tinggi_cm: Number(tinggiCm),
+        tingkat_aktivitas: aktivitas,
+        merokok,
+        riwayat_keluarga: riwayat,
+      });
 
-    // Simulasi sementara — hanya untuk melihat UI bekerja
-    setTimeout(() => {
-      tandaiOnboardingSelesai(getUserSimulasi());
+      // §5.3 POST /persetujuan — catat persetujuan
+      await persetujuan.setuju("1.0");
+
+      // Segarkan data user (consent_at terbaru) lalu ke dashboard
+      const user = await auth.me();
+      simpanUserSesi(user);
+
       router.push("/dashboard");
-    }, 800);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.errors) {
+          const map: Record<string, string> = {};
+          for (const [k, v] of Object.entries(err.errors)) map[k] = v[0];
+          setErrors(map);
+        } else {
+          setErrors({ umum: err.message });
+        }
+      } else {
+        setErrors({ umum: "Tidak dapat terhubung ke server. Coba lagi." });
+      }
+      setLoading(false);
+    }
   }
 
   return (

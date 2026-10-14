@@ -5,16 +5,18 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import { loginSimulasi } from "@/lib/session";
+import { auth, setToken, ApiError } from "@/lib/api";
+import { simpanUserSesi } from "@/lib/session";
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [pesan, setPesan] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Validasi sederhana di sisi frontend (belum ke backend)
+  // Validasi sederhana di sisi frontend (sebelum dikirim ke backend)
   function validasi(): boolean {
     const err: typeof errors = {};
     if (!email) {
@@ -36,16 +38,24 @@ export default function LoginPage() {
     if (!validasi()) return;
 
     setLoading(true);
-    // TODO (Tahap 3): ganti dengan pemanggilan API sungguhan
-    // const data = await auth.login({ email, password });
-    // setToken(data.token);
-    // router.push("/dashboard");
-    loginSimulasi(email);
-    // Simulasi sementara — hanya untuk melihat UI bekerja
-    setTimeout(() => {
-      setLoading(false);
+    setPesan("");
+    try {
+      // §4.2 POST /auth/login → { user, token }
+      const data = await auth.login({ email, password, device_name: "web" });
+      setToken(data.token);
+      simpanUserSesi(data.user);
       router.push("/dashboard");
-    }, 800);
+    } catch (err) {
+      if (err instanceof ApiError) {
+        // 422 → tampilkan error per-field dari backend
+        if (err.errors?.email) setErrors({ email: err.errors.email[0] });
+        else if (err.errors?.password) setErrors({ password: err.errors.password[0] });
+        else setPesan(err.message);
+      } else {
+        setPesan("Tidak dapat terhubung ke server. Coba lagi.");
+      }
+      setLoading(false);
+    }
   }
 
   return (
@@ -64,6 +74,12 @@ export default function LoginPage() {
 
         {/* Kartu form */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+          {pesan && (
+            <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+              {pesan}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-5" noValidate>
             <Input
               label="Email"
