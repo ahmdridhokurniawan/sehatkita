@@ -1,6 +1,6 @@
 # Kontrak API — Sistem Monitoring Kesehatan PTM (Skala Kecamatan)
 
-**Versi:** 1.1 (BEKU)
+**Versi:** 1.2 (RANCANGAN TERKINI)
 **Base URL:** `http://pm-monitoring.test/api/v1`
 **Backend:** Laravel + Sanctum (token)
 **Frontend:** konsumen token (SPA/desktop)
@@ -130,7 +130,10 @@ Query param paginasi: `?page=1&per_page=15` (`per_page` maks 100).
 | `kader` | data masyarakat yang ditugaskan kepadanya |
 | `user` | data dirinya sendiri saja |
 
-**Middleware backend tiap route:** `auth:sanctum` → `role:{...}` → `scope.wilayah`.
+Middleware backend tiap route:`auth:sanctum` → `role:{...}` → `scope.wilayah`.
+
+> **Catatan tambahan:** role `kelurahan` (alias `admin_kelurahan`) diberikan akses terbatas pada data kelurahan masing‑masing, sesuai kontrak §2.
+
 
 ---
 
