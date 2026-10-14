@@ -11,21 +11,18 @@ class AuthController extends Controller
 {
     /*
     |--------------------------------------------------------------------------
-    | REGISTER — POST /api/register
-    | Payload: { name, email, password, wilayah_id }
+    | REGISTER — POST /api/v1/auth/register  (§4.1)
     |--------------------------------------------------------------------------
     */
     public function register(Request $request)
     {
-        // 1. Validasi input dari frontend
         $validated = $request->validate([
-            'name'       => 'required|string|max:255',
-            'email'      => 'required|email|unique:pengguna,email',
-            'password'   => 'required|string|min:8',
-            'wilayah_id' => 'required|exists:wilayah,id',
+            'name'                  => 'required|string|max:255',
+            'email'                 => 'required|email|unique:pengguna,email',
+            'password'              => 'required|string|min:8|confirmed',
+            'wilayah_id'            => 'required|exists:wilayah,id',
         ]);
 
-        // 2. Simpan user baru (role default 'user')
         $user = Pengguna::create([
             'name'       => $validated['name'],
             'email'      => $validated['email'],
@@ -34,13 +31,11 @@ class AuthController extends Controller
             'role'       => 'user',
         ]);
 
-        // 3. Buat token Sanctum
         $token = $user->createToken('auth-token')->plainTextToken;
 
-        // 4. Balas sesuai kontrak (envelope)
         return response()->json([
             'success' => true,
-            'message' => 'Pendaftaran berhasil',
+            'message' => 'Registrasi berhasil',
             'data'    => [
                 'user'  => $user,
                 'token' => $token,
@@ -50,8 +45,7 @@ class AuthController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | LOGIN — POST /api/login
-    | Payload: { email, password }
+    | LOGIN — POST /api/v1/auth/login  (§4.2)
     |--------------------------------------------------------------------------
     */
     public function login(Request $request)
@@ -69,7 +63,6 @@ class AuthController extends Controller
             ]);
         }
 
-        // Token lama dicabut supaya 1 akun = 1 sesi aktif
         $user->tokens()->delete();
         $token = $user->createToken('auth-token')->plainTextToken;
 
@@ -85,13 +78,29 @@ class AuthController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | LOGOUT — POST /api/logout  (butuh token)
+    | LOGOUT — POST /api/v1/auth/logout  (§4.3)
     |--------------------------------------------------------------------------
     */
-    // GET /api/v1/auth/me — mengembalikan data user + profil + wilayah (kontrak §4.4)
+    public function logout(Request $request)
+    {
+        $request->user()->tokens()->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Logout berhasil',
+            'data'    => null,
+        ]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | ME — GET /api/v1/auth/me  (§4.4)
+    |--------------------------------------------------------------------------
+    */
     public function me(Request $request)
     {
         $user = $request->user()->load('profil', 'wilayah');
+
         return response()->json([
             'success' => true,
             'message' => 'OK',
@@ -99,58 +108,50 @@ class AuthController extends Controller
         ]);
     }
 
-    // POST /api/v1/auth/logout — cabut token (kontrak §4.3)
-    public function logout(Request $request)
+    /*
+    |--------------------------------------------------------------------------
+    | PERSETUJUAN — POST /api/v1/auth/persetujuan  (§5.3)
+    |--------------------------------------------------------------------------
+    */
+    public function consent(Request $request)
     {
-        $request->user()->tokens()->delete();
+        $validated = $request->validate([
+            'versi_kebijakan' => 'required|string|max:20',
+            'setuju'          => 'required|boolean|accepted',
+        ]);
+
+        $request->user()->update([
+            'consent_at'      => now(),
+            'versi_kebijakan' => $validated['versi_kebijakan'],
+        ]);
+
         return response()->json([
             'success' => true,
-            'message' => 'Logout berhasil',
+            'message' => 'Persetujuan dicatat',
+            'data'    => [
+                'consent_at'      => $request->user()->consent_at,
+                'versi_kebijakan' => $request->user()->versi_kebijakan,
+            ],
         ]);
     }
 
-    // DELETE /api/v1/persetujuan — mencabut consent (kontrak §5.4)
+    /*
+    |--------------------------------------------------------------------------
+    | CABUT PERSETUJUAN — DELETE /api/v1/auth/persetujuan  (§5.4)
+    |--------------------------------------------------------------------------
+    */
     public function revokeConsent(Request $request)
     {
         $request->user()->update([
             'consent_at'      => null,
             'versi_kebijakan' => null,
         ]);
+
         return response()->json([
             'success' => true,
-            'message' => 'Persetujuan dicabut',
-            'data'    => null,
-        ]);
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | PERSETUJUAN — POST /api/persetujuan  (butuh token)
-    | Payload: { versi_kebijakan: "1.0", setuju: true }
-    | Fungsi: mencatat consent (menulis pengguna.consent_at)
-    |--------------------------------------------------------------------------
-    */
-    public function consent(Request $request)
-    {
-        // 1. Validasi: setuju harus benar-benar true
-        $validated = $request->validate([
-            'versi_kebijakan' => 'required|string|max:20',
-            'setuju'          => 'required|boolean|accepted',
-        ]);
-
-        // 2. Update kolom consent di tabel pengguna
-        $request->user()->update([
-            'consent_at'      => now(),
-            'versi_kebijakan' => $validated['versi_kebijakan'],
-        ]);
-
-        // 3. Balas sesuai kontrak
-        return response()->json([
-            'success' => true,
-            'message' => 'Persetujuan berhasil dicatat',
+            'message' => 'Persetujuan ditarik',
             'data'    => [
-                'consent_at'      => $request->user()->consent_at,
-                'versi_kebijakan' => $request->user()->versi_kebijakan,
+                'consent_at' => null,
             ],
         ]);
     }

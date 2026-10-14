@@ -9,41 +9,53 @@ use App\Http\Controllers\WilayahController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-// Semua endpoint pakai prefix /api/v1 (kontrak Base URL .../api/v1)
+/*
+|--------------------------------------------------------------------------
+| API Routes — kontrak v1.1 BEKU
+| Semua endpoint: /api/v1/...
+|--------------------------------------------------------------------------
+*/
+
 Route::prefix('v1')->group(function () {
-    // Publik (tanpa token) — hanya register & login (kontrak §4.1, §4.2)
-        Route::prefix('auth')->group(function () {
-            Route::post('/register', [AuthController::class, 'register']);
-            Route::post('/login',    [AuthController::class, 'login']);
-        });
 
-    // Master wilayah publik (dipakai dropdown form register, kontrak §6.1)
-    Route::get('/wilayah', [WilayahController::class, 'index']);
-
-    // Route TERPROTEKSI - wajib token di bawah /api/v1/auth & lainnya
-    Route::middleware('auth:sanctum')->group(function () {
-        Route::prefix('auth')->group(function () {
-            Route::post('/logout',        [AuthController::class, 'logout']);      // §4.3
-            Route::get('/me',             [AuthController::class, 'me']);          // §4.4
-            Route::post('/persetujuan',   [AuthController::class, 'consent']);     // §5.3
-            Route::delete('/persetujuan', [AuthController::class, 'revokeConsent']); // §5.4
-        });
-
+    // ─────────────────────────────────────────────
+    // PUBLIK (tanpa token)
+    // ─────────────────────────────────────────────
+    Route::prefix('auth')->group(function () {
+        Route::post('/register', [AuthController::class, 'register']); // §4.1
+        Route::post('/login',    [AuthController::class, 'login']);    // §4.2
     });
 
-    // Profil & onboarding
-    Route::get('/profil', [ProfilController::class, 'show']);
-    Route::put('/profil', [ProfilController::class, 'update']);
+    // Master wilayah untuk dropdown form register (§6.1)
+    Route::get('/wilayah', [WilayahController::class, 'index']);
 
-    // Master faskes (kontrak §6.2)
-    Route::get('/faskes', [FaskesController::class, 'index']);
+    // ─────────────────────────────────────────────
+    // TERPROTEKSI (wajib Bearer [REDACTED]
+    // ─────────────────────────────────────────────
+    Route::middleware('auth:sanctum')->group(function () {
 
-    // Catatan kesehatan (kontrak §7)
-    Route::get('/catatan-kesehatan',       [CatatanKesehatanController::class, 'index']);
-    Route::post('/catatan-kesehatan',      [CatatanKesehatanController::class, 'store']);
-    Route::get('/catatan-kesehatan/{id}',  [CatatanKesehatanController::class, 'show']);
-    Route::delete('/catatan-kesehatan/{id}', [CatatanKesehatanController::class, 'destroy']);
+        // Modul Auth (§4.3, §4.4) & Persetujuan (§5.3, §5.4)
+        Route::prefix('auth')->group(function () {
+            Route::post('/logout',        [AuthController::class, 'logout']);
+            Route::get('/me',             [AuthController::class, 'me']);
+            Route::post('/persetujuan',   [AuthController::class, 'consent']);
+            Route::delete('/persetujuan', [AuthController::class, 'revokeConsent']);
+        });
 
-    // Insight (kontrak §8.3)
-    Route::get('/insight', [InsightController::class, 'index']);
+        // Modul Profil (§5.1, §5.2)
+        Route::get('/profil', [ProfilController::class, 'show']);
+        Route::put('/profil', [ProfilController::class, 'update']);
+
+        // Master faskes (§6.2)
+        Route::get('/faskes', [FaskesController::class, 'index']);
+
+        // Catatan kesehatan (§7.2 – §7.5)
+        Route::get('/catatan-kesehatan',         [CatatanKesehatanController::class, 'index']);
+        Route::post('/catatan-kesehatan',        [CatatanKesehatanController::class, 'store']);
+        Route::get('/catatan-kesehatan/{id}',    [CatatanKesehatanController::class, 'show']);
+        Route::delete('/catatan-kesehatan/{id}', [CatatanKesehatanController::class, 'destroy']);
+
+        // Insight (§8.3)
+        Route::get('/insight', [InsightController::class, 'index']);
+    });
 });
