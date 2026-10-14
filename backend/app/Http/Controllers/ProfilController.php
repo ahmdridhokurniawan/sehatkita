@@ -18,10 +18,18 @@ class ProfilController extends Controller
         $profil = $request->user()->profil;
 
         // Balas sesuai kontrak {success, message, data}
+        // Data diubah jadi array supaya bisa ditambah field usia (kontrak §5.1)
+        $data = $profil ? $profil->toArray() : null;
+
+        // Hitung usia (selisih tahun) dari tgl_lahir — kontrak §5.1 minta field "usia"
+        if ($profil && $profil->tgl_lahir) {
+            $data['usia'] = (int) $profil->tgl_lahir->diffInYears(now());
+        }
+
         return response()->json([
             'success' => true,
             'message' => $profil ? 'Profil ditemukan' : 'Profil belum diisi',
-            'data'    => $profil,
+            'data'    => $data,
         ]);
     }
 
@@ -32,13 +40,13 @@ class ProfilController extends Controller
         $validated = $request->validate([
             'tgl_lahir'                   => 'required|date',
             'jenis_kelamin'               => ['required', Rule::in(['L', 'P'])],
-            'tinggi_cm'                   => 'required|integer|min:100|max:250',
+            'tinggi_cm'                   => 'required|integer|min:50|max:250',
             'tingkat_aktivitas'           => 'required|string|max:50',
             'merokok'                     => 'required|boolean',
-            'riwayat_keluarga'            => 'nullable|string|max:255',
-            'bb_target_kg'                => 'required|numeric|min:30|max:200',
-            'target_aktivitas_per_minggu' => 'required|integer|min:0',
-            'target_air_ml'               => 'required|integer|min:0',
+            'riwayat_keluarga' => 'nullable|array',
+            'bb_target_kg' => 'nullable|numeric|min:30|max:200',
+            'target_aktivitas_per_minggu' => 'nullable|integer|min:0',
+            'target_air_ml' => 'nullable|integer|min:0',
         ]);
 
         // Cari profil berdasar user_id

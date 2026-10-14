@@ -22,11 +22,10 @@ class IndikatorSeeder extends Seeder
                 'satuan'   => 'kg/m2',
                 'kelompok' => 'antropometri',
                 'ambang'   => [
-                    [0,     18.49, 'berat badan kurang',  'perlu_perhatian', 1],
-                    [18.50, 22.99, 'normal',              'normal',          0],
-                    [23.00, 24.99, 'berat badan berlebih', 'perlu_perhatian', 1],
-                    [25.00, 29.99, 'gemuk',               'perlu_perhatian', 2],
-                    [30.00, null,  'obesitas',            'berisiko',        3],
+                    [0,     18.49, 'kurus',     'perlu_perhatian', 1],
+                    [18.50, 24.99, 'normal',    'normal',          0],
+                    [25.00, 29.99, 'gemuk',     'perlu_perhatian', 2],
+                    [30.00, null,  'obesitas',  'berisiko',        3],
                 ],
             ],
             [

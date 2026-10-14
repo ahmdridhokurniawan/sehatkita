@@ -88,13 +88,38 @@ class AuthController extends Controller
     | LOGOUT — POST /api/logout  (butuh token)
     |--------------------------------------------------------------------------
     */
+    // GET /api/v1/auth/me — mengembalikan data user + profil + wilayah (kontrak §4.4)
+    public function me(Request $request)
+    {
+        $user = $request->user()->load('profil', 'wilayah');
+        return response()->json([
+            'success' => true,
+            'message' => 'OK',
+            'data'    => $user,
+        ]);
+    }
+
+    // POST /api/v1/auth/logout — cabut token (kontrak §4.3)
     public function logout(Request $request)
     {
         $request->user()->tokens()->delete();
-
         return response()->json([
             'success' => true,
             'message' => 'Logout berhasil',
+        ]);
+    }
+
+    // DELETE /api/v1/persetujuan — mencabut consent (kontrak §5.4)
+    public function revokeConsent(Request $request)
+    {
+        $request->user()->update([
+            'consent_at'      => null,
+            'versi_kebijakan' => null,
+        ]);
+        return response()->json([
+            'success' => true,
+            'message' => 'Persetujuan dicabut',
+            'data'    => null,
         ]);
     }
 

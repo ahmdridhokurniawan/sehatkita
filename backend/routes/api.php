@@ -9,24 +9,26 @@ use App\Http\Controllers\WilayahController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
-#Route PUBLIK - tidak butuh token
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login',    [AuthController::class, 'login']);
+// Semua endpoint pakai prefix /api/v1 (kontrak Base URL .../api/v1)
+Route::prefix('v1')->group(function () {
+    // Publik (tanpa token) — hanya register & login (kontrak §4.1, §4.2)
+        Route::prefix('auth')->group(function () {
+            Route::post('/register', [AuthController::class, 'register']);
+            Route::post('/login',    [AuthController::class, 'login']);
+        });
 
-// Master wilayah publik (dipakai dropdown form register, kontrak §6.1)
-Route::get('/wilayah',   [WilayahController::class, 'index']);
+    // Master wilayah publik (dipakai dropdown form register, kontrak §6.1)
+    Route::get('/wilayah', [WilayahController::class, 'index']);
 
-//  Route TERPROTEKSI - wajib kirim token (Bearer)
-Route::middleware('auth:sanctum')->group(function () {
+    // Route TERPROTEKSI - wajib token di bawah /api/v1/auth & lainnya
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::prefix('auth')->group(function () {
+            Route::post('/logout',        [AuthController::class, 'logout']);      // §4.3
+            Route::get('/me',             [AuthController::class, 'me']);          // §4.4
+            Route::post('/persetujuan',   [AuthController::class, 'consent']);     // §5.3
+            Route::delete('/persetujuan', [AuthController::class, 'revokeConsent']); // §5.4
+        });
 
-    Route::post('/logout',      [AuthController::class, 'logout']);
-    Route::post('/persetujuan', [AuthController::class, 'consent']);
-
-    Route::get('/me', function (Request $request) {
-        return response()->json([
-            'success' => true,
-            'data'    => $request->user()->load('profil', 'wilayah'),
-        ]);
     });
 
     // Profil & onboarding

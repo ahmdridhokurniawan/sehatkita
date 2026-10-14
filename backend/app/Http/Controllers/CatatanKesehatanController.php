@@ -98,10 +98,9 @@ class CatatanKesehatanController extends Controller
             ],
         ]);
     }
-}
 
-// GET /api/catatan-kesehatan/{id} — detail 1 catatan (kontrak §7.4)
-    public function show(Request $request, $id)
+        // GET /api/catatan-kesehatan/{id} — detail 1 catatan (kontrak §7.4)
+        public function show(Request $request, $id)
     {
         $catatan = CatatanKesehatan::with(['pengguna.profil', 'pencatat'])
             ->where('user_id', $request->user()->id)
@@ -149,3 +148,4 @@ class CatatanKesehatanController extends Controller
             'data'    => null,
         ]);
     }
+}
