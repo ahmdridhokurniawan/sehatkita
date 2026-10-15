@@ -96,3 +96,12 @@ export const LEVEL_INSIGHT = {
   BAHAYA: "bahaya",
 } as const;
 export type LevelInsight = (typeof LEVEL_INSIGHT)[keyof typeof LEVEL_INSIGHT];
+// §27 — tipe notifikasi (GET /notifications)
+export const TIPE_NOTIFIKASI = {
+  INSIGHT: "insight",
+  RUJUKAN: "rujukan",
+  JADWAL: "jadwal",
+  REWARD: "reward",
+  SISTEM: "sistem",
+} as const;
+export type TipeNotifikasi = (typeof TIPE_NOTIFIKASI)[keyof typeof TIPE_NOTIFIKASI];

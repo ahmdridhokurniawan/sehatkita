@@ -50,9 +50,10 @@ export default function RegisterPage() {
 
     setLoading(true);
     // TODO (tahap integrasi): ganti dengan Api.register + Api.setujui sungguhan.
+    // §26 — setelah registrasi langsung ke dashboard; data diri diisi terpisah lewat /profil.
     setTimeout(() => {
       setLoading(false);
-      router.push("/onboarding?baru=1");
+      router.push("/dashboard");
     }, 700);
   }
 

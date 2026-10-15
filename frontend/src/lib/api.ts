@@ -1,26 +1,60 @@
 /**
  * Lapisan API — satu-satunya tempat yang memanggil backend.
- * Mengikuti kontrak-api.md §1.1 (header) & §1.2-1.4 (envelope).
+ * Mengikuti kontrak-api.md v1.2 §1.1 (header) & §1.2-1.4 (envelope).
  *
  * Prinsip: halaman/komponen TIDAK memanggil fetch langsung.
  * Semua lewat sini, supaya penanganan token & error konsisten.
+ *
+ * Penyesuaian kontrak v1.2 (§19–§32):
+ *  - §23  : semua daftar menerima `search` (lihat `ListQuery`).
+ *  - §24  : endpoint `/tren` → `/rekam-medis` (`tren` dipertahankan sebagai alias usang).
+ *  - §27  : endpoint notifikasi `GET /notifications`.
+ *  - §29  : `GET /insight?level=` untuk filter level.
+ *  - §12/§25 : program + field reward (badge, exp, level, rank_kelurahan).
+ *  - §10  : Posbindu sesi (list/create/detail/update + peserta).
+ *  - §14.2: laporan kelurahan (agregat + disclaimer).
+ *  - §15  : modul admin (master data) — dipakai Fase D.
  */
 import type {
+  AdminPengguna,
+  AdminPenggunaInput,
+  AdminStatistik,
+  AmbangKategori,
   ApiResponse,
   AuthData,
   CatatanKesehatan,
   CatatanKesehatanInput,
-  DashboardPribadi,
+  CatatanQuery,
   DashboardKelurahan,
+  DashboardKelurahanQuery,
+  DashboardPribadi,
+  Faskes,
+  Indikator,
   Insight,
+  InsightQuery,
+  KunjunganPosbindu,
+  KunjunganQuery,
+  LaporanKelurahan,
   LaporanPribadi,
+  LogAudit,
+  Notifikasi,
+  NotifikasiQuery,
+  PersetujuanData,
+  PesertaProgramInput,
+  Profil,
   Program,
-  Refleksi,
+  ProgramInput,
+  ProgramQuery,
+  RekamMedis,
+  RekamMedisQuery,
   Rujukan,
+  RujukanInput,
+  RujukanQuery,
   SesiPosbindu,
+  SesiPosbinduDetail,
+  SesiPosbinduInput,
   Target,
   TargetInput,
-  Tren,
   User,
   Wilayah,
 } from "@/types";
@@ -72,16 +106,20 @@ export class ApiError extends Error {
 interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
-  /** Query string, mis. { page: 1, per_page: 15 } */
-  query?: Record<string, string | number | undefined>;
+  /**
+   * Query string, mis. { page: 1, per_page: 15 }.
+   * Bertipe `object` supaya interface query (mis. `CatatanQuery`) bisa
+   * langsung dioper tanpa cast — interface tidak punya index signature.
+   */
+  query?: object;
   /** Kirim token? Default: true */
   auth?: boolean;
 }
 /** Bangun URL lengkap dengan query string */
-function buildUrl(path: string, query?: RequestOptions["query"]): string {
+function buildUrl(path: string, query?: object): string {
   const url = new URL(`${API_BASE_URL}${path}`);
   if (query) {
-    for (const [key, value] of Object.entries(query)) {
+    for (const [key, value] of Object.entries(query as Record<string, unknown>)) {
       if (value !== undefined && value !== null && value !== "") {
         url.searchParams.set(key, String(value));
       }
@@ -134,6 +172,41 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     errEnv.errors,
   );
 }
+/**
+ * Varian request yang mengembalikan envelope penuh (termasuk `meta`).
+ * Dipakai halaman yang butuh info paginasi (§1.3).
+ */
+async function requestPaged<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<{ data: T[]; meta: import("@/types").PaginationMeta | null }> {
+  const { method = "GET", body, query, auth = true } = options;
+  const headers: Record<string, string> = { Accept: "application/json" };
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  if (auth) {
+    const token = getToken();
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+  }
+  const response = await fetch(buildUrl(path, query), {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+  const json = (await response.json()) as {
+    data?: T[];
+    meta?: import("@/types").PaginationMeta;
+    message?: string;
+    errors?: Record<string, string[]>;
+  };
+  if (response.ok) {
+    return { data: json.data ?? [], meta: json.meta ?? null };
+  }
+  throw new ApiError(
+    json.message ?? "Terjadi kesalahan",
+    response.status,
+    json.errors,
+  );
+}
 /* ============================================================
  * §4 — Auth
  * ============================================================ */
@@ -157,38 +230,42 @@ export const auth = {
 /* ============================================================
  * §5 — Profil & Persetujuan
  * ============================================================ */
+export interface ProfilInput {
+  tgl_lahir: string;
+  jenis_kelamin: string;
+  tinggi_cm: number;
+  tingkat_aktivitas: string;
+  merokok: boolean;
+  riwayat_keluarga: string[];
+}
 export const profil = {
-  get: () => request<import("@/types").Profil>("/profil"),
-  update: (payload: {
-    tgl_lahir: string;
-    jenis_kelamin: string;
-    tinggi_cm: number;
-    tingkat_aktivitas: string;
-    merokok: boolean;
-    riwayat_keluarga: string[];
-  }) => request<import("@/types").Profil>("/profil", { method: "PUT", body: payload }),
+  /** §5.1 GET /profil */
+  get: () => request<Profil>("/profil"),
+  /** §5.2 PUT /profil — kirim SELURUH field (bukan partial) */
+  update: (payload: ProfilInput) => request<Profil>("/profil", { method: "PUT", body: payload }),
 };
 export const persetujuan = {
   /** §5.3 POST /persetujuan */
   setuju: (versi_kebijakan: string) =>
-    request<{ consent_at: string; versi_kebijakan: string }>("/persetujuan", {
+    request<PersetujuanData>("/persetujuan", {
       method: "POST",
       body: { versi_kebijakan, setuju: true },
     }),
   /** §5.4 DELETE /persetujuan */
-  tarik: () => request<{ consent_at: null }>("/persetujuan", { method: "DELETE" }),
+  tarik: () => request<PersetujuanData>("/persetujuan", { method: "DELETE" }),
 };
 /* ============================================================
  * §6 — Master (Wilayah & Faskes)
  * ============================================================ */
 export const wilayah = {
   /** §6.1 GET /wilayah — publik */
-  list: (query?: { tipe?: string; parent_id?: number }) =>
+  list: (query?: { tipe?: string; parent_id?: number; search?: string }) =>
     request<Wilayah[]>("/wilayah", { query, auth: false }),
 };
 export const faskes = {
   /** §6.2 GET /faskes */
-  list: (query?: { wilayah_id?: number }) => request<import("@/types").Faskes[]>("/faskes", { query }),
+  list: (query?: { wilayah_id?: number; search?: string }) =>
+    request<Faskes[]>("/faskes", { query }),
 };
 /* ============================================================
  * §7 — Catatan Kesehatan
@@ -197,45 +274,65 @@ export const catatanKesehatan = {
   /** §7.2 POST */
   create: (payload: CatatanKesehatanInput) =>
     request<CatatanKesehatan>("/catatan-kesehatan", { method: "POST", body: payload }),
-  /** §7.3 GET (dengan paginasi) */
-  list: (query?: {
-    page?: number;
-    per_page?: number;
-    indikator?: string;
-    dari?: string;
-    sampai?: string;
-    user_id?: number;
-  }) => request<CatatanKesehatan[]>("/catatan-kesehatan", { query }),
+  /** §7.3 GET (dengan paginasi + pencarian §23) */
+  list: (query?: CatatanQuery) => request<CatatanKesehatan[]>("/catatan-kesehatan", { query }),
+  /** §7.3 GET — sekaligus kembalikan `meta` paginasi */
+  listPaged: (query?: CatatanQuery) => requestPaged<CatatanKesehatan>("/catatan-kesehatan", { query }),
   /** §7.4 GET detail */
   detail: (id: number) => request<CatatanKesehatan>(`/catatan-kesehatan/${id}`),
   /** §7.5 DELETE */
   hapus: (id: number) => request<null>(`/catatan-kesehatan/${id}`, { method: "DELETE" }),
 };
 /* ============================================================
- * §8 — Dashboard Pribadi, Tren, Insight
+ * §8 — Dashboard Pribadi, Rekam Medis, Insight
  * ============================================================ */
 export const dashboard = {
   /** §8.1 GET /dashboard/pribadi */
   pribadi: () => request<DashboardPribadi>("/dashboard/pribadi"),
   /** §9.1 GET /dashboard/kelurahan */
-  kelurahan: (query?: { periode?: string; wilayah_id?: number }) =>
+  kelurahan: (query?: DashboardKelurahanQuery) =>
     request<DashboardKelurahan>("/dashboard/kelurahan", { query }),
 };
+/**
+ * §8.2 + §24 — Series indikator.
+ * Endpoint resmi kini `/rekam-medis` (dulu `/tren`).
+ */
+export const rekamMedis = {
+  get: (query: RekamMedisQuery) => request<RekamMedis>("/rekam-medis", { query }),
+};
+/** @deprecated §24 — pakai `rekamMedis`. Alias ini menunjuk ke `/rekam-medis`. */
 export const tren = {
-  /** §8.2 GET /tren */
-  get: (query: { indikator: string; periode: string }) => request<Tren>("/tren", { query }),
+  get: (query: RekamMedisQuery) => request<RekamMedis>("/rekam-medis", { query }),
 };
 export const insight = {
-  /** §8.3 GET /insight */
-  list: () => request<Insight[]>("/insight"),
+  /** §8.3 GET /insight (+ §29 filter `level`) */
+  list: (query?: InsightQuery) => request<Insight[]>("/insight", { query }),
+};
+/* ============================================================
+ * §27 / §32 — Notifikasi
+ * ============================================================ */
+export const notifikasi = {
+  /** §27 GET /notifications */
+  list: (query?: NotifikasiQuery) => request<Notifikasi[]>("/notifications", { query }),
+  /** §27 GET /notifications — dengan `meta` paginasi */
+  listPaged: (query?: NotifikasiQuery) =>
+    requestPaged<Notifikasi>("/notifications", { query }),
 };
 /* ============================================================
  * §10 — Posbindu
  * ============================================================ */
 export const posbindu = {
   /** §10.1 GET /posbindu/sesi */
-  sesiList: (query?: { wilayah_id?: number; dari?: string; status?: string }) =>
+  sesiList: (query?: { wilayah_id?: number; dari?: string; status?: string; search?: string }) =>
     request<SesiPosbindu[]>("/posbindu/sesi", { query }),
+  /** §10.2 POST /posbindu/sesi */
+  sesiBuat: (payload: SesiPosbinduInput) =>
+    request<SesiPosbindu>("/posbindu/sesi", { method: "POST", body: payload }),
+  /** §10.3 GET /posbindu/sesi/{id} (detail + peserta) */
+  sesiDetail: (id: number) => request<SesiPosbinduDetail>(`/posbindu/sesi/${id}`),
+  /** §10.4 PUT /posbindu/sesi/{id} */
+  sesiUbah: (id: number, payload: Partial<SesiPosbinduInput>) =>
+    request<SesiPosbindu>(`/posbindu/sesi/${id}`, { method: "PUT", body: payload }),
   /** §10.5 POST /posbindu/sesi/{id}/peserta */
   tambahPeserta: (
     sesiId: number,
@@ -249,30 +346,36 @@ export const posbindu = {
       `/posbindu/sesi/${sesiId}/peserta`,
       { method: "POST", body: payload },
     ),
+  /** §10.6 GET /posbindu/kunjungan */
+  kunjungan: (query?: KunjunganQuery) =>
+    request<KunjunganPosbindu[]>("/posbindu/kunjungan", { query }),
 };
 /* ============================================================
  * §11 — Rujukan
  * ============================================================ */
 export const rujukan = {
   /** §11.1 POST */
-  create: (payload: { user_id: number; faskes_id: number; alasan: string }) =>
-    request<Rujukan>("/rujukan", { method: "POST", body: payload }),
+  create: (payload: RujukanInput) => request<Rujukan>("/rujukan", { method: "POST", body: payload }),
   /** §11.2 GET */
-  list: (query?: { status?: string; wilayah_id?: number; dari?: string; sampai?: string }) =>
-    request<Rujukan[]>("/rujukan", { query }),
+  list: (query?: RujukanQuery) => request<Rujukan[]>("/rujukan", { query }),
   /** §11.3 PATCH status */
   updateStatus: (id: number, payload: { status: string; catatan?: string }) =>
     request<Rujukan>(`/rujukan/${id}/status`, { method: "PATCH", body: payload }),
 };
 /* ============================================================
- * §12 — Program
+ * §12 / §25 — Program (Tantangan & Reward)
  * ============================================================ */
 export const program = {
   /** §12.1 GET */
-  list: (query?: { status?: string }) => request<Program[]>("/program", { query }),
-  /** §12.3 POST peserta */
+  list: (query?: ProgramQuery) => request<Program[]>("/program", { query }),
+  /** §12.2 POST (admin_kelurahan / super_admin) */
+  create: (payload: ProgramInput) => request<Program>("/program", { method: "POST", body: payload }),
+  /** §12.3 POST peserta (user ikut program) */
   ikut: (id: number) =>
     request<{ status: string }>(`/program/${id}/peserta`, { method: "POST" }),
+  /** §12.4 PATCH peserta (ubah status keikutsertaan) */
+  ubahPeserta: (id: number, payload: PesertaProgramInput) =>
+    request<{ status: string }>(`/program/${id}/peserta`, { method: "PATCH", body: payload }),
 };
 /* ============================================================
  * §13 — Target & Refleksi
@@ -284,7 +387,7 @@ export const target = {
 export const refleksi = {
   /** §13.2 POST */
   create: (payload: { minggu: string; catatan: string }) =>
-    request<Refleksi>("/refleksi", { method: "POST", body: payload }),
+    request<import("@/types").Refleksi>("/refleksi", { method: "POST", body: payload }),
 };
 /* ============================================================
  * §14 — Laporan
@@ -293,4 +396,50 @@ export const laporan = {
   /** §14.1 GET /laporan/pribadi */
   pribadi: (query?: { periode?: string }) =>
     request<LaporanPribadi>("/laporan/pribadi", { query }),
+  /** §14.2 GET /laporan/kelurahan (agregat + disclaimer) */
+  kelurahan: (query?: DashboardKelurahanQuery) =>
+    request<LaporanKelurahan>("/laporan/kelurahan", { query }),
+};
+/* ============================================================
+ * §15 — Admin (Master Data) — super_admin
+ * ============================================================ */
+export const admin = {
+  indikator: {
+    list: (query?: { search?: string }) => request<Indikator[]>("/admin/indikator", { query }),
+    create: (payload: Partial<Indikator>) =>
+      request<Indikator>("/admin/indikator", { method: "POST", body: payload }),
+    update: (id: number, payload: Partial<Indikator>) =>
+      request<Indikator>(`/admin/indikator/${id}`, { method: "PUT", body: payload }),
+    hapus: (id: number) => request<null>(`/admin/indikator/${id}`, { method: "DELETE" }),
+  },
+  ambangKategori: {
+    list: (query?: { search?: string }) =>
+      request<AmbangKategori[]>("/admin/ambang-kategori", { query }),
+    create: (payload: Partial<AmbangKategori>) =>
+      request<AmbangKategori>("/admin/ambang-kategori", { method: "POST", body: payload }),
+    update: (id: number, payload: Partial<AmbangKategori>) =>
+      request<AmbangKategori>(`/admin/ambang-kategori/${id}`, { method: "PUT", body: payload }),
+    hapus: (id: number) => request<null>(`/admin/ambang-kategori/${id}`, { method: "DELETE" }),
+  },
+  pengguna: {
+    list: (query?: { role?: string; search?: string }) =>
+      request<AdminPengguna[]>("/admin/pengguna", { query }),
+    create: (payload: AdminPenggunaInput) =>
+      request<AdminPengguna>("/admin/pengguna", { method: "POST", body: payload }),
+    update: (id: number, payload: Partial<AdminPenggunaInput>) =>
+      request<AdminPengguna>(`/admin/pengguna/${id}`, { method: "PUT", body: payload }),
+    hapus: (id: number) => request<null>(`/admin/pengguna/${id}`, { method: "DELETE" }),
+  },
+  faskes: {
+    list: (query?: { search?: string }) => request<Faskes[]>("/admin/faskes", { query }),
+    create: (payload: Partial<Faskes>) =>
+      request<Faskes>("/admin/faskes", { method: "POST", body: payload }),
+    update: (id: number, payload: Partial<Faskes>) =>
+      request<Faskes>(`/admin/faskes/${id}`, { method: "PUT", body: payload }),
+    hapus: (id: number) => request<null>(`/admin/faskes/${id}`, { method: "DELETE" }),
+  },
+  logAudit: {
+    list: (query?: { search?: string }) => request<LogAudit[]>("/admin/log-audit", { query }),
+  },
+  statistik: () => request<AdminStatistik>("/admin/statistik"),
 };

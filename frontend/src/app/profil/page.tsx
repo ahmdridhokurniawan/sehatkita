@@ -13,7 +13,6 @@ import { JENIS_KELAMIN, TINGKAT_AKTIVITAS } from "@/lib/enums";
 import type { JenisKelamin, TingkatAktivitas } from "@/lib/enums";
 import {
   getUserSimulasi,
-  sudahOnboarding,
   getProfilSimulasi,
   simpanProfilSimulasi,
   RIWAYAT_KELUARGA_OPTIONS,
@@ -94,16 +93,15 @@ export default function ProfilPage() {
   const [profilEdit, setProfilEdit] = useState<ProfilRingkas | null>(null);
 
   const email = diBrowser ? getUserSimulasi() : "";
-  const bolehMasuk = email !== "" && sudahOnboarding(email);
+  // §26 — halaman profil TIDAK mensyaratkan onboarding (justru di sini data diri diisi).
+  const bolehMasuk = email !== "";
 
   useEffect(() => {
     if (!diBrowser) return;
     if (email === "") {
       router.replace("/login");
-    } else if (!bolehMasuk) {
-      router.replace("/onboarding");
     }
-  }, [diBrowser, email, bolehMasuk, router]);
+  }, [diBrowser, email, router]);
 
   const tersimpan = diBrowser && email !== "" ? getProfilSimulasi(email) : null;
   const profil = profilEdit ?? tersimpan ?? dummyUser.profil ?? PROFIL_KOSONG;

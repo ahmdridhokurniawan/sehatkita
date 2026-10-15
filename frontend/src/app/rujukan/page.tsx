@@ -34,11 +34,19 @@ const FILTER = [
 
 export default function RujukanPage() {
   const [filter, setFilter] = useState("semua");
+  const [cari, setCari] = useState("");
 
-  const daftar = useMemo(
-    () => (filter === "semua" ? RUJUKAN_DEMO : RUJUKAN_DEMO.filter((r) => r.status === filter)),
-    [filter]
-  );
+  const daftar = useMemo(() => {
+    const q = cari.trim().toLowerCase();
+    return RUJUKAN_DEMO.filter((r) => {
+      const cocokStatus = filter === "semua" || r.status === filter;
+      const cocokCari =
+        q === "" ||
+        r.faskes.toLowerCase().includes(q) ||
+        r.alasan.toLowerCase().includes(q);
+      return cocokStatus && cocokCari;
+    });
+  }, [filter, cari]);
 
   const hitung = (s: StatusRujukan) => RUJUKAN_DEMO.filter((r) => r.status === s).length;
 
@@ -61,6 +69,17 @@ export default function RujukanPage() {
       </div>
 
       <Segmented items={FILTER} value={filter} onChange={setFilter} />
+
+      <div className="input-icon mt-12">
+        <Icon name="search" size={18} />
+        <input
+          className="input"
+          type="search"
+          placeholder="Cari rujukan…"
+          value={cari}
+          onChange={(e) => setCari(e.target.value)}
+        />
+      </div>
 
       <div className="mt-12" style={{ display: "grid", gap: 12 }}>
         {daftar.length === 0 ? (

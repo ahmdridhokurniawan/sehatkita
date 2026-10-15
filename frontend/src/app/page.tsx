@@ -89,7 +89,7 @@ export default function LandingPage() {
           <div className="header-actions">
             <ThemeToggle />
             <Link href="/login" className="btn btn-ghost hide-mobile">Masuk</Link>
-            <Link href="/onboarding" className="btn btn-primary">Mulai Sekarang</Link>
+            <Link href="/register" className="btn btn-primary">Mulai Sekarang</Link>
             <button
               className="btn btn-ghost btn-icon nav-toggle"
               aria-label="Buka menu"
@@ -119,7 +119,7 @@ export default function LandingPage() {
                 bersama SehatKita.
               </p>
               <div className="hero-cta">
-                <Link href="/onboarding" className="btn btn-primary btn-lg">
+                <Link href="/register" className="btn btn-primary btn-lg">
                   Mulai Sekarang <Icon name="arrow-right" size={18} />
                 </Link>
                 <a href="#fitur" className="btn btn-outline btn-lg">Jelajahi Fitur</a>
@@ -331,7 +331,7 @@ export default function LandingPage() {
               <p>Bergabung bersama masyarakat Kota Banjarbaru untuk membangun kebiasaan hidup lebih sehat.</p>
             </div>
             <div className="row gap-12 wrap">
-              <Link href="/onboarding" className="btn btn-lg">
+              <Link href="/register" className="btn btn-lg">
                 Mulai Sekarang <Icon name="arrow-right" size={18} />
               </Link>
               <Link href="/login" className="btn btn-outline btn-lg">Masuk</Link>
@@ -369,7 +369,7 @@ export default function LandingPage() {
               <h4>Bantuan</h4>
               <a href="#faq">Pusat Bantuan</a>
               <Link href="/login">Masuk</Link>
-              <Link href="/onboarding">Daftar</Link>
+              <Link href="/register">Daftar</Link>
             </div>
             <div className="footer-col">
               <h4>Legal &amp; Kontak</h4>

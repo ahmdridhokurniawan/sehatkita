@@ -6,7 +6,7 @@ import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import CatatModal from "@/components/catatan/CatatModal";
 import { EmptyState } from "@/components/ui/Empty";
-import { getUserSimulasi, sudahOnboarding } from "@/lib/session";
+import { getUserSimulasi } from "@/lib/session";
 import { CATATAN_DEMO, hariLalu } from "@/lib/demo";
 import { tanggal as fmtTanggal } from "@/lib/format";
 
@@ -47,16 +47,15 @@ export default function CatatanKesehatanPage() {
   const [formTerbuka, setFormTerbuka] = useState(false);
 
   const email = diBrowser ? getUserSimulasi() : "";
-  const bolehMasuk = email !== "" && sudahOnboarding(email);
+  // §26 — setelah login langsung boleh masuk dashboard; mengisi data diri TIDAK wajib.
+  const bolehMasuk = email !== "";
 
   useEffect(() => {
     if (!diBrowser) return;
     if (email === "") {
       router.replace("/login");
-    } else if (!bolehMasuk) {
-      router.replace("/onboarding");
     }
-  }, [diBrowser, email, bolehMasuk, router]);
+  }, [diBrowser, email, router]);
 
   if (!bolehMasuk) {
     return (

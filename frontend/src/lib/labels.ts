@@ -15,6 +15,8 @@ import type {
   StatusRujukan,
   JenisProgram,
   StatusProgram,
+  StatusPeserta,
+  TipeNotifikasi,
 } from "@/lib/enums";
 
 
@@ -105,5 +107,21 @@ export const LABEL_STATUS_PROGRAM: Record<StatusProgram, string> = {
   akan_datang: "Akan Datang",
   berjalan: "Berjalan",
   selesai: "Selesai",
+};
+
+/** Tulisan untuk status keikutsertaan peserta program (§12.4) */
+export const LABEL_STATUS_PESERTA: Record<StatusPeserta, string> = {
+  terdaftar: "Terdaftar",
+  selesai: "Selesai",
+  berhenti: "Berhenti",
+};
+
+/** Tulisan untuk tipe notifikasi (§27) */
+export const LABEL_TIPE_NOTIFIKASI: Record<TipeNotifikasi, string> = {
+  insight: "Insight",
+  rujukan: "Rujukan",
+  jadwal: "Jadwal",
+  reward: "Reward",
+  sistem: "Sistem",
 };
 

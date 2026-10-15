@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
-import { getUserSimulasi, sudahOnboarding } from "@/lib/session";
+import { getUserSimulasi } from "@/lib/session";
 import { dummyDashboardKelurahan } from "@/lib/dummy";
 import { LABEL_KATEGORI_IMT } from "@/lib/labels";
 import type { KategoriImt } from "@/lib/enums";
@@ -107,16 +107,15 @@ export default function DashboardKelurahanPage() {
   const diBrowser = useSudahDiBrowser();
 
   const email = diBrowser ? getUserSimulasi() : "";
-  const bolehMasuk = email !== "" && sudahOnboarding(email);
+  // §26 — login langsung boleh masuk; data diri tidak diwajibkan.
+  const bolehMasuk = email !== "";
 
   useEffect(() => {
     if (!diBrowser) return;
     if (email === "") {
       router.replace("/login");
-    } else if (!bolehMasuk) {
-      router.replace("/onboarding");
     }
-  }, [diBrowser, email, bolehMasuk, router]);
+  }, [diBrowser, email, router]);
 
   if (!bolehMasuk) {
     return (

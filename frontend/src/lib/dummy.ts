@@ -173,6 +173,7 @@ export const dummyDashboardPribadi: DashboardPribadi = {
     { indikator: "gula_darah", jatuh_tempo: "2026-11-03", status: "akan_datang" },
   ],
   rujukan_aktif: null,
+  next_notifications: [],
 };
 /* ============================================================
  * §8.2 — Tren (contoh dari kontrak)
