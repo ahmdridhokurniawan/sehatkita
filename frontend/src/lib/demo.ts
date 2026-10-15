@@ -115,3 +115,113 @@ export const WILAYAH_DEMO: WilayahDemo[] = [
   { id: 6, kecamatan: "Cempaka", kelurahan: "Cempaka" },
   { id: 7, kecamatan: "Liang Anggang", kelurahan: "Landasan Ulin Timur" },
 ];
+
+/* ============================================================
+   Data DEMO aplikasi masyarakat (porting dari mock.js)
+   ============================================================ */
+
+/** ISO string N hari yang lalu (agar tampilan "relatif" selalu masuk akal). */
+export function hariLalu(n: number, jamLalu = 0): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  d.setHours(d.getHours() - jamLalu);
+  return d.toISOString();
+}
+
+export type IndikatorTerkini = {
+  nama: string;
+  nilai: string | number;
+  satuan?: string;
+  kategori?: string;
+  tanggal: string;
+  tren?: "naik" | "turun";
+};
+
+export type NotifikasiDemo = {
+  id: number;
+  judul: string;
+  pesan: string;
+  tipe: string;
+  dibaca: boolean;
+  dibuat_pada: string;
+};
+
+export type RujukanDemo = {
+  id: number;
+  nama?: string;
+  faskes: string;
+  status: "baru" | "dihubungi" | "tertangani" | "ditolak";
+  alasan: string;
+  dibuat_pada: string;
+  wilayah?: string;
+};
+
+export type DashboardPribadi = {
+  status_kesehatan: "baik" | "waspada" | "perlu_perhatian";
+  skor_risiko: number;
+  indikator_terkini: IndikatorTerkini[];
+  perbandingan: { bb_selisih: number; periode: string };
+  target: {
+    bb_target_kg: number;
+    bb_saat_ini: number;
+    target_aktivitas_per_minggu: number;
+    target_air_ml: number;
+  };
+  jadwal_skrining_berikutnya: { tanggal: string; lokasi: string };
+  rujukan_aktif: RujukanDemo[];
+  next_notifications: NotifikasiDemo[];
+  reward: {
+    exp: number;
+    level: number;
+    level_nama: string;
+    badge: string[];
+    rank_kelurahan: number;
+    total_peserta_kelurahan: number;
+  };
+};
+
+const _c = CATATAN_DEMO[CATATAN_DEMO.length - 1];
+
+export const DASHBOARD_PRIBADI_DEMO: DashboardPribadi = {
+  status_kesehatan: "perlu_perhatian",
+  skor_risiko: 68,
+  indikator_terkini: [
+    { nama: "Tekanan Darah", nilai: `${_c.sistol}/${_c.diastol}`, satuan: "mmHg", kategori: "Hipertensi Derajat 1", tanggal: hariLalu(_c.hari_lalu), tren: "naik" },
+    { nama: "IMT", nilai: 29.9, satuan: "kg/m²", kategori: "Gemuk", tanggal: hariLalu(_c.hari_lalu), tren: "turun" },
+    { nama: "Gula Darah", nilai: _c.gula_darah, satuan: "mg/dL", kategori: "Tinggi", tanggal: hariLalu(_c.hari_lalu), tren: "turun" },
+    { nama: "Lingkar Perut", nilai: _c.lingkar_perut, satuan: "cm", kategori: "Berisiko", tanggal: hariLalu(_c.hari_lalu), tren: "turun" },
+  ],
+  perbandingan: { bb_selisih: -2.1, periode: "1 bulan" },
+  target: { bb_target_kg: 78, bb_saat_ini: _c.bb_kg, target_aktivitas_per_minggu: 5, target_air_ml: 2500 },
+  jadwal_skrining_berikutnya: { tanggal: hariLalu(-12), lokasi: "Posbindu Melati, Loktabat Utara" },
+  rujukan_aktif: [
+    { id: 1, faskes: "Puskesmas Banjarbaru Utara", status: "baru", alasan: "Tekanan darah tinggi berulang", dibuat_pada: hariLalu(2) },
+  ],
+  next_notifications: [
+    { id: 1, judul: "Rujukan baru dibuat", pesan: "Rujukan ke Puskesmas Banjarbaru Utara telah dibuat.", tipe: "rujukan", dibaca: false, dibuat_pada: hariLalu(0, 3) },
+    { id: 2, judul: "Insight baru", pesan: "Tekanan darah tinggi berulang terdeteksi pada pemeriksaan terakhir.", tipe: "insight", dibaca: false, dibuat_pada: hariLalu(0, 20) },
+    { id: 3, judul: "Jadwal Posbindu", pesan: "Posbindu Melati di Balai RW 03 minggu depan pukul 08.00.", tipe: "jadwal", dibaca: false, dibuat_pada: hariLalu(1) },
+  ],
+  reward: { exp: 320, level: 3, level_nama: "Aktif", badge: ["Pejalan Aktif", "Paham Tensi"], rank_kelurahan: 12, total_peserta_kelurahan: 340 },
+};
+
+/** Ringkasan grafik berat badan 3 bulan (untuk beranda & rekam medis). */
+export const SERI_BB_DEMO = CATATAN_DEMO.slice(-6).map((c) => ({ tanggal: hariLalu(c.hari_lalu), nilai: c.bb_kg }));
+
+/** Ringkasan grafik sistol/diastol. */
+export const SERI_TENSI_DEMO = CATATAN_DEMO.slice(-6).map((c) => ({ tanggal: hariLalu(c.hari_lalu), sistol: c.sistol, diastol: c.diastol }));
+
+/** Daftar lengkap notifikasi (untuk halaman Notifikasi). */
+export const NOTIFIKASI_DEMO: NotifikasiDemo[] = [
+  { id: 1, judul: "Rujukan baru dibuat", pesan: "Rujukan ke Puskesmas Banjarbaru Utara telah dibuat.", tipe: "rujukan", dibaca: false, dibuat_pada: hariLalu(0, 3) },
+  { id: 2, judul: "Insight baru", pesan: "Tekanan darah tinggi berulang terdeteksi pada pemeriksaan terakhir.", tipe: "insight", dibaca: false, dibuat_pada: hariLalu(0, 20) },
+  { id: 3, judul: "Jadwal Posbindu", pesan: "Posbindu Melati di Balai RW 03 minggu depan pukul 08.00.", tipe: "jadwal", dibaca: false, dibuat_pada: hariLalu(1) },
+  { id: 4, judul: "Tantangan selesai", pesan: "Selamat! Anda menyelesaikan Tantangan 7 Hari Aktif Bergerak.", tipe: "reward", dibaca: true, dibuat_pada: hariLalu(5) },
+  { id: 5, judul: "Catatan kesehatan tersimpan", pesan: "Catatan mandiri Anda berhasil disimpan.", tipe: "sistem", dibaca: true, dibuat_pada: hariLalu(9) },
+];
+
+/** Daftar rujukan (untuk halaman rujukan / riwayat). */
+export const RUJUKAN_DEMO: RujukanDemo[] = [
+  { id: 1, nama: "Budi Santoso", faskes: "Puskesmas Banjarbaru Utara", status: "baru", alasan: "Tekanan darah tinggi berulang", dibuat_pada: hariLalu(2), wilayah: "Loktabat Utara" },
+  { id: 2, nama: "Budi Santoso", faskes: "Puskesmas Cempaka", status: "tertangani", alasan: "Kolesterol tinggi", dibuat_pada: hariLalu(14), wilayah: "Loktabat Utara" },
+];
