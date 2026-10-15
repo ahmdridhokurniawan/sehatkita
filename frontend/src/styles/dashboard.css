@@ -1,0 +1,139 @@
+/* ============================================================
+   SehatKita — dashboard.css  (LAPISAN TAMBAHAN)
+   Hanya berisi kelas yang BELUM ada di layout.css/design-system.css.
+   Dimuat setelah layout.css pada semua halaman dashboard.
+   ============================================================ */
+
+/* ---------- Sidebar: varian baru ---------- */
+.sidebar-brand .brand-mark { display: grid; place-items: center; background: var(--primary); color: #fff; }
+:root[data-theme="dark"] .sidebar-brand .brand-mark { color: #06201D; }
+.snav .snav-tag { margin-left: auto; font-size: .625rem; font-weight: 700; color: var(--text-3); border: 1px dashed var(--border-strong); padding: 1px 6px; border-radius: 99px; }
+.dash.collapsed .snav .snav-tag { display: none; }
+/* Tombol buka-drawer hanya untuk layar kecil; tombol ciutkan hanya desktop */
+.sidebar-toggle { display: none; }
+#btnCollapse { display: inline-flex; }
+@media (max-width: 980px) {
+  .sidebar-toggle { display: inline-flex; }
+  #btnCollapse { display: none; }
+}
+
+/* ---------- Skip link (aksesibilitas) ---------- */
+.skip-link {
+  position: absolute; left: -9999px; top: 0; z-index: 2000;
+  background: var(--primary); color: #fff; padding: 10px 16px;
+  border-radius: 0 0 var(--radius) 0; font-weight: 600; font-size: .875rem;
+}
+.skip-link:focus { left: 0; outline: 2px solid var(--text-invert); outline-offset: 2px; }
+:root[data-theme="dark"] .skip-link { color: #06201D; }
+.user-chip { background: none; border: none; width: 100%; text-align: left; }
+.sidebar-foot .btn-block { width: 100%; }
+
+/* ---------- Grid bantu ---------- */
+.grid-kpi { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.grid-charts { display: grid; gap: 18px; grid-template-columns: 1.6fr 1fr; }
+@media (max-width: 1100px) { .grid-charts, .grid-4, .grid-3 { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 760px) { .grid-charts, .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+
+/* ---------- Page head dengan aksi ---------- */
+.page-head .acts { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; }
+
+/* ---------- Baris detail (label kiri, nilai kanan) ---------- */
+.dl-rows { display: flex; flex-direction: column; }
+.dl-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+.dl-row:last-child { border-bottom: none; }
+.dl-row dt { font-size: .8125rem; color: var(--text-2); margin: 0; }
+.dl-row dd { margin: 0; font-weight: 600; font-size: .875rem; text-align: right; }
+
+/* ---------- Agenda / daftar sesi ---------- */
+.agenda { display: flex; flex-direction: column; }
+.agenda-item { display: grid; grid-template-columns: 58px 1fr auto; gap: 14px; align-items: center; padding: 13px 0; border-bottom: 1px solid var(--border); }
+.agenda-item:last-child { border-bottom: none; }
+.agenda-date { text-align: center; background: var(--primary-050); color: var(--primary); border-radius: var(--radius); padding: 7px 4px; font-weight: 700; line-height: 1.1; }
+.agenda-date b { display: block; font-size: 1.15rem; }
+.agenda-date span { font-size: .625rem; text-transform: uppercase; letter-spacing: .04em; }
+.agenda-main { min-width: 0; }
+.agenda-main strong { display: block; font-size: .9375rem; }
+.agenda-main span { font-size: .75rem; color: var(--text-2); }
+.agenda-side { display: flex; align-items: center; gap: 10px; flex: none; }
+
+/* ---------- Kartu KPI mini ---------- */
+.kpi-mini { display: flex; align-items: baseline; gap: 8px; }
+.kpi-mini b { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.kpi-mini span { font-size: .75rem; color: var(--text-2); }
+
+/* ---------- Papan status (rujukan / sesi) ---------- */
+.status-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+@media (max-width: 760px) { .status-board { grid-template-columns: 1fr 1fr; } }
+.status-cell { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; background: var(--surface-2); }
+.status-cell b { display: block; font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.status-cell span { font-size: .75rem; color: var(--text-2); }
+.status-cell.info b { color: var(--info); }
+.status-cell.warning b { color: var(--warning); }
+.status-cell.safe b { color: var(--safe); }
+.status-cell.danger b { color: var(--danger); }
+
+/* ---------- Sel pengguna pada tabel ---------- */
+.ava { width: 34px; height: 34px; border-radius: 50%; background: var(--primary-050); color: var(--primary); display: grid; place-items: center; font-weight: 700; font-size: .75rem; flex: none; }
+.cell-user { display: flex; align-items: center; gap: 10px; }
+.cell-main { font-weight: 600; }
+.cell-sub { font-size: .75rem; color: var(--text-2); }
+
+/* ---------- Catatan endpoint yang dibutuhkan ---------- */
+.endpoint-note {
+  display: flex; align-items: flex-start; gap: 10px; padding: 11px 14px; border-radius: var(--radius);
+  background: var(--info-bg); color: var(--info); font-size: .8125rem;
+  border: 1px dashed color-mix(in srgb, var(--info) 45%, transparent);
+}
+.endpoint-note svg { width: 17px; height: 17px; flex: none; margin-top: 1px; }
+.endpoint-note b { font-weight: 700; }
+
+/* ---------- Tabel: kolom aksi & angka ---------- */
+.tbl td.num, .tbl th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.tbl td.act, .tbl th.act { text-align: right; white-space: nowrap; }
+.tbl td .btn + .btn { margin-left: 4px; }
+.tbl tbody tr:hover { background: var(--surface-2); }
+
+/* ---------- Kartu dengan tinggi grafik tetap ---------- */
+.card .chart { min-height: 180px; }
+.card-title { font-weight: 700; font-size: .9375rem; }
+.card-sub { font-size: .75rem; color: var(--text-2); margin-top: 2px; }
+
+/* ---------- Daftar definisi ringkas dalam modal ---------- */
+.modal .dl { grid-template-columns: 1fr; gap: 10px; }
+
+/* ---------- Tombol aksi ikon kecil di tabel ---------- */
+.btn-xs { min-height: 30px; padding: 4px 9px; font-size: .75rem; border-radius: var(--radius-sm); }
+.btn-icon.btn-xs { width: 30px; padding: 0; }
+
+/* ---------- Baris chip filter aktif ---------- */
+.chip-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: var(--radius-pill);
+  border: 1px solid var(--border); background: var(--surface); font-size: .8125rem; font-weight: 600; color: var(--text-2);
+}
+.chip.is-active { background: var(--primary-050); border-color: var(--primary); color: var(--primary); }
+
+/* ---------- Kartu sorotan (hero ringkas dashboard) ---------- */
+.spotlight {
+  border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px;
+  background: linear-gradient(180deg, var(--primary-050), var(--surface) 62%);
+}
+:root[data-theme="dark"] .spotlight { background: linear-gradient(180deg, var(--primary-050), var(--surface) 62%); }
+.spotlight h2 { font-size: 1.125rem; }
+.spotlight p { color: var(--text-2); font-size: .875rem; margin-top: 5px; }
+
+/* ---------- Peringatan privasi agregat ---------- */
+.privacy-note { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--border); font-size: .8125rem; color: var(--text-2); }
+.privacy-note svg { width: 17px; height: 17px; flex: none; color: var(--primary); margin-top: 1px; }
+
+/* ---------- Tabel tanpa min-width besar (daftar ringkas) ---------- */
+.tbl.compact { min-width: 0; }
+.tbl.compact th, .tbl.compact td { padding: 10px 12px; }
+
+/* ---------- Cetak laporan ---------- */
+@media print {
+  .sidebar, .dash-top, .dash-scrim, .no-print { display: none !important; }
+  .dash { grid-template-columns: 1fr; }
+  .dash-content { padding: 0; }
+  .card { break-inside: avoid; }
+}
