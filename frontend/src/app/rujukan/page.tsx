@@ -1,22 +1,24 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import Card from "@/components/ui/Card";
+import { useMemo, useState } from "react";
+import AppShell from "@/components/app/AppShell";
+import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
-import { getUserSimulasi, sudahOnboarding } from "@/lib/session";
-import { dummyRujukan } from "@/lib/dummy";
+import Segmented from "@/components/ui/Segmented";
+import { EmptyState } from "@/components/ui/Empty";
+import { RUJUKAN_DEMO } from "@/lib/demo";
 import { LABEL_STATUS_RUJUKAN } from "@/lib/labels";
+import { tanggal } from "@/lib/format";
 import type { StatusRujukan } from "@/lib/enums";
 
-const langgananKosong = () => () => {};
+/* ------------------------------------------------------------------
+   Rujukan — halaman masyarakat. Daftar rujukan ke fasilitas kesehatan
+   dengan filter status + ringkasan jumlah per status.
+   ------------------------------------------------------------------ */
 
-function useSudahDiBrowser(): boolean {
-  return useSyncExternalStore(langgananKosong, () => true, () => false);
-}
+type Tone = "info" | "peringatan" | "sukses" | "bahaya";
 
-const TONE_STATUS: Record<StatusRujukan, "info" | "peringatan" | "sukses" | "bahaya"> = {
+const TONE_STATUS: Record<StatusRujukan, Tone> = {
   baru: "info",
   dihubungi: "peringatan",
   tertangani: "sukses",
@@ -25,142 +27,72 @@ const TONE_STATUS: Record<StatusRujukan, "info" | "peringatan" | "sukses" | "bah
 
 const URUTAN_STATUS: StatusRujukan[] = ["baru", "dihubungi", "tertangani", "ditolak"];
 
-function formatTanggal(iso: string): string {
-  const tanggal = iso.split("T")[0];
-  const [tahun, bulan, hari] = (tanggal ?? "").split("-");
-  if (!tahun || !bulan || !hari) return iso;
-  return `${hari}/${bulan}/${tahun}`;
-}
-
-function Baris({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-xs text-slate-400">{label}</dt>
-      <dd className="text-sm font-semibold text-slate-800">{value}</dd>
-    </div>
-  );
-}
+const FILTER = [
+  { value: "semua", label: "Semua" },
+  ...URUTAN_STATUS.map((s) => ({ value: s, label: LABEL_STATUS_RUJUKAN[s] })),
+];
 
 export default function RujukanPage() {
-  const router = useRouter();
-  const diBrowser = useSudahDiBrowser();
-  const [filter, setFilter] = useState<StatusRujukan | "semua">("semua");
+  const [filter, setFilter] = useState("semua");
 
-  const email = diBrowser ? getUserSimulasi() : "";
-  const bolehMasuk = email !== "" && sudahOnboarding(email);
+  const daftar = useMemo(
+    () => (filter === "semua" ? RUJUKAN_DEMO : RUJUKAN_DEMO.filter((r) => r.status === filter)),
+    [filter]
+  );
 
-  useEffect(() => {
-    if (!diBrowser) return;
-    if (email === "") {
-      router.replace("/login");
-    } else if (!bolehMasuk) {
-      router.replace("/onboarding");
-    }
-  }, [diBrowser, email, bolehMasuk, router]);
-
-  if (!bolehMasuk) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50">
-        <p className="text-sm text-slate-400">Memuat…</p>
-      </main>
-    );
-  }
-
-  const hitung = (s: StatusRujukan) => dummyRujukan.filter((r) => r.status === s).length;
-  const daftar =
-    filter === "semua" ? dummyRujukan : dummyRujukan.filter((r) => r.status === filter);
+  const hitung = (s: StatusRujukan) => RUJUKAN_DEMO.filter((r) => r.status === s).length;
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
-      <div className="mx-auto max-w-3xl space-y-5">
-        <header className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">Rujukan</h1>
-            <p className="mt-1 text-sm text-slate-500">Daftar rujukan ke fasilitas kesehatan</p>
+    <AppShell noFab>
+      <div className="row-between mb-16">
+        <div>
+          <h1 className="h3">Rujukan</h1>
+          <p className="tiny">Daftar rujukan ke fasilitas kesehatan.</p>
+        </div>
+      </div>
+
+      <div className="grid grid-4 mb-12" style={{ gap: 10 }}>
+        {URUTAN_STATUS.map((s) => (
+          <div className="metric" key={s} style={{ alignItems: "center" }}>
+            <span className="metric-val">{hitung(s)}</span>
+            <span className="tiny">{LABEL_STATUS_RUJUKAN[s]}</span>
           </div>
-          <Link
-            href="/dashboard"
-            className="shrink-0 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            Kembali
-          </Link>
-        </header>
+        ))}
+      </div>
 
-        <Card title="Ringkasan" subtitle="Jumlah rujukan per status">
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-4">
-            {URUTAN_STATUS.map((s) => (
-              <Baris key={s} label={LABEL_STATUS_RUJUKAN[s]} value={String(hitung(s))} />
-            ))}
-          </dl>
-        </Card>
+      <Segmented items={FILTER} value={filter} onChange={setFilter} />
 
-        <Card title="Filter Status" subtitle="Ketuk untuk menyaring daftar">
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setFilter("semua")}
-              className={
-                filter === "semua"
-                  ? "rounded-full bg-slate-800 px-3 py-1.5 text-sm font-semibold text-white"
-                  : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              }
-            >
-              Semua ({dummyRujukan.length})
-            </button>
-            {URUTAN_STATUS.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setFilter(s)}
-                className={
-                  filter === s
-                    ? "rounded-full bg-slate-800 px-3 py-1.5 text-sm font-semibold text-white"
-                    : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-                }
-              >
-                {LABEL_STATUS_RUJUKAN[s]} ({hitung(s)})
-              </button>
-            ))}
-          </div>
-        </Card>
-
+      <div className="mt-12" style={{ display: "grid", gap: 12 }}>
         {daftar.length === 0 ? (
-          <Card title="Daftar Rujukan">
-            <p className="text-sm text-slate-400">Tidak ada rujukan dengan status ini.</p>
-          </Card>
+          <div className="card card-flat">
+            <EmptyState title="Tidak ada rujukan" desc="Tidak ada rujukan dengan status ini." />
+          </div>
         ) : (
           daftar.map((r) => (
-            <Card key={r.id} title={`Rujukan #${r.id}`} subtitle={r.faskes.nama}>
-              <div className="space-y-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge tone={TONE_STATUS[r.status]}>{LABEL_STATUS_RUJUKAN[r.status]}</Badge>
-                  <span className="text-xs text-slate-400">
-                    Dibuat {formatTanggal(r.created_at)}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs text-slate-400">Alasan</p>
-                  <p className="text-sm text-slate-700">{r.alasan}</p>
-                </div>
-                <dl className="grid grid-cols-2 gap-x-4 gap-y-4">
-                  <Baris label="Dibuat oleh" value={r.dibuat_oleh.name} />
-                  <Baris label="Ditangani oleh" value={r.ditangani_oleh?.name ?? "—"} />
-                </dl>
-                {r.catatan ? (
-                  <div>
-                    <p className="text-xs text-slate-400">Catatan</p>
-                    <p className="text-sm text-slate-700">{r.catatan}</p>
+            <div className="card card-flat" key={r.id}>
+              <div className="row items-start gap-10">
+                <span className="li-ico">
+                  <Icon name="send" size={18} />
+                </span>
+                <div className="flex-1">
+                  <div className="row-between">
+                    <strong className="text-sm">{r.faskes}</strong>
+                    <Badge tone={TONE_STATUS[r.status]}>{LABEL_STATUS_RUJUKAN[r.status]}</Badge>
                   </div>
-                ) : null}
+                  <p className="tiny mt-4">{r.alasan}</p>
+                  <p className="tiny mt-4">
+                    <Icon name="calendar" size={12} /> Dibuat {tanggal(r.dibuat_pada, "day")}
+                  </p>
+                </div>
               </div>
-            </Card>
+            </div>
           ))
         )}
-
-        <p className="pt-2 text-center text-xs text-slate-400">
-          Data sementara (dummy). Nanti diambil dari GET /rujukan.
-        </p>
       </div>
-    </main>
+
+      <p className="tiny center mt-16 mb-16">
+        <Icon name="info" size={13} /> Data sementara (demo) — nanti diambil dari GET /rujukan.
+      </p>
+    </AppShell>
   );
 }

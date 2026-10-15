@@ -3,8 +3,8 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import Card from "@/components/ui/Card";
+import AppShell from "@/components/app/AppShell";
+import Icon from "@/components/ui/Icon";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
@@ -21,6 +21,10 @@ import {
 import { dummyUser } from "@/lib/dummy";
 import { LABEL_JENIS_KELAMIN, LABEL_TINGKAT_AKTIVITAS } from "@/lib/labels";
 import type { ProfilRingkas } from "@/types";
+
+/* ------------------------------------------------------------------
+   Profil — halaman masyarakat. Data diri + form ubah (tanda wajib *).
+   ------------------------------------------------------------------ */
 
 const langgananKosong = () => () => {};
 
@@ -47,9 +51,7 @@ type FormState = {
   riwayat_keluarga: string[];
 };
 
-type Errors = Partial<
-  Record<"tgl_lahir" | "jenis_kelamin" | "tinggi_cm" | "tingkat_aktivitas", string>
->;
+type Errors = Partial<Record<"tgl_lahir" | "jenis_kelamin" | "tinggi_cm" | "tingkat_aktivitas", string>>;
 
 function keForm(p: ProfilRingkas): FormState {
   return {
@@ -76,8 +78,8 @@ function labelRiwayat(nilai: string): string {
 function Baris({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs text-slate-400">{label}</dt>
-      <dd className="text-sm font-semibold text-slate-800">{value}</dd>
+      <div className="tiny">{label}</div>
+      <div className="text-sm fw-600">{value}</div>
     </div>
   );
 }
@@ -186,161 +188,163 @@ export default function ProfilPage() {
 
   if (!bolehMasuk) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50">
-        <p className="text-sm text-slate-400">Memuat…</p>
-      </main>
+      <AppShell noFab>
+        <p className="tiny center">Memuat…</p>
+      </AppShell>
     );
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
-      <div className="mx-auto max-w-3xl space-y-5">
-        <header className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">Profil</h1>
-            <p className="mt-1 text-sm text-slate-500">{email}</p>
-          </div>
-          <div className="flex shrink-0 gap-2">
-            {!modeUbah && <Button onClick={mulaiUbah}>Ubah</Button>}
-            <Link
-              href="/dashboard"
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              Kembali
-            </Link>
-          </div>
-        </header>
-
-        {sukses && (
-          <p className="rounded-lg bg-emerald-50 px-3.5 py-2.5 text-sm font-medium text-emerald-700">
-            Profil tersimpan (simulasi).
-          </p>
+    <AppShell noFab>
+      <div className="row-between mb-16">
+        <div>
+          <h1 className="h3">Profil</h1>
+          <p className="tiny">{email}</p>
+        </div>
+        {!modeUbah && (
+          <button className="btn btn-sm btn-outline" type="button" onClick={mulaiUbah}>
+            <Icon name="pencil" size={15} /> Ubah
+          </button>
         )}
+      </div>
 
-        {modeUbah && form ? (
-          <Card title="Ubah Profil" subtitle="Kirim seluruh data, lalu simpan">
-            <form onSubmit={simpan} className="space-y-5">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Input
-                  label="Tanggal Lahir"
-                  type="date"
-                  value={form.tgl_lahir}
-                  error={errors.tgl_lahir}
-                  onChange={(e) => ubahForm("tgl_lahir", e.target.value)}
-                />
-                <Select
-                  label="Jenis Kelamin"
-                  value={form.jenis_kelamin}
-                  error={errors.jenis_kelamin}
-                  onChange={(e) => ubahForm("jenis_kelamin", e.target.value)}
-                >
-                  <option value="">-- Pilih --</option>
-                  {Object.entries(JENIS_KELAMIN).map(([, nilai]) => (
-                    <option key={nilai} value={nilai}>
-                      {LABEL_JENIS_KELAMIN[nilai]}
-                    </option>
-                  ))}
-                </Select>
-              </div>
+      {sukses && (
+        <div className="card card-flat mb-12" style={{ borderLeft: "4px solid var(--safe)" }}>
+          <div className="row gap-10 items-center">
+            <span className="text-safe">
+              <Icon name="check-circle" size={18} />
+            </span>
+            <span className="text-sm">Profil tersimpan (simulasi).</span>
+          </div>
+        </div>
+      )}
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Input
-                  label="Tinggi Badan (cm)"
-                  inputMode="decimal"
-                  placeholder="170"
-                  value={form.tinggi_cm}
-                  error={errors.tinggi_cm}
-                  onChange={(e) => ubahForm("tinggi_cm", e.target.value)}
-                />
-                <Select
-                  label="Tingkat Aktivitas"
-                  value={form.tingkat_aktivitas}
-                  error={errors.tingkat_aktivitas}
-                  onChange={(e) => ubahForm("tingkat_aktivitas", e.target.value)}
-                >
-                  <option value="">-- Pilih --</option>
-                  {Object.entries(TINGKAT_AKTIVITAS).map(([, nilai]) => (
-                    <option key={nilai} value={nilai}>
-                      {LABEL_TINGKAT_AKTIVITAS[nilai]}
-                    </option>
-                  ))}
-                </Select>
-              </div>
+      {modeUbah && form ? (
+        <div className="card">
+          <div className="row-between mb-12">
+            <strong className="text-sm">Ubah Data Diri</strong>
+            <span className="tiny">
+              <span className="req">*</span> wajib diisi
+            </span>
+          </div>
+          <form onSubmit={simpan}>
+            <div className="grid grid-2" style={{ gap: 12 }}>
+              <Input
+                label="Tanggal Lahir"
+                type="date"
+                required
+                value={form.tgl_lahir}
+                error={errors.tgl_lahir}
+                onChange={(e) => ubahForm("tgl_lahir", e.target.value)}
+              />
+              <Select
+                label="Jenis Kelamin"
+                required
+                value={form.jenis_kelamin}
+                error={errors.jenis_kelamin}
+                onChange={(e) => ubahForm("jenis_kelamin", e.target.value)}
+              >
+                <option value="">-- Pilih --</option>
+                {Object.entries(JENIS_KELAMIN).map(([, nilai]) => (
+                  <option key={nilai} value={nilai}>
+                    {LABEL_JENIS_KELAMIN[nilai]}
+                  </option>
+                ))}
+              </Select>
+            </div>
 
+            <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
+              <Input
+                label="Tinggi Badan (cm)"
+                required
+                inputMode="decimal"
+                placeholder="170"
+                value={form.tinggi_cm}
+                error={errors.tinggi_cm}
+                onChange={(e) => ubahForm("tinggi_cm", e.target.value)}
+              />
+              <Select
+                label="Tingkat Aktivitas"
+                required
+                value={form.tingkat_aktivitas}
+                error={errors.tingkat_aktivitas}
+                onChange={(e) => ubahForm("tingkat_aktivitas", e.target.value)}
+              >
+                <option value="">-- Pilih --</option>
+                {Object.entries(TINGKAT_AKTIVITAS).map(([, nilai]) => (
+                  <option key={nilai} value={nilai}>
+                    {LABEL_TINGKAT_AKTIVITAS[nilai]}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="mt-12">
               <Checkbox
                 label="Saya merokok"
                 checked={form.merokok}
                 onChange={(e) => ubahForm("merokok", e.target.checked)}
               />
+            </div>
 
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-slate-700">
-                  Riwayat Penyakit Keluarga{" "}
-                  <span className="font-normal text-slate-400">
-                    (boleh lebih dari satu, atau kosongkan)
-                  </span>
-                </p>
-                <div className="space-y-2">
-                  {RIWAYAT_KELUARGA_OPTIONS.map((opt) => (
-                    <Checkbox
-                      key={opt.value}
-                      label={opt.label}
-                      checked={form.riwayat_keluarga.includes(opt.value)}
-                      onChange={() => toggleRiwayat(opt.value)}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button type="submit">Simpan Perubahan</Button>
-                <Button type="button" variant="outline" onClick={batalUbah}>
-                  Batal
-                </Button>
-              </div>
-            </form>
-          </Card>
-        ) : (
-          <Card title="Data Diri" subtitle="Informasi yang kamu isi saat onboarding">
-            <dl className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3">
-              <Baris label="Tanggal lahir" value={formatTanggal(profil.tgl_lahir)} />
-              <Baris label="Usia" value={`${profil.usia} tahun`} />
-              <Baris
-                label="Jenis kelamin"
-                value={LABEL_JENIS_KELAMIN[profil.jenis_kelamin]}
-              />
-              <Baris label="Tinggi badan" value={`${profil.tinggi_cm} cm`} />
-              <Baris
-                label="Tingkat aktivitas"
-                value={LABEL_TINGKAT_AKTIVITAS[profil.tingkat_aktivitas]}
-              />
-              <Baris label="Merokok" value={profil.merokok ? "Ya" : "Tidak"} />
-            </dl>
-
-            <div className="mt-4 border-t border-slate-100 pt-3">
-              <p className="text-xs text-slate-400">Riwayat penyakit keluarga</p>
-              <div className="mt-1.5 flex flex-wrap gap-2">
-                {profil.riwayat_keluarga.length === 0 ? (
-                  <span className="text-sm text-slate-500">Tidak ada</span>
-                ) : (
-                  profil.riwayat_keluarga.map((r) => (
-                    <span
-                      key={r}
-                      className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600"
-                    >
-                      {labelRiwayat(r)}
-                    </span>
-                  ))
-                )}
+            <div className="mt-12">
+              <p className="label">
+                Riwayat Penyakit Keluarga <span className="opt">(opsional)</span>
+              </p>
+              <div className="grid grid-2" style={{ gap: 4 }}>
+                {RIWAYAT_KELUARGA_OPTIONS.map((opt) => (
+                  <Checkbox
+                    key={opt.value}
+                    label={opt.label}
+                    checked={form.riwayat_keluarga.includes(opt.value)}
+                    onChange={() => toggleRiwayat(opt.value)}
+                  />
+                ))}
               </div>
             </div>
-          </Card>
-        )}
 
-        <p className="pt-2 text-center text-xs text-slate-400">
-          Data sementara (dummy). Nanti tersambung ke API asli.
-        </p>
-      </div>
-    </main>
+            <div className="row gap-8 mt-16">
+              <Button type="submit" icon="check">
+                Simpan Perubahan
+              </Button>
+              <Button type="button" variant="outline" onClick={batalUbah}>
+                Batal
+              </Button>
+            </div>
+          </form>
+        </div>
+      ) : (
+        <div className="card">
+          <strong className="text-sm">Data Diri</strong>
+          <div className="grid grid-3 mt-12" style={{ gap: 12 }}>
+            <Baris label="Tanggal lahir" value={formatTanggal(profil.tgl_lahir)} />
+            <Baris label="Usia" value={`${profil.usia} tahun`} />
+            <Baris label="Jenis kelamin" value={LABEL_JENIS_KELAMIN[profil.jenis_kelamin]} />
+            <Baris label="Tinggi badan" value={`${profil.tinggi_cm} cm`} />
+            <Baris label="Tingkat aktivitas" value={LABEL_TINGKAT_AKTIVITAS[profil.tingkat_aktivitas]} />
+            <Baris label="Merokok" value={profil.merokok ? "Ya" : "Tidak"} />
+          </div>
+
+          <div className="mt-16" style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+            <p className="tiny">Riwayat penyakit keluarga</p>
+            <div className="row gap-6 mt-8" style={{ flexWrap: "wrap" }}>
+              {profil.riwayat_keluarga.length === 0 ? (
+                <span className="text-sm">Tidak ada</span>
+              ) : (
+                profil.riwayat_keluarga.map((r) => (
+                  <span className="badge badge-primary" key={r}>
+                    {labelRiwayat(r)}
+                  </span>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <p className="tiny center mt-16 mb-16">
+        <Icon name="info" size={13} /> Data sementara (demo) — nanti tersambung ke API asli.
+      </p>
+    </AppShell>
   );
 }

@@ -1,175 +1,151 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import Card from "@/components/ui/Card";
+import { useMemo, useState } from "react";
+import AppShell from "@/components/app/AppShell";
+import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
-import { getUserSimulasi, sudahOnboarding } from "@/lib/session";
-import { dummyProgram } from "@/lib/dummy";
-import { LABEL_JENIS_PROGRAM, LABEL_STATUS_PROGRAM } from "@/lib/labels";
-import type { StatusProgram } from "@/lib/enums";
+import Segmented from "@/components/ui/Segmented";
+import { EmptyState } from "@/components/ui/Empty";
+import { PROGRAM_DEMO, DASHBOARD_PRIBADI_DEMO } from "@/lib/demo";
 
-const langgananKosong = () => () => {};
+/* ------------------------------------------------------------------
+   Program & Tantangan — halaman masyarakat.
+   Porting gaya "Tantangan & Reward" dari prototype (gamifikasi:
+   level, EXP, badge, peringkat kelurahan).
+   ------------------------------------------------------------------ */
 
-function useSudahDiBrowser(): boolean {
-  return useSyncExternalStore(langgananKosong, () => true, () => false);
-}
-
-const TONE_STATUS: Record<StatusProgram, "info" | "peringatan" | "sukses"> = {
-  akan_datang: "info",
-  berjalan: "peringatan",
-  selesai: "sukses",
+const LABEL_JENIS: Record<string, string> = {
+  olahraga: "Olahraga",
+  edukasi: "Edukasi",
+  penyuluhan: "Penyuluhan",
 };
 
-const URUTAN_STATUS: StatusProgram[] = ["berjalan", "akan_datang", "selesai"];
+const LABEL_STATUS: Record<string, string> = {
+  berjalan: "Berjalan",
+  akan_datang: "Akan Datang",
+  selesai: "Selesai",
+};
 
-function formatTanggal(iso: string): string {
-  const [tahun, bulan, hari] = iso.split("-");
-  if (!tahun || !bulan || !hari) return iso;
-  return `${hari}/${bulan}/${tahun}`;
-}
+const TONE_STATUS: Record<string, "info" | "warning" | "safe"> = {
+  berjalan: "warning",
+  akan_datang: "info",
+  selesai: "safe",
+};
 
-function Baris({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-xs text-slate-400">{label}</dt>
-      <dd className="text-sm font-semibold text-slate-800">{value}</dd>
-    </div>
-  );
-}
+const FILTER = [
+  { value: "semua", label: "Semua" },
+  { value: "berjalan", label: "Berjalan" },
+  { value: "akan_datang", label: "Akan Datang" },
+  { value: "selesai", label: "Selesai" },
+];
 
 export default function ProgramPage() {
-  const router = useRouter();
-  const diBrowser = useSudahDiBrowser();
-  const [filter, setFilter] = useState<StatusProgram | "semua">("semua");
+  const [filter, setFilter] = useState("semua");
+  const reward = DASHBOARD_PRIBADI_DEMO.reward;
 
-  const email = diBrowser ? getUserSimulasi() : "";
-  const bolehMasuk = email !== "" && sudahOnboarding(email);
-
-  useEffect(() => {
-    if (!diBrowser) return;
-    if (email === "") {
-      router.replace("/login");
-    } else if (!bolehMasuk) {
-      router.replace("/onboarding");
-    }
-  }, [diBrowser, email, bolehMasuk, router]);
-
-  const terurut = useMemo(
-    () =>
-      [...dummyProgram].sort(
-        (a, b) => URUTAN_STATUS.indexOf(a.status) - URUTAN_STATUS.indexOf(b.status),
-      ),
-    [],
+  const daftar = useMemo(
+    () => (filter === "semua" ? PROGRAM_DEMO : PROGRAM_DEMO.filter((p) => p.status === filter)),
+    [filter]
   );
 
-  const hitung = (s: StatusProgram) => dummyProgram.filter((p) => p.status === s).length;
-  const daftar = filter === "semua" ? terurut : terurut.filter((p) => p.status === filter);
-
-  if (!bolehMasuk) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50">
-        <p className="text-sm text-slate-400">Memuat…</p>
-      </main>
-    );
-  }
-
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
-      <div className="mx-auto max-w-3xl space-y-5">
-        <header className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">Program Kesehatan</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Program di wilayahmu — ikut untuk menjaga kesehatan
-            </p>
-          </div>
-          <Link
-            href="/dashboard"
-            className="shrink-0 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          >
-            Kembali
-          </Link>
-        </header>
-
-        <Card title="Ringkasan" subtitle="Jumlah program per status">
-          <dl className="grid grid-cols-3 gap-x-4 gap-y-4">
-            {URUTAN_STATUS.map((s) => (
-              <Baris key={s} label={LABEL_STATUS_PROGRAM[s]} value={String(hitung(s))} />
-            ))}
-          </dl>
-        </Card>
-
-        <Card title="Filter Status" subtitle="Ketuk untuk menyaring program">
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setFilter("semua")}
-              className={
-                filter === "semua"
-                  ? "rounded-full bg-slate-800 px-3 py-1.5 text-sm font-semibold text-white"
-                  : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-              }
-            >
-              Semua ({dummyProgram.length})
-            </button>
-            {URUTAN_STATUS.map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => setFilter(s)}
-                className={
-                  filter === s
-                    ? "rounded-full bg-slate-800 px-3 py-1.5 text-sm font-semibold text-white"
-                    : "rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50"
-                }
-              >
-                {LABEL_STATUS_PROGRAM[s]} ({hitung(s)})
-              </button>
-            ))}
-          </div>
-        </Card>
-
-        {daftar.length === 0 ? (
-          <Card title="Daftar Program">
-            <p className="text-sm text-slate-400">Tidak ada program dengan status ini.</p>
-          </Card>
-        ) : (
-          daftar.map((p) => {
-            const persen = p.target_peserta > 0 ? Math.round((p.jumlah_peserta / p.target_peserta) * 100) : 0;
-            return (
-              <Card key={p.id} title={p.judul} subtitle={LABEL_JENIS_PROGRAM[p.jenis]}>
-                <div className="space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone={TONE_STATUS[p.status]}>{LABEL_STATUS_PROGRAM[p.status]}</Badge>
-                    {p.diikuti ? <Badge tone="sukses">Sudah Diikuti</Badge> : null}
-                  </div>
-                  <dl className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-4">
-                    <Baris label="Mulai" value={formatTanggal(p.mulai)} />
-                    <Baris label="Selesai" value={formatTanggal(p.selesai)} />
-                    <Baris
-                      label="Peserta"
-                      value={`${p.jumlah_peserta} / ${p.target_peserta}`}
-                    />
-                    <Baris label="Terisi" value={`${persen}%`} />
-                  </dl>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full rounded-full bg-emerald-500"
-                      style={{ width: `${Math.min(persen, 100)}%` }}
-                    />
-                  </div>
-                </div>
-              </Card>
-            );
-          })
-        )}
-
-        <p className="pt-2 text-center text-xs text-slate-400">
-          Data sementara (dummy). Nanti diambil dari GET /program.
-        </p>
+    <AppShell noFab>
+      <div className="row-between mb-16">
+        <div>
+          <h1 className="h3">Tantangan &amp; Reward</h1>
+          <p className="tiny">Ikuti tantangan kesehatan wilayahmu, kumpulkan EXP &amp; badge.</p>
+        </div>
       </div>
-    </main>
+
+      {/* Kartu gamifikasi */}
+      <div className="card mb-16">
+        <div className="row gap-10">
+          <span className="li-ico" style={{ background: "var(--warning-bg)", color: "var(--warning)" }}>
+            <Icon name="flame" size={18} />
+          </span>
+          <div className="flex-1">
+            <strong className="text-sm">
+              Level {reward.level} · {reward.level_nama}
+            </strong>
+            <div className="tiny">
+              {reward.exp} EXP · peringkat #{reward.rank_kelurahan} dari {reward.total_peserta_kelurahan}{" "}
+              peserta kelurahan
+            </div>
+          </div>
+        </div>
+        <div className="progress sm mt-12">
+          <i style={{ width: `${Math.min(100, (reward.exp % 200) / 2)}%` }} />
+        </div>
+        <div className="row gap-6 mt-12" style={{ flexWrap: "wrap" }}>
+          {reward.badge.length > 0 ? (
+            reward.badge.map((b) => (
+              <span className="badge badge-primary" key={b}>
+                <Icon name="award" size={13} /> {b}
+              </span>
+            ))
+          ) : (
+            <span className="tiny">Belum ada badge</span>
+          )}
+        </div>
+      </div>
+
+      <Segmented items={FILTER} value={filter} onChange={setFilter} />
+
+      <div className="mt-12" style={{ display: "grid", gap: 12 }}>
+        {daftar.length === 0 ? (
+          <div className="card card-flat">
+            <EmptyState title="Tidak ada tantangan" desc="Tidak ada tantangan dengan status ini." />
+          </div>
+        ) : (
+          daftar.map((p) => (
+            <div className="card card-flat" key={p.id}>
+              <div className="row-between mb-8">
+                <strong className="text-sm">{p.nama}</strong>
+                <Badge tone={TONE_STATUS[p.status]}>{LABEL_STATUS[p.status]}</Badge>
+              </div>
+              <p className="tiny">{p.deskripsi}</p>
+
+              <div className="row gap-16 mt-12" style={{ flexWrap: "wrap" }}>
+                <div className="row gap-6">
+                  <Icon name="activity" size={13} />
+                  <span className="tiny">{LABEL_JENIS[p.jenis] ?? p.jenis}</span>
+                </div>
+                <div className="row gap-6">
+                  <Icon name="clock" size={13} />
+                  <span className="tiny">{p.durasi}</span>
+                </div>
+                <div className="row gap-6">
+                  <Icon name="user" size={13} />
+                  <span className="tiny">{p.peserta} peserta</span>
+                </div>
+              </div>
+
+              <div className="row-between mt-12">
+                <span className="tiny">Progres</span>
+                <span className="tiny">
+                  <b className="text-primary">{p.progress}%</b>
+                </span>
+              </div>
+              <div className="progress sm mt-4">
+                <i style={{ width: `${Math.min(100, p.progress)}%` }} />
+              </div>
+
+              <div className="row-between mt-12 items-center">
+                <span className="badge badge-primary">
+                  <Icon name="award" size={12} /> {p.reward?.badge ?? "Badge"} · +{p.reward?.exp ?? 0} EXP
+                </span>
+                <button className="btn btn-sm btn-primary" type="button">
+                  {p.progress > 0 ? "Lanjutkan" : "Ikuti"}
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <p className="tiny center mt-16 mb-16">
+        <Icon name="info" size={13} /> Data sementara (demo) — nanti diambil dari GET /program.
+      </p>
+    </AppShell>
   );
 }
