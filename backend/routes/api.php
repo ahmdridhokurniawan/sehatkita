@@ -2,60 +2,57 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CatatanKesehatanController;
-use App\Http\Controllers\FaskesController;
-use App\Http\Controllers\InsightController;
+use App\Http\Controllers\LandingPageController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfilController;
 use App\Http\Controllers\WilayahController;
-use Illuminate\Http\Request;
+use App\Http\Controllers\InsightController;
 use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
-| API Routes — kontrak v1.1 BEKU
-| Semua endpoint: /api/v1/...
+| API Routes - SehatKita v1.2
 |--------------------------------------------------------------------------
 */
 
 Route::prefix('v1')->group(function () {
 
-    // ─────────────────────────────────────────────
-    // PUBLIK (tanpa token)
-    // ─────────────────────────────────────────────
-    Route::prefix('auth')->group(function () {
-        Route::post('/register', [AuthController::class, 'register']); // §4.1
-        Route::post('/login',    [AuthController::class, 'login']);    // §4.2
-    });
+    // --- 1. PUBLIK (Tanpa Login) ---
 
-    // Master wilayah untuk dropdown form register (§6.1)
+    // Kontrak §19: Landing Page (Statistik & Info Umum)
+    Route::get('/landing-page', [LandingPageController::class, 'index']);
+
+    // Kontrak §1: Auth (Registrasi & Login)
+    Route::post('/register', [AuthController::class, 'register']);
+    Route::post('/login', [AuthController::class, 'login']);
+
+    // Kontrak §2: Master Data Wilayah (Hanya List Kelurahan)
     Route::get('/wilayah', [WilayahController::class, 'index']);
 
-    // ─────────────────────────────────────────────
-    // TERPROTEKSI (wajib Bearer [REDACTED]
-    // ─────────────────────────────────────────────
+
+    // --- 2. TERPROTEKSI (Wajib Token / Sanctum) ---
+
     Route::middleware('auth:sanctum')->group(function () {
 
-        // Modul Auth (§4.3, §4.4) & Persetujuan (§5.3, §5.4)
-        Route::prefix('auth')->group(function () {
-            Route::post('/logout',        [AuthController::class, 'logout']);
-            Route::get('/me',             [AuthController::class, 'me']);
-            Route::post('/persetujuan',   [AuthController::class, 'consent']);
-            Route::delete('/persetujuan', [AuthController::class, 'revokeConsent']);
-        });
+        // Kontrak §1: Profile & Logout
+        Route::get('/me', [AuthController::class, 'me']);
+        Route::post('/logout', [AuthController::class, 'logout']);
+        Route::post('/persetujuan/batal', [AuthController::class, 'revokeConsent']);
 
-        // Modul Profil (§5.1, §5.2)
-        Route::get('/profil', [ProfilController::class, 'show']);
-        Route::put('/profil', [ProfilController::class, 'update']);
+        // Kontrak §3: Manajemen Profil User
+        Route::apiResource('profil', ProfilController::class)->only(['show', 'store', 'update']);
 
-        // Master faskes (§6.2)
-        Route::get('/faskes', [FaskesController::class, 'index']);
+        // Kontrak §6: Catatan Kesehatan Mandiri
+        Route::apiResource('catatan-kesehatan', CatatanKesehatanController::class);
 
-        // Catatan kesehatan (§7.2 – §7.5)
-        Route::get('/catatan-kesehatan',         [CatatanKesehatanController::class, 'index']);
-        Route::post('/catatan-kesehatan',        [CatatanKesehatanController::class, 'store']);
-        Route::get('/catatan-kesehatan/{id}',    [CatatanKesehatanController::class, 'show']);
-        Route::delete('/catatan-kesehatan/{id}', [CatatanKesehatanController::class, 'destroy']);
-
-        // Insight (§8.3)
+        // Kontrak §8: Insight Kesehatan (Bab 23 filter level)
         Route::get('/insight', [InsightController::class, 'index']);
+
+        // Kontrak §27: Notifikasi (Insight & Rujukan Baru)
+        Route::get('/notifications', [NotificationController::class, 'index']);
+
+        // Kontrak §2: Data Detail Wilayah (Dengan Gate Authorize)
+        Route::get('/wilayah/{id}', [WilayahController::class, 'show']);
+
     });
 });
