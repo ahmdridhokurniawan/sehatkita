@@ -85,3 +85,33 @@ export const FAQ_LANDING: [string, string][] = [
   ["Siapa yang dapat melihat data kesehatan?", "Data kesehatan individual hanya dapat diakses oleh Anda sendiri dan petugas berwenang sesuai izin. Admin kelurahan hanya melihat data agregat wilayah, bukan catatan pribadi."],
   ["Bagaimana memperbaiki catatan yang salah?", "Catatan kesehatan bersifat append-only dan tidak dapat diedit. Anda dapat menghapus catatan yang salah (dengan konfirmasi) lalu membuat catatan baru yang benar."],
 ];
+
+/** Akun demo (prototipe) — untuk mengisi cepat form login. */
+export type AkunDemo = { email: string; password: string; role: string; name: string };
+export const AKUN_DEMO: AkunDemo[] = [
+  { email: "budi@demo.sehatkita.id", password: "sehat123", role: "user", name: "Budi Santoso" },
+  { email: "kader@demo.sehatkita.id", password: "sehat123", role: "kader", name: "Siti Aminah" },
+  { email: "admin@demo.sehatkita.id", password: "sehat123", role: "admin_kelurahan", name: "Ahmad Fauzi" },
+  { email: "puskesmas@demo.sehatkita.id", password: "sehat123", role: "puskesmas", name: "dr. Rina Marlina" },
+  { email: "super@demo.sehatkita.id", password: "sehat123", role: "super_admin", name: "Super Admin" },
+];
+
+export const LABEL_ROLE_DEMO: Record<string, string> = {
+  user: "Masyarakat",
+  kader: "Kader Posbindu",
+  admin_kelurahan: "Admin Kelurahan",
+  puskesmas: "Puskesmas",
+  super_admin: "Super Admin",
+};
+
+/** Wilayah demo untuk dropdown register (dikelompokkan per kecamatan). */
+export type WilayahDemo = { id: number; kecamatan: string; kelurahan: string };
+export const WILAYAH_DEMO: WilayahDemo[] = [
+  { id: 1, kecamatan: "Landasan Ulin", kelurahan: "Sungai Besar" },
+  { id: 2, kecamatan: "Landasan Ulin", kelurahan: "Guntung Payung" },
+  { id: 3, kecamatan: "Landasan Ulin", kelurahan: "Syamsudin Noor" },
+  { id: 4, kecamatan: "Banjarbaru Utara", kelurahan: "Loktabat Utara" },
+  { id: 5, kecamatan: "Banjarbaru Utara", kelurahan: "Kemuning" },
+  { id: 6, kecamatan: "Cempaka", kelurahan: "Cempaka" },
+  { id: 7, kecamatan: "Liang Anggang", kelurahan: "Landasan Ulin Timur" },
+];
