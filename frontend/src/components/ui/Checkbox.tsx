@@ -1,42 +1,22 @@
+"use client";
+
 import type { InputHTMLAttributes, ReactNode } from "react";
 
-interface CheckboxProps extends InputHTMLAttributes<HTMLInputElement> {
-  label: ReactNode;
+type Props = InputHTMLAttributes<HTMLInputElement> & {
+  label?: ReactNode;
   error?: string;
-}
+};
 
-export default function Checkbox({
-  label,
-  error,
-  id,
-  name,
-  className = "",
-  ...props
-}: CheckboxProps) {
-  const inputId = id ?? name;
-
+/** Checkbox — mengikuti .check pada design system prototype. */
+export default function Checkbox({ label, error, className = "", id, ...rest }: Props) {
+  const inputId = id || rest.name;
   return (
-    <div className="space-y-1.5">
-      <label
-        htmlFor={inputId}
-        className="flex cursor-pointer items-start gap-2.5 text-sm text-slate-700"
-      >
-        <input
-          id={inputId}
-          name={name}
-          type="checkbox"
-          className={[
-            "mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-emerald-600",
-            "focus:ring-2 focus:ring-emerald-500/40",
-            className,
-          ]
-            .filter(Boolean)
-            .join(" ")}
-          {...props}
-        />
-        <span>{label}</span>
+    <div className="field">
+      <label className="check" htmlFor={inputId}>
+        <input type="checkbox" id={inputId} className={className} {...rest} />
+        {label ? <span>{label}</span> : null}
       </label>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error ? <div className="err-msg show">{error}</div> : null}
     </div>
   );
 }

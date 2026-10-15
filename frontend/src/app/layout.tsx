@@ -1,30 +1,31 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
+import { SKRIP_TEMA } from "@/lib/theme";
+import { ToastProvider } from "@/components/ui/Toast";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
   title: "SehatKita — Monitoring Kesehatan Masyarakat",
   description:
-    "Sistem monitoring kesehatan masyarakat berbasis data untuk deteksi dini hipertensi, diabetes, dan obesitas.",
+    "Platform monitoring kesehatan PTM untuk kelurahan: catat indikator kesehatan, dapatkan insight, dan ikuti program kesehatan wilayah.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="id"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="id" data-theme="light" className={inter.variable} suppressHydrationWarning>
+      <head>
+        {/* Terapkan tema sebelum render agar tidak berkedip */}
+        <script dangerouslySetInnerHTML={{ __html: SKRIP_TEMA }} />
+      </head>
+      <body>
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }

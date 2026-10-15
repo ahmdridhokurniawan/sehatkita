@@ -1,42 +1,69 @@
+"use client";
+
 import type { InputHTMLAttributes } from "react";
+import Icon from "./Icon";
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
-  label: string;
+type Props = InputHTMLAttributes<HTMLInputElement> & {
+  label?: string;
+  /** Tampilkan tanda * merah (wajib) — permintaan pembimbing */
+  required?: boolean;
+  /** Label opsional: tampil "(opsional)" tanpa tanda bintang */
+  optional?: boolean;
   error?: string;
-}
+  hint?: string;
+  /** Nama ikon di dalam input (kiri) */
+  icon?: string;
+  /** Satuan di kanan input, mis. "kg" */
+  suffix?: string;
+};
 
+/** Input teks — mengikuti .input pada design system prototype. */
 export default function Input({
   label,
+  required,
+  optional,
   error,
-  id,
-  name,
+  hint,
+  icon,
+  suffix,
   className = "",
-  ...props
-}: InputProps) {
-  const inputId = id ?? name;
-
+  id,
+  ...rest
+}: Props) {
+  const inputId = id || rest.name;
+  const input = (
+    <input
+      id={inputId}
+      className={`input ${error ? "is-error" : ""} ${className}`}
+      required={required}
+      {...rest}
+    />
+  );
   return (
-    <div className="space-y-1.5">
-      <label
-        htmlFor={inputId}
-        className="block text-sm font-medium text-slate-700"
-      >
-        {label}
-      </label>
-      <input
-        id={inputId}
-        name={name}
-        className={[
-          "w-full rounded-lg border px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400",
-          "focus:outline-none focus:ring-2 focus:ring-emerald-500/40",
-          error ? "border-red-400 focus:ring-red-400/40" : "border-slate-300",
-          className,
-        ]
-          .filter(Boolean)
-          .join(" ")}
-        {...props}
-      />
-      {error && <p className="text-sm text-red-600">{error}</p>}
+    <div className="field">
+      {label ? (
+        <label className="label" htmlFor={inputId}>
+          {label}
+          {required ? <span className="req">*</span> : null}
+          {optional ? <span className="opt">(opsional)</span> : null}
+        </label>
+      ) : null}
+
+      {icon ? (
+        <div className="input-icon">
+          <Icon name={icon} size={18} />
+          {input}
+        </div>
+      ) : suffix ? (
+        <div className="input-group">
+          {input}
+          <span className="suffix">{suffix}</span>
+        </div>
+      ) : (
+        input
+      )}
+
+      {error ? <div className="err-msg show">{error}</div> : hint ? <div className="hint">{hint}</div> : null}
     </div>
   );
 }

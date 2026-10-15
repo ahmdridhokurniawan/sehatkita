@@ -1,45 +1,57 @@
-import type { SelectHTMLAttributes } from "react";
+"use client";
 
-interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
-  label: string;
+import type { ReactNode, SelectHTMLAttributes } from "react";
+
+export type Opsi = { value: string | number; label: string };
+
+type Props = SelectHTMLAttributes<HTMLSelectElement> & {
+  label?: string;
+  required?: boolean;
+  optional?: boolean;
   error?: string;
-}
+  hint?: string;
+  /** Cara baru: daftar opsi */
+  options?: Opsi[];
+  placeholder?: string;
+  /** Cara lama: <option> sebagai children */
+  children?: ReactNode;
+};
 
+/** Dropdown — mengikuti .select pada design system prototype. */
 export default function Select({
   label,
+  required,
+  optional,
   error,
-  id,
-  name,
-  className = "",
+  hint,
+  options,
+  placeholder,
   children,
-  ...props
-}: SelectProps) {
-  const selectId = id ?? name;
-
+  className = "",
+  id,
+  ...rest
+}: Props) {
+  const inputId = id || rest.name;
   return (
-    <div className="space-y-1.5">
-      <label
-        htmlFor={selectId}
-        className="block text-sm font-medium text-slate-700"
-      >
-        {label}
-      </label>
-      <select
-        id={selectId}
-        name={name}
-        className={[
-          "w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-slate-900",
-          "focus:outline-none focus:ring-2 focus:ring-emerald-500/40",
-          error ? "border-red-400 focus:ring-red-400/40" : "border-slate-300",
-          className,
-        ]
-          .filter(Boolean)
-          .join(" ")}
-        {...props}
-      >
-        {children}
+    <div className="field">
+      {label ? (
+        <label className="label" htmlFor={inputId}>
+          {label}
+          {required ? <span className="req">*</span> : null}
+          {optional ? <span className="opt">(opsional)</span> : null}
+        </label>
+      ) : null}
+      <select id={inputId} className={`select ${error ? "is-error" : ""} ${className}`} {...rest}>
+        {placeholder ? <option value="">{placeholder}</option> : null}
+        {options
+          ? options.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))
+          : children}
       </select>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error ? <div className="err-msg show">{error}</div> : hint ? <div className="hint">{hint}</div> : null}
     </div>
   );
 }
