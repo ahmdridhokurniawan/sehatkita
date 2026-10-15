@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
@@ -9,6 +8,7 @@ import Modal from "@/components/ui/Modal";
 import Segmented from "@/components/ui/Segmented";
 import Pagination, { type Meta } from "@/components/ui/Pagination";
 import Line from "@/components/charts/Line";
+import CatatModal from "@/components/catatan/CatatModal";
 import { EmptyState } from "@/components/ui/Empty";
 import { CATATAN_DEMO, hariLalu } from "@/lib/demo";
 import { tanggal } from "@/lib/format";
@@ -100,12 +100,12 @@ function toneKategori(k = ""): "safe" | "warning" | "danger" {
 }
 
 export default function RekamMedisPage() {
-  const router = useRouter();
   const [periode, setPeriode] = useState("3m");
   const [indikator, setIndikator] = useState<string>("bb_kg");
   const [cari, setCari] = useState("");
   const [halaman, setHalaman] = useState(1);
   const [detail, setDetail] = useState<CatatanLengkap | null>(null);
+  const [catatTerbuka, setCatatTerbuka] = useState(false);
 
   const ind = INDIKATOR.find((i) => i.k === indikator) || INDIKATOR[0];
 
@@ -138,7 +138,7 @@ export default function RekamMedisPage() {
   const meta: Meta = { page: halamanAman, per_page: PER_HALAMAN, total, last_page: lastPage };
 
   return (
-    <AppShell noFab onFab={() => router.push("/catatan-kesehatan")}>
+    <AppShell onFab={() => setCatatTerbuka(true)}>
       <div className="row-between mb-16">
         <div>
           <h1 className="h3">Rekam Medis</h1>
@@ -285,6 +285,7 @@ export default function RekamMedisPage() {
           </>
         ) : null}
       </Modal>
+      <CatatModal open={catatTerbuka} onClose={() => setCatatTerbuka(false)} />
     </AppShell>
   );
 }

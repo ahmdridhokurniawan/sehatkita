@@ -1,14 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import Link from "next/link";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
 import Line from "@/components/charts/Line";
+import CatatModal from "@/components/catatan/CatatModal";
 import { EmptyState } from "@/components/ui/Empty";
-import { DASHBOARD_PRIBADI_DEMO, SERI_BB_DEMO, hariLalu } from "@/lib/demo";
-import { tanggal, relatif, angka, desimal } from "@/lib/format";
+import { DASHBOARD_PRIBADI_DEMO, SERI_BB_DEMO } from "@/lib/demo";
+import { tanggal, relatif, angka } from "@/lib/format";
 import { LABEL_STATUS_RUJUKAN } from "@/lib/labels";
 
 const HERO_CLS: Record<string, string> = { baik: "baik", waspada: "waspada", perlu_perhatian: "bahaya" };
@@ -26,7 +27,7 @@ function toneKategori(kategori = ""): "safe" | "warning" | "danger" {
 }
 
 export default function BerandaPage() {
-  const router = useRouter();
+  const [catatTerbuka, setCatatTerbuka] = useState(false);
   const d = DASHBOARD_PRIBADI_DEMO;
   const target = d.target;
   const reward = d.reward;
@@ -42,7 +43,7 @@ export default function BerandaPage() {
       : 0;
 
   return (
-    <AppShell greet="Halo" unread={unread} onFab={() => router.push("/catatan-kesehatan")}>
+    <AppShell greet="Halo" unread={unread} onFab={() => setCatatTerbuka(true)}>
       {/* Status kesehatan */}
       <section className={`health-hero ${HERO_CLS[d.status_kesehatan] || "baik"}`}>
         <span className="pill">
@@ -71,7 +72,7 @@ export default function BerandaPage() {
       <section>
         <div className="app-section-title">
           <h2>Indikator Terkini</h2>
-          <Link href="/tren">Lihat semua</Link>
+          <Link href="/rekam-medis">Lihat semua</Link>
         </div>
         <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
           {d.indikator_terkini.map((ind) => (
@@ -119,7 +120,7 @@ export default function BerandaPage() {
       <section>
         <div className="app-section-title">
           <h2>Perkembangan</h2>
-          <Link href="/tren">Detail grafik</Link>
+          <Link href="/rekam-medis">Detail grafik</Link>
         </div>
         <div className="card mt-12">
           <div className="row-between mb-12">
@@ -290,6 +291,8 @@ export default function BerandaPage() {
         <Icon name="shield" size={13} /> SehatKita bukan alat diagnosis medis dan tidak menggantikan pemeriksaan tenaga
         kesehatan.
       </p>
+
+      <CatatModal open={catatTerbuka} onClose={() => setCatatTerbuka(false)} />
     </AppShell>
   );
 }
