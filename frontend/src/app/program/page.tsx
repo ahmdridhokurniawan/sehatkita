@@ -41,12 +41,20 @@ const FILTER = [
 
 export default function ProgramPage() {
   const [filter, setFilter] = useState("semua");
+  const [cari, setCari] = useState("");
   const reward = DASHBOARD_PRIBADI_DEMO.reward;
 
-  const daftar = useMemo(
-    () => (filter === "semua" ? PROGRAM_DEMO : PROGRAM_DEMO.filter((p) => p.status === filter)),
-    [filter]
-  );
+  const daftar = useMemo(() => {
+    const q = cari.trim().toLowerCase();
+    return PROGRAM_DEMO.filter((p) => {
+      const cocokStatus = filter === "semua" || p.status === filter;
+      const cocokCari =
+        q === "" ||
+        p.nama.toLowerCase().includes(q) ||
+        p.deskripsi.toLowerCase().includes(q);
+      return cocokStatus && cocokCari;
+    });
+  }, [filter, cari]);
 
   return (
     <AppShell noFab>
@@ -90,6 +98,17 @@ export default function ProgramPage() {
       </div>
 
       <Segmented items={FILTER} value={filter} onChange={setFilter} />
+
+      <div className="input-icon mt-12">
+        <Icon name="search" size={18} />
+        <input
+          className="input"
+          type="search"
+          placeholder="Cari tantangan…"
+          value={cari}
+          onChange={(e) => setCari(e.target.value)}
+        />
+      </div>
 
       <div className="mt-12" style={{ display: "grid", gap: 12 }}>
         {daftar.length === 0 ? (

@@ -25,15 +25,22 @@ const IKON: Record<string, string> = {
 
 export default function NotifikasiPage() {
   const [filter, setFilter] = useState("semua");
+  const [cari, setCari] = useState("");
   const [dibaca, setDibaca] = useState<number[]>(
     NOTIFIKASI_DEMO.filter((n) => n.dibaca).map((n) => n.id)
   );
 
   const daftar = useMemo(() => {
-    if (filter === "belum") return NOTIFIKASI_DEMO.filter((n) => !dibaca.includes(n.id));
-    if (filter === "semua") return NOTIFIKASI_DEMO;
-    return NOTIFIKASI_DEMO.filter((n) => n.tipe === filter);
-  }, [filter, dibaca]);
+    const q = cari.trim().toLowerCase();
+    return NOTIFIKASI_DEMO.filter((n) => {
+      let cocokFilter = true;
+      if (filter === "belum") cocokFilter = !dibaca.includes(n.id);
+      else if (filter !== "semua") cocokFilter = n.tipe === filter;
+      const cocokCari =
+        q === "" || n.judul.toLowerCase().includes(q) || n.pesan.toLowerCase().includes(q);
+      return cocokFilter && cocokCari;
+    });
+  }, [filter, cari, dibaca]);
 
   const belumDibaca = NOTIFIKASI_DEMO.filter((n) => !dibaca.includes(n.id)).length;
 
@@ -57,6 +64,17 @@ export default function NotifikasiPage() {
       </div>
 
       <Segmented items={FILTER} value={filter} onChange={setFilter} />
+
+      <div className="input-icon mt-12">
+        <Icon name="search" size={18} />
+        <input
+          className="input"
+          type="search"
+          placeholder="Cari notifikasi…"
+          value={cari}
+          onChange={(e) => setCari(e.target.value)}
+        />
+      </div>
 
       <div className="card mt-12">
         {daftar.length === 0 ? (
