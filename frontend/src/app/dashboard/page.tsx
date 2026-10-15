@@ -1,306 +1,295 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Card from "@/components/ui/Card";
+import AppShell from "@/components/app/AppShell";
+import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
-import { getUserSimulasi, sudahOnboarding, logoutSimulasi } from "@/lib/session";
-import { dummyDashboardPribadi, dummyInsight } from "@/lib/dummy";
-import {
-  LABEL_STATUS_KESEHATAN,
-  LABEL_KATEGORI_IMT,
-  LABEL_LEVEL_INSIGHT,
-} from "@/lib/labels";
-import type {
-  StatusKesehatan,
-  KategoriImt,
-  LevelInsight,
-  Sumber,
-} from "@/lib/enums";
+import Line from "@/components/charts/Line";
+import { EmptyState } from "@/components/ui/Empty";
+import { DASHBOARD_PRIBADI_DEMO, SERI_BB_DEMO, hariLalu } from "@/lib/demo";
+import { tanggal, relatif, angka, desimal } from "@/lib/format";
+import { LABEL_STATUS_RUJUKAN } from "@/lib/labels";
 
-// Langganan kosong — dipakai hanya untuk tahu "sudah jalan di browser?"
-const langgananKosong = () => () => {};
-
-function useSudahDiBrowser(): boolean {
-  return useSyncExternalStore(
-    langgananKosong,
-    () => true, // di browser
-    () => false // di server (saat render pertama)
-  );
-}
-
-// Warna badge untuk tiap status
-const TONE_STATUS: Record<StatusKesehatan, "sukses" | "peringatan" | "bahaya"> = {
-  normal: "sukses",
-  perlu_perhatian: "peringatan",
-  berisiko: "bahaya",
+const HERO_CLS: Record<string, string> = { baik: "baik", waspada: "waspada", perlu_perhatian: "bahaya" };
+const LABEL_STATUS: Record<string, string> = {
+  baik: "Kondisi Baik",
+  waspada: "Perlu Diwaspadai",
+  perlu_perhatian: "Perlu Perhatian",
 };
 
-const TONE_IMT: Record<KategoriImt, "info" | "sukses" | "peringatan" | "bahaya"> = {
-  kurus: "info",
-  normal: "sukses",
-  gemuk: "peringatan",
-  obesitas: "bahaya",
-};
-
-const TONE_INSIGHT: Record<LevelInsight, "info" | "peringatan" | "bahaya"> = {
-  info: "info",
-  peringatan: "peringatan",
-  bahaya: "bahaya",
-};
-
-const LABEL_SUMBER: Record<Sumber, string> = {
-  mandiri: "Mandiri",
-  kader: "Kader",
-  puskesmas: "Puskesmas",
-};
-
-// Bantuan tampilan angka
-function tampil(nilai: number | null, satuan = ""): string {
-  if (nilai === null) return "—";
-  return `${nilai}${satuan}`;
+/** Warna badge kategori indikator (mengikuti heuristik prototype). */
+function toneKategori(kategori = ""): "safe" | "warning" | "danger" {
+  if (/berat|diabetes|obesitas|tinggi|berisiko|hipertensi derajat 2/i.test(kategori)) return "danger";
+  if (/hipertensi|prediabetes|batas|gemuk|prehipertensi|derajat 1/i.test(kategori)) return "warning";
+  return "safe";
 }
 
-function selisih(nilai: number | null, satuan = ""): string {
-  if (nilai === null) return "—";
-  const tanda = nilai > 0 ? "+" : "";
-  return `${tanda}${nilai}${satuan}`;
-}
-
-function formatTanggal(iso: string): string {
-  const [tahun, bulan, hari] = iso.slice(0, 10).split("-");
-  if (!tahun || !bulan || !hari) return iso;
-  return `${hari}/${bulan}/${tahun}`;
-}
-
-// Satu baris kecil "label : nilai" di dalam kartu
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-xs text-slate-400">{label}</dt>
-      <dd className="text-sm font-semibold text-slate-800">{value}</dd>
-    </div>
-  );
-}
-
-export default function DashboardPage() {
+export default function BerandaPage() {
   const router = useRouter();
-  const diBrowser = useSudahDiBrowser();
+  const d = DASHBOARD_PRIBADI_DEMO;
+  const target = d.target;
+  const reward = d.reward;
+  const unread = d.next_notifications.filter((n) => !n.dibaca).length;
 
-  const email = diBrowser ? getUserSimulasi() : "";
-  const bolehMasuk = email !== "" && sudahOnboarding(email);
-
-  useEffect(() => {
-    if (!diBrowser) return; // tunggu sampai jalan di browser
-    if (email === "") {
-      router.replace("/login"); // belum login → ke login
-    } else if (!bolehMasuk) {
-      router.replace("/onboarding"); // belum isi formulir → ke formulir
-    }
-  }, [diBrowser, email, bolehMasuk, router]);
-
-  // Tampil sementara selagi memeriksa / mengalihkan
-  if (!bolehMasuk) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50">
-        <p className="text-sm text-slate-400">Memuat…</p>
-      </main>
-    );
-  }
-
-  const d = dummyDashboardPribadi;
-  const i = d.indikator_terkini;
+  // Visual progres BB (porting dari beranda.js)
+  const bbNow = target.bb_saat_ini || 0;
+  const bbTarget = target.bb_target_kg || 0;
+  const bbAwal = bbNow + 8;
+  const progBB =
+    bbTarget && bbNow
+      ? Math.max(4, Math.min(100, Math.round(((bbAwal - bbNow) / Math.max(1, bbAwal - bbTarget)) * 100)))
+      : 0;
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8">
-      <div className="mx-auto max-w-3xl space-y-5">
-        {/* Kepala halaman */}
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <AppShell greet="Halo" unread={unread} onFab={() => router.push("/catatan-kesehatan")}>
+      {/* Status kesehatan */}
+      <section className={`health-hero ${HERO_CLS[d.status_kesehatan] || "baik"}`}>
+        <span className="pill">
+          <Icon name="heart-pulse" size={14} /> Status kesehatan Anda
+        </span>
+        <div className="row-between items-end mt-8">
           <div>
-            <h1 className="text-xl font-bold text-slate-900">Dashboard</h1>
-            <p className="mt-1 text-sm text-slate-500">{email}</p>
+            <h2>{LABEL_STATUS[d.status_kesehatan] || "Kondisi"}</h2>
+            <div className="sub mt-4">Diperbarui {relatif(d.indikator_terkini[0]?.tanggal)}</div>
           </div>
-          <div className="flex flex-wrap gap-2 sm:shrink-0 sm:justify-end">
-            <Link
-              href="/program"
-              className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
-            >
-              Program
-            </Link>
-            <Link
-              href="/insight"
-              className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600"
-            >
-              Insight
-            </Link>
-            <Link
-              href="/rujukan"
-              className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700"
-            >
-              Rujukan
-            </Link>
-            <Link
-              href="/tren"
-              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700"
-            >
-              Tren
-            </Link>
-            <Link
-              href="/dashboard/kelurahan"
-              className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700"
-            >
-              Kelurahan
-            </Link>
-            <Link
-              href="/profil"
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              Profil
-            </Link>
-            <Link
-              href="/catatan-kesehatan"
-              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-            >
-              Catatan Kesehatan
-            </Link>
-            <button
-              onClick={() => {
-                logoutSimulasi();
-                router.push("/login");
-              }}
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              Keluar
-            </button>
+          <div className="center">
+            <div className="score">{d.skor_risiko}</div>
+            <div className="sub">skor risiko</div>
           </div>
+        </div>
+        <div className="row gap-8 mt-16" style={{ flexWrap: "wrap" }}>
+          <span className="badge" style={{ background: "rgba(255,255,255,.18)", color: "#fff", border: "none" }}>
+            <Icon name={d.perbandingan.bb_selisih <= 0 ? "trending-down" : "trending-up"} size={13} /> BB{" "}
+            {d.perbandingan.bb_selisih <= 0 ? "turun" : "naik"} {Math.abs(d.perbandingan.bb_selisih)} kg /{" "}
+            {d.perbandingan.periode}
+          </span>
+        </div>
+      </section>
 
-        </header>
-
-        {/* Status kesehatan */}
-        <Card title="Status Kesehatan" subtitle="Ringkasan kondisi terkini">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-3xl font-bold text-slate-900">{d.skor_risiko}</p>
-              <p className="text-xs text-slate-400">Skor risiko (0–100)</p>
+      {/* Indikator terkini */}
+      <section>
+        <div className="app-section-title">
+          <h2>Indikator Terkini</h2>
+          <Link href="/tren">Lihat semua</Link>
+        </div>
+        <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
+          {d.indikator_terkini.map((ind) => (
+            <div className="metric" key={ind.nama}>
+              <span className="metric-name">
+                <Icon name="activity" size={14} /> {ind.nama}
+              </span>
+              <span className="metric-val">
+                {ind.nilai} <small>{ind.satuan || ""}</small>
+              </span>
+              <div className="row-between">
+                <Badge tone={toneKategori(ind.kategori)}>{ind.kategori}</Badge>
+                <span className="tiny">{tanggal(ind.tanggal, "short")}</span>
+              </div>
             </div>
-            <Badge tone={TONE_STATUS[d.status_kesehatan]}>
-              {LABEL_STATUS_KESEHATAN[d.status_kesehatan]}
-            </Badge>
-          </div>
-        </Card>
-
-        {/* Indikator terkini */}
-        <Card
-          title="Indikator Terkini"
-          subtitle={`Dicatat ${formatTanggal(i.dicatat_pada)} · ${LABEL_SUMBER[i.sumber]}`}
-        >
-          <dl className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3">
-            <Stat label="Berat badan" value={tampil(i.bb_kg, " kg")} />
-            <Stat label="Tinggi badan" value={tampil(i.tinggi_cm, " cm")} />
-            <div>
-              <dt className="text-xs text-slate-400">IMT</dt>
-              <dd className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                {tampil(i.imt)}
-                {i.kategori_imt && (
-                  <Badge tone={TONE_IMT[i.kategori_imt]}>
-                    {LABEL_KATEGORI_IMT[i.kategori_imt]}
-                  </Badge>
-                )}
-              </dd>
-            </div>
-            <Stat
-              label="Tekanan darah"
-              value={
-                i.sistol !== null && i.diastol !== null
-                  ? `${i.sistol}/${i.diastol} mmHg`
-                  : "—"
-              }
-            />
-            <Stat label="Gula darah" value={tampil(i.gula_darah, " mg/dL")} />
-            <Stat label="Kolesterol" value={tampil(i.kolesterol, " mg/dL")} />
-            <Stat label="Asam urat" value={tampil(i.asam_urat, " mg/dL")} />
-            <Stat label="Lingkar perut" value={tampil(i.lingkar_perut, " cm")} />
-          </dl>
-        </Card>
-
-        {/* Perbandingan periode */}
-        <Card
-          title="Perbandingan Periode"
-          subtitle={`${d.perbandingan.periode_ini} dibanding ${d.perbandingan.periode_lalu}`}
-        >
-          <dl className="grid grid-cols-3 gap-4">
-            <Stat label="Berat badan" value={selisih(d.perbandingan.bb_selisih_kg, " kg")} />
-            <Stat label="IMT" value={selisih(d.perbandingan.imt_selisih)} />
-            <Stat label="Sistol" value={selisih(d.perbandingan.sistol_selisih, " mmHg")} />
-          </dl>
-        </Card>
-
-        {/* Target */}
-        <Card title="Target Berat Badan">
-          {d.target.bb_target_kg === null ? (
-            <p className="text-sm text-slate-400">Belum ada target.</p>
-          ) : (
-            <>
-              <p className="text-sm text-slate-600">
-                Target:{" "}
-                <span className="font-semibold text-slate-900">
-                  {d.target.bb_target_kg} kg
-                </span>
-              </p>
-              {d.target.progress_persen !== null && (
-                <div className="mt-3">
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                    <div
-                      className="h-full rounded-full bg-emerald-500"
-                      style={{ width: `${d.target.progress_persen}%` }}
-                    />
-                  </div>
-                  <p className="mt-1 text-xs text-slate-400">
-                    Progres {d.target.progress_persen}%
-                  </p>
-                </div>
-              )}
-            </>
-          )}
-        </Card>
-
-        {/* Jadwal skrining */}
-        <Card title="Jadwal Skrining Berikutnya">
-          {d.jadwal_skrining_berikutnya.length === 0 ? (
-            <p className="text-sm text-slate-400">Tidak ada jadwal.</p>
-          ) : (
-            <ul className="space-y-2">
-              {d.jadwal_skrining_berikutnya.map((j) => (
-                <li key={j.indikator} className="flex items-center justify-between">
-                  <span className="text-sm text-slate-700">{j.indikator}</span>
-                  <span className="text-xs text-slate-400">
-                    {formatTanggal(j.jatuh_tempo)}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-
-        {/* Insight / saran */}
-        <Card title="Saran untuk Anda" subtitle="Dari analisis data terkini">
-          <ul className="space-y-3">
-            {dummyInsight.map((ins) => (
-              <li key={ins.kode} className="flex items-start gap-3">
-                <Badge tone={TONE_INSIGHT[ins.level]}>
-                  {LABEL_LEVEL_INSIGHT[ins.level]}
-                </Badge>
-                <p className="text-sm text-slate-700">{ins.teks}</p>
-              </li>
-            ))}
-          </ul>
-        </Card>
-
-        <p className="pt-2 text-center text-xs text-slate-400">
-          Data sementara (dummy). Nanti tersambung ke API asli.
+          ))}
+        </div>
+        <p className="tiny mt-8">
+          <Icon name="info" size={12} /> Tanggal pengukuran tiap indikator dapat berbeda.
         </p>
-      </div>
-    </main>
+      </section>
+
+      {/* Insight */}
+      <section>
+        <div className="app-section-title">
+          <h2>Insight Kesehatan</h2>
+          <Link href="/insight">Selengkapnya</Link>
+        </div>
+        <div className="card card-flat mt-12" style={{ borderLeft: "4px solid var(--danger)" }}>
+          <div className="row items-start gap-10">
+            <span className="text-danger">
+              <Icon name="alert-triangle" size={20} />
+            </span>
+            <div>
+              <strong className="text-sm">Tekanan darah tinggi berulang</strong>
+              <p className="tiny mt-4">
+                Tiga pengukuran terakhir menunjukkan sistol ≥ 140 mmHg. Segera periksakan diri ke fasilitas kesehatan.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Grafik perkembangan */}
+      <section>
+        <div className="app-section-title">
+          <h2>Perkembangan</h2>
+          <Link href="/tren">Detail grafik</Link>
+        </div>
+        <div className="card mt-12">
+          <div className="row-between mb-12">
+            <strong className="text-sm">Berat Badan</strong>
+            <span className="tiny">kg</span>
+          </div>
+          <Line
+            labels={SERI_BB_DEMO.map((p) => tanggal(p.tanggal, "short"))}
+            series={[{ name: "Berat Badan", data: SERI_BB_DEMO.map((p) => p.nilai) }]}
+            unit="kg"
+            height={150}
+          />
+        </div>
+      </section>
+
+      {/* Target */}
+      <section>
+        <div className="app-section-title">
+          <h2>Target Kesehatan</h2>
+          <Link href="/profil">Atur target</Link>
+        </div>
+        <div className="card mt-12">
+          <div className="row-between mb-8">
+            <span className="text-sm fw-600">Berat badan</span>
+            <span className="tiny">
+              <b className="text-primary">{bbNow}</b> / {bbTarget} kg
+            </span>
+          </div>
+          <div className="progress">
+            <i style={{ width: `${progBB}%` }} />
+          </div>
+          <div className="row gap-16 mt-16" style={{ flexWrap: "wrap" }}>
+            <div className="row gap-8">
+              <span className="li-ico" style={{ width: 34, height: 34 }}>
+                <Icon name="activity" size={16} />
+              </span>
+              <div>
+                <div className="tiny">Aktivitas</div>
+                <strong className="text-sm">{target.target_aktivitas_per_minggu}×/minggu</strong>
+              </div>
+            </div>
+            <div className="row gap-8">
+              <span className="li-ico" style={{ width: 34, height: 34 }}>
+                <Icon name="droplet" size={16} />
+              </span>
+              <div>
+                <div className="tiny">Air minum</div>
+                <strong className="text-sm">{angka(target.target_air_ml)} ml</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Jadwal skrining */}
+      {d.jadwal_skrining_berikutnya ? (
+        <section>
+          <div className="app-section-title">
+            <h2>Jadwal Skrining</h2>
+          </div>
+          <div className="card mt-12 row gap-12 items-center">
+            <span className="li-ico" style={{ background: "var(--primary-050)", color: "var(--primary)" }}>
+              <Icon name="calendar-check" size={20} />
+            </span>
+            <div className="flex-1">
+              <strong className="text-sm">{tanggal(d.jadwal_skrining_berikutnya.tanggal, "day")}</strong>
+              <div className="tiny">{d.jadwal_skrining_berikutnya.lokasi}</div>
+            </div>
+            <span className="badge badge-primary">
+              <Icon name="clock" size={13} /> {relatif(d.jadwal_skrining_berikutnya.tanggal).replace("lalu", "")}
+            </span>
+          </div>
+        </section>
+      ) : null}
+
+      {/* Rujukan aktif */}
+      <section>
+        <div className="app-section-title">
+          <h2>Rujukan Aktif</h2>
+          <Link href="/rujukan">Semua rujukan</Link>
+        </div>
+        {d.rujukan_aktif.length ? (
+          d.rujukan_aktif.map((r) => (
+            <div className="card card-flat mt-12 row gap-12 items-center" key={r.id}>
+              <span className="li-ico">
+                <Icon name="send" size={18} />
+              </span>
+              <div className="flex-1">
+                <strong className="text-sm">{r.faskes}</strong>
+                <div className="tiny">{r.alasan}</div>
+              </div>
+              <Badge tone={r.status === "baru" ? "primary" : "warning"}>{LABEL_STATUS_RUJUKAN[r.status]}</Badge>
+            </div>
+          ))
+        ) : (
+          <div className="card card-flat mt-12">
+            <EmptyState title="Tidak ada rujukan aktif" desc="Rujukan akan muncul di sini bila diperlukan tindak lanjut." />
+          </div>
+        )}
+      </section>
+
+      {/* Tantangan & reward */}
+      <section>
+        <div className="app-section-title">
+          <h2>Tantangan &amp; Reward</h2>
+          <Link href="/program">Semua tantangan</Link>
+        </div>
+        <div className="card mt-12">
+          <div className="row gap-10">
+            <span className="li-ico" style={{ background: "var(--warning-bg)", color: "var(--warning)" }}>
+              <Icon name="flame" size={18} />
+            </span>
+            <div>
+              <strong className="text-sm">
+                Level {reward.level} · {reward.level_nama}
+              </strong>
+              <div className="tiny">
+                {angka(reward.exp)} EXP · peringkat #{reward.rank_kelurahan} kelurahan
+              </div>
+            </div>
+          </div>
+          <div className="progress sm mt-12">
+            <i style={{ width: `${Math.min(100, (reward.exp % 200) / 2)}%` }} />
+          </div>
+          <div className="row gap-6 mt-12" style={{ flexWrap: "wrap" }}>
+            {reward.badge.length ? (
+              reward.badge.map((b) => (
+                <span className="badge badge-primary" key={b}>
+                  <Icon name="award" size={13} /> {b}
+                </span>
+              ))
+            ) : (
+              <span className="tiny">Belum ada badge</span>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Notifikasi */}
+      <section>
+        <div className="app-section-title">
+          <h2>Notifikasi Terbaru</h2>
+          <Link href="/notifikasi">Semua</Link>
+        </div>
+        <div className="card mt-12">
+          {d.next_notifications.length ? (
+            d.next_notifications.map((n) => (
+              <div className="li" key={n.id}>
+                <span className="li-ico">
+                  <Icon name="bell" size={18} />
+                </span>
+                <div className="li-main">
+                  <strong>{n.judul}</strong>
+                  <span>{n.pesan}</span>
+                </div>
+                <div className="li-side">
+                  <span className="tiny">{relatif(n.dibuat_pada)}</span>
+                </div>
+              </div>
+            ))
+          ) : (
+            <EmptyState title="Tidak ada notifikasi baru" />
+          )}
+        </div>
+      </section>
+
+      <p className="tiny center mt-8 mb-16">
+        <Icon name="shield" size={13} /> SehatKita bukan alat diagnosis medis dan tidak menggantikan pemeriksaan tenaga
+        kesehatan.
+      </p>
+    </AppShell>
   );
 }
