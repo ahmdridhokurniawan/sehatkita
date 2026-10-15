@@ -169,14 +169,17 @@ export const profil = {
   }) => request<import("@/types").Profil>("/profil", { method: "PUT", body: payload }),
 };
 export const persetujuan = {
+  // CATATAN: kontrak §5.3/§5.4 menulis `/persetujuan`, tetapi backend
+  // menaruhnya di grup auth → `/auth/persetujuan`. Sementara ikut backend
+  // agar integrasi jalan; menunggu keputusan Ridho (selaraskan ke kontrak).
   /** §5.3 POST /persetujuan */
   setuju: (versi_kebijakan: string) =>
-    request<{ consent_at: string; versi_kebijakan: string }>("/persetujuan", {
+    request<{ consent_at: string; versi_kebijakan: string }>("/auth/persetujuan", {
       method: "POST",
       body: { versi_kebijakan, setuju: true },
     }),
   /** §5.4 DELETE /persetujuan */
-  tarik: () => request<{ consent_at: null }>("/persetujuan", { method: "DELETE" }),
+  tarik: () => request<{ consent_at: null }>("/auth/persetujuan", { method: "DELETE" }),
 };
 /* ============================================================
  * §6 — Master (Wilayah & Faskes)

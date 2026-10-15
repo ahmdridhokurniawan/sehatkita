@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Card from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
-import { getUserSimulasi, sudahOnboarding, logoutSimulasi } from "@/lib/session";
+import { getUserSesi, hapusUserSesi } from "@/lib/session";
+import { auth, clearToken } from "@/lib/api";
 import { dummyDashboardPribadi, dummyInsight } from "@/lib/dummy";
 import {
   LABEL_STATUS_KESEHATAN,
@@ -88,17 +89,18 @@ export default function DashboardPage() {
   const router = useRouter();
   const diBrowser = useSudahDiBrowser();
 
-  const email = diBrowser ? getUserSimulasi() : "";
-  const bolehMasuk = email !== "" && sudahOnboarding(email);
+  const user = diBrowser ? getUserSesi() : null;
+  const email = user?.email ?? "";
+  const bolehMasuk = user !== null && Boolean(user.consent_at);
 
   useEffect(() => {
     if (!diBrowser) return; // tunggu sampai jalan di browser
-    if (email === "") {
+    if (!user) {
       router.replace("/login"); // belum login → ke login
     } else if (!bolehMasuk) {
       router.replace("/onboarding"); // belum isi formulir → ke formulir
     }
-  }, [diBrowser, email, bolehMasuk, router]);
+  }, [diBrowser, user, bolehMasuk, router]);
 
   // Tampil sementara selagi memeriksa / mengalihkan
   if (!bolehMasuk) {
@@ -165,8 +167,14 @@ export default function DashboardPage() {
               Catatan Kesehatan
             </Link>
             <button
-              onClick={() => {
-                logoutSimulasi();
+              onClick={async () => {
+                try {
+                  await auth.logout();
+                } catch {
+                  // token mungkin sudah kedaluwarsa — tetap bersihkan sesi lokal
+                }
+                clearToken();
+                hapusUserSesi();
                 router.push("/login");
               }}
               className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"

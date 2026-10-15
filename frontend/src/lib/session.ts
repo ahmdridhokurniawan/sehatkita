@@ -1,4 +1,4 @@
-import type { ProfilRingkas } from "@/types";
+import type { ProfilRingkas, User } from "@/types";
 
 /**
  * Bantuan sesi SEMENTARA (belum tersambung backend).
@@ -88,4 +88,33 @@ export function simpanProfilSimulasi(email: string, profil: ProfilRingkas): void
   const peta = bacaPetaProfil();
   peta[email.toLowerCase()] = profil;
   window.localStorage.setItem(PROFIL_KEY, JSON.stringify(peta));
+}
+
+/* ============================================================
+ * Sesi NYATA — tersambung backend (menggantikan simulasi)
+ * Token disimpan oleh api.ts (TOKEN_KEY); di sini hanya cache user.
+ * ============================================================ */
+const USER_KEY = "sehatkita_user";
+
+/** Simpan data user (ringkas) setelah login/register/me */
+export function simpanUserSesi(user: User): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
+/** Ambil data user tersimpan (cache), atau null */
+export function getUserSesi(): User | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(USER_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Hapus data user saat logout */
+export function hapusUserSesi(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(USER_KEY);
 }

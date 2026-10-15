@@ -2,7 +2,8 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import { getUserSimulasi, sudahOnboarding } from "@/lib/session";
+import { getToken } from "@/lib/api";
+import { getUserSesi } from "@/lib/session";
 
 // Langganan kosong — hanya untuk tahu "sudah jalan di browser?"
 const langgananKosong = () => () => {};
@@ -18,12 +19,16 @@ export default function Home() {
   useEffect(() => {
     if (!diBrowser) return;
 
-    const email = getUserSimulasi();
+    const token = getToken();
+    const user = getUserSesi();
 
-    if (email !== "" && sudahOnboarding(email)) {
-      router.replace("/dashboard");
-    } else if (email !== "") {
-      router.replace("/onboarding");
+    if (token && user) {
+      // Sudah login → sudah isi profil (consent_at)? dashboard : onboarding
+      if (user.consent_at) {
+        router.replace("/dashboard");
+      } else {
+        router.replace("/onboarding");
+      }
     } else {
       router.replace("/login");
     }
