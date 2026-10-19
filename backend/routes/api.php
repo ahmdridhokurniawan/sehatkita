@@ -23,8 +23,8 @@ Route::prefix('v1')->group(function () {
     Route::get('/landing-page', [LandingPageController::class, 'index']);
 
     // Kontrak §1: Auth (Registrasi & Login)
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
+    Route::post('/auth/register', [AuthController::class, 'register']);
+    Route::post('/auth/login', [AuthController::class, 'login']);
 
     // Kontrak §2: Master Data Wilayah (Hanya List Kelurahan)
     Route::get('/wilayah', [WilayahController::class, 'index']);
