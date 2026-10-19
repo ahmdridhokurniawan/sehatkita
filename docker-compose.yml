@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://pm-monitoring.test/api/v1}
+      NEXT_PUBLIC_APP_NAME: Sehatkita
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  backend:
+    image: laradock-workspace:latest
+    container_name: sehatkita-backend
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: production
+    restart: unless-stopped
+    # Optional: mount backend volume
+    # volumes:
+    #   - ./backend:/var/www/backend
