@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
@@ -10,45 +10,19 @@ import Modal from "@/components/ui/Modal";
 import { EmptyState } from "@/components/ui/Empty";
 import { useUser } from "@/hooks/useUser";
 import { tanggal, angka } from "@/lib/format";
+import { program as programApi, ApiError } from "@/lib/api";
 
-const PROGRAM_DEMO = [
-  {
-    id: 1,
-    nama: "Program Ibu Hamil",
-    deskripsi: "Pemeriksaan rutin & edukasi gizi untuk ibu hamil",
-    peserta: 28,
-    mulai: "2026-01-01",
-    status: "berjalan",
-    kader: { id: 5, name: "Kader A" },
-  },
-  {
-    id: 2,
-    nama: "Program Balita Sehat",
-    deskripsi: "Penimbangan & pencatatan tumbuh kembang balita",
-    peserta: 45,
-    mulai: "2026-02-15",
-    status: "berjalan",
-    kader: { id: 5, name: "Kader A" },
-  },
-  {
-    id: 3,
-    nama: "Program Lansia Hipertensi",
-    deskripsi: "Monitor tekanan darah & edukasi gaya hidup",
-    peserta: 32,
-    mulai: "2026-03-01",
-    status: "berjalan",
-    kader: { id: 6, name: "Kader B" },
-  },
-  {
-    id: 4,
-    nama: "Program Deteksi Dini Penyakit",
-    deskripsi: "Skrining PTM untuk masyarakat dewasa",
-    peserta: 0,
-    mulai: "2026-11-01",
-    status: "akan_datang",
-    kader: null,
-  },
-];
+type ProgramItem = {
+  id: number;
+  judul: string;
+  jenis: string;
+  target_peserta: number;
+  jumlah_peserta: number;
+  mulai: string;
+  selesai: string;
+  status: "akan_datang" | "berjalan" | "selesai";
+  diikuti: boolean;
+};
 
 const LABEL_STATUS: Record<string, string> = {
   berjalan: "Berjalan",
@@ -67,24 +41,57 @@ export default function ProgramPage() {
   const isAdmin = user?.role === "admin_kelurahan";
   const isKader = user?.role === "kader";
   const isUser = user?.role === "user";
-  
-  const [program, setProgram] = useState(PROGRAM_DEMO);
-  const [showForm, setShowForm] = useState(false);
-  const [joined, setJoined] = useState<number[]>([1, 2]); // demo: user sudah ikut program 1 & 2
-  const [detail, setDetail] = useState<typeof PROGRAM_DEMO[0] | null>(null);
 
-  const toggle = (id: number) => {
-    if (joined.includes(id)) {
-      setJoined(joined.filter((p) => p !== id));
-    } else {
-      setJoined([...joined, id]);
+  const [program, setProgram] = useState<ProgramItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>("");
+  const [showForm, setShowForm] = useState(false);
+  const [detail, setDetail] = useState<ProgramItem | null>(null);
+  const [toggling, setToggling] = useState<number | null>(null);
+
+  // Fetch program list on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await programApi.list();
+        setProgram(res);
+        setError("");
+      } catch (err) {
+        const msg = err instanceof ApiError ? err.message : "Gagal muat program";
+        setError(msg);
+        console.error("Fetch program:", err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const toggle = async (id: number, currentStatus: boolean) => {
+    setToggling(id);
+    try {
+      if (currentStatus) {
+        // Leave program — ubahPeserta status ke "berhenti"
+        await programApi.ubahPeserta(id, { status: "berhenti" });
+      } else {
+        // Join program — ikut
+        await programApi.ikut(id);
+      }
+      // Reload program list
+      const res = await programApi.list();
+      setProgram(res);
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Gagal ubah program";
+      setError(msg);
+      console.error("Toggle program:", err);
+    } finally {
+      setToggling(null);
     }
   };
 
-  const isJoined = (id: number) => joined.includes(id);
   const progBerjalan = program.filter((p) => p.status === "berjalan");
-  const progIkut = program.filter((p) => isJoined(p.id) && p.status === "berjalan");
-  const totalPeserta = progBerjalan.reduce((sum, p) => sum + p.peserta, 0);
+  const progIkut = program.filter((p) => p.diikuti && p.status === "berjalan");
+  const totalPeserta = progBerjalan.reduce((sum, p) => sum + p.jumlah_peserta, 0);
 
   // ========== UI TIER 1 (USER) ==========
   if (isUser) {
@@ -97,119 +104,147 @@ export default function ProgramPage() {
           </div>
         </div>
 
-        {/* Ringkasan */}
-        <div className="grid grid-2 mb-12" style={{ gap: 12 }}>
-          <div className="card card-flat">
-            <div className="tiny">Program Tersedia</div>
-            <div className="metric-val">{progBerjalan.length}</div>
-          </div>
-          <div className="card card-flat">
-            <div className="tiny">Program Diikuti</div>
-            <div className="metric-val">{progIkut.length}</div>
-          </div>
-        </div>
-
-        {/* Daftar program */}
-        <div className="app-section-title">
-          <h2>Program Aktif</h2>
-        </div>
-
-        {progBerjalan.length === 0 ? (
-          <div className="card card-flat mt-12">
-            <EmptyState title="Tidak ada program" desc="Belum ada program aktif saat ini." />
-          </div>
-        ) : (
-          <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
-            {progBerjalan.map((p) => {
-              const persen = Math.round((p.peserta / 50) * 100); // assume target 50
-              const ikut = isJoined(p.id);
-              return (
-                <div className="card card-flat" key={p.id}>
-                  <div className="row-between mb-12">
-                    <div>
-                      <strong className="text-sm">{p.nama}</strong>
-                      <p className="tiny mt-4">{p.deskripsi}</p>
-                    </div>
-                    <Badge tone={ikut ? "safe" : "warning"}>{ikut ? "Diikuti" : "Tersedia"}</Badge>
-                  </div>
-
-                  <div className="grid grid-2 mb-12" style={{ gap: 12 }}>
-                    <div className="tiny">
-                      <span>PJ</span>
-                      <div className="text-sm fw-600 mt-4">{p.kader?.name || "—"}</div>
-                    </div>
-                    <div className="tiny">
-                      <span>Peserta</span>
-                      <div className="text-sm fw-600 mt-4">{p.peserta}</div>
-                    </div>
-                  </div>
-
-                  <div className="row gap-8">
-                    <Button
-                      variant={ikut ? "secondary" : "primary"}
-                      style={{ flex: 1 }}
-                      onClick={() => toggle(p.id)}
-                    >
-                      <Icon name={ikut ? "check" : "plus"} size={15} /> {ikut ? "Berhenti" : "Ikuti"}
-                    </Button>
-                    <Button variant="ghost" style={{ flex: 1 }} onClick={() => setDetail(p)}>
-                      <Icon name="info" size={15} /> Info
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
+        {error && (
+          <div className="card card-flat mb-12" style={{ borderLeft: "4px solid var(--danger)" }}>
+            <div className="row gap-10 items-center">
+              <span className="text-danger">
+                <Icon name="alert-circle" size={18} />
+              </span>
+              <span className="text-sm">{error}</span>
+            </div>
           </div>
         )}
 
-        {/* Program akan datang */}
-        {program.filter((p) => p.status === "akan_datang").length > 0 && (
+        {loading ? (
+          <div className="card">
+            <p className="tiny center">Memuat…</p>
+          </div>
+        ) : (
           <>
-            <div className="app-section-title mt-20">
-              <h2>Akan Datang</h2>
+            {/* Ringkasan */}
+            <div className="grid grid-2 mb-12" style={{ gap: 12 }}>
+              <div className="card card-flat">
+                <div className="tiny">Program Tersedia</div>
+                <div className="metric-val">{progBerjalan.length}</div>
+              </div>
+              <div className="card card-flat">
+                <div className="tiny">Program Diikuti</div>
+                <div className="metric-val">{progIkut.length}</div>
+              </div>
             </div>
-            <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
-              {program.filter((p) => p.status === "akan_datang").map((p) => (
-                <div className="card card-flat" key={p.id} style={{ opacity: 0.7 }}>
-                  <div className="row-between mb-12">
-                    <div>
-                      <strong className="text-sm">{p.nama}</strong>
-                      <p className="tiny mt-4">{p.deskripsi}</p>
+
+            {/* Daftar program */}
+            <div className="app-section-title">
+              <h2>Program Aktif</h2>
+            </div>
+
+            {progBerjalan.length === 0 ? (
+              <div className="card card-flat mt-12">
+                <EmptyState title="Tidak ada program" desc="Belum ada program aktif saat ini." />
+              </div>
+            ) : (
+              <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
+                {progBerjalan.map((p) => {
+                  const persen = Math.round((p.jumlah_peserta / p.target_peserta) * 100);
+                  const ikut = p.diikuti;
+                  return (
+                    <div className="card card-flat" key={p.id}>
+                      <div className="row-between mb-12">
+                        <div>
+                          <strong className="text-sm">{p.judul}</strong>
+                          <p className="tiny mt-4">Jenis: {p.jenis}</p>
+                        </div>
+                        <Badge tone={ikut ? "safe" : "warning"}>{ikut ? "Diikuti" : "Tersedia"}</Badge>
+                      </div>
+
+                      <div className="grid grid-2 mb-12" style={{ gap: 12 }}>
+                        <div className="tiny">
+                          <span>Target</span>
+                          <div className="text-sm fw-600 mt-4">{p.target_peserta}</div>
+                        </div>
+                        <div className="tiny">
+                          <span>Peserta</span>
+                          <div className="text-sm fw-600 mt-4">{p.jumlah_peserta}</div>
+                        </div>
+                      </div>
+
+                      <div className="row gap-8">
+                        <Button
+                          variant={ikut ? "secondary" : "primary"}
+                          style={{ flex: 1 }}
+                          onClick={() => toggle(p.id, ikut)}
+                          disabled={toggling === p.id}
+                        >
+                          <Icon name={ikut ? "check" : "plus"} size={15} /> {ikut ? "Berhenti" : "Ikuti"}
+                        </Button>
+                        <Button variant="ghost" style={{ flex: 1 }} onClick={() => setDetail(p)}>
+                          <Icon name="info" size={15} /> Info
+                        </Button>
+                      </div>
                     </div>
-                    <Badge tone="warning">Akan Datang</Badge>
-                  </div>
-                  <div className="tiny">
-                    Mulai: <strong>{tanggal(p.mulai, "short")}</strong>
-                  </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Program akan datang */}
+            {program.filter((p) => p.status === "akan_datang").length > 0 && (
+              <>
+                <div className="app-section-title mt-20">
+                  <h2>Akan Datang</h2>
                 </div>
-              ))}
-            </div>
+                <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
+                  {program.filter((p) => p.status === "akan_datang").map((p) => (
+                    <div className="card card-flat" key={p.id} style={{ opacity: 0.7 }}>
+                      <div className="row-between mb-12">
+                        <div>
+                          <strong className="text-sm">{p.judul}</strong>
+                          <p className="tiny mt-4">Jenis: {p.jenis}</p>
+                        </div>
+                        <Badge tone="warning">Akan Datang</Badge>
+                      </div>
+                      <div className="tiny">
+                        Mulai: <strong>{tanggal(p.mulai, "short")}</strong>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <p className="tiny center mt-16 mb-16">
+              <Icon name="info" size={13} /> Program dinamis — data diperbarui dari server.
+            </p>
           </>
         )}
 
-        <p className="tiny center mt-16 mb-16">
-          <Icon name="info" size={13} /> Program dinamis — data diperbarui dari server.
-        </p>
-
         {/* Modal detail program */}
-        <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.nama}>
+        <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.judul}>
           {detail && (
             <>
-              <p className="tiny mb-12">{detail.deskripsi}</p>
+              <p className="tiny mb-12">Jenis: {detail.jenis}</p>
               <dl className="dl">
                 <div>
-                  <dt>Penanggung Jawab</dt>
-                  <dd>{detail.kader?.name || "—"}</dd>
+                  <dt>Tanggal Mulai</dt>
+                  <dd>{tanggal(detail.mulai, "long")}</dd>
+                </div>
+                <div>
+                  <dt>Tanggal Selesai</dt>
+                  <dd>{tanggal(detail.selesai, "long")}</dd>
+                </div>
+                <div>
+                  <dt>Target Peserta</dt>
+                  <dd>{detail.target_peserta}</dd>
                 </div>
                 <div>
                   <dt>Peserta Terdaftar</dt>
-                  <dd>{detail.peserta}</dd>
+                  <dd>{detail.jumlah_peserta}</dd>
                 </div>
                 <div>
                   <dt>Status</dt>
                   <dd>
                     <Badge tone={detail.status === "berjalan" ? "safe" : "warning"}>
-                      {detail.status === "berjalan" ? "Berjalan" : "Akan Datang"}
+                      {LABEL_STATUS[detail.status]}
                     </Badge>
                   </dd>
                 </div>
@@ -284,35 +319,67 @@ export default function ProgramPage() {
         <div className="app-section-title">
           <h2>Daftar Program</h2>
         </div>
-        <div className="card mt-12">
-          {program.map((p) => (
-            <Link href={`/program/${p.id}`} key={p.id} className="li li-hover" style={{ textDecoration: "none", color: "inherit" }}>
-              <span
-                className="li-ico"
-                style={{
-                  background: p.status === "berjalan" ? "var(--success-bg)" : p.status === "akan_datang" ? "var(--warning-bg)" : "var(--muted-bg)",
-                  color: p.status === "berjalan" ? "var(--success)" : p.status === "akan_datang" ? "var(--warning)" : "var(--muted)",
-                }}
-              >
-                <Icon name="flag" size={18} />
+        {loading ? (
+          <div className="card mt-12">
+            <p className="tiny center">Memuat…</p>
+          </div>
+        ) : error ? (
+          <div className="card card-flat mt-12" style={{ borderLeft: "4px solid var(--danger)" }}>
+            <div className="row gap-10 items-center">
+              <span className="text-danger">
+                <Icon name="alert-circle" size={18} />
               </span>
-              <div className="li-main">
-                <strong>{p.nama}</strong>
-                <span className="tiny">{p.deskripsi}</span>
-                <span className="tiny">
-                  {p.kader ? `PJ: ${p.kader.name}` : "PJ: belum ditentukan"} • Dimulai: {tanggal(p.mulai, "short")}
-                </span>
-              </div>
-              <div className="row-end" style={{ gap: 8, alignItems: "center" }}>
-                <div className="text-right">
-                  <div className="tiny fw-600">{angka(p.peserta)}</div>
-                  <div className="tiny">peserta</div>
-                </div>
-                <Badge tone={STATUS_TONE[p.status] || "primary"}>{LABEL_STATUS[p.status]}</Badge>
-              </div>
-            </Link>
-          ))}
-        </div>
+              <span className="text-sm">{error}</span>
+            </div>
+          </div>
+        ) : (
+          <div className="card mt-12">
+            {program.length === 0 ? (
+              <EmptyState title="Tidak ada program" desc="Belum ada program yang dibuat." />
+            ) : (
+              program.map((p) => (
+                <Link
+                  href={`/program/${p.id}`}
+                  key={p.id}
+                  className="li li-hover"
+                  style={{ textDecoration: "none", color: "inherit" }}
+                >
+                  <span
+                    className="li-ico"
+                    style={{
+                      background:
+                        p.status === "berjalan"
+                          ? "var(--success-bg)"
+                          : p.status === "akan_datang"
+                            ? "var(--warning-bg)"
+                            : "var(--muted-bg)",
+                      color:
+                        p.status === "berjalan"
+                          ? "var(--success)"
+                          : p.status === "akan_datang"
+                            ? "var(--warning)"
+                            : "var(--muted)",
+                    }}
+                  >
+                    <Icon name="flag" size={18} />
+                  </span>
+                  <div className="li-main">
+                    <strong>{p.judul}</strong>
+                    <span className="tiny">Jenis: {p.jenis}</span>
+                    <span className="tiny">Dimulai: {tanggal(p.mulai, "short")}</span>
+                  </div>
+                  <div className="row-end" style={{ gap: 8, alignItems: "center" }}>
+                    <div className="text-right">
+                      <div className="tiny fw-600">{angka(p.jumlah_peserta)}</div>
+                      <div className="tiny">peserta</div>
+                    </div>
+                    <Badge tone={STATUS_TONE[p.status] || "primary"}>{LABEL_STATUS[p.status]}</Badge>
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+        )}
       </section>
 
       {/* Statistik */}
@@ -324,7 +391,11 @@ export default function ProgramPage() {
           {[
             { status: "berjalan", label: "Berjalan", count: program.filter((p) => p.status === "berjalan").length },
             { status: "selesai", label: "Selesai", count: program.filter((p) => p.status === "selesai").length },
-            { status: "akan_datang", label: "Akan datang", count: program.filter((p) => p.status === "akan_datang").length },
+            {
+              status: "akan_datang",
+              label: "Akan datang",
+              count: program.filter((p) => p.status === "akan_datang").length,
+            },
           ].map((s) => (
             <div className="card card-flat" key={s.status}>
               <div className="row-between">
