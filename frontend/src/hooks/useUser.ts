@@ -17,6 +17,11 @@ export function useUser(): User | null {
     const akun = AKUN_DEMO.find((a) => a.email.toLowerCase() === email.toLowerCase());
     if (!akun) return null;
 
+    // Set cookie role untuk middleware guard (demo)
+    if (typeof document !== "undefined") {
+      document.cookie = `demo_user_role=${akun.role}; path=/; max-age=86400`; // 24 jam
+    }
+
     // Buat User object dari akun demo
     return {
       id: AKUN_DEMO.indexOf(akun) + 1,
