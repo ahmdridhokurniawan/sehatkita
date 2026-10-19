@@ -1,169 +1,187 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useState } from "react";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
-import Segmented from "@/components/ui/Segmented";
-import { EmptyState } from "@/components/ui/Empty";
-import { PROGRAM_DEMO, DASHBOARD_PRIBADI_DEMO } from "@/lib/demo";
+import Button from "@/components/ui/Button";
+import { tanggal, angka } from "@/lib/format";
 
-/* ------------------------------------------------------------------
-   Program & Tantangan — halaman masyarakat.
-   Porting gaya "Tantangan & Reward" dari prototype (gamifikasi:
-   level, EXP, badge, peringkat kelurahan).
-   ------------------------------------------------------------------ */
-
-const LABEL_JENIS: Record<string, string> = {
-  olahraga: "Olahraga",
-  edukasi: "Edukasi",
-  penyuluhan: "Penyuluhan",
-};
+const PROGRAM_DEMO = [
+  {
+    id: 1,
+    nama: "Program Ibu Hamil",
+    deskripsi: "Pemeriksaan rutin & edukasi gizi untuk ibu hamil",
+    peserta: 28,
+    mulai: "2026-01-01",
+    status: "berjalan",
+    kader: { id: 5, name: "Kader A" },
+  },
+  {
+    id: 2,
+    nama: "Program Balita Sehat",
+    deskripsi: "Penimbangan & pencatatan tumbuh kembang balita",
+    peserta: 45,
+    mulai: "2026-02-15",
+    status: "berjalan",
+    kader: { id: 5, name: "Kader A" },
+  },
+  {
+    id: 3,
+    nama: "Program Lansia Hipertensi",
+    deskripsi: "Monitor tekanan darah & edukasi gaya hidup",
+    peserta: 32,
+    mulai: "2026-03-01",
+    status: "berjalan",
+    kader: { id: 6, name: "Kader B" },
+  },
+  {
+    id: 4,
+    nama: "Program Deteksi Dini Penyakit",
+    deskripsi: "Skrining PTM untuk masyarakat dewasa",
+    peserta: 0,
+    mulai: "2026-11-01",
+    status: "akan_datang",
+    kader: null,
+  },
+];
 
 const LABEL_STATUS: Record<string, string> = {
   berjalan: "Berjalan",
-  akan_datang: "Akan Datang",
   selesai: "Selesai",
+  akan_datang: "Akan datang",
 };
 
-const TONE_STATUS: Record<string, "info" | "warning" | "safe"> = {
-  berjalan: "warning",
-  akan_datang: "info",
-  selesai: "safe",
+const STATUS_TONE: Record<string, "safe" | "warning" | "danger"> = {
+  berjalan: "safe",
+  selesai: "warning",
+  akan_datang: "danger",
 };
 
-const FILTER = [
-  { value: "semua", label: "Semua" },
-  { value: "berjalan", label: "Berjalan" },
-  { value: "akan_datang", label: "Akan Datang" },
-  { value: "selesai", label: "Selesai" },
-];
+export default function ProgramKelurahanPage() {
+  const [program, setProgram] = useState(PROGRAM_DEMO);
+  const [showForm, setShowForm] = useState(false);
 
-export default function ProgramPage() {
-  const [filter, setFilter] = useState("semua");
-  const [cari, setCari] = useState("");
-  const reward = DASHBOARD_PRIBADI_DEMO.reward;
-
-  const daftar = useMemo(() => {
-    const q = cari.trim().toLowerCase();
-    return PROGRAM_DEMO.filter((p) => {
-      const cocokStatus = filter === "semua" || p.status === filter;
-      const cocokCari =
-        q === "" ||
-        p.nama.toLowerCase().includes(q) ||
-        p.deskripsi.toLowerCase().includes(q);
-      return cocokStatus && cocokCari;
-    });
-  }, [filter, cari]);
+  const totalPeserta = program.filter((p) => p.status === "berjalan").reduce((sum, p) => sum + p.peserta, 0);
 
   return (
-    <AppShell noFab>
-      <div className="row-between mb-16">
-        <div>
-          <h1 className="h3">Tantangan &amp; Reward</h1>
-          <p className="tiny">Ikuti tantangan kesehatan wilayahmu, kumpulkan EXP &amp; badge.</p>
+    <AppShell greet="Manajemen Program Posbindu">
+      {/* Ringkasan */}
+      <section>
+        <div className="app-section-title">
+          <h2>Program Kelurahan</h2>
+          <Button size="sm" onClick={() => setShowForm(!showForm)}>
+            <Icon name="plus" size={14} /> Buat Program
+          </Button>
         </div>
-      </div>
 
-      {/* Kartu gamifikasi */}
-      <div className="card mb-16">
-        <div className="row gap-10">
-          <span className="li-ico" style={{ background: "var(--warning-bg)", color: "var(--warning)" }}>
-            <Icon name="flame" size={18} />
-          </span>
-          <div className="flex-1">
-            <strong className="text-sm">
-              Level {reward.level} · {reward.level_nama}
-            </strong>
-            <div className="tiny">
-              {reward.exp} EXP · peringkat #{reward.rank_kelurahan} dari {reward.total_peserta_kelurahan}{" "}
-              peserta kelurahan
-            </div>
+        <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
+          <div className="card card-metric">
+            <div className="tiny">Program Berjalan</div>
+            <div className="metric-val">{program.filter((p) => p.status === "berjalan").length}</div>
+          </div>
+          <div className="card card-metric">
+            <div className="tiny">Total Peserta</div>
+            <div className="metric-val">{angka(totalPeserta)}</div>
           </div>
         </div>
-        <div className="progress sm mt-12">
-          <i style={{ width: `${Math.min(100, (reward.exp % 200) / 2)}%` }} />
+      </section>
+
+      {/* Form buat program */}
+      {showForm && (
+        <section>
+          <div className="card">
+            <h3 className="text-lg fw-600 mb-12">Buat Program Baru</h3>
+            <div className="form-group">
+              <label className="form-label">Nama Program</label>
+              <input type="text" className="input" placeholder="Contoh: Program Ibu Hamil" />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Deskripsi</label>
+              <textarea className="input" placeholder="Tujuan & aktivitas program..." style={{ minHeight: 80 }} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Penanggung Jawab (Kader)</label>
+              <select className="input">
+                <option>Pilih kader...</option>
+                <option>Kader A</option>
+                <option>Kader B</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Tanggal Mulai</label>
+              <input type="date" className="input" />
+            </div>
+            <div className="form-group row-end" style={{ gap: 8 }}>
+              <Button variant="secondary" onClick={() => setShowForm(false)}>
+                Batal
+              </Button>
+              <Button>Buat Program</Button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Daftar program */}
+      <section>
+        <div className="app-section-title">
+          <h2>Daftar Program</h2>
         </div>
-        <div className="row gap-6 mt-12" style={{ flexWrap: "wrap" }}>
-          {reward.badge.length > 0 ? (
-            reward.badge.map((b) => (
-              <span className="badge badge-primary" key={b}>
-                <Icon name="award" size={13} /> {b}
+        <div className="card mt-12">
+          {program.map((p) => (
+            <Link href={`/program/${p.id}`} key={p.id} className="li li-hover" style={{ textDecoration: "none", color: "inherit" }}>
+              <span
+                className="li-ico"
+                style={{
+                  background: p.status === "berjalan" ? "var(--success-bg)" : p.status === "akan_datang" ? "var(--warning-bg)" : "var(--muted-bg)",
+                  color: p.status === "berjalan" ? "var(--success)" : p.status === "akan_datang" ? "var(--warning)" : "var(--muted)",
+                }}
+              >
+                <Icon name="flag" size={18} />
               </span>
-            ))
-          ) : (
-            <span className="tiny">Belum ada badge</span>
-          )}
-        </div>
-      </div>
-
-      <Segmented items={FILTER} value={filter} onChange={setFilter} />
-
-      <div className="input-icon mt-12">
-        <Icon name="search" size={18} />
-        <input
-          className="input"
-          type="search"
-          placeholder="Cari tantangan…"
-          value={cari}
-          onChange={(e) => setCari(e.target.value)}
-        />
-      </div>
-
-      <div className="mt-12" style={{ display: "grid", gap: 12 }}>
-        {daftar.length === 0 ? (
-          <div className="card card-flat">
-            <EmptyState title="Tidak ada tantangan" desc="Tidak ada tantangan dengan status ini." />
-          </div>
-        ) : (
-          daftar.map((p) => (
-            <div className="card card-flat" key={p.id}>
-              <div className="row-between mb-8">
-                <strong className="text-sm">{p.nama}</strong>
-                <Badge tone={TONE_STATUS[p.status]}>{LABEL_STATUS[p.status]}</Badge>
-              </div>
-              <p className="tiny">{p.deskripsi}</p>
-
-              <div className="row gap-16 mt-12" style={{ flexWrap: "wrap" }}>
-                <div className="row gap-6">
-                  <Icon name="activity" size={13} />
-                  <span className="tiny">{LABEL_JENIS[p.jenis] ?? p.jenis}</span>
-                </div>
-                <div className="row gap-6">
-                  <Icon name="clock" size={13} />
-                  <span className="tiny">{p.durasi}</span>
-                </div>
-                <div className="row gap-6">
-                  <Icon name="user" size={13} />
-                  <span className="tiny">{p.peserta} peserta</span>
-                </div>
-              </div>
-
-              <div className="row-between mt-12">
-                <span className="tiny">Progres</span>
+              <div className="li-main">
+                <strong>{p.nama}</strong>
+                <span className="tiny">{p.deskripsi}</span>
                 <span className="tiny">
-                  <b className="text-primary">{p.progress}%</b>
+                  {p.kader ? `PJ: ${p.kader.name}` : "PJ: belum ditentukan"} • Dimulai: {tanggal(p.mulai, "short")}
                 </span>
               </div>
-              <div className="progress sm mt-4">
-                <i style={{ width: `${Math.min(100, p.progress)}%` }} />
+              <div className="row-end" style={{ gap: 8, alignItems: "center" }}>
+                <div className="text-right">
+                  <div className="tiny fw-600">{angka(p.peserta)}</div>
+                  <div className="tiny">peserta</div>
+                </div>
+                <Badge tone={STATUS_TONE[p.status] || "primary"}>{LABEL_STATUS[p.status]}</Badge>
               </div>
+            </Link>
+          ))}
+        </div>
+      </section>
 
-              <div className="row-between mt-12 items-center">
-                <span className="badge badge-primary">
-                  <Icon name="award" size={12} /> {p.reward?.badge ?? "Badge"} · +{p.reward?.exp ?? 0} EXP
-                </span>
-                <button className="btn btn-sm btn-primary" type="button">
-                  {p.progress > 0 ? "Lanjutkan" : "Ikuti"}
-                </button>
+      {/* Statistik */}
+      <section>
+        <div className="app-section-title">
+          <h2>Ringkasan Status</h2>
+        </div>
+        <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
+          {[
+            { status: "berjalan", label: "Berjalan", count: program.filter((p) => p.status === "berjalan").length },
+            { status: "selesai", label: "Selesai", count: program.filter((p) => p.status === "selesai").length },
+            { status: "akan_datang", label: "Akan datang", count: program.filter((p) => p.status === "akan_datang").length },
+          ].map((s) => (
+            <div className="card card-flat" key={s.status}>
+              <div className="row-between">
+                <span className="tiny fw-600">{s.label}</span>
+                <strong>{s.count}</strong>
               </div>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      </section>
 
-      <p className="tiny center mt-16 mb-16">
-        <Icon name="info" size={13} /> Data sementara (demo) — nanti diambil dari GET /program.
+      <p className="tiny center mt-8 mb-16">
+        <Icon name="info" size={13} /> Program dikelola oleh kader & dimonitor oleh admin kelurahan.
       </p>
     </AppShell>
   );
