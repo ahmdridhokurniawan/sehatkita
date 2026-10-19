@@ -7,8 +7,7 @@ import Icon from "@/components/ui/Icon";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import Modal from "@/components/ui/Modal";
 import AuthAside from "@/components/auth/AuthAside";
-import { loginSimulasi } from "@/lib/session";
-import { AKUN_DEMO, LABEL_ROLE_DEMO } from "@/lib/demo";
+import { auth, setToken, ApiError } from "@/lib/api";
 
 type Err = { email?: string; password?: string };
 
@@ -33,32 +32,30 @@ export default function LoginPage() {
     return Object.keys(err).length === 0;
   }
 
-  function isiDemo(e: string, pw: string) {
-    setEmail(e);
-    setPassword(pw);
-    setErrors({});
-    setAlert("");
-  }
-
   async function handleSubmit(ev: React.FormEvent) {
     ev.preventDefault();
     setAlert("");
     if (!validasi()) return;
 
     setLoading(true);
-    // TODO (tahap integrasi): ganti dengan Api.login sungguhan.
-    // Login sukses HANYA bila backend memvalidasi kredensial.
-    const akun = AKUN_DEMO.find((a) => a.email.toLowerCase() === email.toLowerCase());
-    setTimeout(() => {
+    try {
+      const res = await auth.login({ email, password, device_name: "web-app" });
+      
+      // Simpan token ke localStorage
+      setToken(res.token);
+      
+      // Redirect sesuai role
+      router.push("/dashboard");
+    } catch (err: any) {
       setLoading(false);
-      if (akun && akun.password === password) {
-        loginSimulasi(email);
-        router.push("/dashboard");
+      const apiErr = err as ApiError;
+      if (apiErr.status === 422) {
+        setAlert(apiErr.message || "Email atau password salah.");
+        setErrors({ email: "Email atau password salah." });
       } else {
-        setAlert("Email atau password salah. Periksa kembali kredensial Anda.");
-        setErrors({ password: "Kredensial tidak cocok." });
+        setAlert(apiErr.message || "Terjadi kesalahan. Coba lagi.");
       }
-    }, 700);
+    }
   }
 
   return (
@@ -171,22 +168,6 @@ export default function LoginPage() {
               Daftar sekarang
             </Link>
           </p>
-
-          <div className="demo-accounts">
-            <div className="da-title">
-              <Icon name="info" size={14} /> Akun Data Demo (prototipe) — klik untuk mengisi
-            </div>
-            <div>
-              {AKUN_DEMO.map((a) => (
-                <button type="button" key={a.email} onClick={() => isiDemo(a.email, a.password)}>
-                  <span>
-                    <b>{LABEL_ROLE_DEMO[a.role] || a.role}</b> · {a.email}
-                  </span>
-                  <span className="badge badge-primary">{a.role}</span>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </main>
 

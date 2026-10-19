@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
+import { auth, clearToken } from "@/lib/api";
 
 const SETELAN_MENU = [
   {
@@ -26,6 +28,19 @@ const SETELAN_MENU = [
 ];
 
 export default function SetelanPage() {
+  const router = useRouter();
+
+  async function handleLogout() {
+    try {
+      await auth.logout();
+    } catch (err) {
+      console.error("Logout error:", err);
+    } finally {
+      clearToken();
+      router.push("/login");
+    }
+  }
+
   return (
     <AppShell noFab>
       <div className="row-between mb-16">
@@ -83,11 +98,7 @@ export default function SetelanPage() {
           <button
             type="button"
             className="btn btn-sm btn-outline"
-            onClick={() => {
-              // Logout simulation
-              localStorage.removeItem("user_email");
-              window.location.href = "/login";
-            }}
+            onClick={handleLogout}
           >
             <Icon name="log-out" size={15} /> Logout
           </button>
