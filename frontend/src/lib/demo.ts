@@ -92,7 +92,6 @@ export const AKUN_DEMO: AkunDemo[] = [
   { email: "budi@demo.sehatkita.id", password: "sehat123", role: "user", name: "Budi Santoso" },
   { email: "kader@demo.sehatkita.id", password: "sehat123", role: "kader", name: "Siti Aminah" },
   { email: "admin@demo.sehatkita.id", password: "sehat123", role: "admin_kelurahan", name: "Ahmad Fauzi" },
-  { email: "puskesmas@demo.sehatkita.id", password: "sehat123", role: "puskesmas", name: "dr. Rina Marlina" },
   { email: "super@demo.sehatkita.id", password: "sehat123", role: "super_admin", name: "Super Admin" },
 ];
 
@@ -100,7 +99,6 @@ export const LABEL_ROLE_DEMO: Record<string, string> = {
   user: "Masyarakat",
   kader: "Kader Posbindu",
   admin_kelurahan: "Admin Kelurahan",
-  puskesmas: "Puskesmas",
   super_admin: "Super Admin",
 };
 
