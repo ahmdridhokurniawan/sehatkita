@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/app/AppShell";
@@ -11,27 +11,13 @@ import Select from "@/components/ui/Select";
 import Checkbox from "@/components/ui/Checkbox";
 import { JENIS_KELAMIN, TINGKAT_AKTIVITAS } from "@/lib/enums";
 import type { JenisKelamin, TingkatAktivitas } from "@/lib/enums";
-import {
-  getUserSimulasi,
-  getProfilSimulasi,
-  simpanProfilSimulasi,
-  RIWAYAT_KELUARGA_OPTIONS,
-} from "@/lib/session";
-import { dummyUser } from "@/lib/dummy";
+import { RIWAYAT_KELUARGA_OPTIONS } from "@/lib/session";
 import { LABEL_JENIS_KELAMIN, LABEL_TINGKAT_AKTIVITAS } from "@/lib/labels";
-import type { ProfilRingkas } from "@/types";
+import { profil as profilApi, ApiError } from "@/lib/api";
+import type { Profil } from "@/types";
 
-/* ------------------------------------------------------------------
-   Profil — halaman masyarakat. Data diri + form ubah (tanda wajib *).
-   ------------------------------------------------------------------ */
-
-const langgananKosong = () => () => {};
-
-function useSudahDiBrowser(): boolean {
-  return useSyncExternalStore(langgananKosong, () => true, () => false);
-}
-
-const PROFIL_KOSONG: ProfilRingkas = {
+const PROFIL_KOSONG: Profil = {
+  user_id: 0,
   tgl_lahir: "",
   usia: 0,
   jenis_kelamin: "L",
@@ -39,6 +25,7 @@ const PROFIL_KOSONG: ProfilRingkas = {
   tingkat_aktivitas: "sedang",
   merokok: false,
   riwayat_keluarga: [],
+  updated_at: "",
 };
 
 type FormState = {
@@ -52,7 +39,7 @@ type FormState = {
 
 type Errors = Partial<Record<"tgl_lahir" | "jenis_kelamin" | "tinggi_cm" | "tingkat_aktivitas", string>>;
 
-function keForm(p: ProfilRingkas): FormState {
+function keForm(p: Profil): FormState {
   return {
     tgl_lahir: p.tgl_lahir,
     jenis_kelamin: p.jenis_kelamin,
@@ -85,26 +72,35 @@ function Baris({ label, value }: { label: string; value: string }) {
 
 export default function ProfilPage() {
   const router = useRouter();
-  const diBrowser = useSudahDiBrowser();
-  const [modeUbah, setModeUbah] = useState(false);
-  const [sukses, setSukses] = useState(false);
+  const sudahDiBrowser = typeof window !== "undefined";
+
+  const [profil, setProfil] = useState<Profil>(PROFIL_KOSONG);
   const [form, setForm] = useState<FormState | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>("");
+  const [saving, setSaving] = useState(false);
+  const [sukses, setSukses] = useState(false);
+  const [modeUbah, setModeUbah] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
-  const [profilEdit, setProfilEdit] = useState<ProfilRingkas | null>(null);
 
-  const email = diBrowser ? getUserSimulasi() : "";
-  // §26 — halaman profil TIDAK mensyaratkan onboarding (justru di sini data diri diisi).
-  const bolehMasuk = email !== "";
-
+  // Fetch profil on mount
   useEffect(() => {
-    if (!diBrowser) return;
-    if (email === "") {
-      router.replace("/login");
-    }
-  }, [diBrowser, email, router]);
-
-  const tersimpan = diBrowser && email !== "" ? getProfilSimulasi(email) : null;
-  const profil = profilEdit ?? tersimpan ?? dummyUser.profil ?? PROFIL_KOSONG;
+    if (!sudahDiBrowser) return;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await profilApi.get();
+        setProfil(res);
+        setError("");
+      } catch (err) {
+        const msg = err instanceof ApiError ? err.message : "Gagal muat profil";
+        setError(msg);
+        console.error("Fetch profil:", err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [sudahDiBrowser]);
 
   function mulaiUbah() {
     setForm(keForm(profil));
@@ -159,7 +155,7 @@ export default function ProfilPage() {
     return e;
   }
 
-  function simpan(ev: FormEvent) {
+  async function simpan(ev: FormEvent) {
     ev.preventDefault();
     if (!form) return;
 
@@ -167,29 +163,30 @@ export default function ProfilPage() {
     setErrors(e);
     if (Object.keys(e).length > 0) return;
 
-    const baru: ProfilRingkas = {
-      ...profil,
-      tgl_lahir: form.tgl_lahir,
-      jenis_kelamin: form.jenis_kelamin as JenisKelamin,
-      tinggi_cm: Number(form.tinggi_cm),
-      tingkat_aktivitas: form.tingkat_aktivitas as TingkatAktivitas,
-      merokok: form.merokok,
-      riwayat_keluarga: form.riwayat_keluarga,
-    };
-
-    simpanProfilSimulasi(email, baru);
-    setProfilEdit(baru);
-    setForm(null);
-    setModeUbah(false);
-    setSukses(true);
-  }
-
-  if (!bolehMasuk) {
-    return (
-      <AppShell noFab>
-        <p className="tiny center">Memuat…</p>
-      </AppShell>
-    );
+    setSaving(true);
+    try {
+      const payload = {
+        tgl_lahir: form.tgl_lahir,
+        jenis_kelamin: form.jenis_kelamin as JenisKelamin,
+        tinggi_cm: Number(form.tinggi_cm),
+        tingkat_aktivitas: form.tingkat_aktivitas as TingkatAktivitas,
+        merokok: form.merokok,
+        riwayat_keluarga: form.riwayat_keluarga,
+      };
+      const res = await profilApi.update(payload);
+      setProfil(res);
+      setForm(null);
+      setModeUbah(false);
+      setSukses(true);
+      setError("");
+      setTimeout(() => setSukses(false), 3000);
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Gagal simpan profil";
+      setError(msg);
+      console.error("Update profil:", err);
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -197,14 +194,24 @@ export default function ProfilPage() {
       <div className="row-between mb-16">
         <div>
           <h1 className="h3">Profil</h1>
-          <p className="tiny">{email}</p>
         </div>
-        {!modeUbah && (
+        {!modeUbah && !loading && (
           <button className="btn btn-sm btn-outline" type="button" onClick={mulaiUbah}>
             <Icon name="pencil" size={15} /> Ubah
           </button>
         )}
       </div>
+
+      {error && (
+        <div className="card card-flat mb-12" style={{ borderLeft: "4px solid var(--danger)" }}>
+          <div className="row gap-10 items-center">
+            <span className="text-danger">
+              <Icon name="alert-circle" size={18} />
+            </span>
+            <span className="text-sm">{error}</span>
+          </div>
+        </div>
+      )}
 
       {sukses && (
         <div className="card card-flat mb-12" style={{ borderLeft: "4px solid var(--safe)" }}>
@@ -212,12 +219,16 @@ export default function ProfilPage() {
             <span className="text-safe">
               <Icon name="check-circle" size={18} />
             </span>
-            <span className="text-sm">Profil tersimpan (simulasi).</span>
+            <span className="text-sm">Profil tersimpan.</span>
           </div>
         </div>
       )}
 
-      {modeUbah && form ? (
+      {loading ? (
+        <div className="card">
+          <p className="tiny center">Memuat…</p>
+        </div>
+      ) : modeUbah && form ? (
         <div className="card">
           <div className="row-between mb-12">
             <strong className="text-sm">Ubah Data Diri</strong>
@@ -302,10 +313,10 @@ export default function ProfilPage() {
             </div>
 
             <div className="row gap-8 mt-16">
-              <Button type="submit" icon="check">
-                Simpan Perubahan
+              <Button type="submit" icon="check" disabled={saving}>
+                {saving ? "Menyimpan…" : "Simpan Perubahan"}
               </Button>
-              <Button type="button" variant="outline" onClick={batalUbah}>
+              <Button type="button" variant="outline" onClick={batalUbah} disabled={saving}>
                 Batal
               </Button>
             </div>
@@ -339,10 +350,6 @@ export default function ProfilPage() {
           </div>
         </div>
       )}
-
-      <p className="tiny center mt-16 mb-16">
-        <Icon name="info" size={13} /> Data sementara (demo) — nanti tersambung ke API asli.
-      </p>
     </AppShell>
   );
 }
