@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 // Role permission matrix — route → required role(s)
 const ROUTE_PERMISSIONS: Record<string, string[]> = {
+  "/admin": ["super_admin"],
+  "/admin/pengguna": ["super_admin"],
+  "/admin/faskes": ["super_admin"],
+  "/admin/indikator": ["super_admin"],
+  "/admin/log-audit": ["super_admin"],
   "/pengaturan": ["super_admin"],
   "/pengaturan/wilayah": ["super_admin"],
   "/pengaturan/faskes": ["super_admin"],
@@ -14,18 +19,34 @@ const ROUTE_PERMISSIONS: Record<string, string[]> = {
   "/dashboard/kelurahan": ["admin_kelurahan"],
 };
 
-// Helper: extract role dari path & cookie (demo: email → role)
+// Helper: extract role dari JWT token
 function extractUserRole(request: NextRequest): string | null {
-  // Demo: dari cookie atau session
-  // Di production: verify JWT token & extract role
-  // Untuk sekarang, cek localStorage via cookie "demo_user_role"
-  const demoRole = request.cookies.get("demo_user_role")?.value;
-  if (demoRole) return demoRole;
+  // Try to get token dari cookie auth_token
+  const token = request.cookies.get("auth_token")?.value;
+  
+  if (!token) {
+    // Fallback: check demo role cookie
+    return request.cookies.get("demo_user_role")?.value || null;
+  }
 
-  // Fallback: cek header Authorization (future: JWT)
-  // Contoh: Bearer token → decode role
-  // Untuk now, return null (require login)
-  return null;
+  try {
+    // Decode JWT: header.payload.signature
+    const parts = token.split(".");
+    if (parts.length !== 3) {
+      return null;
+    }
+
+    // Decode payload (base64url → JSON)
+    const payload = JSON.parse(
+      Buffer.from(parts[1], "base64url").toString("utf-8")
+    );
+
+    // Extract role dari JWT
+    return payload.role || payload.user_role || null;
+  } catch (err) {
+    console.error("JWT decode error:", err);
+    return null;
+  }
 }
 
 // Helper: check if route requires permission
