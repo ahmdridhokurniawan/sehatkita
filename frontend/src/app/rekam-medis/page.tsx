@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
@@ -10,41 +10,9 @@ import Pagination, { type Meta } from "@/components/ui/Pagination";
 import Line from "@/components/charts/Line";
 import CatatModal from "@/components/catatan/CatatModal";
 import { EmptyState } from "@/components/ui/Empty";
-import { CATATAN_DEMO, hariLalu } from "@/lib/demo";
+import { catatanKesehatan, rekamMedis, ApiError } from "@/lib/api";
 import { tanggal } from "@/lib/format";
-
-type CatatanLengkap = (typeof CATATAN_DEMO)[number] & {
-  dicatat_pada: string;
-  imt: number;
-  kategori_imt: string;
-  kategori_tensi: string;
-  kategori_gula_darah: string;
-  status_kesehatan: string;
-  catatan: string;
-};
-
-/** Hitung IMT dari bb (tinggi demo 168 cm). */
-const TINGGI_M = 1.68;
-function imtDari(bb: number): number {
-  return +(bb / (TINGGI_M * TINGGI_M)).toFixed(1);
-}
-function kategoriImt(imt: number): string {
-  if (imt < 18.5) return "Kurus";
-  if (imt < 25) return "Normal";
-  if (imt < 30) return "Gemuk";
-  return "Obesitas";
-}
-function kategoriTensi(s: number, d: number): string {
-  if (s >= 160 || d >= 100) return "Hipertensi Derajat 2";
-  if (s >= 140 || d >= 90) return "Hipertensi Derajat 1";
-  if (s >= 120) return "Prehipertensi";
-  return "Normal";
-}
-function kategoriGula(g: number): string {
-  if (g >= 126) return "Tinggi";
-  if (g >= 100) return "Batas Atas";
-  return "Normal";
-}
+import type { CatatanKesehatan, RekamMedis as RekamMedisType } from "@/types";
 
 const INDIKATOR = [
   { k: "bb_kg", label: "Berat Badan", unit: "kg", dec: 0 },
@@ -63,35 +31,8 @@ const PERIODE = [
   { value: "6m", label: "6m" },
   { value: "1y", label: "1y" },
 ];
-const HARI_PERIODE: Record<string, number> = { "1m": 30, "3m": 90, "6m": 180, "1y": 365 };
 
 const PER_HALAMAN = 5;
-
-/** Data demo lengkap dengan turunan (porting dari mock.js `enrich`). */
-const SEMUA: CatatanLengkap[] = CATATAN_DEMO.map((c, i, arr) => {
-  const imt = imtDari(c.bb_kg);
-  const teksDemo = [
-    "Sering begadang karena kerja.",
-    "Pemeriksaan rutin Posbindu.",
-    "",
-    "",
-    "Disarankan kurangi gula.",
-    "",
-    "",
-    "",
-    "Awal mencatat di SehatKita.",
-  ];
-  return {
-    ...c,
-    dicatat_pada: hariLalu(c.hari_lalu),
-    imt,
-    kategori_imt: kategoriImt(imt),
-    kategori_tensi: kategoriTensi(c.sistol, c.diastol),
-    kategori_gula_darah: kategoriGula(c.gula_darah),
-    status_kesehatan: kategoriTensi(c.sistol, c.diastol).includes("Hipertensi") ? "perlu_perhatian" : "normal",
-    catatan: teksDemo[i] ?? (arr.length && i === arr.length - 1 ? "Awal mencatat di SehatKita." : ""),
-  };
-}).reverse(); // terbaru dulu
 
 function toneKategori(k = ""): "safe" | "warning" | "danger" {
   if (/derajat 2|obesitas|tinggi|berisiko/i.test(k)) return "danger";
@@ -100,35 +41,60 @@ function toneKategori(k = ""): "safe" | "warning" | "danger" {
 }
 
 export default function RekamMedisPage() {
-  const [periode, setPeriode] = useState("3m");
+  const [periode, setPeriode] = useState<"1m" | "3m" | "6m" | "1y">("3m");
   const [indikator, setIndikator] = useState<string>("bb_kg");
   const [cari, setCari] = useState("");
   const [halaman, setHalaman] = useState(1);
-  const [detail, setDetail] = useState<CatatanLengkap | null>(null);
+  const [detail, setDetail] = useState<CatatanKesehatan | null>(null);
   const [catatTerbuka, setCatatTerbuka] = useState(false);
+
+  // Fetch data
+  const [catatan, setCatatan] = useState<CatatanKesehatan[]>([]);
+  const [grafik, setGrafik] = useState<RekamMedisType | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        // Fetch list
+        const cList = await catatanKesehatan.list();
+        setCatatan(cList);
+
+        // Fetch grafik
+        const gData = await rekamMedis.get({ indikator, periode });
+        setGrafik(gData);
+
+        setError(null);
+      } catch (err: any) {
+        const apiErr = err as ApiError;
+        console.error("Rekam medis fetch error:", apiErr);
+        setError(apiErr.message || "Gagal memuat data");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [indikator, periode]);
 
   const ind = INDIKATOR.find((i) => i.k === indikator) || INDIKATOR[0];
 
-  // Grafik: urut lama → baru, difilter periode
+  // Grafik
   const seri = useMemo(() => {
-    const batas = Date.now() - HARI_PERIODE[periode] * 864e5;
-    return SEMUA.slice()
-      .reverse()
-      .filter((c) => new Date(c.dicatat_pada).getTime() >= batas)
-      .map((c) => ({
-        tanggal: c.dicatat_pada,
-        nilai: indikator === "imt" ? c.imt : (c as unknown as Record<string, number>)[indikator],
-      }));
-  }, [periode, indikator]);
+    if (!grafik?.series?.[0]) return [];
+    const s = grafik.series[0];
+    return s.titik.map((t) => ({ tanggal: t.tanggal, nilai: t.nilai }));
+  }, [grafik]);
 
   // Daftar catatan: filter cari + paginasi
   const tersaring = useMemo(() => {
     const q = cari.trim().toLowerCase();
-    if (!q) return SEMUA;
-    return SEMUA.filter((c) =>
-      [tanggal(c.dicatat_pada, "day"), c.sumber, c.kategori_imt, String(c.bb_kg)].join(" ").toLowerCase().includes(q)
+    if (!q) return catatan;
+    return catatan.filter((c) =>
+      [tanggal(c.dicatat_pada, "day"), c.sumber, c.kategori_imt || "", String(c.bb_kg || "")].join(" ").toLowerCase().includes(q)
     );
-  }, [cari]);
+  }, [cari, catatan]);
 
   const total = tersaring.length;
   const lastPage = Math.max(1, Math.ceil(total / PER_HALAMAN));
@@ -137,8 +103,23 @@ export default function RekamMedisPage() {
 
   const meta: Meta = { page: halamanAman, per_page: PER_HALAMAN, total, last_page: lastPage };
 
+  if (loading) {
+    return (
+      <AppShell onFab={() => setCatatTerbuka(true)}>
+        <EmptyState title="Memuat..." desc="Data rekam medis sedang dimuat..." />
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell onFab={() => setCatatTerbuka(true)}>
+      {error && (
+        <div className="alert alert-warning mb-16">
+          <Icon name="alert-circle" />
+          <div>{error}</div>
+        </div>
+      )}
+
       <div className="row-between mb-16">
         <div>
           <h1 className="h3">Rekam Medis</h1>
@@ -150,7 +131,7 @@ export default function RekamMedisPage() {
       <div className="card">
         <div className="row-between mb-12">
           <strong className="text-sm">{ind.label}</strong>
-          <Segmented items={PERIODE} value={periode} onChange={setPeriode} />
+          <Segmented items={PERIODE} value={periode} onChange={(val) => setPeriode(val as "1m" | "3m" | "6m" | "1y")} />
         </div>
         {seri.length < 2 ? (
           <EmptyState
@@ -208,41 +189,56 @@ export default function RekamMedisPage() {
         ) : (
           baris.map((c) => {
             const items = [
-              `${c.bb_kg} kg`,
-              `${c.sistol}/${c.diastol} mmHg`,
-              `GD ${c.gula_darah}`,
-            ];
+              c.bb_kg !== null ? `${c.bb_kg} kg` : null,
+              c.sistol !== null && c.diastol !== null ? `${c.sistol}/${c.diastol} mmHg` : null,
+              c.gula_darah !== null ? `GD ${c.gula_darah}` : null,
+            ].filter((x) => x !== null);
+
             return (
               <div className="card card-flat mb-12" key={c.id}>
                 <div className="row-between">
                   <div className="row gap-10">
                     <span className="li-ico">
-                      <Icon name={c.sumber === "posbindu" ? "users" : "pencil"} size={18} />
+                      <Icon name={c.sumber === "puskesmas" ? "users" : "pencil"} size={18} />
                     </span>
                     <div>
                       <strong className="text-sm">{tanggal(c.dicatat_pada, "day")}</strong>
-                      <div className="tiny">
-                        {c.sumber === "mandiri" ? "Catatan mandiri" : "Posbindu / Kader"}
-                      </div>
+                      <div className="tiny">{c.sumber === "mandiri" ? "Catatan mandiri" : "Posbindu / Kader"}</div>
                     </div>
                   </div>
                   <div className="row gap-6">
-                    <Badge tone={toneKategori(c.kategori_imt)}>{c.kategori_imt}</Badge>
+                    {c.kategori_imt && <Badge tone={toneKategori(c.kategori_imt)}>{c.kategori_imt}</Badge>}
                   </div>
                 </div>
-                <div className="row gap-6 mt-12" style={{ flexWrap: "wrap" }}>
-                  {items.map((t) => (
-                    <span className="badge" key={t}>
-                      {t}
-                    </span>
-                  ))}
-                </div>
+                {items.length > 0 && (
+                  <div className="row gap-6 mt-12" style={{ flexWrap: "wrap" }}>
+                    {items.map((t, idx) => (
+                      <span className="badge" key={idx}>
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 {c.catatan ? <p className="tiny mt-8">{c.catatan}</p> : null}
                 <div className="row gap-8 mt-12">
                   <button className="btn btn-sm btn-outline" onClick={() => setDetail(c)}>
                     <Icon name="eye" size={15} /> Detail
                   </button>
-                  <button className="btn btn-sm btn-ghost" style={{ color: "var(--danger)" }}>
+                  <button
+                    className="btn btn-sm btn-ghost"
+                    style={{ color: "var(--danger)" }}
+                    onClick={async () => {
+                      if (confirm("Hapus catatan ini?")) {
+                        try {
+                          await catatanKesehatan.hapus(c.id);
+                          setCatatan(catatan.filter((x) => x.id !== c.id));
+                        } catch (err) {
+                          console.error("Hapus error:", err);
+                          alert("Gagal menghapus");
+                        }
+                      }
+                    }}
+                  >
                     <Icon name="trash" size={15} /> Hapus
                   </button>
                 </div>
@@ -261,17 +257,21 @@ export default function RekamMedisPage() {
               {tanggal(detail.dicatat_pada, "day")} · {detail.sumber}
             </p>
             <dl className="dl mt-12">
-              <Baris label="Berat badan" nilai={`${detail.bb_kg} kg`} />
-              <Baris label="IMT" nilai={detail.imt} />
-              <Baris label="Kategori IMT" nilai={detail.kategori_imt} />
-              <Baris label="Tekanan darah" nilai={`${detail.sistol}/${detail.diastol} mmHg`} />
-              <Baris label="Kategori tensi" nilai={detail.kategori_tensi} />
-              <Baris label="Gula darah" nilai={`${detail.gula_darah} mg/dL (${detail.jenis_gula_darah})`} />
-              <Baris label="Kategori gula darah" nilai={detail.kategori_gula_darah} />
-              <Baris label="Kolesterol" nilai={`${detail.kolesterol} mg/dL`} />
-              <Baris label="Asam urat" nilai={`${detail.asam_urat} mg/dL`} />
-              <Baris label="Lingkar perut" nilai={`${detail.lingkar_perut} cm`} />
-              <Baris label="Jam tidur" nilai={`${detail.tidur_jam} jam`} />
+              {detail.bb_kg !== null && <Baris label="Berat badan" nilai={`${detail.bb_kg} kg`} />}
+              {detail.imt !== null && <Baris label="IMT" nilai={detail.imt} />}
+              {detail.kategori_imt && <Baris label="Kategori IMT" nilai={detail.kategori_imt} />}
+              {detail.sistol !== null && detail.diastol !== null && (
+                <Baris label="Tekanan darah" nilai={`${detail.sistol}/${detail.diastol} mmHg`} />
+              )}
+              {detail.kategori_tensi && <Baris label="Kategori tensi" nilai={detail.kategori_tensi} />}
+              {detail.gula_darah !== null && (
+                <Baris label="Gula darah" nilai={`${detail.gula_darah} mg/dL (${detail.jenis_gula_darah})`} />
+              )}
+              {detail.kategori_gula_darah && <Baris label="Kategori gula darah" nilai={detail.kategori_gula_darah} />}
+              {detail.kolesterol !== null && <Baris label="Kolesterol" nilai={`${detail.kolesterol} mg/dL`} />}
+              {detail.asam_urat !== null && <Baris label="Asam urat" nilai={`${detail.asam_urat} mg/dL`} />}
+              {detail.lingkar_perut !== null && <Baris label="Lingkar perut" nilai={`${detail.lingkar_perut} cm`} />}
+              {detail.tidur_jam !== null && <Baris label="Jam tidur" nilai={`${detail.tidur_jam} jam`} />}
             </dl>
             {detail.catatan ? (
               <>
