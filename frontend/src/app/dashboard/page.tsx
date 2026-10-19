@@ -6,6 +6,8 @@ import { useUser } from "@/hooks/useUser";
 import { EmptyState } from "@/components/ui/Empty";
 import DashboardUser from "@/components/dashboard/DashboardUser";
 import DashboardKader from "@/components/dashboard/DashboardKader";
+import DashboardAdminKelurahan from "@/components/dashboard/DashboardAdminKelurahan";
+import DashboardSuperAdmin from "@/components/dashboard/DashboardSuperAdmin";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -30,9 +32,9 @@ export default function DashboardPage() {
     case "kader":
       return <DashboardKader user={user} />;
     case "admin_kelurahan":
-      return <EmptyState title="Dashboard Admin Kelurahan" desc="Sedang dikerjakan..." />;
+      return <DashboardAdminKelurahan user={user} />;
     case "super_admin":
-      return <EmptyState title="Dashboard Super Admin" desc="Sedang dikerjakan..." />;
+      return <DashboardSuperAdmin user={user} />;
     default:
       return <EmptyState title="Role tidak dikenali" desc={`Role: ${user.role}`} />;
   }
