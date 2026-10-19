@@ -7,6 +7,7 @@ import Icon from "@/components/ui/Icon";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import Modal from "@/components/ui/Modal";
 import AuthAside from "@/components/auth/AuthAside";
+import { auth, setToken, ApiError } from "@/lib/api";
 import { WILAYAH_DEMO } from "@/lib/demo";
 
 type Err = Record<string, string>;
@@ -49,12 +50,38 @@ export default function RegisterPage() {
     if (!validasi()) return;
 
     setLoading(true);
-    // TODO (tahap integrasi): ganti dengan Api.register + Api.setujui sungguhan.
-    // §26 — setelah registrasi langsung ke dashboard; data diri diisi terpisah lewat /profil.
-    setTimeout(() => {
+    try {
+      const res = await auth.register({
+        name: nama,
+        email,
+        password,
+        password_confirmation: konfirmasi,
+        wilayah_id: parseInt(wilayahId),
+      });
+
+      // Simpan token ke localStorage
+      setToken(res.token);
+
+      // User baru (consent_at null) → redirect ke onboarding (kontrak §26)
+      if (res.user.consent_at === null) {
+        router.push("/onboarding");
+      } else {
+        router.push("/dashboard");
+      }
+    } catch (err: any) {
       setLoading(false);
-      router.push("/dashboard");
-    }, 700);
+      const apiErr = err as ApiError;
+      if (apiErr.status === 422 && apiErr.errors) {
+        const errMap: Err = {};
+        for (const [key, msgs] of Object.entries(apiErr.errors)) {
+          errMap[key] = msgs[0] || "Validasi gagal";
+        }
+        setErrors(errMap);
+        setAlert(apiErr.message || "Validasi gagal.");
+      } else {
+        setAlert(apiErr.message || "Registrasi gagal. Coba lagi.");
+      }
+    }
   }
 
   return (
