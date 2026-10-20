@@ -11,7 +11,7 @@ class AuthController extends Controller
 {
     /*
     |--------------------------------------------------------------------------
-    | REGISTER — POST /api/v1/auth/register  (§4.1)
+    | REGISTER - POST /api/v1/auth/register  (Sec 4.1)
     |--------------------------------------------------------------------------
     */
     public function register(Request $request)
@@ -45,7 +45,7 @@ class AuthController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | LOGIN — POST /api/v1/auth/login  (§4.2)
+    | LOGIN - POST /api/v1/auth/login  (Sec 4.2)
     |--------------------------------------------------------------------------
     */
     public function login(Request $request)
@@ -78,7 +78,7 @@ class AuthController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | LOGOUT — POST /api/v1/auth/logout  (§4.3)
+    | LOGOUT - POST /api/v1/auth/logout  (Sec 4.3)
     |--------------------------------------------------------------------------
     */
     public function logout(Request $request)
@@ -94,7 +94,51 @@ class AuthController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | ME — GET /api/v1/auth/me  (§4.4)
+    | UBAH PASSWORD - PUT /api/v1/auth/password
+    |--------------------------------------------------------------------------
+    | Field dikirim frontend: password_lama, password_baru, password_baru_konfirmasi
+    | Semua role boleh (user, kader, admin_kelurahan, super_admin).
+    */
+    public function changePassword(Request $request)
+    {
+        $validated = $request->validate([
+            'password_lama'            => 'required|string',
+            'password_baru'            => 'required|string|min:8',
+            'password_baru_konfirmasi' => 'required|string|same:password_baru',
+        ], [
+            'password_baru_konfirmasi.same' => 'Konfirmasi password baru tidak sama.',
+        ]);
+
+        $user = $request->user();
+
+        // Password lama salah -> 422 (sesuai kontrak: Unprocessable)
+        if (! Hash::check($validated['password_lama'], $user->password)) {
+            throw ValidationException::withMessages([
+                'password_lama' => ['Password lama tidak sesuai.'],
+            ]);
+        }
+
+        $user->password = Hash::make($validated['password_baru']);
+        $user->save();
+
+        // Keamanan: paksa login ulang di semua device setelah ganti password.
+        $user->tokens()->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Password berhasil diubah',
+            'data'    => [
+                'id'         => $user->id,
+                'name'       => $user->name,
+                'email'      => $user->email,
+                'updated_at' => $user->updated_at,
+            ],
+        ]);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | ME - GET /api/v1/auth/me  (Sec 4.4)
     |--------------------------------------------------------------------------
     */
     public function me(Request $request)
@@ -110,7 +154,7 @@ class AuthController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | PERSETUJUAN — POST /api/v1/auth/persetujuan  (§5.3)
+    | PERSETUJUAN - POST /api/v1/auth/persetujuan  (Sec 5.3)
     |--------------------------------------------------------------------------
     */
     public function consent(Request $request)
@@ -137,7 +181,7 @@ class AuthController extends Controller
 
     /*
     |--------------------------------------------------------------------------
-    | CABUT PERSETUJUAN — DELETE /api/v1/auth/persetujuan  (§5.4)
+    | CABUT PERSETUJUAN - DELETE /api/v1/auth/persetujuan  (Sec 5.4)
     |--------------------------------------------------------------------------
     */
     public function revokeConsent(Request $request)
