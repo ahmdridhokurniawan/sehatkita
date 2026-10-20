@@ -120,7 +120,7 @@ export default function Line({ labels, series, unit = "", yDecimals = 0, height 
 
   return (
     <div className="chart" ref={ref}>
-      <svg viewBox={`0 0 ${w} ${height}`} width="100%" height={height} preserveAspectRatio="xMidYMid meet" role="img" aria-label="Grafik garis">
+      <svg suppressHydrationWarning viewBox={`0 0 ${w} ${height}`} width="100%" height={height} preserveAspectRatio="xMidYMid meet" role="img" aria-label="Grafik garis">
         <defs>{defs}</defs>
         {grid}
         {area}
