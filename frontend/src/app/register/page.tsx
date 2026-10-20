@@ -180,7 +180,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="grid grid-2" style={{ gap: 14 }}>
-              <div className="field">
+              <div className="field" style={{ width: "100%" }}>
                 <label className="label" htmlFor="password">
                   Password <span className="req">*</span>
                 </label>
@@ -195,7 +195,7 @@ export default function RegisterPage() {
                 />
                 <div className={`err-msg ${errors.password ? "show" : ""}`}>{errors.password}</div>
               </div>
-              <div className="field">
+              <div className="field" style={{ width: "100%" }}>
                 <label className="label" htmlFor="password_confirmation">
                   Konfirmasi <span className="req">*</span>
                 </label>
