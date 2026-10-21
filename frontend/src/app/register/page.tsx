@@ -179,38 +179,37 @@ export default function RegisterPage() {
               <div className={`err-msg ${errors.wilayah_id ? "show" : ""}`}>{errors.wilayah_id}</div>
             </div>
 
-            <div className="grid grid-2" style={{ gap: 14 }}>
-              <div className="field" style={{ width: "100%" }}>
-                <label className="label" htmlFor="password">
-                  Password <span className="req">*</span>
-                </label>
-                <input
-                  className={`input ${errors.password ? "is-error" : ""}`}
-                  type="password"
-                  id="password"
-                  name="password"
-                  placeholder="Min. 8 karakter"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                <div className={`err-msg ${errors.password ? "show" : ""}`}>{errors.password}</div>
-              </div>
-              <div className="field" style={{ width: "100%" }}>
-                <label className="label" htmlFor="password_confirmation">
-                  Konfirmasi <span className="req">*</span>
-                </label>
-                <input
-                  className={`input ${errors.password_confirmation ? "is-error" : ""}`}
-                  type="password"
-                  id="password_confirmation"
-                  name="password_confirmation"
-                  placeholder="Ulangi password"
-                  value={konfirmasi}
-                  onChange={(e) => setKonfirmasi(e.target.value)}
-                />
-                <div className={`err-msg ${errors.password_confirmation ? "show" : ""}`}>
-                  {errors.password_confirmation}
-                </div>
+            <div className="field">
+              <label className="label" htmlFor="password">
+                Password <span className="req">*</span>
+              </label>
+              <input
+                className={`input ${errors.password ? "is-error" : ""}`}
+                type="password"
+                id="password"
+                name="password"
+                placeholder="Min. 8 karakter"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <div className={`err-msg ${errors.password ? "show" : ""}`}>{errors.password}</div>
+            </div>
+
+            <div className="field">
+              <label className="label" htmlFor="password_confirmation">
+                Konfirmasi <span className="req">*</span>
+              </label>
+              <input
+                className={`input ${errors.password_confirmation ? "is-error" : ""}`}
+                type="password"
+                id="password_confirmation"
+                name="password_confirmation"
+                placeholder="Ulangi password"
+                value={konfirmasi}
+                onChange={(e) => setKonfirmasi(e.target.value)}
+              />
+              <div className={`err-msg ${errors.password_confirmation ? "show" : ""}`}>
+                {errors.password_confirmation}
               </div>
             </div>
 
