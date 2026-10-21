@@ -18,7 +18,7 @@ class CatatanKesehatanController extends Controller
     {
         // 1. Validasi tipe saja, BUKAN rentang.
         //    Nilai di luar rentang wajar tetap disimpan, tapi ditandai
-        //    perlu_verifikasi (kontrak §7.2 + aturan privasi plan).
+        //    perlu_verifikasi (kontrak 7.2 + aturan privasi plan).
         $data = $request->validate([
             'dicatat_pada'   => 'required|date',
             'sumber'         => 'required|in:mandiri,kader,puskesmas',
@@ -37,9 +37,9 @@ class CatatanKesehatanController extends Controller
 
         $user = $request->user();
 
-        // 2. Tentukan pemilik & pencatat sesuai sumber (kontrak §7.2).
-        //    mandiri     → data milik sendiri, tanpa pencatat
-        //    kader/faskes→ milik anggota yang diukur, dicatat oleh user token
+        // 2. Tentukan pemilik & pencatat sesuai sumber (kontrak 7.2).
+        //    mandiri     -> data milik sendiri, tanpa pencatat
+        //    kader/faskes-> milik anggota yang diukur, dicatat oleh user token
         if ($data['sumber'] === 'mandiri') {
             $data['user_id']    = $user->id;
             $data['dicatat_oleh'] = null;
@@ -60,7 +60,7 @@ class CatatanKesehatanController extends Controller
         // 4. Simpan. IMT & kategori_* dihitung otomatis lewat accessor model.
         $catatan = CatatanKesehatan::create($data);
 
-        // 5. Eager load relasi: pengguna.profil (untuk imt) & pencatat (§7.2).
+        // 5. Eager load relasi: pengguna.profil (untuk imt) & pencatat (7.2).
         $catatan->load(['pengguna.profil', 'pencatat']);
 
         return response()->json([
@@ -76,7 +76,7 @@ class CatatanKesehatanController extends Controller
         $query = CatatanKesehatan::with('pengguna.profil')
             ->where('user_id', $request->user()->id);
 
-        // Filter opsional: indikator + rentang tanggal (kontrak §7.3)
+        // Filter opsional: indikator + rentang tanggal (kontrak 7.3)
         if ($request->filled('dari')) {
             $query->where('dicatat_pada', '>=', $request->dari);
         }
@@ -84,18 +84,17 @@ class CatatanKesehatanController extends Controller
             $query->where('dicatat_pada', '<=', $request->sampai);
         }
 
-        $list = $query->latest('dicatat_pada')->paginate(15);
+        // Pencarian teks (kontrak 23), contoh: ?search=diabet
+        $this->saringCari($query, ['catatan', 'sumber'], $request);
+
+        // per_page dari query string, default 15, maks 100 (kontrak 1.3)
+        $list = $query->latest('dicatat_pada')->paginate($this->perHalaman($request));
 
         return response()->json([
             'success' => true,
             'message' => 'OK',
             'data'    => $list->items(),
-            'meta'    => [
-                'page'      => $list->currentPage(),
-                'per_page'  => $list->perPage(),
-                'total'     => $list->total(),
-                'last_page' => $list->lastPage(),
-            ],
+            'meta'    => $this->metaPaginasi($list),
         ]);
     }
 

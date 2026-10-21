@@ -7,7 +7,8 @@ use Illuminate\Http\Request;
 
 class WilayahController extends Controller
 {
-    // GET /api/wilayah — publik, dipakai form register (kontrak §6.1)
+    // GET /api/wilayah — publik, dipakai form register (kontrak 6.1)
+    // Query: ?tipe=kecamatan|kelurahan&parent_id=1&search=Sungai (kontrak 23)
     public function index(Request $request)
         {
             // Query dasar, urut: kecamatan dulu (parent null), lalu nama
@@ -23,6 +24,9 @@ class WilayahController extends Controller
             if ($request->filled('parent_id')) {
                 $query->where('parent_id', $request->parent_id);
             }
+
+            // Pencarian nama / kode wilayah (kontrak 23, contoh ?search=Sungai)
+            $this->saringCari($query, ['nama', 'kode'], $request);
 
             return response()->json([
                 'success' => true,
