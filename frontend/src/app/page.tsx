@@ -138,7 +138,7 @@ export default function LandingPage() {
                 <span className="d"></span>
                 <span className="url">sehatkita.id/dashboard</span>
               </div>
-              <div className="preview-body">
+              <div className="preview-body" suppressHydrationWarning>
                 <div className="preview-tabs">
                   {TAB_LABELS.map(([id, label]) => (
                     <button key={id} className={tabHero === id ? "active" : ""} onClick={() => setTabHero(id)} type="button">
