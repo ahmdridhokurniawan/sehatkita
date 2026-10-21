@@ -78,7 +78,12 @@ export default function LoginPage() {
               <h1 className="h2">Masuk ke akun Anda</h1>
               <p className="tiny mt-4">Gunakan email dan password yang terdaftar.</p>
             </div>
-            <ThemeToggle />
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <Link href="/" className="btn btn-sm btn-outline" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <Icon name="arrow-left" size={16} /> Kembali
+              </Link>
+              <ThemeToggle />
+            </div>
           </div>
 
           {alert ? (
