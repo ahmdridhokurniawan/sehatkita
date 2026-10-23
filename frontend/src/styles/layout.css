@@ -477,3 +477,36 @@ fieldset.form-section legend .n {
 .tl-item.danger::before { border-color: var(--danger); }
 .tl-item.warning::before { border-color: var(--warning); }
 .tl-item.muted::before { border-color: var(--border-strong); }
+
+/* ============================================================
+   E. DESKTOP — aplikasi memakai lebar penuh (bukan kolom 480px)
+   ============================================================ */
+@media (min-width: 1024px) {
+  .app-shell {
+    max-width: none;
+    width: 100%;
+    margin: 0;
+    border-inline: none;
+    background: var(--bg);
+  }
+  .app-top { padding-inline: 28px; }
+  .app-body {
+    max-width: 1280px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 24px 28px 32px;
+  }
+  .bottom-nav {
+    max-width: none;
+    border-inline: none;
+    padding-inline: 28px;
+    justify-content: center;
+  }
+  .bottom-nav a { flex: 0 1 200px; }
+  .bottom-nav a span { font-size: .75rem; }
+  .bottom-nav a svg { width: 20px; height: 20px; }
+  .fab { right: 28px; transform: none; }
+  /* Grid ikut melebar */
+  .app-body .grid-2 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+  .app-body .grid-4 { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+}

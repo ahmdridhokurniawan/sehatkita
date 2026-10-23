@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import { auth, clearToken } from "@/lib/api";
+import { clearUserCache } from "@/hooks/useUser";
 
 const SETELAN_MENU = [
   {
@@ -37,6 +38,7 @@ export default function SetelanPage() {
       console.error("Logout error:", err);
     } finally {
       clearToken();
+      clearUserCache();
       router.push("/login");
     }
   }

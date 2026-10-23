@@ -14,6 +14,7 @@ import type { JenisKelamin, TingkatAktivitas } from "@/lib/enums";
 import { RIWAYAT_KELUARGA_OPTIONS } from "@/lib/session";
 import { LABEL_JENIS_KELAMIN, LABEL_TINGKAT_AKTIVITAS } from "@/lib/labels";
 import { profil as profilApi, ApiError } from "@/lib/api";
+import { refreshUser } from "@/hooks/useUser";
 import type { Profil } from "@/types";
 
 const PROFIL_KOSONG: Profil = {
@@ -180,6 +181,8 @@ export default function ProfilPage() {
       setSukses(true);
       setError("");
       setTimeout(() => setSukses(false), 3000);
+      // Segarkan cache user supaya dashboard tahu profil sudah lengkap
+      refreshUser();
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Gagal simpan profil";
       setError(msg);
