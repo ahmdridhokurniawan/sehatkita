@@ -1,6 +1,6 @@
 # Kontrak API — Sistem Monitoring Kesehatan PTM (Skala Kecamatan)
 
-**Versi:** 1.2 (RANCANGAN TERKINI)
+**Versi:** 1.3 (RANCANGAN TERKINI)
 **Base URL:** `http://pm-monitoring.test/api/v1`
 **Backend:** Laravel + Sanctum (token)
 **Frontend:** konsumen token (SPA/desktop)
@@ -114,6 +114,7 @@ Query param paginasi: `?page=1&per_page=15` (`per_page` maks 100).
 | `kategori_imt` | `kurus`, `normal`, `gemuk`, `obesitas` |
 | `tingkat_aktivitas` | `ringan`, `sedang`, `berat` |
 | `konsumsi_manis` | `jarang`, `sering`, `setiap_hari` |
+| `riwayat_keluarga` | `hipertensi`, `diabetes`, `jantung`, `stroke`, `kolesterol`, `asma`, `kanker`, `ginjal`, `tidak_ada` |
 | `jenis_program` | `olahraga`, `edukasi`, `pemeriksaan`, `lainnya` |
 | `status_program` | `akan_datang`, `berjalan`, `selesai` |
 | `status_peserta` | `terdaftar`, `selesai`, `berhenti` |
@@ -127,12 +128,12 @@ Query param paginasi: `?page=1&per_page=15` (`per_page` maks 100).
 |---|---|
 | `super_admin` | seluruh kecamatan + master data |
 | `admin_kelurahan` | agregat kelurahan miliknya saja |
-| `kader` | data masyarakat yang ditugaskan kepadanya |
+| `kader` | data warga yang ditugaskan kepadanya (`pengguna.kader_id` = dirinya) |
 | `user` | data dirinya sendiri saja |
 
 Middleware backend tiap route:`auth:sanctum` → `role:{...}` → `scope.wilayah`.
 
-> **Catatan tambahan:** role `kelurahan` (alias `admin_kelurahan`) diberikan akses terbatas pada data kelurahan masing‑masing, sesuai kontrak §2.
+> **Scope kader:** kader hanya melihat data warga dengan `pengguna.kader_id` = dirinya (lihat §17). Parameter `user_id`/`wilayah_id` di luar scope → **404**, bukan diabaikan.
 
 
 ---
@@ -199,6 +200,8 @@ Publik. Mendaftarkan masyarakat (`role` otomatis `user`). **`wilayah_id` dipilih
 
 > FE wajib mengarahkan user ke form consent setelah register (`consent_at` masih `null`).
 
+**Validasi:** `password` minimal 8 karakter & cocok dengan `password_confirmation`; `email` unik (case-insensitive, disimpan lowercase) → 422 bila sudah dipakai; `wilayah_id` harus ada di tabel `wilayah` bertipe `kelurahan`.
+
 ### 4.2 POST `/auth/login`
 
 Publik. Rate limit: 5 percobaan/menit/IP.
@@ -212,7 +215,9 @@ Publik. Rate limit: 5 percobaan/menit/IP.
 }
 ```
 
-**Sukses 200** — bentuk sama dengan register (`user` + `token`).
+**Sukses 200** — bentuk sama dengan register (`user` + `token`). FE langsung arahkan ke `/dashboard/pribadi`; profil **tidak wajib** lengkap dulu (boleh diisi menyusul lewat `/profil`).
+
+`device_name` opsional (default `"unknown"`). Password minimal 8 karakter. Email dibandingkan case-insensitive.
 
 **Gagal 422**
 ```json
@@ -267,7 +272,7 @@ Auth. Dipakai FE saat aplikasi dibuka untuk memulihkan sesi dari token tersimpan
 
 ### 5.1 GET `/profil`
 
-Auth (`user`).
+Auth. Tanpa query → profil sendiri. `?user_id=12` → profil warga, hanya untuk `kader` (warga binaannya) & `super_admin`. Di luar scope → 404.
 
 **Sukses 200**
 ```json
@@ -288,6 +293,8 @@ Auth (`user`).
 }
 ```
 
+> Objek di atas **identik** dengan `data.profil` pada §4.4 — satu bentuk, dua tempat.
+
 ### 5.2 PUT `/profil`
 
 Auth (`user`). Kirim **seluruh** field (bukan partial). `tinggi_cm` dipakai untuk hitung IMT.
@@ -306,7 +313,7 @@ Auth (`user`). Kirim **seluruh** field (bukan partial). `tinggi_cm` dipakai untu
 
 **Sukses 200** — bentuk sama dengan GET.
 
-**Validasi:** `tgl_lahir` sebelum hari ini; `tinggi_cm` 50–250; `jenis_kelamin` ∈ enum; `riwayat_keluarga` array of string (boleh `[]`).
+**Validasi:** `tgl_lahir` sebelum hari ini; `tinggi_cm` 50–250; `jenis_kelamin` ∈ enum; `riwayat_keluarga` array nilai enum §1.7 (boleh `[]`, pakai `["tidak_ada"]` bila tak ada riwayat).
 
 ### 5.3 POST `/persetujuan`
 
@@ -383,14 +390,15 @@ Auth. Query: `?wilayah_id=3`
 
 ### 7.1 Aturan Penting
 
-- **Append-only.** Tidak ada endpoint UPDATE. Salah input → DELETE lalu buat baru.
-- **Field read-only** (dihitung server, FE tidak mengirim): `imt`, `kategori_imt`, `kategori_tensi`, `kategori_gula_darah`, `kategori_kolesterol`, `kategori_asam_urat`, `status_kesehatan`, `perlu_verifikasi`.
-- **`tinggi_cm`** diambil dari profil, bukan dikirim ulang.
+- **Immutable.** Tidak ada endpoint UPDATE. Salah input → DELETE lalu buat baru. DELETE bersifat *soft delete* (`deleted_at`), baris tetap ada untuk audit.
+- **Field read-only** (dihitung server, FE tidak mengirim): `imt`, `kategori_imt`, `kategori_tensi`, `kategori_gula_darah`, `kategori_kolesterol`, `kategori_asam_urat`, `status_kesehatan`, `perlu_verifikasi`, `tinggi_cm`.
+- **`tinggi_cm`** di-*snapshot* dari profil saat insert dan disimpan di baris log — bukan dijoin ulang — supaya IMT historis tidak berubah saat profil diedit.
+- **Profil belum lengkap** (`tinggi_cm` null): log tetap tersimpan, `imt` & `kategori_imt` = `null`. **Bukan** 422.
 - Data tidak lengkap tetap boleh disimpan (mis. hanya catat berat badan). Server menghitung apa pun yang bisa dihitung.
 
 ### 7.2 POST `/catatan-kesehatan`
 
-Auth (`user` untuk `sumber=mandiri`; `kader` untuk `sumber=kader`).
+Auth (`user` untuk `sumber=mandiri`; `kader` untuk `sumber=kader`; `super_admin` boleh keduanya untuk koreksi/audit, wajib kirim `user_id`).
 
 **Request**
 ```json
@@ -453,7 +461,7 @@ Semua field angka **opsional** kecuali `dicatat_pada` dan `sumber`.
 }
 ```
 
-**Validasi rentang (422 bila di luar):**
+**Rentang wajar** — nilai di luar rentang **tetap disimpan** dengan `perlu_verifikasi = true` dan dikecualikan dari agregat sampai diverifikasi admin (§15). Bukan 422.
 
 | Field | Rentang wajar |
 |---|---|
@@ -466,14 +474,16 @@ Semua field angka **opsional** kecuali `dicatat_pada` dan `sumber`.
 | `lingkar_perut` | 40 – 200 |
 | `tidur_jam` | 0 – 24 |
 
-> **Nilai di luar rentang wajar** → disimpan TAPI `perlu_verifikasi = true` dan dikeluarkan dari perhitungan agregat sampai diverifikasi admin.
+> **422 hanya untuk:** tipe salah (teks di field angka), `dicatat_pada` melebihi hari ini, `sumber` di luar enum, atau `sumber=kader` tanpa `user_id`/`sesi_posbindu_id`. Nilai di luar rentang wajar **bukan** 422 — lihat tabel di atas.
 
 ### 7.3 GET `/catatan-kesehatan`
 
 Auth. Query: `?page=1&per_page=15&indikator=imt&dari=2026-07-01&sampai=2026-10-03`
-- `user` → otomatis hanya miliknya.
-- `kader` → tambahan `?user_id=12` untuk riwayat anggota binaannya.
-- `admin_kelurahan`/`super_admin` → **tidak boleh** endpoint ini untuk data individu (pakai dashboard agregat).
+- `user` → otomatis hanya miliknya (`user_id` di query diabaikan, bukan error).
+- `kader` → tambahan `?user_id=12` untuk riwayat warga binaannya. `user_id` di luar binaannya → **404**.
+- `admin_kelurahan` → **tidak boleh** (pakai dashboard agregat §9).
+- `super_admin` → boleh, untuk audit & verifikasi.
+- `indikator=imt` → hanya log yang punya nilai `imt` (yaitu log yang dikirim dengan `bb_kg`).
 
 **Sukses 200** (array objek seperti §7.2 + paginasi).
 
@@ -483,7 +493,7 @@ Auth. Detail satu log. Di luar scope → 404. **Sukses 200** — objek seperti �
 
 ### 7.5 DELETE `/catatan-kesehatan/{id}`
 
-Auth (`user` pemilik, atau `super_admin`). Hapus satu log (koreksi salah input).
+Auth (`user` pemilik, `kader` yang mencatat baris itu, atau `super_admin`). Soft delete — koreksi salah input, baris tetap tersimpan untuk audit.
 
 **Sukses 200**
 ```json
@@ -539,9 +549,11 @@ Auth (`user`).
 
 > `indikator_terkini` = log terbaru per indikator (bisa dari tanggal berbeda). `null` bila belum pernah dicatat.
 
+> **Rumus `skor_risiko` & `status_kesehatan` (definitif):** ambil log terbaru yang punya nilai untuk tiap indikator → cari kategorinya di `ambang_kategori` → ambil `skor` → jumlahkan → clamp ke 0–100. `status_kesehatan` = `status` dari kategori dengan `skor` tertinggi; bila seri pakai prioritas `bahaya` > `perlu_perhatian` > `normal`. Log `perlu_verifikasi = true` tidak dihitung.
+
 ### 8.2 GET `/tren`
 
-Auth (`user`). Query: `?indikator=imt&periode=3m`
+Auth (`user`, `kader` dengan `?user_id=` warga binaannya). Query: `?indikator=imt&periode=3m`
 - `indikator` ∈ `bb_kg`, `imt`, `sistol`, `diastol`, `gula_darah`, `kolesterol`, `asam_urat`, `lingkar_perut`. Boleh multi: `?indikator=imt,bb_kg`
 - `periode` ∈ `1m`, `3m`, `6m`, `1y`
 
@@ -569,7 +581,22 @@ Auth (`user`). Query: `?indikator=imt&periode=3m`
 
 ### 8.3 GET `/insight`
 
-Auth (`user`). Insight berbasis aturan (if-then, bukan ML).
+Auth (`user`). Insight berbasis aturan (if-then, bukan ML). Query opsional: `?level=peringatan,bahaya`.
+
+**Rumus yang dipakai (v1.3):**
+
+| Kode | Kondisi | Level |
+|---|---|---|
+| `BB_NAIK_3MINGGU` | `bb_kg` naik > 3 kg dalam 3 minggu | `peringatan` |
+| `IMT_OBESITAS` | `imt` > 30 | `bahaya` |
+| `IMT_GEMUK` | `imt` 25 – 30 | `peringatan` |
+| `TENSI_TINGGI` | `sistol` ≥ 140 atau `diastol` ≥ 90 | `peringatan` |
+| `TENSI_BAHAYA` | `sistol` ≥ 180 atau `diastol` ≥ 110 | `bahaya` |
+| `GULA_PUASA_TINGGI` | `jenis_gula_darah=puasa` & `gula_darah` > 126 | `bahaya` |
+| `BELUM_SKRINING_GULA` | tidak ada `gula_darah` dalam 6 bulan | `info` |
+| `BELUM_ADA_CATATAN` | belum ada catatan sama sekali | `info` |
+
+> **Rujukan otomatis:** bila muncul insight level `bahaya`, server membuat baris `rujukan` status `baru` dengan `dibuat_oleh = null` (artinya sistem) dan `faskes_id` = faskes pertama di wilayah user. Bila wilayah user belum punya faskes, rujukan **tidak** dibuat — hanya insight yang tampil.
 
 **Sukses 200**
 ```json
@@ -649,6 +676,15 @@ Query: `?periode=3m&wilayah_id=3`
   }
 }
 ```
+
+> **Definisi field agregat (v1.3):**
+> - `total_peserta` = jumlah user role `user` di wilayah itu yang consent-nya aktif.
+> - `total_pengguna_aktif` = user wilayah itu dengan ≥ 1 catatan dalam `periode`.
+> - `total_pencatatan` = jumlah baris `catatan_kesehatan` dalam `periode` (tanpa `perlu_verifikasi`).
+> - `distribusi_risiko.faktor` = dihitung dari `profil.riwayat_keluarga` (self-report), **bukan** dari nilai terukur. Nilai enum §1.7.
+> - `kepatuhan_pencatatan_persen` = `total_pengguna_aktif` / `total_peserta` × 100, dibulatkan.
+> - `rujukan.belum_ditindaklanjuti` = jumlah status `baru` (alias dari `baru`, disediakan supaya FE tak menghitung sendiri).
+> - `distribusi_kelompok_usia` = kelompok 5 tahunan dari `profil.tgl_lahir`, dihitung **per user**, bukan per log.
 
 ### 9.2 Aturan Suppression (WAJIB — jangan dilewat)
 
@@ -763,7 +799,7 @@ Auth (`kader`, `admin_kelurahan`).
 
 ### 10.6 GET `/posbindu/kunjungan`
 
-Auth (`kader`, `user`). Query: `?user_id=12`
+Auth (`kader`, `user`). Query: `?user_id=12` — `user` hanya boleh `user_id` dirinya sendiri; di luar scope → 404.
 
 **Sukses 200** (array + paginasi)
 ```json
@@ -785,11 +821,22 @@ Auth (`kader`, `user`). Query: `?user_id=12`
 
 ---
 
+### 10.7 DELETE `/posbindu/sesi/{id}`
+
+Auth (`admin_kelurahan`, `super_admin`). Batal/koreksi sesi salah input. **422** bila sudah ada kunjungan dengan `catatan_kesehatan` — hapus catatannya dulu.
+
+**Sukses 200**
+```json
+{ "success": true, "message": "Sesi dibatalkan", "data": null }
+```
+
+---
+
 ## 11. Modul Rujukan
 
 ### 11.1 POST `/rujukan`
 
-Auth (`kader`, `admin_kelurahan`).
+Auth (`kader`, `admin_kelurahan`). `user_id` harus warga dalam scope; di luar scope → 404.
 
 **Request**
 ```json
@@ -824,7 +871,9 @@ Auth (`kader`, `admin_kelurahan`).
 
 Auth.
 - `user` → hanya rujukan miliknya.
-- `kader`/`admin_kelurahan` → rujukan di wilayahnya.
+- `kader` → rujukan warga binaannya.
+- `admin_kelurahan` → rujukan di wilayahnya (param `wilayah_id` diabaikan bila beda).
+- `super_admin` → semua, boleh `?wilayah_id=3`.
 
 Query: `?status=baru&wilayah_id=3&dari=...&sampai=...`
 
@@ -847,7 +896,13 @@ Auth (`kader`, `admin_kelurahan`).
 
 ### 12.1 GET `/program`
 
-Auth. Query: `?status=berjalan`
+Auth. Query: `?status=berjalan`. `status` **dihitung server** dari `mulai`/`selesai` vs hari ini — FE tidak mengirim, admin tidak menginput.
+
+`diikuti` hanya bermakna untuk role `user`; untuk role lain selalu `false`. Field reward hanya muncul untuk role `user`:
+
+```json
+{ "badge": "peserta_aktif", "exp": 120, "level_gamifikasi": 2, "rank_kelurahan": 7 }
+```
 
 **Sukses 200**
 ```json
@@ -872,7 +927,7 @@ Auth. Query: `?status=berjalan`
 
 ### 12.2 POST `/program`
 
-Auth (`admin_kelurahan`, `super_admin`). Request: `wilayah_id`, `judul`, `jenis`, `target_peserta`, `mulai`, `selesai`. **Sukses 201.**
+Auth (`admin_kelurahan`, `super_admin`). Request: `wilayah_id`, `judul`, `jenis`, `target_peserta`, `mulai`, `selesai` — **tanpa** `status` (dihitung server). **Sukses 201.**
 
 ### 12.3 POST `/program/{id}/peserta`
 
@@ -885,13 +940,17 @@ Auth (`user`). Ikut program.
 
 ### 12.4 PATCH `/program/{id}/peserta`
 
-Auth (`user`, `admin_kelurahan`). Ubah status: `terdaftar` | `selesai` | `berhenti`.
+Auth (`user`, `admin_kelurahan`, `kader`). `user` hanya boleh `berhenti` (batal ikut). `selesai` hanya boleh `admin_kelurahan`/`super_admin`/`kader` — supaya `exp`/`badge` tidak bisa diklaim sendiri.
 
 ---
 
 ## 13. Modul Target & Refleksi
 
-### 13.1 PUT `/target`
+### 13.1 GET `/target`
+
+Auth (`user`). **Sukses 200** — objek target; bila belum pernah diisi semua field `null`.
+
+### 13.2 PUT `/target`
 
 Auth (`user`).
 
@@ -909,9 +968,9 @@ Auth (`user`).
 }
 ```
 
-### 13.2 POST `/refleksi`
+### 13.3 POST `/refleksi`
 
-Auth (`user`).
+Auth (`user`). `minggu` = ISO-8601 week (`YYYY-Www`, Senin awal minggu). Satu user satu refleksi per minggu — kirim ulang minggu yang sama → **422**.
 
 **Request**
 ```json
@@ -919,6 +978,10 @@ Auth (`user`).
 ```
 
 **Sukses 201** — `{ "id": 9, "minggu": "2026-W40", "catatan": "...", "created_at": "..." }`
+
+### 13.4 GET `/refleksi`
+
+Auth (`user`). Query: `?page=1&per_page=15`. **Sukses 200** — array refleksi miliknya + paginasi, terbaru dulu.
 
 ---
 
@@ -957,7 +1020,7 @@ Auth (`admin_kelurahan`, `super_admin`). Agregat, mengikuti suppression §9.2. Q
 
 ## 15. Modul Admin (Master Data)
 
-Butuh role `super_admin` (kecuali ditulis lain).
+Butuh role `super_admin` (kecuali ditulis lain). `PUT /admin/pengguna/{id}` dipakai juga untuk menetapkan `kader_id` (penugasan kader → warga).
 
 | Method | Path | Fungsi |
 |---|---|---|
@@ -979,6 +1042,8 @@ Butuh role `super_admin` (kecuali ditulis lain).
 | DELETE | `/admin/faskes/{id}` | Hapus faskes |
 | GET | `/admin/log-audit` | Riwayat aktivitas |
 | GET | `/admin/statistik` | Statistik keseluruhan sistem |
+| GET | `/admin/catatan-kesehatan/perlu-verifikasi` | Daftar log ber-flag `perlu_verifikasi` (filter `?wilayah_id=`) |
+| PATCH | `/admin/catatan-kesehatan/{id}/verifikasi` | `{ "setuju": true }` → `perlu_verifikasi=false` (masuk agregat); `{ "setuju": false }` → baris di-soft-delete |
 
 **Contoh bentuk `ambang-kategori` (yang bikin IMT jadi „gemuk"):**
 ```json
@@ -1005,14 +1070,14 @@ Butuh role `super_admin` (kecuali ditulis lain).
 | POST /auth/login | – | – | – | – | ✅ |
 | GET /auth/me | ✅ | ✅ | ✅ | ✅ | – |
 | POST /auth/logout | ✅ | ✅ | ✅ | ✅ | – |
-| GET /profil | – | – | – | ✅ | – |
+| GET /profil | ✅ | – | ✅* | ✅* | – |
 | PUT /profil | – | – | – | ✅ | – |
 | POST/DELETE /persetujuan | – | – | – | ✅ | – |
 | GET /wilayah | ✅ | ✅ | ✅ | ✅ | ✅ |
 | GET /faskes | ✅ | ✅ | ✅ | ✅ | – |
 | POST /catatan-kesehatan | ✅ | – | ✅* | ✅* | – |
 | GET /catatan-kesehatan | ✅ | – | ✅* | ✅* | – |
-| DELETE /catatan-kesehatan/{id} | ✅ | – | – | ✅* | – |
+| DELETE /catatan-kesehatan/{id} | ✅ | – | ✅* | ✅* | – |
 | GET /dashboard/pribadi | – | – | – | ✅ | – |
 | GET /tren | – | – | ✅* | ✅* | – |
 | GET /insight | – | – | – | ✅ | – |
@@ -1025,10 +1090,13 @@ Butuh role `super_admin` (kecuali ditulis lain).
 | PATCH /rujukan/{id}/status | ✅ | ✅* | ✅* | – | – |
 | GET /program | ✅ | ✅ | ✅ | ✅ | – |
 | POST /program | ✅ | ✅* | – | – | – |
-| POST/PATCH /program/{id}/peserta | ✅ | ✅* | – | ✅* | – |
+| POST/PATCH /program/{id}/peserta | ✅ | ✅* | ✅* | ✅* | – |
 | PUT /target, POST /refleksi | – | – | – | ✅ | – |
 | GET /laporan/pribadi | – | – | – | ✅ | – |
 | GET /laporan/kelurahan | ✅ | ✅* | – | – | – |
+| GET /target | – | – | – | ✅ | – |
+| GET /refleksi | – | – | – | ✅ | – |
+| DELETE /posbindu/sesi/{id} | ✅ | ✅* | – | – | – |
 | /admin/* | ✅ | – | – | – | – |
 
 `*` = dibatasi scope wilayah / kepemilikan data.
@@ -1042,20 +1110,20 @@ Acuan migrasi BE. Nama final, jangan diubah tanpa changelog.
 | # | Tabel | Isi kolom inti |
 |---|---|---|
 | 1 | `wilayah` | id, parent_id, nama, tipe, kode |
-| 2 | `pengguna` | id, name, email, password, role, wilayah_id, consent_at, versi_kebijakan |
+| 2 | `pengguna` | id, name, email, password, role, wilayah_id, kader_id (nullable — penugasan kader → warga), consent_at, versi_kebijakan |
 | 3 | `profil` | user_id, tgl_lahir, jenis_kelamin, tinggi_cm, tingkat_aktivitas, merokok, riwayat_keluarga (json), bb_target_kg, target_aktivitas_per_minggu, target_air_ml |
-| 4 | `catatan_kesehatan` | id, user_id, dicatat_oleh, dicatat_pada, sumber, sesi_posbindu_id, bb_kg, sistol, diastol, gula_darah, jenis_gula_darah, kolesterol, asam_urat, lingkar_perut, tidur_jam, merokok, **konsumsi_manis**, catatan, perlu_verifikasi — **append-only** |
+| 4 | `catatan_kesehatan` | id, user_id, dicatat_oleh, dicatat_pada, sumber, sesi_posbindu_id, bb_kg, **tinggi_cm** (snapshot), sistol, diastol, gula_darah, jenis_gula_darah, kolesterol, asam_urat, lingkar_perut, tidur_jam, merokok, **konsumsi_manis**, catatan, perlu_verifikasi, deleted_at — **immutable** |
 | 5 | `indikator` | id, kode, nama, satuan, kelompok |
 | 6 | `ambang_kategori` | id, indikator_id, batas_min, batas_max, kategori, status, skor |
 | 7 | `sesi_posbindu` | id, wilayah_id, tanggal, lokasi, kader_id, catatan |
 | 8 | `kunjungan_posbindu` | id, sesi_id, user_id, hadir, dicatat_oleh, catatan_kesehatan_id |
-| 9 | `rujukan` | id, user_id, faskes_id, alasan, dibuat_oleh, status, ditangani_oleh, catatan |
-| 10 | `faskes` | id, wilayah_id, nama, jenis, alamat, telepon, lat, lng |
-| 11 | `pengobatan` | id, user_id, nama_obat, dosis, mulai, selesai, aktif |
+| 9 | `rujukan` | id, user_id, faskes_id, alasan, dibuat_oleh (nullable = sistem), status, ditangani_oleh, catatan |
+| 10 | `faskes` | id, wilayah_id, nama, jenis, alamat, telepon, lat, lng (lat/lng cadangan — belum ada endpoint peta) |
+| 11 | `pengobatan` | id, user_id, nama_obat, dosis, mulai, selesai, aktif — **cadangan: belum ada endpoint, migrasi ditunda** |
 | 12 | `log_audit` | id, user_id, aksi, model, model_id, ip, user_agent, created_at |
-| 13 | `program` | id, wilayah_id, judul, jenis, target_peserta, mulai, selesai, status |
-| 14 | `peserta_program` | program_id, user_id, status, selesai_pada |
-| +1 | `refleksi` | id, user_id, minggu, catatan |
+| 13 | `program` | id, wilayah_id, judul, jenis, target_peserta, mulai, selesai (`status` dihitung, tidak disimpan) |
+| 14 | `peserta_program` | program_id, user_id, status, selesai_pada, badge, exp, level_gamifikasi (`rank_kelurahan` dihitung, tidak disimpan) |
+| +1 | `refleksi` | id, user_id, minggu, catatan, created_at |
 
 > Catatan: tabel `pengguna` menggantikan tabel bawaan Laravel `users`. Model `User` **wajib** set `protected $table = 'pengguna';`.
 
@@ -1070,128 +1138,36 @@ Acuan migrasi BE. Nama final, jangan diubah tanpa changelog.
 
 ---
 
-## 19. Landing Page
+## 19. Pencarian
 
-### 19.1 Hero & Judul
-- Hero menampilkan logo, nama aplikasi, dan tagline singkat yang menjelaskan tujuan utama sistem monitoring kesehatan.
-- Judul besar: *"Sistem Monitoring Kesehatan PTM"*.
+Query `search=` hanya berlaku di endpoint **koleksi daftar**: §6.1 `/wilayah`, §7.3 `/catatan-kesehatan`, §10.1 `/posbindu/sesi`, §11.2 `/rujukan`, §12.1 `/program`, dan GET `/admin/*`. Di endpoint agregat (§8.1, §8.3, §9.1, §14) dan endpoint tulis (POST/PUT/PATCH/DELETE), `search` **diabaikan**. Pencarian teks `LIKE %q%` case-insensitive.
 
-### 19.2 Deskripsi & Keunggulan (bisa animasi)
-- Ringkas: mengumpulkan data kesehatan, menghitung IMT, memberi insight, dan rujukan otomatis.
-- **Keunggulan**:
-  1. **Realtime** – data langsung terlihat di dashboard.
-  2. **Insight berbasis aturan** – level `info`, `peringatan`, `bahaya`.
-  3. **Gamifikasi** – tantangan, badge, EXP, rank kelurahan.
-  4. **Mode Light/Dark** – pilihan tampilan.
-
-### 19.3 Ilustrasi (opsional)
-- Gambar atau SVG ilustrasi (contoh peta daerah, ikon kesehatan) yang dapat diganti dengan animasi CSS/JS.
-
-### 19.4 FAQ
-- Daftar pertanyaan umum (registrasi, consent, data yang dikumpulkan, cara mengakses insight, dsb.) dengan anchor untuk navigasi cepat.
-
-### 19.5 Footer
-- **About** – deskripsi singkat proyek, tim, dan kontak.
-- **Copyright** – tahun dan hak cipta.
-- Link ke *Privacy Policy* & *Terms of Service*.
-
-### 19.6 Mode Light / Dark
-- Implementasi CSS variabel `--mode-light` & `--mode-dark`.
-- Toggle di UI (ikon matahari/bulan).
-- Semua komponen harus responsif terhadap kedua mode.
+Contoh: `GET /catatan-kesehatan?search=lembur`.
 
 ---
 
-## 20. Daftar Bug & Perbaikan
-- **Login**: password harus minimal 8 karakter; selain itu tidak boleh lolos.
-- **Login gagal**: respons `422` dengan pesan *"Email atau password salah"*.
-- **Register 404**: endpoint sudah tersedia `/auth/register`.
-- **Email duplikat**: registrasi gagal dengan `422` bila email sudah ada.
-- **Tanggal lahir**: tidak boleh lebih besar dari hari ini.
-- **Validasi kelengkapan**: data tidak boleh tersimpan jika field wajib belum diisi.
-- **Role baru**: penambahan role `kelurahan` (alias `admin_kelurahan`).
+## 20. Dicabut / Ditunda
+
+**Dicabut dari usulan v1.2:**
+
+| Usulan v1.2 | Keputusan v1.3 |
+|---|---|
+| Rename `/tren` → `/rekam-medis` | **Dibatalkan.** Nama tetap `/tren` (§8.2) — sudah dipakai di 4 tempat, rename tanpa manfaat |
+| Role `kelurahan` sebagai alias `admin_kelurahan` | **Dibatalkan.** Enum role tetap 4 nilai (§1.7). Satu role, satu nama |
+| `GET /notifications` | **Dicabut.** Tak ada bentuk response/tabel yang disepakati |
+| `next_notifications` di `/dashboard/pribadi` | **Dicabut**, ikut `/notifications` |
+
+**Ditunda ke v1.4** (belum ada di v1.3 — jangan dikarang di BE/FE): `GET /notifications`, lupa-password & reset-password, verifikasi email, refresh/kedaluwarsa token, `PUT`/`DELETE /program/{id}`, peta faskes (`lat`/`lng`), modul `pengobatan`.
+
+**Kebijakan token:** Sanctum token tidak kedaluwarsa otomatis. FE **wajib** menghapus token tersimpan dan arahkan ke login saat menerima `401`.
 
 ---
 
-## 21. UI/UX & Navigasi
-- **Sidebar navigation** di semua halaman untuk menghindari penumpukan tombol.
-- **Tombol** tidak menumpuk; gunakan grup tombol atau menu dropdown.
-- **Form catatan kesehatan**: tampilkan tanda `*` pada field wajib, hapus tanda pada optional.
-- **Input numerik**: hanya menerima angka (tidak boleh huruf).
-- **Desain**: tata letak kiri‑kanan interaktif, mudah dipahami.
-
----
-
-## 22. Insight & Rujukan Otomatis
-- **Level**: `info`, `peringatan`, `bahaya`.
-- **Contoh rumus**:
-  - **BB naik > 3 kg dalam 3 minggu** → `peringatan`.
-  - **IMT > 30** → `bahaya`.
-  - **Gula darah puasa > 126** → `bahaya`.
-- **Rujukan otomatis**: bila level `bahaya`, server otomatis membuat entri di tabel `rujukan` dan meng‑set status `baru`.
-- **Notifikasi**: endpoint baru `GET /notifications` mengembalikan daftar notifikasi (insight & rujukan) dalam format envelope.
-
----
-
-## 23. Pencarian (Search)
-- Semua endpoint mendukung query parameter `search=` (atau `q=`) untuk pencarian teks dalam koleksi masing‑masing.
-- Contoh: `GET /catatan-kesehatan?search=diabet` atau `GET /wilayah?search=Sungai`.
-
----
-
-## 24. Renaming Tren → Rekam Medis
-- Endpoint sebelumnya `/tren` diganti menjadi `/rekam-medis`.
-- Semua referensi di kontrak dan dokumentasi harus menggunakan istilah *Rekam Medis*.
-
----
-
-## 25. Gamifikasi & Tantangan
-- Modul **Program** diubah menjadi **Tantangan/Penyuluhan**.
-- Tambahan field pada tabel `program` & `peserta_program`:
-  - `badge` (string), `exp` (integer), `level` (integer), `rank_kelurahan` (string).
-- Endpoint tetap `/program`, tetapi response kini mencakup reward fields.
-
----
-
-## 26. Alur Login → Dashboard
-- Setelah `POST /auth/login` berhasil, FE langsung diarahkan ke `/dashboard/pribadi` (tanpa keharusan mengisi data profil lengkap).
-- Pengisian profil dapat dilakukan terpisah melalui endpoint `/profil`.
-
----
-
-## 27. Notifikasi Endpoint
-- **GET /notifications** – Mengembalikan daftar notifikasi terbaru (insight level `bahaya`/`peringatan`, rujukan otomatis, badge earned, dll.) dalam envelope response.
-
----
-
-## 28. Perubahan pada Modul Catatan Kesehatan ( §7 )
-- **Validasi numerik**: semua field angka (`bb_kg`, `sistol`, `diastol`, `gula_darah`, `kolesterol`, `asam_urat`, `lingkar_perut`, `tidur_jam`) **hanya menerima angka**.
-- **Tanda wajib**: pada UI, field yang wajib diisi diberi tanda `*`; field opsional tanpa tanda.
-- **Form**: tata letak form dibuat lebih menarik, dengan grup field dan bantuan tooltip.
-
----
-
-## 29. Perubahan pada Modul Insight ( §8 )
-- Tambahan **rumus perhitungan** (lihat §22) dan contoh kode pseudo‑logic.
-- Endpoint `/insight` kini dapat menerima query `level=` untuk filter level (`info`, `peringatan`, `bahaya`).
-
----
-
-## 30. Perubahan pada Modul Program ( §12 )
-- Nama endpoint tetap `/program`, tapi dokumentasi menyebut **Tantangan/Penyuluhan** dan menambahkan field reward (badge, exp, level, rank).
-- Contoh response GET `/program` kini mencakup `badge`, `exp`, `level`, `rank_kelurahan` bila ada.
-
----
-
-## 31. Perubahan pada Modul Dashboard Pribadi ( §8.1 )
-- Response kini menyertakan `next_notifications` (array) yang berisi notifikasi yang akan datang (insight, rujukan, reward).
-
----
-
-## 32. Perubahan pada Matriks Hak Akses ( §16 )
-- Tambahan permission untuk endpoint baru `GET /notifications` (semua role yang sudah ter‑auth).
+## 21. Changelog
 
 | Versi | Tanggal | Perubahan | Oleh |
 |---|---|---|---|
 | 1.0 | 2026-10-03 | Draft awal kontrak | BE |
 | 1.1 | 2026-10-03 | Penamaan tabel & path diseragamkan ke bahasa Indonesia (`/health-logs`→`/catatan-kesehatan`, `/profile`→`/profil`, `/consent`→`/persetujuan`, `/programs`→`/program`, `/admin/users`→`/admin/pengguna`, `/admin/audit-log`→`/admin/log-audit`); tambah kolom `konsumsi_manis` + enum; tambah §0 keputusan desain & §3 peta endpoint→tabel; tambah lampiran daftar tabel Indonesia | BE |
+| 1.2 | 2026-10-03 | Usulan rename `/rekam-medis`, role alias `kelurahan`, `GET /notifications`, gamifikasi, landing page & UI/UX — **sebagian ditolak di 1.3**, lihat §20 | FE |
+| 1.3 | 2026-10-23 | **Audit kontrak.** (1) kontradiksi 422 vs `perlu_verifikasi` diselesaikan — luar rentang = disimpan + flag, 422 hanya untuk tipe/wajib salah; (2) endpoint verifikasi `/admin/catatan-kesehatan/*` ditambah; (3) `pengguna.kader_id` untuk scope kader; (4) `catatan_kesehatan.tinggi_cm` di-snapshot + `deleted_at` (soft delete); (5) rumus `skor_risiko`, `status_kesehatan`, insight, & definisi field agregat ditulis eksplisit; (6) enum `riwayat_keluarga`; (7) `refleksi.created_at` + aturan ISO week + duplikat 422 + `GET /refleksi`; (8) tambah `GET /target`, `GET /profil?user_id=`, `DELETE /posbindu/sesi/{id}`; (9) aturan 404 untuk `user_id`/`wilayah_id` di luar scope; (10) `program.status` jadi turunan, reward dipindah, `user` tak boleh set `selesai`; (11) `search=` dibatasi; (12) §19–§32 non-API dipindah ke `catatan-ui.md`; (13) `/rekam-medis`, alias role `kelurahan`, `/notifications` dicabut | hamba allah + BE |
