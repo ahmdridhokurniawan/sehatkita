@@ -18,11 +18,6 @@ export default function DashboardPage() {
     // Belum login / token tidak valid
     if (!user) {
       router.push("/login");
-      return;
-    }
-    // Belum menyetujui kebijakan data → wajib onboarding dulu
-    if (!user.consent_at) {
-      router.push("/onboarding");
     }
   }, [user, loading, router]);
 

@@ -78,6 +78,22 @@ export default function DashboardUser({ user }: { user: User }) {
 
   return (
     <AppShell greet="Halo" unread={0} onFab={() => setCatatTerbuka(true)}>
+      {/* Ajakan melengkapi data diri (fitur terpisah di menu Profil) */}
+      {!user.profil ? (
+        <div className="card mt-16">
+          <div className="row-between" style={{ gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <strong className="text-sm">Lengkapi data diri</strong>
+              <p className="tiny mt-4">
+                Tanggal lahir, tinggi, dan aktivitas dipakai untuk menghitung IMT dan skor risiko.
+              </p>
+            </div>
+            <Link href="/profil" className="btn btn-primary btn-sm">
+              Isi sekarang
+            </Link>
+          </div>
+        </div>
+      ) : null}
       {/* Status kesehatan */}
       <section className={`health-hero ${HERO_CLS[status_kesehatan] || "baik"}`}>
         <span className="pill">

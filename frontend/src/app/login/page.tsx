@@ -41,15 +41,9 @@ export default function LoginPage() {
     try {
       const res = await auth.login({ email, password, device_name: "web-app" });
       
-      // Simpan token ke localStorage
+      // Simpan token ke localStorage, lalu langsung ke menu utama
       setToken(res.token);
-      
-      // User yang belum menyetujui kebijakan data → onboarding dulu
-      if (!res.user.consent_at) {
-        router.push("/onboarding");
-      } else {
-        router.push("/dashboard");
-      }
+      router.push("/dashboard");
     } catch (err: any) {
       setLoading(false);
       const apiErr = err as ApiError;

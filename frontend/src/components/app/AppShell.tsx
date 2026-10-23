@@ -1,22 +1,12 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
 import ThemeToggle from "@/components/ui/ThemeToggle";
-import { getUserSimulasi } from "@/lib/session";
-import { AKUN_DEMO } from "@/lib/demo";
+import { useUser } from "@/hooks/useUser";
 import { inisial } from "@/lib/format";
-
-const langgananKosong = () => () => {};
-function useDiBrowser(): boolean {
-  return useSyncExternalStore(
-    langgananKosong,
-    () => true,
-    () => false
-  );
-}
 
 const NAV = [
   { href: "/dashboard", icon: "home", label: "Beranda" },
@@ -45,21 +35,19 @@ type Props = {
 export default function AppShell({ children, greet, unread = 0, noFab, onFab }: Props) {
   const router = useRouter();
   const pathname = usePathname();
-  const diBrowser = useDiBrowser();
-  const email = diBrowser ? getUserSimulasi() : "";
+  const { user, loading } = useUser();
 
   useEffect(() => {
-    if (diBrowser && email === "") router.replace("/login");
-  }, [diBrowser, email, router]);
+    if (!loading && !user) router.replace("/login");
+  }, [loading, user, router]);
 
-  const akun = AKUN_DEMO.find((a) => a.email.toLowerCase() === email.toLowerCase());
-  const nama = akun?.name || "Pengguna";
-  const wilayah = akun?.role === "user" ? "Loktabat Utara" : "Kota Banjarbaru";
+  const nama = user?.name || "Pengguna";
+  const wilayah = user?.wilayah?.nama || "";
 
-  if (diBrowser && email === "") {
+  if (loading || !user) {
     return (
       <main className="center" style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
-        <p className="tiny">Mengalihkan…</p>
+        <p className="tiny">Memuat…</p>
       </main>
     );
   }
