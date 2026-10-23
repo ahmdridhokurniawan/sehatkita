@@ -1,6 +1,6 @@
 # Kontrak API — Sistem Monitoring Kesehatan PTM (Skala Kecamatan)
 
-**Versi:** 1.3 (RANCANGAN TERKINI)
+**Versi:** 1.4 (RANCANGAN TERKINI)
 **Base URL:** `http://pm-monitoring.test/api/v1`
 **Backend:** Laravel + Sanctum (token)
 **Frontend:** konsumen token (SPA/desktop)
@@ -455,7 +455,7 @@ Semua field angka **opsional** kecuali `dicatat_pada` dan `sumber`.
     "status_kesehatan": "perlu_perhatian",
     "perlu_verifikasi": false,
     "catatan": "Kurang tidur karena lembur",
-    "dicatat_oleh": { "id": 5, "name": "Kader A" },
+    "dicatat_oleh": { "id": 12, "name": "Budi Santoso" },
     "created_at": "2026-10-03T14:22:00+08:00"
   }
 }
@@ -664,10 +664,10 @@ Query: `?periode=3m&wilayah_id=3`
       "baru": 8,
       "dihubungi": 10,
       "tertangani": 10,
-      "ditolak": 2,
+      "ditolak": 5,
       "belum_ditindaklanjuti": 8
     },
-    "kepatuhan_pencatatan_persen": 71,
+    "kepatuhan_pencatatan_persen": 83,
     "tren": [
       { "periode": "2026-08", "total_pencatatan": 280 },
       { "periode": "2026-09", "total_pencatatan": 320 },
@@ -793,7 +793,7 @@ Auth (`kader`, `admin_kelurahan`).
 {
   "success": true,
   "message": "Peserta ditambahkan",
-  "data": { "kunjungan_id": 53, "user_id": 14, "hadir": true, "catatan_kesehatan_id": 88 }
+  "data": { "kunjungan_id": 53, "user_id": 12, "hadir": true, "catatan_kesehatan_id": 89 }
 }
 ```
 
@@ -1152,18 +1152,50 @@ Contoh: `GET /catatan-kesehatan?search=lembur`.
 
 | Usulan v1.2 | Keputusan v1.3 |
 |---|---|
-| Rename `/tren` → `/rekam-medis` | **Dibatalkan.** Nama tetap `/tren` (§8.2) — sudah dipakai di 4 tempat, rename tanpa manfaat |
+| Rename `/tren` → `/rekam-medis` | **Dibatalkan.** Nama tetap `/tren` (§8.2) — sudah dipakai di 4 tempat |
 | Role `kelurahan` sebagai alias `admin_kelurahan` | **Dibatalkan.** Enum role tetap 4 nilai (§1.7). Satu role, satu nama |
 | `GET /notifications` | **Dicabut.** Tak ada bentuk response/tabel yang disepakati |
 | `next_notifications` di `/dashboard/pribadi` | **Dicabut**, ikut `/notifications` |
 
-**Ditunda ke v1.4** (belum ada di v1.3 — jangan dikarang di BE/FE): `GET /notifications`, lupa-password & reset-password, verifikasi email, refresh/kedaluwarsa token, `PUT`/`DELETE /program/{id}`, peta faskes (`lat`/`lng`), modul `pengobatan`.
+**Ditunda ke v1.5** (belum ada di v1.4 — jangan dikarang di BE/FE): `GET /notifications`, lupa-password & reset-password, verifikasi email, refresh/kedaluwarsa token, `PUT`/`DELETE /program/{id}`, peta faskes (`lat`/`lng`), modul `pengobatan`.
 
 **Kebijakan token:** Sanctum token tidak kedaluwarsa otomatis. FE **wajib** menghapus token tersimpan dan arahkan ke login saat menerima `401`.
 
 ---
 
-## 21. Changelog
+---
+
+---
+
+## 21. Lampiran A — Catatan Produk & UI/UX
+
+> **Lampiran non-normatif.** Bagian ini catatan produk/tampilan, bukan kontrak API. Nomor § yang disebut di dalam lampiran ini mengacu ke penomoran v1.2 (lama); aturan resmi ada di §1–§20 di atas.
+
+### 21.1 Hero & Judul
+- Hero menampilkan logo, nama aplikasi, dan tagline singkat yang menjelaskan tujuan utama sistem monitoring kesehatan.
+- Judul besar: *"Sistem Monitoring Kesehatan PTM"*.
+
+### 21.2 Deskripsi & Keunggulan
+- Ringkas: mengumpulkan data kesehatan, menghitung IMT, memberi insight, dan rujukan otomatis.
+- **Keunggulan**:
+  1. **pembaruan berkala** – data langsung terlihat di dashboard.
+  2. **Insight berbasis aturan** – level `info`, `peringatan`, `bahaya`.
+  3. **Gamifikasi** – tantangan, badge, EXP.
+  4. **Mode Light/Dark** – pilihan tampilan.
+
+### 21.3 UI/UX & Navigasi Form
+- **Sidebar navigation** di semua halaman untuk menghindari penumpukan tombol.
+- **Form catatan kesehatan**: tampilkan tanda `*` pada field wajib, hapus tanda pada optional.
+- **Input numerik**: hanya menerima angka (tidak boleh huruf).
+- **Alur Login → Dashboard**: Setelah `POST /auth/login` berhasil, FE langsung diarahkan ke `/dashboard/pribadi` (tanpa keharusan mengisi data profil lengkap). Pengisian profil dapat dilakukan terpisah melalui `/profil`.
+
+### 21.4 FAQ & Footer
+- FAQ dan Footer mengacu pada standar produk dengan tautan Kebijakan Privasi.
+- Toggle Mode Light/Dark menggunakan variabel CSS.
+
+---
+
+## 22. Changelog
 
 | Versi | Tanggal | Perubahan | Oleh |
 |---|---|---|---|
@@ -1171,3 +1203,4 @@ Contoh: `GET /catatan-kesehatan?search=lembur`.
 | 1.1 | 2026-10-03 | Penamaan tabel & path diseragamkan ke bahasa Indonesia (`/health-logs`→`/catatan-kesehatan`, `/profile`→`/profil`, `/consent`→`/persetujuan`, `/programs`→`/program`, `/admin/users`→`/admin/pengguna`, `/admin/audit-log`→`/admin/log-audit`); tambah kolom `konsumsi_manis` + enum; tambah §0 keputusan desain & §3 peta endpoint→tabel; tambah lampiran daftar tabel Indonesia | BE |
 | 1.2 | 2026-10-03 | Usulan rename `/rekam-medis`, role alias `kelurahan`, `GET /notifications`, gamifikasi, landing page & UI/UX — **sebagian ditolak di 1.3**, lihat §20 | FE |
 | 1.3 | 2026-10-23 | **Audit kontrak.** (1) kontradiksi 422 vs `perlu_verifikasi` diselesaikan — luar rentang = disimpan + flag, 422 hanya untuk tipe/wajib salah; (2) endpoint verifikasi `/admin/catatan-kesehatan/*` ditambah; (3) `pengguna.kader_id` untuk scope kader; (4) `catatan_kesehatan.tinggi_cm` di-snapshot + `deleted_at` (soft delete); (5) rumus `skor_risiko`, `status_kesehatan`, insight, & definisi field agregat ditulis eksplisit; (6) enum `riwayat_keluarga`; (7) `refleksi.created_at` + aturan ISO week + duplikat 422 + `GET /refleksi`; (8) tambah `GET /target`, `GET /profil?user_id=`, `DELETE /posbindu/sesi/{id}`; (9) aturan 404 untuk `user_id`/`wilayah_id` di luar scope; (10) `program.status` jadi turunan, reward dipindah, `user` tak boleh set `selesai`; (11) `search=` dibatasi; (12) §19–§32 non-API dipindah ke `catatan-ui.md`; (13) `/rekam-medis`, alias role `kelurahan`, `/notifications` dicabut | hamba allah + BE |
+| 1.4 | 2026-10-23 | Konsolidasi dokumen: pembersihan sisa kontradiksi v1.2, pemindahan UI ke Lampiran A, bug log dipisahkan ke BUGLOG.md, Changelog disatukan dalam satu tabel tunggal (1.0–1.4). | hamba allah |
