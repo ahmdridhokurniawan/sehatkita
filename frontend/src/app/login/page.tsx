@@ -44,8 +44,12 @@ export default function LoginPage() {
       // Simpan token ke localStorage
       setToken(res.token);
       
-      // Redirect sesuai role
-      router.push("/dashboard");
+      // User yang belum menyetujui kebijakan data → onboarding dulu
+      if (!res.user.consent_at) {
+        router.push("/onboarding");
+      } else {
+        router.push("/dashboard");
+      }
     } catch (err: any) {
       setLoading(false);
       const apiErr = err as ApiError;

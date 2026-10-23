@@ -11,17 +11,23 @@ import DashboardSuperAdmin from "@/components/dashboard/DashboardSuperAdmin";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const user = useUser();
+  const { user, loading } = useUser();
 
   useEffect(() => {
-    // Redirect ke login jika belum login
-    if (user === null) {
+    if (loading) return;
+    // Belum login / token tidak valid
+    if (!user) {
       router.push("/login");
+      return;
     }
-  }, [user, router]);
+    // Belum menyetujui kebijakan data → wajib onboarding dulu
+    if (!user.consent_at) {
+      router.push("/onboarding");
+    }
+  }, [user, loading, router]);
 
-  // Belum ada user data
-  if (!user) {
+  // Masih memuat data user
+  if (loading || !user) {
     return <EmptyState title="Memuat..." desc="Mohon tunggu..." />;
   }
 

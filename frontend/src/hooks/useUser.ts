@@ -1,43 +1,48 @@
 "use client";
 
-import { useMemo } from "react";
-import { getUserSimulasi } from "@/lib/session";
-import { AKUN_DEMO, DASHBOARD_PRIBADI_DEMO } from "@/lib/demo";
+import { useEffect, useState } from "react";
+import { auth, getToken } from "@/lib/api";
 import type { User } from "@/types";
 
-/**
- * Hook: ambil data user yang sedang login (simulasi demo).
- * Return User | null (belum login atau akun tidak ditemukan).
- */
-export function useUser(): User | null {
-  return useMemo(() => {
-    const email = getUserSimulasi();
-    if (!email) return null;
-
-    const akun = AKUN_DEMO.find((a) => a.email.toLowerCase() === email.toLowerCase());
-    if (!akun) return null;
-
-    // Set cookie role untuk middleware guard (demo)
-    if (typeof document !== "undefined") {
-      document.cookie = `demo_user_role=${akun.role}; path=/; max-age=86400`; // 24 jam
-    }
-
-    // Buat User object dari akun demo
-    return {
-      id: AKUN_DEMO.indexOf(akun) + 1,
-      name: akun.name,
-      email: akun.email,
-      role: akun.role as any,
-      wilayah_id: 1, // demo: hardcoded
-      wilayah: { id: 1, nama: "Kecamatan Demo" },
-      consent_at: "2026-10-01T00:00:00Z", // demo: sudah consent
-    };
-  }, []);
+export interface UseUserResult {
+  /** Data user dari GET /auth/me, null bila belum login / token tidak valid */
+  user: User | null;
+  /** true selama request /auth/me masih berjalan */
+  loading: boolean;
 }
 
 /**
- * Alias untuk useUser (compat lama).
+ * Hook: ambil user yang sedang login dari backend (GET /auth/me).
+ * Token dibaca dari localStorage (`sehatkita_token`).
  */
-export function getCurrentUser(): User | null {
-  return useUser();
+export function useUser(): UseUserResult {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let aktif = true;
+
+    if (!getToken()) {
+      setLoading(false);
+      return;
+    }
+
+    auth
+      .me()
+      .then((u) => {
+        if (aktif) setUser(u);
+      })
+      .catch(() => {
+        if (aktif) setUser(null);
+      })
+      .finally(() => {
+        if (aktif) setLoading(false);
+      });
+
+    return () => {
+      aktif = false;
+    };
+  }, []);
+
+  return { user, loading };
 }

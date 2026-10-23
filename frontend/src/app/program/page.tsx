@@ -37,7 +37,7 @@ const STATUS_TONE: Record<string, "safe" | "warning" | "danger"> = {
 };
 
 export default function ProgramPage() {
-  const user = useUser();
+  const { user } = useUser();
   const isAdmin = user?.role === "admin_kelurahan";
   const isKader = user?.role === "kader";
   const isUser = user?.role === "user";

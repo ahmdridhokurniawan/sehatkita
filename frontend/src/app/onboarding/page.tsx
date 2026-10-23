@@ -9,10 +9,8 @@ import Checkbox from "@/components/ui/Checkbox";
 import { JENIS_KELAMIN, TINGKAT_AKTIVITAS } from "@/lib/enums";
 import {
   RIWAYAT_KELUARGA_OPTIONS,
-  tandaiOnboardingSelesai,
-  getUserSimulasi,
-
 } from "@/lib/session";
+import { profil, persetujuan, ApiError } from "@/lib/api";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -29,6 +27,7 @@ export default function OnboardingPage() {
   const [setuju, setSetuju] = useState(false);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [alert, setAlert] = useState("");
   const [loading, setLoading] = useState(false);
 
   function toggleRiwayat(value: string) {
@@ -72,18 +71,36 @@ export default function OnboardingPage() {
     e.preventDefault();
     if (!validasi()) return;
 
+    setAlert("");
     setLoading(true);
-    // TODO (Tahap 3): ganti dengan pemanggilan API sungguhan
-    // await profil.update({ tgl_lahir: tglLahir, jenis_kelamin: jenisKelamin,
-    //   tinggi_cm: Number(tinggiCm), tingkat_aktivitas: aktivitas,
-    //   merokok, riwayat_keluarga: riwayat });
-    // await persetujuan.setuju({ versi_kebijakan: "1.0", setuju: true });
 
-    // Simulasi sementara — hanya untuk melihat UI bekerja
-    setTimeout(() => {
-      tandaiOnboardingSelesai(getUserSimulasi());
+    try {
+      // §5.2 PUT /profil — kirim seluruh field
+      await profil.update({
+        tgl_lahir: tglLahir,
+        jenis_kelamin: jenisKelamin,
+        tinggi_cm: Number(tinggiCm),
+        tingkat_aktivitas: aktivitas,
+        merokok,
+        riwayat_keluarga: riwayat,
+      });
+
+      // §5.3 POST /persetujuan
+      await persetujuan.setuju("1.0");
+
       router.push("/dashboard");
-    }, 800);
+    } catch (err) {
+      const apiErr = err as ApiError;
+      if (apiErr.errors) {
+        const map: Record<string, string> = {};
+        for (const [key, msgs] of Object.entries(apiErr.errors)) {
+          map[key] = msgs[0] ?? "Nilai tidak valid";
+        }
+        setErrors(map);
+      }
+      setAlert(apiErr.message || "Gagal menyimpan data. Coba lagi.");
+      setLoading(false);
+    }
   }
 
   return (
@@ -101,6 +118,12 @@ export default function OnboardingPage() {
             Isi sekali saja — setelah ini kamu langsung masuk ke dashboard.
           </p>
         </div>
+
+        {alert ? (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {alert}
+          </div>
+        ) : null}
 
         {/* Kartu formulir */}
         <form
