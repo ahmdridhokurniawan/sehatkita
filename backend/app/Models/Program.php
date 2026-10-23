@@ -12,7 +12,7 @@ class Program extends Model
     protected $table = 'program';
 
     // Kolom yang boleh diisi massal.
-    // 4 kolom terakhir = gamifikasi (kontrak v1.2 §25).
+    // 4 kolom terakhir = gamifikasi (kontrak v1.2 25).
     protected $fillable = [
         'wilayah_id',      // program ini dibuat oleh kelurahan mana
         'judul',           // nama program, mis. "Program 21 Hari Hidup Sehat"

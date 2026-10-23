@@ -9,16 +9,16 @@ use Illuminate\Validation\Rule;
 
 /**
  * Modul rujukan — kontrak 11.
- * 11.1 POST   /rujukan            -> buat rujukan (kader/admin)
- * 11.2 GET    /rujukan            -> daftar (user: miliknya, petugas: wilayahnya)
- * 11.3 PATCH  /rujukan/{id}/status-> ubah status tindak lanjut
+ * 11.1 POST   /rujukan             -> buat rujukan (kader/admin)
+ * 11.2 GET    /rujukan             -> daftar (user: miliknya, petugas: wilayahnya)
+ * 11.3 PATCH  /rujukan/{id}/status -> ubah status tindak lanjut
  */
 class RujukanController extends Controller
 {
     private const ROLE_PETUGAS = ['kader', 'admin_kelurahan', 'super_admin'];
     private const STATUS       = ['baru', 'dihubungi', 'tertangani', 'ditolak'];
 
-    /** POST /rujukan */
+    // POST /rujukan
     public function store(Request $request)
     {
         $user = $request->user();
@@ -29,6 +29,16 @@ class RujukanController extends Controller
             'faskes_id' => 'required|exists:faskes,id',
             'alasan'    => 'required|string|max:255',
         ]);
+
+        // Kader/admin_kelurahan hanya boleh merujuk warganya sendiri.
+        if ($user->role !== 'super_admin') {
+            $pemilik = Pengguna::query()
+                ->whereKey($data['user_id'])
+                ->where('wilayah_id', $user->wilayah_id)
+                ->exists();
+
+            abort_unless($pemilik, 404, 'Peserta tidak ditemukan di wilayah Anda.');
+        }
 
         $rujukan = Rujukan::create([
             'user_id'     => $data['user_id'],
@@ -45,7 +55,7 @@ class RujukanController extends Controller
         ], 201);
     }
 
-    /** GET /rujukan?status=&wilayah_id=&dari=&sampai=&search=&per_page= */
+    // GET /rujukan?status=&wilayah_id=&dari=&sampai=&search=&per_page=
     public function index(Request $request)
     {
         $user = $request->user();
@@ -53,7 +63,7 @@ class RujukanController extends Controller
         $query = Rujukan::with(['faskes', 'pembuat', 'penangan']);
 
         if (! in_array($user->role, self::ROLE_PETUGAS, true)) {
-            $query->where('user_id', $user->id);
+            $query->where('user_id', $user->id);           // user: milik sendiri
         } else {
             if ($user->role !== 'super_admin') {
                 $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $user->wilayah_id));
@@ -73,10 +83,8 @@ class RujukanController extends Controller
             $query->whereDate('created_at', '<=', $request->sampai);
         }
 
-        // Pencarian teks (kontrak 23): alasan rujukan / catatan tindak lanjut
         $this->saringCari($query, ['alasan', 'catatan'], $request);
 
-        // per_page dari query string, default 15, maks 100 (kontrak 1.3)
         $list = $query->orderByDesc('created_at')->paginate($this->perHalaman($request));
 
         return response()->json([
@@ -87,7 +95,7 @@ class RujukanController extends Controller
         ]);
     }
 
-    /** PATCH /rujukan/{id}/status */
+    // PATCH /rujukan/{id}/status
     public function updateStatus(Request $request, int $id)
     {
         $user = $request->user();
@@ -98,11 +106,8 @@ class RujukanController extends Controller
             'catatan' => 'nullable|string|max:500',
         ]);
 
-        // Kontrak 1.5 + 16: data di luar scope wilayah harus 404,
-        // bukan 403. Kader/admin_kelurahan hanya boleh menindaklanjuti
-        // rujukan warga di wilayahnya sendiri; super_admin melihat semua.
-        // (Sebelumnya findOrFail($id) langsung, sehingga kader kelurahan A
-        // bisa mengubah rujukan kelurahan B hanya dengan menebak id.)
+        // Data di luar scope wilayah = 404 (bukan 403); kader kelurahan A
+        // tidak boleh mengubah rujukan kelurahan B hanya dengan menebak id.
         $query = Rujukan::query();
         if ($user->role !== 'super_admin') {
             $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $user->wilayah_id));
@@ -135,7 +140,7 @@ class RujukanController extends Controller
                 ? ['id' => $r->penangan->id, 'name' => $r->penangan->name]
                 : null,
             'catatan'        => $r->catatan,
-            'created_at'     => $r->created_at?->toDateTimeString(),
+            'created_at'     => $r->created_at?->toIso8601String(),
             'updated_at'     => $r->updated_at?->toDateTimeString(),
         ];
     }

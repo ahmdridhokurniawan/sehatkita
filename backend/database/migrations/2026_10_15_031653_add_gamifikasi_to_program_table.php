@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     /**
-     * Tambah kolom gamifikasi ke tabel `program` (kontrak v1.2 §25).
+     * Tambah kolom gamifikasi ke tabel `program` (kontrak v1.2 25).
      */
     public function up(): void
     {

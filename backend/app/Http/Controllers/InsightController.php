@@ -7,16 +7,19 @@ use Illuminate\Http\Request;
 
 class InsightController extends Controller
 {
-    // Inject service lewat constructor (Laravel auto-resolve).
     public function __construct(
         private InsightService $insight
     ) {}
 
-    // GET /api/insight - daftar insight user login (kontrak §8.3)
+    // GET /api/v1/insight?level=bahaya (Kontrak 29)
     public function index(Request $request)
     {
-        // Ambil insight untuk user yang sedang login.
-        $data = $this->insight->untukUser($request->user());
+        $level = $request->query('level'); // info | peringatan | bahaya
+        $data  = $this->insight->untukUser($request->user());
+
+        if ($level) {
+            $data = array_values(array_filter($data, fn ($i) => $i['level'] === $level));
+        }
 
         return response()->json([
             'success' => true,

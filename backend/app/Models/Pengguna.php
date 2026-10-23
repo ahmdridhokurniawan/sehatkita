@@ -23,6 +23,7 @@ class Pengguna extends Model
         'wilayah_id',        // user terdaftar di kelurahan mana
         'consent_at',        // kapan setuju kebijakan privasi
         'versi_kebijakan',   // versi kebijakan yang disetujui
+        'aktif',             // false = dinonaktifkan admin (kontrak 15)
     ];
 
     // Kolom sensitif — tidak boleh muncul di response JSON secara default.
@@ -38,6 +39,7 @@ class Pengguna extends Model
             'password'          => 'hashed',         // otomatis hash saat di-set (Laravel 11+)
             'consent_at'        => 'datetime',
             'email_verified_at' => 'datetime',
+            'aktif'             => 'boolean',        // '0'/'1' -> true/false (login gate)
         ];
     }
 

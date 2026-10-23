@@ -65,7 +65,7 @@ class AuthController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => "Terlalu banyak percobaan login. Silakan coba lagi dalam {$seconds} detik.",
-            ], 429); // 429 = Too Many Requests (Kontrak §4.2)
+            ], 429); // 429 = Too Many Requests (Kontrak 4.2)
         }
 
         // Validasi format email & password
@@ -74,8 +74,15 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        // Cari user berdasarkan email
         $user = Pengguna::where('email', $validated['email'])->first();
+
+        // Cek apakah akun dinonaktifkan admin
+        if ($user && ! $user->aktif) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akun Anda dinonaktifkan. Hubungi admin.',
+            ], 403);
+        }
 
         // Jika user tidak ditemukan ATAU password salah
         if (! $user || ! Hash::check($validated['password'], $user->password)) {
@@ -182,7 +189,7 @@ class AuthController extends Controller
         // Cek apakah user sudah mengisi profil dan punya tanggal lahir
         if ($user->profil && $user->profil->tgl_lahir) {
             // Hitung umur dalam tahun dari tanggal lahir sampai hari ini pakai Carbon,
-            // lalu masukkan ke dalam array data.profil.usia (Kontrak §4.4)
+            // lalu masukkan ke dalam array data.profil.usia (Kontrak 4.4)
             $data['profil']['usia'] = (int) \Carbon\Carbon::parse($user->profil->tgl_lahir)->diffInYears(now());
         }
 

@@ -1,96 +1,116 @@
 <?php
 
+use App\Http\Controllers\AdminMasterController;
 use App\Http\Controllers\AdminStatistikController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CatatanKesehatanController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DashboardWilayahController;
 use App\Http\Controllers\FaskesController;
 use App\Http\Controllers\InsightController;
-use App\Http\Controllers\LandingPageController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PosbinduController;
 use App\Http\Controllers\ProfilController;
-use App\Http\Controllers\WilayahController;
-use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ProgramController;
 use App\Http\Controllers\RekamMedisController;
 use App\Http\Controllers\RujukanController;
-use App\Http\Controllers\PosbinduController; // 👈 Ditambahkan: Controller Posbindu baru
+use App\Http\Controllers\TargetRefleksiController;
+use App\Http\Controllers\WilayahController;
 use Illuminate\Support\Facades\Route;
-
-/*
-|--------------------------------------------------------------------------
-| API Routes (Versi 1)
-|--------------------------------------------------------------------------
-| Semua rute di bawah menggunakan awalan /api/v1 (didefinisikan di group prefix).
-| Mengikuti kontrak API SehatKita.
-*/
 
 Route::prefix('v1')->group(function () {
 
-    // =========================================================
-    // 1. PUBLIK — Bebas diakses tanpa token / login
-    // =========================================================
-    
-    // Kontrak §19: Data halaman utama / landing page (statistik, FAQ)
-    Route::get('/landing-page', [LandingPageController::class, 'index']);
-
-    // Kontrak §4.1 & §4.2: Registrasi akun baru & Login
+    // ===== 1. PUBLIK =====
+    // /landing-page, /auth/password, /wilayah/{id} dihapus/disesuaikan kontrak
     Route::post('/auth/register', [AuthController::class, 'register']);
-    Route::post('/auth/login', [AuthController::class, 'login']);
-
-    // Kontrak §6.1: Daftar wilayah (kelurahan/kecamatan untuk pilihan register)
+    Route::post('/auth/login', [AuthController::class, 'login'])->name('login');
     Route::get('/wilayah', [WilayahController::class, 'index']);
 
-
-    // =========================================================
-    // 2. TERPROTEKSI — Wajib menyertakan header Authorization: Bearer TOKEN
-    // =========================================================
+    // ===== 2. TERPROTEKSI (Bearer token) =====
     Route::middleware('auth:sanctum')->group(function () {
 
-        // --- AUTHENTICATION & PENGGUNA (§4.3 & §4.4) ---
-        Route::get('/auth/me', [AuthController::class, 'me']);           // Info user yang sedang login + usia
-        Route::post('/auth/logout', [AuthController::class, 'logout']);    // Hapus token aktif
-        Route::put('/auth/password', [AuthController::class, 'changePassword']); // Ganti password
+        // --- Auth & akun ---
+        Route::get('/auth/me', [AuthController::class, 'me']);
+        Route::post('/auth/logout', [AuthController::class, 'logout']);
 
-        // --- PERSETUJUAN / CONSENT (§5.3 & §5.4) ---
-        Route::post('/persetujuan', [AuthController::class, 'consent']);         // Berikan persetujuan rekam medis
-        Route::delete('/persetujuan', [AuthController::class, 'revokeConsent']); // Tarik persetujuan
+        // --- Persetujuan ---
+        Route::post('/persetujuan', [AuthController::class, 'consent']);
+        Route::delete('/persetujuan', [AuthController::class, 'revokeConsent']);
 
-        // --- PROFIL PENGGUNA (§5.1 & §5.2) ---
-        Route::get('/profil', [ProfilController::class, 'show']);   // Lihat profil milik sendiri
-        Route::put('/profil', [ProfilController::class, 'update']); // Ubah profil milik sendiri
+        // --- Profil ---
+        Route::get('/profil', [ProfilController::class, 'show']);
+        Route::put('/profil', [ProfilController::class, 'update']);
 
-        // --- FASKES & RUMAH SAKIT (§6.2) ---
-        Route::get('/faskes', [FaskesController::class, 'index']);  // Daftar fasilitas kesehatan
+        // --- Faskes ---
+        Route::get('/faskes', [FaskesController::class, 'index']);
 
-        // --- CATATAN KESEHATAN / REKAM MEDIS Mandiri (§7.2 - §7.5) ---
-        // apiResource otomatis mendaftarkan 5 rute: index, store, show, update, destroy
-        Route::apiResource('catatan-kesehatan', CatatanKesehatanController::class);
+        // --- Catatan kesehatan ---
+        Route::get('/catatan-kesehatan', [CatatanKesehatanController::class, 'index']);
+        Route::post('/catatan-kesehatan', [CatatanKesehatanController::class, 'store']);
+        Route::get('/catatan-kesehatan/{catatan_kesehatan}', [CatatanKesehatanController::class, 'show']);
+        Route::delete('/catatan-kesehatan/{catatan_kesehatan}', [CatatanKesehatanController::class, 'destroy']);
 
-        // --- INSIGHT & ANALISIS KESEHATAN (§8.3) ---
+        // --- Insight & notifikasi (support level=) ---
         Route::get('/insight', [InsightController::class, 'index']);
-
-        // --- NOTIFIKASI PENGGUNA (§27) ---
         Route::get('/notifications', [NotificationController::class, 'index']);
 
-        // --- WILAYAH & STATISTIK ---
-        Route::get('/wilayah/{id}', [WilayahController::class, 'show']); // Detail wilayah (butuh Gate)
-        Route::get('/admin/statistik', [AdminStatistikController::class, 'index']); // Statistik super_admin
+        // --- Rekam Medis (Kontrak 24: /tren dihapus, diganti /rekam-medis) ---
+        Route::get('/rekam-medis', [RekamMedisController::class, 'index']);
 
-        // --- DASHBOARD & TREN ---
-        Route::get('/dashboard/pribadi', [DashboardController::class, 'pribadi']); // Dashboard utama warga (§8.1)
-        Route::get('/rekam-medis', [RekamMedisController::class, 'index']);        // Riwayat / series data (§8.2)
-        Route::get('/tren', [RekamMedisController::class, 'index']);                // Alias untuk rekam-medis
+        // --- Rujukan ---
+        Route::post('/rujukan', [RujukanController::class, 'store']);
+        Route::get('/rujukan', [RujukanController::class, 'index']);
+        Route::patch('/rujukan/{id}/status', [RujukanController::class, 'updateStatus']);
 
-        // --- MODUL RUJUKAN (§11) ---
-        Route::post('/rujukan', [RujukanController::class, 'store']);                 // Buat rujukan baru
-        Route::get('/rujukan', [RujukanController::class, 'index']);                 // Daftar rujukan
-        Route::patch('/rujukan/{id}/status', [RujukanController::class, 'updateStatus']); // Ubah status rujukan
+        // --- Posbindu ---
+        Route::get('/posbindu/sesi', [PosbinduController::class, 'indexSesi']);
+        Route::post('/posbindu/sesi', [PosbinduController::class, 'storeSesi']);
+        Route::get('/posbindu/sesi/{id}', [PosbinduController::class, 'showSesi']);
+        Route::put('/posbindu/sesi/{id}', [PosbinduController::class, 'updateSesi']);
+        Route::post('/posbindu/sesi/{id}/peserta', [PosbinduController::class, 'storePeserta']);
+        Route::get('/posbindu/kunjungan', [PosbinduController::class, 'indexKunjungan']);
 
-        // --- MODUL POSBINDU (§10) — DITAMBAHKAN BARU ---
-        Route::get('/posbindu/sesi', [PosbinduController::class, 'indexSesi']);             // Daftar sesi posbindu
-        Route::post('/posbindu/sesi', [PosbinduController::class, 'storeSesi']);           // Buat sesi posbindu baru (Kader/Admin)
-        Route::get('/posbindu/sesi/{id}', [PosbinduController::class, 'showSesi']);        // Detail sesi & daftar peserta
-        Route::post('/posbindu/sesi/{id}/peserta', [PosbinduController::class, 'storePeserta']); // Catat kehadiran & kesehatan peserta
-        Route::get('/posbindu/kunjungan', [PosbinduController::class, 'indexKunjungan']);    // Riwayat kunjungan posbindu
+        // --- Program ---
+        Route::get('/program', [ProgramController::class, 'index']);
+        Route::post('/program', [ProgramController::class, 'store']);
+        Route::post('/program/{id}/peserta', [ProgramController::class, 'ikut']);
+        Route::patch('/program/{id}/peserta', [ProgramController::class, 'ubahStatusPeserta']);
 
+        // --- Target & Refleksi ---
+        Route::put('/target', [TargetRefleksiController::class, 'simpanTarget']);
+        Route::post('/refleksi', [TargetRefleksiController::class, 'simpanRefleksi']);
+
+        // --- Dashboard & laporan ---
+        Route::get('/dashboard/pribadi', [DashboardController::class, 'pribadi']);
+        Route::get('/dashboard/kelurahan', [DashboardWilayahController::class, 'dashboardKelurahan']);
+        Route::get('/laporan/pribadi', [DashboardWilayahController::class, 'laporanPribadi']);
+        Route::get('/laporan/kelurahan', [DashboardWilayahController::class, 'laporanKelurahan']);
+
+        // ===== 3. ADMIN MASTER =====
+        Route::prefix('admin')->group(function () {
+            Route::get('/statistik', [AdminStatistikController::class, 'index']);
+
+            Route::get('/indikator', [AdminMasterController::class, 'indexIndikator']);
+            Route::post('/indikator', [AdminMasterController::class, 'storeIndikator']);
+            Route::put('/indikator/{id}', [AdminMasterController::class, 'updateIndikator']);
+            Route::delete('/indikator/{id}', [AdminMasterController::class, 'destroyIndikator']);
+
+            Route::get('/ambang-kategori', [AdminMasterController::class, 'indexAmbang']);
+            Route::post('/ambang-kategori', [AdminMasterController::class, 'storeAmbang']);
+            Route::put('/ambang-kategori/{id}', [AdminMasterController::class, 'updateAmbang']);
+            Route::delete('/ambang-kategori/{id}', [AdminMasterController::class, 'destroyAmbang']);
+
+            Route::get('/pengguna', [AdminMasterController::class, 'indexPengguna']);
+            Route::post('/pengguna', [AdminMasterController::class, 'storePengguna']);
+            Route::put('/pengguna/{id}', [AdminMasterController::class, 'updatePengguna']);
+            Route::delete('/pengguna/{id}', [AdminMasterController::class, 'destroyPengguna']);
+
+            Route::get('/faskes', [AdminMasterController::class, 'indexFaskes']);
+            Route::post('/faskes', [AdminMasterController::class, 'storeFaskes']);
+            Route::put('/faskes/{id}', [AdminMasterController::class, 'updateFaskes']);
+            Route::delete('/faskes/{id}', [AdminMasterController::class, 'destroyFaskes']);
+
+            Route::get('/log-audit', [AdminMasterController::class, 'indexLogAudit']);
+        });
     });
 });

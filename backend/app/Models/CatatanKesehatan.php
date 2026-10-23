@@ -33,7 +33,7 @@ class CatatanKesehatan extends Model
         'perlu_verifikasi',  // true = nilai tidak wajar, dikeluarkan dari agregat
     ];
 
-    // Accessor di bawah OTOMATIS muncul di response JSON (kontrak §7.1 read-only).
+    // Accessor di bawah OTOMATIS muncul di response JSON (kontrak 7.1 read-only).
     protected $appends = [
         'imt',
         'tinggi_cm',
@@ -88,7 +88,7 @@ class CatatanKesehatan extends Model
     |------------------------------------------------------------------
     */
 
-    // Tinggi badan diambil dari profil pemilik data (kontrak §7.2).
+    // Tinggi badan diambil dari profil pemilik data (kontrak 7.2).
     protected function getTinggiCmAttribute(): ?float
     {
         return ($this->pengguna?->profil?->tinggi_cm !== null)

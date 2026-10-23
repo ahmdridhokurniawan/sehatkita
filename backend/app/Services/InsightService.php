@@ -9,7 +9,7 @@ use Carbon\Carbon;
 /**
  * ─────────────────────────────────────────────────────────────────────
  *  InsightService — insight berbasis aturan (if-then, BUKAN ML)
- *  Sesuai kontrak §8.3: array of { kode, level, teks, dibuat_pada }
+ *  Sesuai kontrak 8.3: array of { kode, level, teks, dibuat_pada }
  *  level: info | peringatan | bahaya
  * ─────────────────────────────────────────────────────────────────────
  */

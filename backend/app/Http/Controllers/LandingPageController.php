@@ -8,7 +8,7 @@ use App\Models\Program;
 use Illuminate\Http\Request;
 
 /**
- * Landing Page (kontrak §19)
+ * Landing Page (kontrak 19)
  * ---------------------------------
  * Menyajikan data‑ringkasan yang dipakai halaman depan
  * – hero (logo & tagline)  

@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('password');                         // password (di-hash otomatis)
             $table->rememberToken();                            // token "ingat saya"
 
-            // 4 role sah sesuai kontrak §1.7
+            // 4 role sah sesuai kontrak 1.7
             $table->enum('role', ['super_admin', 'admin_kelurahan', 'kader', 'user'])->default('user');
 
             // user daftar di kelurahan mana

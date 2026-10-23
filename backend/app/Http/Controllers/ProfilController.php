@@ -18,10 +18,10 @@ class ProfilController extends Controller
         $profil = $request->user()->profil;
 
         // Balas sesuai kontrak {success, message, data}
-        // Data diubah jadi array supaya bisa ditambah field usia (kontrak §5.1)
+        // Data diubah jadi array supaya bisa ditambah field usia (kontrak 5.1)
         $data = $profil ? $profil->toArray() : null;
 
-        // Hitung usia (selisih tahun) dari tgl_lahir — kontrak §5.1 minta field "usia"
+        // Hitung usia (selisih tahun) dari tgl_lahir — kontrak 5.1 minta field "usia"
         if ($profil && $profil->tgl_lahir) {
             $data['usia'] = (int) $profil->tgl_lahir->diffInYears(now());
         }

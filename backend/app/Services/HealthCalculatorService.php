@@ -83,7 +83,7 @@ class HealthCalculatorService
 
         $meter = $tinggiCm / 100;
 
-        return round($bbKg / ($meter * $meter), 2);   // 2 desimal (kontrak §1.6)
+        return round($bbKg / ($meter * $meter), 2);   // 2 desimal (kontrak 1.6)
     }
 
     /*
@@ -204,7 +204,7 @@ class HealthCalculatorService
     */
 
     /**
-     * Ada nilai di luar rentang wajar? (tabel kontrak §7.2)
+     * Ada nilai di luar rentang wajar? (tabel kontrak 7.2)
      * Disimpan tetap disimpan, tapi ditandai & dikeluarkan dari agregat.
      */
     public function perluVerifikasi(array $data): bool
@@ -233,7 +233,7 @@ class HealthCalculatorService
 
     /*
     |-------------------------------------------------------------------
-    | 6. Rangkuman untuk response JSON (bentuk kontrak §7.2)
+    | 6. Rangkuman untuk response JSON (bentuk kontrak 7.2)
     |-------------------------------------------------------------------
     */
 
