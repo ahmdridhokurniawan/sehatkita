@@ -1,6 +1,6 @@
 # Kontrak API — Sistem Monitoring Kesehatan PTM (Skala Kecamatan)
 
-**Versi 1.5** · 2026-10-24 · Base URL `http://pm-monitoring.test/api/v1` · Laravel + Sanctum (token) · FE: SPA/desktop
+**Versi 1.5.1** · 2026-10-24 · Base URL `http://pm-monitoring.test/api/v1` · Laravel + Sanctum (token) · FE: SPA/desktop
 
 > **Aturan pakai dokumen ini:**
 >
@@ -20,10 +20,13 @@
 | 2   | Kolom `konsumsi_manis` ada di `catatan_kesehatan`                                                                                                                                          | Fitur ada di dokumen fitur                      |
 | 3   | `wilayah_id` dipilih sendiri user saat register; hanya `super_admin` yang bisa mengubah                                                                                                    | Sesuai dokumen fitur                            |
 | 4   | PDF laporan digenerate FE, BE kirim JSON                                                                                                                                                   | BE tidak mengurus layout                        |
-| 5   | **Ambang & kategori kesehatan diambil dari tabel `ambang_kategori`**, tidak di-hardcode                                                                                                    | Admin bisa mengubah tanpa deploy                |
-| 6   | **Rujukan otomatis dipicu saat catatan disimpan**, bukan saat `GET /insight`                                                                                                               | GET tidak boleh menulis data                    |
+| 5   | **Ambang & kategori kesehatan diambil dari tabel `ambang_kategori`**, tidak di-hardcode. `status`/`level` diturunkan dari `skor` (§1.5), tidak disimpan terpisah. | Admin bisa mengubah tanpa deploy; satu sumber kebenaran |
+| 6   | **Rujukan otomatis dipicu saat catatan disimpan**, bukan saat `GET /insight`. Maksimal **satu rujukan per log**; log ber-flag `perlu_verifikasi` **tidak** memicu; verifikasi `setuju:true` tidak memicu ulang. | GET tidak boleh menulis data; hindari rujukan ganda |
 | 7   | `admin_kelurahan` **tidak pernah** melihat data individu (hanya agregat dan rujukan teredaksi)                                                                                             | Privasi; dasar pengujian                        |
 | 8   | Notifikasi **ditunda** (§20)                                                                                                                                                               | Belum ada bentuk response/tabel yang disepakati |
+| 9   | **Consent wajib** untuk `POST /catatan-kesehatan` **dan** `PUT /profil`; tanpa consent → 422 | Profil memuat riwayat keluarga; data kesehatan tidak boleh terkumpul tanpa izin |
+| 10  | **Tarik consent** menghentikan pencatatan baru, tetapi pemilik tetap dapat **membaca & menghapus** data lamanya; keluar dari agregat/peringkat/laporan | Transparansi pemilik data; audit tetap tersedia |
+| 11  | Akses/ubah `super_admin` pada data individu **dan perubahan status rujukan** wajib dicatat di `log_audit` | Dasar pengujian audit |
 
 ---
 
@@ -45,7 +48,7 @@ Sukses:
 { "success": true, "message": "OK", "data": {} }
 ```
 
-Sukses + paginasi (`?page=1&per_page=15`, `per_page` maks 100):
+Sukses + paginasi (`?page=1&per_page=15`; `per_page` 1–100, di luar itu → **422**):
 
 ```json
 {
@@ -75,7 +78,7 @@ Gagal (`errors` hanya pada 422):
 | 403       | Forbidden         | token valid tapi **role** tidak berhak                           |
 | 404       | Not Found         | id tidak ada **atau di luar scope** (wilayah/binaan/kepemilikan) |
 | 422       | Unprocessable     | validasi gagal                                                   |
-| 429       | Too Many Requests | rate limit login                                                 |
+| 429       | Too Many Requests | rate limit login / register                                      |
 
 > **Keamanan:** di luar scope → **404, bukan 403**, agar data tidak bisa ditebak keberadaannya. Parameter `user_id`/`wilayah_id` di luar scope juga **404**, tidak pernah diabaikan diam-diam.
 
@@ -135,7 +138,10 @@ Gagal (`errors` hanya pada 422):
 Middleware: `auth:sanctum` → `role:{...}` → `scope.wilayah`.
 
 - Warga baru punya `kader_id = null`. Hanya `super_admin` yang menugaskan kader (`PUT /admin/pengguna/{id}`). Warga tanpa kader tetap masuk agregat kelurahan.
-- Setiap akses `super_admin` ke data individu (`GET /catatan-kesehatan`, `GET /profil?user_id=`, koreksi) **wajib dicatat di `log_audit`** (`aksi = baca_data_individu`).
+- Setiap akses/ubah `super_admin` pada data individu **wajib dicatat di `log_audit`**, satu baris per request:
+  - `aksi = baca_data_individu`: `GET /profil?user_id=`, `GET /catatan-kesehatan`, `GET /catatan-kesehatan/{id}`, `GET /rujukan`.
+  - `aksi = ubah_data_individu`: `POST /catatan-kesehatan` (`sumber=puskesmas`), `DELETE /catatan-kesehatan/{id}`, verifikasi `PATCH /admin/catatan-kesehatan/{id}/verifikasi`, `PATCH /rujukan/{id}/status`.
+  - Isi: `user_id` pelaku, `model`, `model_id`, `aksi`, `ip`, `user_agent`, `created_at`; **tanpa nilai kesehatan**.
 - Pengguna `aktif = false` tidak bisa login (respons sama dengan password salah).
 
 ---
@@ -163,7 +169,7 @@ Middleware: `auth:sanctum` → `role:{...}` → `scope.wilayah`.
 
 ### 4.1 POST `/auth/register` (publik)
 
-Mendaftarkan warga (`role` otomatis `user`).
+Mendaftarkan warga (`role` otomatis `user`). Rate limit: **10 percobaan/menit per IP** (lewat batas → **429**).
 
 ```json
 {
@@ -291,7 +297,9 @@ Kirim **seluruh** field; baris belum ada → dibuat (upsert). `tinggi_cm` dipaka
 }
 ```
 
-**200** — bentuk sama dengan GET. **Validasi:** `tgl_lahir` sebelum hari ini; `tinggi_cm` 50–250; enum sah; `riwayat_keluarga` array enum (pakai `["tidak_ada"]` bila tak ada); `tampil_di_peringkat` boolean (default `false`).
+**200** — bentuk sama dengan GET. **Validasi:** `tgl_lahir` sebelum hari ini; `tinggi_cm` **120–220** (di luar itu → 422; beda dengan §7.2 yang hanya mem-flag nilai kader); enum sah; `riwayat_keluarga` array enum (pakai `["tidak_ada"]` bila tak ada); `tampil_di_peringkat` boolean. `tampil_di_peringkat` opsional: bila tidak dikirim saat update, **nilai lama dipertahankan** (tidak di-reset ke `false`).
+
+**Consent:** `consent_at = null` → **422** `{"errors":{"consent":["Persetujuan data belum diberikan."]}}`.
 
 ### 5.3 POST `/persetujuan` (user)
 
@@ -303,7 +311,12 @@ Kirim **seluruh** field; baris belum ada → dibuat (upsert). `tinggi_cm` dipaka
 
 ### 5.4 DELETE `/persetujuan` (user)
 
-Tarik izin → `consent_at = null`. **Efek:** tidak bisa mencatat kesehatan baru (422, §7.1) dan keluar dari agregat. Data lama tetap tersimpan untuk audit.
+Tarik izin → `consent_at = null`. **Efek:**
+
+- Tidak bisa mencatat kesehatan baru (**422**, §7.1) dan tidak bisa `PUT /profil` (**422**, §5.2).
+- Keluar dari agregat, peringkat, dan laporan.
+- Data lama **tetap tersimpan**: pemilik masih boleh `GET`/`DELETE` data lamanya; `super_admin` boleh membacanya (tercatat di `log_audit`).
+- `rujukan` yang sudah ada **tetap ada** (sudah menjadi tindak lanjut); dapat dihapus manual oleh yang berhak (§7.5).
 
 ---
 
@@ -356,8 +369,8 @@ Query: `?wilayah_id=3&search=`
 ### 7.1 Aturan
 
 - **Append-only.** Tidak ada UPDATE. Hanya `perlu_verifikasi` (oleh admin, §15) dan `deleted_at` (soft delete) yang boleh berubah. Salah input → DELETE lalu buat baru.
-- **Read-only** (dihitung server, jangan dikirim): `imt`, `tinggi_cm`, semua `kategori_*`, `status_kesehatan`, `perlu_verifikasi`.
-- **Snapshot:** `tinggi_cm` dan semua `kategori_*` dihitung saat insert dan **disimpan di baris log**. Mengubah profil atau `ambang_kategori` tidak mengubah riwayat.
+- **Read-only** (dihitung server, jangan dikirim; bila dikirim → **422**): `imt`, `tinggi_cm`, semua `kategori_*`, `skor_*`, `status_kesehatan`, `perlu_verifikasi`, `dicatat_oleh`, `created_at`.
+- **Snapshot:** `tinggi_cm`, semua `kategori_*`, dan **`skor_*` per indikator** dihitung saat insert dan **disimpan di baris log** (bukan dihitung ulang dari `ambang_kategori` saat baca).
 - **Profil belum ada / `tinggi_cm` null:** log tetap tersimpan, `imt` dan `kategori_imt` = `null` (bukan 422).
 - **Kelengkapan:** selain `dicatat_pada` dan `sumber`, **minimal satu** pengukuran harus terisi (`bb_kg`, `sistol`+`diastol`, `gula_darah`, `kolesterol`, `asam_urat`, `lingkar_perut`, `tidur_jam`). `sistol` dan `diastol` harus berpasangan. `gula_darah` wajib disertai `jenis_gula_darah`. Pelanggaran → 422.
 - **Consent:** `consent_at = null` atau ditarik → **422** `{"errors":{"consent":["Persetujuan data belum diberikan."]}}` (berlaku untuk `mandiri` dan `kader`).
@@ -438,7 +451,7 @@ Wajib: `dicatat_pada`, `sumber`, dan minimal satu pengukuran (§7.1). Untuk `sum
 | `tidur_jam`         | < 0 atau > 24   | 3 – 12                     |
 | `tinggi_cm` (kader) | < 50 atau > 250 | 120 – 220                  |
 
-**422 juga untuk:** tipe bukan angka (field angka memakai rule `numeric`), `dicatat_pada` melebihi hari ini, `sumber` di luar enum, pelanggaran kelengkapan, consent, atau `sumber=kader` tanpa `user_id`/`sesi_posbindu_id`. Kasus **bukan 422**: `diastol` ≥ `sistol` → tetap disimpan dengan `perlu_verifikasi = true`.
+**422 juga untuk:** tipe bukan angka (field angka memakai rule `numeric`), `dicatat_pada` melebihi hari ini, `sumber` di luar enum, pelanggaran kelengkapan, consent, field read-only yang dikirim, atau `sumber=kader` tanpa `user_id`/`sesi_posbindu_id`. Kasus **bukan 422**: `diastol` ≥ `sistol` → tetap disimpan dengan `perlu_verifikasi = true`.
 
 ### 7.3 GET `/catatan-kesehatan`
 
@@ -682,7 +695,8 @@ Log `perlu_verifikasi = true` tidak dipakai. Contoh konsisten dengan §7.2/§8.1
 - `total_peserta` = user role `user` di wilayah itu dengan consent aktif.
 - `total_pengguna_aktif` = peserta dengan ≥ 1 catatan dalam `periode`. `kepatuhan_pencatatan_persen` = aktif / peserta × 100, dibulatkan (178/214 = 83).
 - `total_pencatatan` = jumlah baris log dalam `periode` tanpa `perlu_verifikasi` (jumlah `tren` = 940).
-- `distribusi_imt` dihitung per user dari log IMT terbaru.
+- `distribusi_imt` dihitung per user dari log IMT terbaru; penyebutnya hanya user yang punya ≥1 log IMT pada `periode`, sehingga jumlah kategori bisa < `total_peserta` (contoh: 192 dari 214).
+- Contoh `distribusi_kelompok_usia` **dipangkas**; kelompok dengan jumlah < 5 tidak dikirim (§9.2).
 - `distribusi_riwayat_keluarga` dari `profil.riwayat_keluarga` (**self-report**, bukan nilai terukur; nilai enum §1.5). Menggantikan nama lama `distribusi_risiko`.
 - `distribusi_kelompok_usia` = kelompok 5 tahunan dari `tgl_lahir`, dihitung per user.
 - `rujukan` hanya memuat status yang jumlahnya ≥ 5 (pada contoh `ditolak` tersembunyi, sehingga **`total` tidak dikirim**).
@@ -1086,7 +1100,6 @@ Butuh role `super_admin`.
   "batas_min": 25.0,
   "batas_max": 30.0,
   "kategori": "gemuk",
-  "status": "perlu_perhatian",
   "skor": 1,
   "memicu_rujukan": false
 }
@@ -1122,6 +1135,7 @@ Butuh role `super_admin`.
 | POST /rujukan                                | ✅          | –                | ✅\*  | –                       | –      |
 | GET /rujukan                                 | ✅          | ✅\* (teredaksi) | ✅\*  | ✅\*                    | –      |
 | PATCH /rujukan/{id}/status                   | ✅          | ✅\*             | ✅\*  | –                       | –      |
+| GET /admin/catatan-kesehatan/perlu-verifikasi; PATCH .../verifikasi | ✅ | – | – | – | – |
 | GET /program, /peringkat                     | ✅          | ✅               | ✅    | ✅                      | –      |
 | POST /program                                | ✅          | ✅\*             | –     | –                       | –      |
 | POST /program/{id}/peserta                   | –           | –                | –     | ✅                      | –      |
@@ -1141,9 +1155,9 @@ Acuan migrasi BE. Nama final; jangan diubah tanpa Changelog.
 | 1   | `wilayah`            | id, parent_id, nama, tipe, kode                                                                                                                                                                                                                                                                                                                                                                                 |
 | 2   | `pengguna`           | id, name, email, password, role, wilayah_id, kader_id (nullable), **aktif**, consent_at, versi_kebijakan, **exp_total**, **level_gamifikasi**                                                                                                                                                                                                                                                                   |
 | 3   | `profil`             | user_id, tgl_lahir, jenis_kelamin, tinggi_cm, tingkat_aktivitas, merokok, riwayat_keluarga (json), **tampil_di_peringkat**, bb_target_kg, **bb_awal_kg**, target_aktivitas_per_minggu, target_air_ml                                                                                                                                                                                                            |
-| 4   | `catatan_kesehatan`  | id, user_id, dicatat_oleh, dicatat_pada, sumber, sesi_posbindu_id, bb_kg, tinggi_cm (snapshot), imt, kategori_imt, sistol, diastol, kategori_tensi, gula_darah, jenis_gula_darah, kategori_gula_darah, kolesterol, kategori_kolesterol, asam_urat, kategori_asam_urat, lingkar_perut, tidur_jam, merokok, konsumsi_manis, status_kesehatan, catatan, perlu_verifikasi, deleted_at, created_at — **append-only** |
+| 4   | `catatan_kesehatan`  | id, user_id, dicatat_oleh, dicatat_pada, sumber, sesi_posbindu_id, bb_kg, tinggi_cm (snapshot), imt, kategori_imt, sistol, diastol, kategori_tensi, gula_darah, jenis_gula_darah, kategori_gula_darah, kolesterol, kategori_kolesterol, asam_urat, kategori_asam_urat, lingkar_perut, tidur_jam, merokok, konsumsi_manis, status_kesehatan, skor_imt, skor_tensi, skor_gula_darah, skor_kolesterol, skor_asam_urat, catatan, perlu_verifikasi, deleted_at, created_at — **append-only** |
 | 5   | `indikator`          | id, kode, nama, satuan, kelompok, **interval_skrining_hari**                                                                                                                                                                                                                                                                                                                                                    |
-| 6   | `ambang_kategori`    | id, indikator_id, jenis_gula_darah (nullable), batas_min, batas_max, kategori, status, skor, **memicu_rujukan**                                                                                                                                                                                                                                                                                                 |
+| 6   | `ambang_kategori`    | id, indikator_id, jenis_gula_darah (nullable), batas_min, batas_max, kategori, skor, **memicu_rujukan**                                                                                                                                                                                                                                                                                                 |
 | 7   | `sesi_posbindu`      | id, wilayah_id, tanggal, lokasi, kader_id, catatan                                                                                                                                                                                                                                                                                                                                                              |
 | 8   | `kunjungan_posbindu` | id, sesi_id, user_id, hadir, dicatat_oleh, catatan_kesehatan_id — unik (sesi_id, user_id)                                                                                                                                                                                                                                                                                                                       |
 | 9   | `rujukan`            | id, user_id, faskes_id, alasan, **otomatis**, **indikator** (nullable), dibuat_oleh (nullable = sistem), status, ditangani_oleh, catatan, created_at, updated_at                                                                                                                                                                                                                                                |
@@ -1208,11 +1222,9 @@ Contoh: `GET /catatan-kesehatan?search=lembur`.
 1. **Penyimpanan token di FE:** `localStorage` (rentan XSS) atau secure store (jika desktop)?
 2. **Rujukan otomatis:** perlukah konfirmasi kader sebelum aktif? Pemicu saat ini hanya tensi `krisis` (`memicu_rujukan`); perlukah diperluas ke skor 2 (risiko rujukan membanjir)?
 3. **"Rekam Medis":** hanya label menu, atau path API ikut diganti? (Bila diganti, ubah §3, §8.2, §16.)
-4. **"Validasi kelengkapan":** apakah aturan "minimal satu pengukuran" (§7.1) sudah sesuai maksud pembimbing?
-5. **Ambang klinis (§8.3):** divalidasi tenaga kesehatan/puskesmas.
-6. **Rujukan teredaksi** untuk `admin_kelurahan` (§11.2): cukup, atau perlu data lain?
-7. **`tinggi_cm` oleh kader** (§7.2): setuju hanya bila profil warga kosong?
-8. Nama penulis di kolom "Oleh" Changelog.
+4. **Ambang klinis (§8.3):** divalidasi tenaga kesehatan/puskesmas.
+5. **Rujukan teredaksi** untuk `admin_kelurahan` (§11.2): cukup, atau perlu data lain?
+6. Nama penulis di kolom "Oleh" Changelog.
 
 ---
 
@@ -1262,3 +1274,4 @@ Bagian ini bukan kontrak API.
 | 1.3   | 2026-10-23 | Audit: kontradiksi 422 vs `perlu_verifikasi`; endpoint verifikasi admin; `pengguna.kader_id`; snapshot `tinggi_cm` + soft delete; rumus skor/insight/agregat; enum `riwayat_keluarga`; `GET /target`, `GET /refleksi`, `DELETE /posbindu/sesi/{id}`; 404 untuk scope; `program.status` turunan; `search` dibatasi                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | BE   |
 | 1.4   | 2026-10-23 | Konsolidasi: sisa v1.2 dibersihkan, UI dipindah ke lampiran, changelog satu tabel                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | BE   |
 | 1.5   | 2026-10-24 | **(1)** Ambang & kategori lengkap tanpa celah di §8.3 (`ambang_kategori`, kolom `memicu_rujukan`, kategori `krisis`/`tinggi`); pemetaan skor→status→level §1.5; rumus `skor_risiko` baru (36) dan `progress_persen`. **(2)** Rujukan otomatis dipicu saat simpan; kolom `rujukan.otomatis`, `rujukan.indikator`; anti-duplikat; fallback faskes. **(3)** Validasi: dua lapis rentang (mustahil 422 / wajar flag), `tidur_jam` wajar 0–24 → 3–12, minimal satu pengukuran, pasangan sistol-diastol, consent → 422, `jenis_gula_darah` wajib. **(4)** `catatan_kesehatan` append-only + snapshot `kategori_*`. **(5)** Privasi: §10.3, §10.5 (hanya kader/super_admin, 404, duplikat 422), §11.2 rujukan teredaksi untuk `admin_kelurahan`, `log_audit` akses super_admin; `POST /rujukan` hanya kader/super_admin. **(6)** Dashboard kelurahan: `distribusi_risiko` → `distribusi_riwayat_keluarga`, field `rujukan.total` dan `belum_ditindaklanjuti` dihapus, `ada_data_disembunyikan`, complementary suppression. **(7)** Gamifikasi: `exp_total`/`level_gamifikasi` di `pengguna`, tabel `badge_pengguna`, `program.kategori_aktivitas/exp_reward/badge_reward`, `GET /peringkat`, `profil.tampil_di_peringkat`; field reward dihapus dari `peserta_program`; `PATCH /program/{id}/peserta` menerima `user_id`. **(8)** `pengguna.aktif`, `profil.bb_awal_kg`, `indikator.interval_skrining_hari`; `GET /profil` kosong → 200 + `profil_lengkap:false`; `auth/me.profil` bisa `null`. **(9)** Login: rate limit per email+IP, tanpa aturan panjang password. **(10)** `/tren` satu titik per hari. **(11)** Enum baru (`kategori_*`, `wilayah.tipe`, `faskes.jenis`, `status_sesi`); §19 kolom pencarian; §21 TODO-KONFIRMASI; lampiran UI & bug dalam satu dokumen | BE   |
+| 1.5.1 | 2026-10-24 | Klarifikasi tanpa ubah bentuk: consent juga untuk `PUT /profil`; tarik consent → pemilik tetap bisa baca/hapus data lama; rujukan tetap ada; tinggi profil 120–220 (422); `tampil_di_peringkat` tidak di-reset; read-only dikirim → 422; snapshot `skor_*`; `ambang_kategori.status` dihapus; audit mencakup verifikasi & ubah status rujukan; register rate limit; `per_page` 1–100; TODO #4/#7 selesai | BE |
