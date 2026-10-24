@@ -5,6 +5,8 @@ import Modal from "@/components/ui/Modal";
 import Icon from "@/components/ui/Icon";
 import { useToast } from "@/components/ui/Toast";
 import { RANGE, validAngka, validTglPemeriksaan } from "@/lib/validasi";
+import { catatanKesehatan, ApiError } from "@/lib/api";
+import type { CatatanKesehatanInput } from "@/types";
 
 /* ------------------------------------------------------------------
    Form "Catat Kesehatan" — diporting dari prototype catatan-form.js.
@@ -16,8 +18,8 @@ import { RANGE, validAngka, validTglPemeriksaan } from "@/lib/validasi";
 
 const SUMBER = [
   { v: "mandiri", l: "Mandiri (pencatatan sendiri)" },
-  { v: "posbindu", l: "Posbindu / Kader" },
-  { v: "faskes", l: "Fasilitas Kesehatan" },
+  { v: "kader", l: "Posbindu / Kader" },
+  { v: "puskesmas", l: "Fasilitas Kesehatan" },
 ];
 
 const JENIS_GULA = [
@@ -86,7 +88,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
     setErr((prev) => ({ ...prev, [id]: "" }));
   }
 
-  function kirim() {
+  async function kirim() {
     const e: Record<string, string> = {};
     const vWaktu = validTglPemeriksaan(waktu);
     if (!vWaktu.ok) e.dicatat_pada = vWaktu.msg || "Waktu wajib diisi.";
@@ -112,14 +114,25 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
     }
 
     setSimpan(true);
-    // Demo: data tidak dikirim ke backend (belum ada API aktif di FE).
-    setTimeout(() => {
-      setSimpan(false);
+    try {
+      await catatanKesehatan.create(payload as unknown as CatatanKesehatanInput);
       toast.success("Catatan kesehatan tersimpan.", { title: "Berhasil" });
       onSaved?.(payload);
       reset();
       onClose();
-    }, 500);
+    } catch (err) {
+      const apiErr = err as ApiError;
+      if (apiErr.errors) {
+        const map: Record<string, string> = {};
+        for (const [k, msgs] of Object.entries(apiErr.errors)) {
+          map[k] = msgs[0] ?? "Nilai tidak valid";
+        }
+        setErr(map);
+      }
+      toast.warning(apiErr.message || "Gagal menyimpan catatan.");
+    } finally {
+      setSimpan(false);
+    }
   }
 
   return (
