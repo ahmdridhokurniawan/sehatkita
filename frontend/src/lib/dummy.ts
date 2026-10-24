@@ -356,6 +356,11 @@ export const dummyProgram: Program[] = [
     selesai: "2026-10-27",
     status: "berjalan",
     diikuti: true,
+    badge: "jagoan_pushup",
+    exp: 100,
+    level: 2,
+    label_level: "Menengah",
+    rank_kelurahan: null,
   },
   {
     id: 5,
@@ -367,5 +372,10 @@ export const dummyProgram: Program[] = [
     selesai: "2026-09-30",
     status: "selesai",
     diikuti: false,
+    badge: null,
+    exp: 50,
+    level: 1,
+    label_level: "Pemula",
+    rank_kelurahan: null,
   },
 ];

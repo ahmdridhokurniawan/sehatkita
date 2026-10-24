@@ -16,6 +16,9 @@ const NAV = [
   { href: "/profil", icon: "user", label: "Profil" },
 ];
 
+const NAV_POSBINDU = { href: "/posbindu", icon: "activity", label: "Posbindu" };
+const ROLE_POSBINDU = ["kader", "admin_kelurahan", "super_admin"];
+
 type Props = {
   children: React.ReactNode;
   /** Sapaan di topbar, mis. "Halo" */
@@ -43,6 +46,9 @@ export default function AppShell({ children, greet, unread = 0, noFab, onFab }: 
 
   const nama = user?.name || "Pengguna";
   const wilayah = user?.wilayah?.nama || "";
+  const nav = ROLE_POSBINDU.includes(user?.role || "")
+    ? [NAV[0], NAV[1], NAV_POSBINDU, NAV[3], NAV[4]]
+    : NAV;
 
   if (loading || !user) {
     return (
@@ -97,7 +103,7 @@ export default function AppShell({ children, greet, unread = 0, noFab, onFab }: 
       ) : null}
 
       <nav className="bottom-nav">
-        {NAV.map((n) => (
+        {nav.map((n) => (
           <Link key={n.href} href={n.href} className={pathname === n.href ? "active" : ""}>
             <Icon name={n.icon} size={22} />
             <span>{n.label}</span>

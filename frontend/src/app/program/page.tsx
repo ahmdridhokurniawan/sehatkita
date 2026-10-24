@@ -1,28 +1,28 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
-import { EmptyState } from "@/components/ui/Empty";
+import Input from "@/components/ui/Input";
+import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
 import { useUser } from "@/hooks/useUser";
-import { tanggal, angka } from "@/lib/format";
+import { angka, tanggal } from "@/lib/format";
 import { program as programApi, ApiError } from "@/lib/api";
+import { JENIS_PROGRAM } from "@/lib/enums";
+import type { JenisProgram } from "@/lib/enums";
+import type { Program } from "@/types";
 
-type ProgramItem = {
-  id: number;
-  judul: string;
-  jenis: string;
-  target_peserta: number;
-  jumlah_peserta: number;
-  mulai: string;
-  selesai: string;
-  status: "akan_datang" | "berjalan" | "selesai";
-  diikuti: boolean;
-};
+/* ------------------------------------------------------------------
+   Program / Tantangan (kontrak §12)
+   - user    : lihat program, ikut, berhenti
+   - kader   : lihat saja (belum ada endpoint daftar peserta)
+   - admin   : buat program wilayahnya + lihat ringkasan
+   Reward (exp/level/badge) diambil dari kolom program.* (§12.1).
+   `status` dihitung FE dari `mulai`/`selesai` karena kolom BE statis.
+   ------------------------------------------------------------------ */
 
 const LABEL_STATUS: Record<string, string> = {
   berjalan: "Berjalan",
@@ -30,386 +30,367 @@ const LABEL_STATUS: Record<string, string> = {
   akan_datang: "Akan datang",
 };
 
-const STATUS_TONE: Record<string, "safe" | "warning" | "danger"> = {
+const TONE_STATUS: Record<string, "safe" | "warning" | "info"> = {
   berjalan: "safe",
-  selesai: "warning",
-  akan_datang: "danger",
+  selesai: "info",
+  akan_datang: "warning",
 };
 
+const LABEL_JENIS: Record<string, string> = {
+  olahraga: "Olahraga",
+  edukasi: "Edukasi",
+  pemeriksaan: "Pemeriksaan",
+  lainnya: "Lainnya",
+};
+
+const PILIHAN_JENIS = Object.values(JENIS_PROGRAM);
+
+function hitungStatus(mulai: string, selesai: string | null): keyof typeof LABEL_STATUS {
+  const hariIni = new Date().toISOString().slice(0, 10);
+  const m = (mulai || "").slice(0, 10);
+  const s = (selesai || "").slice(0, 10);
+  if (m && m > hariIni) return "akan_datang";
+  if (s && s < hariIni) return "selesai";
+  return "berjalan";
+}
+
 export default function ProgramPage() {
-  const { user } = useUser();
-  const isAdmin = user?.role === "admin_kelurahan";
-  const isKader = user?.role === "kader";
-  const isUser = user?.role === "user";
+  const { user, loading: loadingUser } = useUser();
+  const role = user?.role || "";
+  const bolehBuat = role === "admin_kelurahan" || role === "super_admin";
+  const bolehIkut = role === "user";
 
-  const [program, setProgram] = useState<ProgramItem[]>([]);
+  const [program, setProgram] = useState<Program[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string>("");
-  const [showForm, setShowForm] = useState(false);
-  const [detail, setDetail] = useState<ProgramItem | null>(null);
-  const [toggling, setToggling] = useState<number | null>(null);
+  const [error, setError] = useState("");
+  const [detail, setDetail] = useState<Program | null>(null);
+  const [proses, setProses] = useState<number | null>(null);
+  const [aksiErr, setAksiErr] = useState("");
 
-  // Fetch program list on mount
-  useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-        const res = await programApi.list();
-        setProgram(res);
-        setError("");
-      } catch (err) {
-        const msg = err instanceof ApiError ? err.message : "Gagal muat program";
-        setError(msg);
-        console.error("Fetch program:", err);
-      } finally {
-        setLoading(false);
-      }
-    })();
+  // form buat program
+  const [buatOpen, setBuatOpen] = useState(false);
+  const [fJudul, setFJudul] = useState("");
+  const [fJenis, setFJenis] = useState<JenisProgram>("olahraga");
+  const [fTarget, setFTarget] = useState("50");
+  const [fMulai, setFMulai] = useState("");
+  const [fSelesai, setFSelesai] = useState("");
+  const [fErr, setFErr] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  const muat = useCallback(async () => {
+    setLoading(true);
+    try {
+      setProgram(await programApi.list());
+      setError("");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Gagal memuat program");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const toggle = async (id: number, currentStatus: boolean) => {
-    setToggling(id);
+  useEffect(() => {
+    if (!loadingUser && user) muat();
+  }, [loadingUser, user, muat]);
+
+  async function toggle(p: Program) {
+    setProses(p.id);
+    setAksiErr("");
+    const jadiIkut = !p.diikuti;
     try {
-      if (currentStatus) {
-        // Leave program — ubahPeserta status ke "berhenti"
-        await programApi.ubahPeserta(id, { status: "berhenti" });
+      if (jadiIkut) {
+        await programApi.ikut(p.id);
       } else {
-        // Join program — ikut
-        await programApi.ikut(id);
+        await programApi.ubahPeserta(p.id, { status: "berhenti" });
       }
-      // Reload program list
-      const res = await programApi.list();
-      setProgram(res);
+      await muat();
+      // Backend masih menandai `diikuti` true walau status peserta "berhenti",
+      // jadi field itu dioverride lokal sampai BE difilter.
+      setProgram((prev) => prev.map((x) => (x.id === p.id ? { ...x, diikuti: jadiIkut } : x)));
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : "Gagal ubah program";
-      setError(msg);
-      console.error("Toggle program:", err);
+      setAksiErr(err instanceof ApiError ? err.message : "Gagal mengubah keikutsertaan");
     } finally {
-      setToggling(null);
+      setProses(null);
     }
-  };
+  }
 
-  const progBerjalan = program.filter((p) => p.status === "berjalan");
-  const progIkut = program.filter((p) => p.diikuti && p.status === "berjalan");
-  const totalPeserta = progBerjalan.reduce((sum, p) => sum + p.jumlah_peserta, 0);
+  async function simpanProgram() {
+    const e: Record<string, string> = {};
+    if (!fJudul.trim()) e.judul = "Judul wajib diisi.";
+    if (!fMulai) e.mulai = "Tanggal mulai wajib diisi.";
+    if (fSelesai && fMulai && fSelesai < fMulai) e.selesai = "Selesai tidak boleh sebelum mulai.";
+    setFErr(e);
+    if (Object.keys(e).length) return;
 
-  // ========== UI TIER 1 (USER) ==========
-  if (isUser) {
+    setSaving(true);
+    try {
+      await programApi.create({
+        wilayah_id: user?.wilayah_id || 0,
+        judul: fJudul.trim(),
+        jenis: fJenis,
+        target_peserta: Number(fTarget) || 1,
+        mulai: fMulai,
+        selesai: fSelesai || undefined,
+      });
+      setBuatOpen(false);
+      setFJudul("");
+      setFTarget("50");
+      setFMulai("");
+      setFSelesai("");
+      await muat();
+    } catch (err) {
+      const apiErr = err as ApiError;
+      if (apiErr.errors) {
+        const map: Record<string, string> = {};
+        for (const [k, v] of Object.entries(apiErr.errors)) map[k] = v[0] ?? "Tidak valid";
+        setFErr(map);
+      }
+      setAksiErr(apiErr.message || "Gagal membuat program");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const ringkas = useMemo(() => {
+    const berjalan = program.filter((p) => hitungStatus(p.mulai, p.selesai) === "berjalan").length;
+    const diikuti = program.filter((p) => p.diikuti).length;
+    const peserta = program.reduce((s, p) => s + p.jumlah_peserta, 0);
+    return { berjalan, diikuti, peserta };
+  }, [program]);
+
+  if (loadingUser) {
     return (
       <AppShell noFab>
-        <div className="row-between mb-16">
-          <div>
-            <h1 className="h3">Program</h1>
-            <p className="tiny">Daftar program kesehatan yang bisa kamu ikuti.</p>
-          </div>
-        </div>
-
-        {error && (
-          <div className="card card-flat mb-12" style={{ borderLeft: "4px solid var(--danger)" }}>
-            <div className="row gap-10 items-center">
-              <span className="text-danger">
-                <Icon name="alert-circle" size={18} />
-              </span>
-              <span className="text-sm">{error}</span>
-            </div>
-          </div>
-        )}
-
-        {loading ? (
-          <div className="card">
-            <p className="tiny center">Memuat…</p>
-          </div>
-        ) : (
-          <>
-            {/* Ringkasan */}
-            <div className="grid grid-2 mb-12" style={{ gap: 12 }}>
-              <div className="card card-flat">
-                <div className="tiny">Program Tersedia</div>
-                <div className="metric-val">{progBerjalan.length}</div>
-              </div>
-              <div className="card card-flat">
-                <div className="tiny">Program Diikuti</div>
-                <div className="metric-val">{progIkut.length}</div>
-              </div>
-            </div>
-
-            {/* Daftar program */}
-            <div className="app-section-title">
-              <h2>Program Aktif</h2>
-            </div>
-
-            {progBerjalan.length === 0 ? (
-              <div className="card card-flat mt-12">
-                <EmptyState title="Tidak ada program" desc="Belum ada program aktif saat ini." />
-              </div>
-            ) : (
-              <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
-                {progBerjalan.map((p) => {
-                  const persen = Math.round((p.jumlah_peserta / p.target_peserta) * 100);
-                  const ikut = p.diikuti;
-                  return (
-                    <div className="card card-flat" key={p.id}>
-                      <div className="row-between mb-12">
-                        <div>
-                          <strong className="text-sm">{p.judul}</strong>
-                          <p className="tiny mt-4">Jenis: {p.jenis}</p>
-                        </div>
-                        <Badge tone={ikut ? "safe" : "warning"}>{ikut ? "Diikuti" : "Tersedia"}</Badge>
-                      </div>
-
-                      <div className="grid grid-2 mb-12" style={{ gap: 12 }}>
-                        <div className="tiny">
-                          <span>Target</span>
-                          <div className="text-sm fw-600 mt-4">{p.target_peserta}</div>
-                        </div>
-                        <div className="tiny">
-                          <span>Peserta</span>
-                          <div className="text-sm fw-600 mt-4">{p.jumlah_peserta}</div>
-                        </div>
-                      </div>
-
-                      <div className="row gap-8">
-                        <Button
-                          variant={ikut ? "secondary" : "primary"}
-                          style={{ flex: 1 }}
-                          onClick={() => toggle(p.id, ikut)}
-                          disabled={toggling === p.id}
-                        >
-                          <Icon name={ikut ? "check" : "plus"} size={15} /> {ikut ? "Berhenti" : "Ikuti"}
-                        </Button>
-                        <Button variant="ghost" style={{ flex: 1 }} onClick={() => setDetail(p)}>
-                          <Icon name="info" size={15} /> Info
-                        </Button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Program akan datang */}
-            {program.filter((p) => p.status === "akan_datang").length > 0 && (
-              <>
-                <div className="app-section-title mt-20">
-                  <h2>Akan Datang</h2>
-                </div>
-                <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
-                  {program.filter((p) => p.status === "akan_datang").map((p) => (
-                    <div className="card card-flat" key={p.id} style={{ opacity: 0.7 }}>
-                      <div className="row-between mb-12">
-                        <div>
-                          <strong className="text-sm">{p.judul}</strong>
-                          <p className="tiny mt-4">Jenis: {p.jenis}</p>
-                        </div>
-                        <Badge tone="warning">Akan Datang</Badge>
-                      </div>
-                      <div className="tiny">
-                        Mulai: <strong>{tanggal(p.mulai, "short")}</strong>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            <p className="tiny center mt-16 mb-16">
-              <Icon name="info" size={13} /> Program dinamis — data diperbarui dari server.
-            </p>
-          </>
-        )}
-
-        {/* Modal detail program */}
-        <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.judul}>
-          {detail && (
-            <>
-              <p className="tiny mb-12">Jenis: {detail.jenis}</p>
-              <dl className="dl">
-                <div>
-                  <dt>Tanggal Mulai</dt>
-                  <dd>{tanggal(detail.mulai, "long")}</dd>
-                </div>
-                <div>
-                  <dt>Tanggal Selesai</dt>
-                  <dd>{tanggal(detail.selesai, "long")}</dd>
-                </div>
-                <div>
-                  <dt>Target Peserta</dt>
-                  <dd>{detail.target_peserta}</dd>
-                </div>
-                <div>
-                  <dt>Peserta Terdaftar</dt>
-                  <dd>{detail.jumlah_peserta}</dd>
-                </div>
-                <div>
-                  <dt>Status</dt>
-                  <dd>
-                    <Badge tone={detail.status === "berjalan" ? "safe" : "warning"}>
-                      {LABEL_STATUS[detail.status]}
-                    </Badge>
-                  </dd>
-                </div>
-              </dl>
-            </>
-          )}
-        </Modal>
+        <Loading />
       </AppShell>
     );
   }
 
-  // ========== UI ADMIN/KADER (TIER 3+) ==========
   return (
-    <AppShell greet="Manajemen Program Posbindu">
-      <section>
-        <div className="app-section-title">
-          <h2>Program Kelurahan</h2>
-          <Button size="sm" onClick={() => setShowForm(!showForm)}>
-            <Icon name="plus" size={14} /> Buat Program
+    <AppShell noFab>
+      <div className="row-between mb-16" style={{ gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <h1 className="h3">Program</h1>
+          <p className="tiny">
+            {bolehBuat ? "Kelola tantangan & penyuluhan wilayah Anda." : "Tantangan kesehatan yang bisa Anda ikuti."}
+          </p>
+        </div>
+        {bolehBuat ? (
+          <Button icon="plus" onClick={() => setBuatOpen(true)}>
+            Buat program
           </Button>
-        </div>
+        ) : null}
+      </div>
 
-        <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
-          <div className="card card-metric">
-            <div className="tiny">Program Berjalan</div>
-            <div className="metric-val">{program.filter((p) => p.status === "berjalan").length}</div>
-          </div>
-          <div className="card card-metric">
-            <div className="tiny">Total Peserta</div>
-            <div className="metric-val">{angka(totalPeserta)}</div>
-          </div>
+      <div className="grid grid-2 mb-12" style={{ gap: 12 }}>
+        <div className="card card-flat">
+          <div className="tiny">Program berjalan</div>
+          <div className="metric-val">{angka(ringkas.berjalan)}</div>
         </div>
-      </section>
-
-      {/* Form buat program */}
-      {showForm && (
-        <section>
-          <div className="card">
-            <h3 className="text-lg fw-600 mb-12">Buat Program Baru</h3>
-            <div className="form-group">
-              <label className="form-label">Nama Program</label>
-              <input type="text" className="input" placeholder="Contoh: Program Ibu Hamil" />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Deskripsi</label>
-              <textarea className="input" placeholder="Tujuan & aktivitas program..." style={{ minHeight: 80 }} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Penanggung Jawab (Kader)</label>
-              <select className="input">
-                <option>Pilih kader...</option>
-                <option>Kader A</option>
-                <option>Kader B</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Tanggal Mulai</label>
-              <input type="date" className="input" />
-            </div>
-            <div className="form-group row-end" style={{ gap: 8 }}>
-              <Button variant="secondary" onClick={() => setShowForm(false)}>
-                Batal
-              </Button>
-              <Button>Buat Program</Button>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* Daftar program */}
-      <section>
-        <div className="app-section-title">
-          <h2>Daftar Program</h2>
+        <div className="card card-flat">
+          <div className="tiny">{bolehBuat ? "Total peserta" : "Diikuti"}</div>
+          <div className="metric-val">{angka(bolehBuat ? ringkas.peserta : ringkas.diikuti)}</div>
         </div>
-        {loading ? (
-          <div className="card mt-12">
-            <p className="tiny center">Memuat…</p>
-          </div>
-        ) : error ? (
-          <div className="card card-flat mt-12" style={{ borderLeft: "4px solid var(--danger)" }}>
-            <div className="row gap-10 items-center">
-              <span className="text-danger">
-                <Icon name="alert-circle" size={18} />
-              </span>
-              <span className="text-sm">{error}</span>
-            </div>
-          </div>
-        ) : (
-          <div className="card mt-12">
-            {program.length === 0 ? (
-              <EmptyState title="Tidak ada program" desc="Belum ada program yang dibuat." />
-            ) : (
-              program.map((p) => (
-                <Link
-                  href={`/program/${p.id}`}
-                  key={p.id}
-                  className="li li-hover"
-                  style={{ textDecoration: "none", color: "inherit" }}
-                >
-                  <span
-                    className="li-ico"
-                    style={{
-                      background:
-                        p.status === "berjalan"
-                          ? "var(--success-bg)"
-                          : p.status === "akan_datang"
-                            ? "var(--warning-bg)"
-                            : "var(--muted-bg)",
-                      color:
-                        p.status === "berjalan"
-                          ? "var(--success)"
-                          : p.status === "akan_datang"
-                            ? "var(--warning)"
-                            : "var(--muted)",
-                    }}
-                  >
-                    <Icon name="flag" size={18} />
+      </div>
+
+      {aksiErr ? <div className="err-msg show mb-12">{aksiErr}</div> : null}
+
+      {loading ? <Loading /> : null}
+      {!loading && error ? <ErrorState message={error} onRetry={muat} /> : null}
+
+      {!loading && !error && program.length === 0 ? (
+        <EmptyState
+          title="Belum ada program"
+          desc={
+            bolehBuat
+              ? "Buat program pertama untuk wilayah Anda."
+              : "Admin kelurahan belum membuat program untuk wilayah Anda."
+          }
+        />
+      ) : null}
+
+      {!loading && !error && program.length > 0 ? (
+        <div style={{ display: "grid", gap: 12 }}>
+          {program.map((p) => {
+            const st = hitungStatus(p.mulai, p.selesai);
+            const persen = p.target_peserta
+              ? Math.min(100, Math.round((p.jumlah_peserta / p.target_peserta) * 100))
+              : 0;
+            return (
+              <div className="card" key={p.id}>
+                <div className="row-between mb-8" style={{ gap: 8 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <strong className="text-sm">{p.judul}</strong>
+                    <p className="tiny mt-4">
+                      {LABEL_JENIS[p.jenis] || p.jenis} · {tanggal(p.mulai)} – {tanggal(p.selesai)}
+                    </p>
+                  </div>
+                  <span className="row gap-6" style={{ flexShrink: 0 }}>
+                    {p.diikuti ? <Badge tone="primary">Diikuti</Badge> : null}
+                    <Badge tone={TONE_STATUS[st]}>{LABEL_STATUS[st]}</Badge>
                   </span>
-                  <div className="li-main">
-                    <strong>{p.judul}</strong>
-                    <span className="tiny">Jenis: {p.jenis}</span>
-                    <span className="tiny">Dimulai: {tanggal(p.mulai, "short")}</span>
-                  </div>
-                  <div className="row-end" style={{ gap: 8, alignItems: "center" }}>
-                    <div className="text-right">
-                      <div className="tiny fw-600">{angka(p.jumlah_peserta)}</div>
-                      <div className="tiny">peserta</div>
-                    </div>
-                    <Badge tone={STATUS_TONE[p.status] || "primary"}>{LABEL_STATUS[p.status]}</Badge>
-                  </div>
-                </Link>
-              ))
-            )}
-          </div>
-        )}
-      </section>
+                </div>
 
-      {/* Statistik */}
-      <section>
-        <div className="app-section-title">
-          <h2>Ringkasan Status</h2>
+                <div className="row gap-12 mt-8" style={{ flexWrap: "wrap" }}>
+                  <span className="tiny">
+                    <Icon name="users" size={12} /> {angka(p.jumlah_peserta)}/{angka(p.target_peserta)} peserta
+                  </span>
+                  {p.exp > 0 ? (
+                    <span className="tiny">
+                      <Icon name="zap" size={12} /> +{angka(p.exp)} EXP
+                    </span>
+                  ) : null}
+                  {p.label_level ? (
+                    <span className="tiny">
+                      <Icon name="bar-chart" size={12} /> {p.label_level}
+                    </span>
+                  ) : null}
+                  {p.badge ? (
+                    <span className="tiny">
+                      <Icon name="award" size={12} /> {p.badge}
+                    </span>
+                  ) : null}
+                </div>
+
+                {p.target_peserta > 0 ? (
+                  <div
+                    className="mt-8"
+                    style={{ height: 6, borderRadius: 99, background: "var(--muted-bg)", overflow: "hidden" }}
+                  >
+                    <div
+                      style={{
+                        width: `${persen}%`,
+                        height: "100%",
+                        background: "var(--primary)",
+                        borderRadius: 99,
+                      }}
+                    />
+                  </div>
+                ) : null}
+
+                <div className="row gap-8 mt-12">
+                  {bolehIkut && st !== "selesai" ? (
+                    <Button
+                      variant={p.diikuti ? "secondary" : "primary"}
+                      onClick={() => toggle(p)}
+                      loading={proses === p.id}
+                      style={{ flex: 1 }}
+                    >
+                      {p.diikuti ? "Berhenti" : "Ikuti"}
+                    </Button>
+                  ) : null}
+                  <Button variant="ghost" onClick={() => setDetail(p)} style={{ flex: 1 }}>
+                    Detail
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+
+      <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.judul}>
+        {detail ? (
+          <dl className="dl">
+            <div>
+              <dt>Jenis</dt>
+              <dd>{LABEL_JENIS[detail.jenis] || detail.jenis}</dd>
+            </div>
+            <div>
+              <dt>Periode</dt>
+              <dd>
+                {tanggal(detail.mulai, "long")} – {tanggal(detail.selesai, "long")}
+              </dd>
+            </div>
+            <div>
+              <dt>Status</dt>
+              <dd>
+                <Badge tone={TONE_STATUS[hitungStatus(detail.mulai, detail.selesai)]}>
+                  {LABEL_STATUS[hitungStatus(detail.mulai, detail.selesai)]}
+                </Badge>
+              </dd>
+            </div>
+            <div>
+              <dt>Peserta</dt>
+              <dd>
+                {angka(detail.jumlah_peserta)} / {angka(detail.target_peserta)}
+              </dd>
+            </div>
+            <div>
+              <dt>Reward</dt>
+              <dd>
+                +{angka(detail.exp)} EXP
+                {detail.badge ? ` · badge ${detail.badge}` : ""}
+                {detail.label_level ? ` · ${detail.label_level}` : ""}
+              </dd>
+            </div>
+          </dl>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={buatOpen}
+        onClose={() => setBuatOpen(false)}
+        title="Program Baru"
+        footer={
+          <div className="row-between" style={{ width: "100%" }}>
+            <button className="btn btn-outline" onClick={() => setBuatOpen(false)} type="button">
+              Batal
+            </button>
+            <Button onClick={simpanProgram} loading={saving}>
+              Simpan
+            </Button>
+          </div>
+        }
+      >
+        <Input
+          label="Judul program"
+          placeholder="Tantangan Push-up 21 Hari"
+          value={fJudul}
+          onChange={(e) => setFJudul(e.target.value)}
+          error={fErr.judul}
+          required
+        />
+        <div className="mt-12">
+          <label className="label">Jenis</label>
+          <select className="select" value={fJenis} onChange={(e) => setFJenis(e.target.value as JenisProgram)}>
+            {PILIHAN_JENIS.map((j) => (
+              <option key={j} value={j}>
+                {LABEL_JENIS[j]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="mt-12">
+          <Input
+            label="Target peserta"
+            type="number"
+            min={1}
+            value={fTarget}
+            onChange={(e) => setFTarget(e.target.value)}
+            error={fErr.target_peserta}
+            optional
+          />
         </div>
         <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
-          {[
-            { status: "berjalan", label: "Berjalan", count: program.filter((p) => p.status === "berjalan").length },
-            { status: "selesai", label: "Selesai", count: program.filter((p) => p.status === "selesai").length },
-            {
-              status: "akan_datang",
-              label: "Akan datang",
-              count: program.filter((p) => p.status === "akan_datang").length,
-            },
-          ].map((s) => (
-            <div className="card card-flat" key={s.status}>
-              <div className="row-between">
-                <span className="tiny fw-600">{s.label}</span>
-                <strong>{s.count}</strong>
-              </div>
-            </div>
-          ))}
+          <Input
+            label="Mulai"
+            type="date"
+            value={fMulai}
+            onChange={(e) => setFMulai(e.target.value)}
+            error={fErr.mulai}
+            required
+          />
+          <Input
+            label="Selesai"
+            type="date"
+            value={fSelesai}
+            onChange={(e) => setFSelesai(e.target.value)}
+            error={fErr.selesai}
+            optional
+          />
         </div>
-      </section>
-
-      <p className="tiny center mt-8 mb-16">
-        <Icon name="info" size={13} /> Program dikelola oleh kader & dimonitor oleh admin kelurahan.
-      </p>
+      </Modal>
     </AppShell>
   );
 }

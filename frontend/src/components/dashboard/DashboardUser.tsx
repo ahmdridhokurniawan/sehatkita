@@ -29,6 +29,7 @@ export default function DashboardUser({ user }: { user: User }) {
   const [data, setData] = useState<DashboardPribadi | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     async function fetchDashboard() {
@@ -46,7 +47,7 @@ export default function DashboardUser({ user }: { user: User }) {
       }
     }
     fetchDashboard();
-  }, []);
+  }, [reload]);
 
   if (loading) {
     return (
@@ -130,15 +131,18 @@ export default function DashboardUser({ user }: { user: User }) {
           </div>
           <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
             {[
-              { label: "BMI", val: indikator_terkini.imt, unit: "kg/m²", kat: indikator_terkini.kategori_imt },
-              { label: "BB", val: indikator_terkini.bb_kg, unit: "kg", kat: "" },
+              { label: "BMI", val: indikator_terkini.imt ?? "—", unit: "kg/m²", kat: indikator_terkini.kategori_imt },
+              { label: "BB", val: indikator_terkini.bb_kg ?? "—", unit: "kg", kat: "" },
               {
                 label: "Tensi",
-                val: `${indikator_terkini.sistol}/${indikator_terkini.diastol}`,
+                val:
+                  indikator_terkini.sistol != null && indikator_terkini.diastol != null
+                    ? `${indikator_terkini.sistol}/${indikator_terkini.diastol}`
+                    : "—",
                 unit: "mmHg",
                 kat: indikator_terkini.kategori_tensi,
               },
-              { label: "Gula Darah", val: indikator_terkini.gula_darah, unit: "mg/dL", kat: "" },
+              { label: "Gula Darah", val: indikator_terkini.gula_darah ?? "—", unit: "mg/dL", kat: "" },
             ].map((ind) => (
               <div className="metric" key={ind.label}>
                 <span className="metric-name">
@@ -172,7 +176,13 @@ export default function DashboardUser({ user }: { user: User }) {
             <div className="row-between mb-8">
               <span className="text-sm fw-600">Berat badan</span>
               <span className="tiny">
-                <b className="text-primary">{bbNow}</b> / {bbTarget} kg
+                {bbTarget > 0 ? (
+                  <>
+                    <b className="text-primary">{bbNow || "—"}</b> / {bbTarget} kg
+                  </>
+                ) : (
+                  "Belum ada target"
+                )}
               </span>
             </div>
             <div className="progress">
@@ -239,7 +249,11 @@ export default function DashboardUser({ user }: { user: User }) {
         kesehatan.
       </p>
 
-      <CatatModal open={catatTerbuka} onClose={() => setCatatTerbuka(false)} />
+      <CatatModal
+        open={catatTerbuka}
+        onClose={() => setCatatTerbuka(false)}
+        onSaved={() => setReload((v) => v + 1)}
+      />
     </AppShell>
   );
 }

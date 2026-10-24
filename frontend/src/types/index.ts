@@ -414,28 +414,36 @@ export interface Program {
   target_peserta: number;
   jumlah_peserta: number;
   mulai: string;
-  selesai: string;
-  status: StatusProgram;
+  selesai: string | null;
+  status: StatusProgram | null;
   diikuti: boolean;
-  /** §25/§30 — field reward gamifikasi (bila ada) */
-  badge?: string | null;
-  exp?: number;
-  level?: number;
-  rank_kelurahan?: string | null;
+  /** Gamifikasi program (kolom `program.badge/exp/level/rank_kelurahan`) */
+  badge: string | null;
+  exp: number;
+  level: number;
+  label_level?: string;
+  rank_kelurahan: string | null;
 }
 export interface ProgramQuery extends ListQuery {
   status?: StatusProgram;
+  jenis?: JenisProgram;
+  wilayah_id?: number;
 }
 export interface ProgramInput {
   wilayah_id: number;
   judul: string;
   jenis: JenisProgram;
-  target_peserta: number;
+  target_peserta?: number;
   mulai: string;
-  selesai: string;
+  selesai?: string;
+  badge?: string;
+  exp?: number;
+  level?: number;
 }
 export interface PesertaProgramInput {
   status: StatusPeserta;
+  /** Wajib bila yang mengubah kader/admin/super_admin */
+  user_id?: number;
 }
 /* ============================================================
  * §13 — Target & Refleksi
