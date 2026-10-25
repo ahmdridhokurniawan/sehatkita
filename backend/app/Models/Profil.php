@@ -10,6 +10,11 @@ class Profil extends Model
     // Tanpa ini Eloquent menebak tabel "profils".
     protected $table = 'profil';
 
+    // Primary key tabel ini `user_id` (bukan `id`) dan tidak auto-increment.
+    protected $primaryKey = 'user_id';
+    public $incrementing = false;
+    protected $keyType = 'int';
+
     // Kolom yang boleh diisi massal (form onboarding user).
     // user_id WAJIB ada: ini primary key sekaligus FK ke pengguna.
     protected $fillable = [
@@ -20,7 +25,9 @@ class Profil extends Model
         'tingkat_aktivitas',         // ringan | sedang | berat
         'merokok',                   // true = perokok
         'riwayat_keluarga',          // JSON array, mis. ["hipertensi","diabetes"]
+        'tampil_di_peringkat',       // kontrak §5.2: nama tampil di peringkat
         'bb_target_kg',              // target berat badan (progress dashboard)
+        'bb_awal_kg',                // read-only: server isi saat target pertama diset
         'target_aktivitas_per_minggu',
         'target_air_ml',
     ];
@@ -32,7 +39,9 @@ class Profil extends Model
             'tgl_lahir'                  => 'date',
             'tinggi_cm'                  => 'decimal:2',
             'bb_target_kg'               => 'decimal:2',
+            'bb_awal_kg'                 => 'decimal:2',
             'merokok'                    => 'boolean',
+            'tampil_di_peringkat'        => 'boolean',
             'riwayat_keluarga'           => 'array',   // JSON → dibaca sebagai array PHP
         ];
     }

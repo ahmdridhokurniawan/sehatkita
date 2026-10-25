@@ -266,6 +266,38 @@ class PosbinduController extends Controller
         ]);
     }
 
+    // DELETE /posbindu/sesi/{id} — kontrak 10.7
+    public function destroySesi(Request $request, int $id)
+    {
+        $this->hanyaAdmin($request->user());
+
+        $sesi = SesiPosbindu::find($id);
+        if (! $sesi) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sesi Posbindu tidak ditemukan',
+            ], 404);
+        }
+
+        // admin_kelurahan hanya boleh menghapus sesi wilayahnya (kontrak 16).
+        if ($request->user()->role === 'admin_kelurahan') {
+            abort_unless(
+                (int) $sesi->wilayah_id === (int) $request->user()->wilayah_id,
+                403,
+                'Sesi ini bukan wilayah Anda.'
+            );
+        }
+
+        // Kunjungan ikut terhapus (FK cascade), catatan kesehatan dipertahankan.
+        $sesi->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Sesi Posbindu dihapus',
+            'data'    => null,
+        ]);
+    }
+
     // Bentuk satu sesi sesuai contoh kontrak 10.1.
     private function bentukSesi(SesiPosbindu $s): array
     {

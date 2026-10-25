@@ -8,7 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardWilayahController;
 use App\Http\Controllers\FaskesController;
 use App\Http\Controllers\InsightController;
-use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PeringkatController;
 use App\Http\Controllers\PosbinduController;
 use App\Http\Controllers\ProfilController;
 use App\Http\Controllers\ProgramController;
@@ -50,12 +50,12 @@ Route::prefix('v1')->group(function () {
         Route::get('/catatan-kesehatan/{catatan_kesehatan}', [CatatanKesehatanController::class, 'show']);
         Route::delete('/catatan-kesehatan/{catatan_kesehatan}', [CatatanKesehatanController::class, 'destroy']);
 
-        // --- Insight & notifikasi (support level=) ---
+        // --- Insight (§8.3) ---
         Route::get('/insight', [InsightController::class, 'index']);
-        Route::get('/notifications', [NotificationController::class, 'index']);
 
-        // --- Rekam Medis (Kontrak 24: /tren dihapus, diganti /rekam-medis) ---
-        Route::get('/rekam-medis', [RekamMedisController::class, 'index']);
+        // --- Rekam Medis / Tren (§8.2) — path resmi tetap `/tren` (§20) ---
+        Route::get('/tren', [RekamMedisController::class, 'index']);
+        Route::get('/rekam-medis', [RekamMedisController::class, 'index']); // alias FE lama
 
         // --- Rujukan ---
         Route::post('/rujukan', [RujukanController::class, 'store']);
@@ -67,6 +67,7 @@ Route::prefix('v1')->group(function () {
         Route::post('/posbindu/sesi', [PosbinduController::class, 'storeSesi']);
         Route::get('/posbindu/sesi/{id}', [PosbinduController::class, 'showSesi']);
         Route::put('/posbindu/sesi/{id}', [PosbinduController::class, 'updateSesi']);
+        Route::delete('/posbindu/sesi/{id}', [PosbinduController::class, 'destroySesi']);
         Route::post('/posbindu/sesi/{id}/peserta', [PosbinduController::class, 'storePeserta']);
         Route::get('/posbindu/kunjungan', [PosbinduController::class, 'indexKunjungan']);
 
@@ -75,9 +76,12 @@ Route::prefix('v1')->group(function () {
         Route::post('/program', [ProgramController::class, 'store']);
         Route::post('/program/{id}/peserta', [ProgramController::class, 'ikut']);
         Route::patch('/program/{id}/peserta', [ProgramController::class, 'ubahStatusPeserta']);
+        Route::get('/peringkat', [PeringkatController::class, 'index']);
 
         // --- Target & Refleksi ---
+        Route::get('/target', [TargetRefleksiController::class, 'target']);
         Route::put('/target', [TargetRefleksiController::class, 'simpanTarget']);
+        Route::get('/refleksi', [TargetRefleksiController::class, 'refleksi']);
         Route::post('/refleksi', [TargetRefleksiController::class, 'simpanRefleksi']);
 
         // --- Dashboard & laporan ---
@@ -111,6 +115,10 @@ Route::prefix('v1')->group(function () {
             Route::delete('/faskes/{id}', [AdminMasterController::class, 'destroyFaskes']);
 
             Route::get('/log-audit', [AdminMasterController::class, 'indexLogAudit']);
+
+            // §15 — verifikasi log ber-flag
+            Route::get('/catatan-kesehatan/perlu-verifikasi', [CatatanKesehatanController::class, 'perluVerifikasiList']);
+            Route::patch('/catatan-kesehatan/{id}/verifikasi', [CatatanKesehatanController::class, 'verifikasi']);
         });
     });
 });

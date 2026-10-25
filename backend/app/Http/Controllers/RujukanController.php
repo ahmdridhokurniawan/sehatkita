@@ -6,6 +6,7 @@ use App\Models\Pengguna;
 use App\Models\Rujukan;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Modul rujukan — kontrak 11.
@@ -16,13 +17,19 @@ use Illuminate\Validation\Rule;
 class RujukanController extends Controller
 {
     private const ROLE_PETUGAS = ['kader', 'admin_kelurahan', 'super_admin'];
+    /** §11.1 — hanya kader & super_admin yang boleh MEMBUAT rujukan. */
+    private const ROLE_PEMBUAT = ['kader', 'super_admin'];
     private const STATUS       = ['baru', 'dihubungi', 'tertangani', 'ditolak'];
 
     // POST /rujukan
     public function store(Request $request)
     {
         $user = $request->user();
-        $this->hanyaPetugas($user);
+        abort_unless(
+            in_array($user->role, self::ROLE_PEMBUAT, true),
+            403,
+            'Hanya kader atau super admin yang boleh membuat rujukan.'
+        );
 
         $data = $request->validate([
             'user_id'   => 'required|exists:pengguna,id',
@@ -90,7 +97,7 @@ class RujukanController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'OK',
-            'data'    => collect($list->items())->map(fn ($r) => $this->bentuk($r))->values(),
+            'data'    => collect($list->items())->map(fn ($r) => $this->bentuk($r, $user))->values(),
             'meta'    => $this->metaPaginasi($list),
         ]);
     }
@@ -114,6 +121,21 @@ class RujukanController extends Controller
         }
         $rujukan = $query->findOrFail($id);
 
+        // §11.3 — status hanya maju, dan `catatan` wajib saat menolak.
+        $urutan = ['baru' => 0, 'dihubungi' => 1, 'tertangani' => 2, 'ditolak' => 2];
+
+        if ($urutan[$data['status']] < $urutan[$rujukan->status]) {
+            throw ValidationException::withMessages([
+                'status' => ['Status rujukan tidak boleh mundur.'],
+            ]);
+        }
+
+        if ($data['status'] === 'ditolak' && blank($data['catatan'] ?? null)) {
+            throw ValidationException::withMessages([
+                'catatan' => ['Catatan wajib diisi saat menolak rujukan.'],
+            ]);
+        }
+
         $rujukan->update([
             'status'         => $data['status'],
             'catatan'        => $data['catatan'] ?? $rujukan->catatan,
@@ -123,25 +145,38 @@ class RujukanController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Status rujukan diperbarui',
-            'data'    => $this->bentuk($rujukan->fresh(['faskes', 'pembuat', 'penangan'])),
+            'data'    => $this->bentuk($rujukan->fresh(['faskes', 'pembuat', 'penangan']), $user),
         ]);
     }
 
-    private function bentuk(Rujukan $r): array
+    private function bentuk(Rujukan $r, ?Pengguna $pemanggil = null): array
     {
-        return [
-            'id'             => $r->id,
+        $dasar = [
+            'id'         => $r->id,
+            'faskes'     => ['id' => $r->faskes?->id, 'nama' => $r->faskes?->nama],
+            'status'     => $r->status,
+            'otomatis'   => (bool) $r->otomatis,
+            'indikator'  => $r->indikator,
+            'created_at' => $r->created_at?->toIso8601String(),
+            'updated_at' => $r->updated_at?->toIso8601String(),
+        ];
+
+        // §11.2 — admin_kelurahan menerima bentuk TEREDAKSI:
+        // tanpa user_id, nama, dan alasan.
+        if ($pemanggil && $pemanggil->role === 'admin_kelurahan') {
+            return $dasar;
+        }
+
+        return $dasar + [
             'user_id'        => $r->user_id,
-            'faskes'         => ['id' => $r->faskes?->id, 'nama' => $r->faskes?->nama],
             'alasan'         => $r->alasan,
-            'status'         => $r->status,
-            'dibuat_oleh'    => ['id' => $r->pembuat?->id, 'name' => $r->pembuat?->name],
+            'dibuat_oleh'    => $r->pembuat
+                ? ['id' => $r->pembuat->id, 'name' => $r->pembuat->name]
+                : null,
             'ditangani_oleh' => $r->penangan
                 ? ['id' => $r->penangan->id, 'name' => $r->penangan->name]
                 : null,
             'catatan'        => $r->catatan,
-            'created_at'     => $r->created_at?->toIso8601String(),
-            'updated_at'     => $r->updated_at?->toDateTimeString(),
         ];
     }
 

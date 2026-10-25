@@ -21,9 +21,12 @@ class Pengguna extends Model
         'password',          // sudah di-hash (lihat casts())
         'role',              // super_admin | admin_kelurahan | kader | user
         'wilayah_id',        // user terdaftar di kelurahan mana
+        'kader_id',          // kader pembina warga (kontrak 2 & 15)
         'consent_at',        // kapan setuju kebijakan privasi
         'versi_kebijakan',   // versi kebijakan yang disetujui
         'aktif',             // false = dinonaktifkan admin (kontrak 15)
+        'exp_total',         // gamifikasi: total EXP (kontrak 12.5)
+        'level_gamifikasi',  // gamifikasi: floor(exp_total / 100) + 1
     ];
 
     // Kolom sensitif — tidak boleh muncul di response JSON secara default.
@@ -97,6 +100,24 @@ class Pengguna extends Model
     public function sesiSebagaiKader(): HasMany
     {
         return $this->hasMany(SesiPosbindu::class, 'kader_id');
+    }
+
+    // Relasi: kader yang membina user ini (kontrak 2).
+    public function kader(): BelongsTo
+    {
+        return $this->belongsTo(Pengguna::class, 'kader_id');
+    }
+
+    // Relasi: warga binaan kader ini.
+    public function binaan(): HasMany
+    {
+        return $this->hasMany(Pengguna::class, 'kader_id');
+    }
+
+    // Relasi: badge gamifikasi yang dimiliki user (kontrak 12.5).
+    public function badge(): HasMany
+    {
+        return $this->hasMany(BadgePengguna::class, 'user_id');
     }
 
     // Relasi: rujukan yang DIBUAT user ini (sebagai kader/admin).
