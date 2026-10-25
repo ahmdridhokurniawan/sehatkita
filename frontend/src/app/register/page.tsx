@@ -207,7 +207,7 @@ export default function RegisterPage() {
               <div className="hint">
                 {wilayahGagal
                   ? "Gagal memuat wilayah. Muat ulang halaman."
-                  : "Daftar wilayah diambil dari data backend (GET /wilayah)."}
+                  : "Pilih kelurahan tempat Anda tinggal."}
               </div>
               <div className={`err-msg ${errors.wilayah_id ? "show" : ""}`}>{errors.wilayah_id}</div>
             </div>

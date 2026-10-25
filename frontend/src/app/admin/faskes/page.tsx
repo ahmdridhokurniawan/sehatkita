@@ -15,6 +15,11 @@ const FILTER = [
   { value: "klinik", label: "Klinik" },
 ];
 
+const LABEL_JENIS_FASKES: Record<string, string> = {
+  puskesmas: "Puskesmas",
+  rumah_sakit: "Rumah Sakit",
+  klinik: "Klinik",
+};
 const JENIS_BADGE: Record<string, string> = {
   puskesmas: "info",
   rumah_sakit: "danger",
@@ -118,7 +123,7 @@ export default function AdminFaskesPage() {
                     <div className="flex-1">
                       <div className="row-between">
                         <strong className="text-sm">{f.nama}</strong>
-                        <Badge tone={JENIS_BADGE[f.jenis] as any || "muted"}>{f.jenis}</Badge>
+                        <Badge tone={JENIS_BADGE[f.jenis] as any || "muted"}>{LABEL_JENIS_FASKES[f.jenis] || f.jenis}</Badge>
                       </div>
                       <p className="tiny mt-4">{f.alamat}</p>
                       <p className="tiny mt-2">Wilayah: {f.wilayah?.nama || "—"}</p>

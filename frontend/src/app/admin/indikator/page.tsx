@@ -7,6 +7,7 @@ import Badge from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/Empty";
 import { admin as adminApi, ApiError } from "@/lib/api";
 
+import { LABEL_STATUS_KESEHATAN } from "@/lib/labels";
 export default function AdminIndikatorPage() {
   const [indikator, setIndikator] = useState<any[]>([]);
   const [ambang, setAmbang] = useState<any[]>([]);
@@ -126,7 +127,7 @@ export default function AdminIndikatorPage() {
                           Batas: {amb.batas_min} — {amb.batas_max}
                         </p>
                         <p className="tiny mt-2">
-                          Status: <strong>{amb.status}</strong> (Skor: {amb.skor})
+                          Status: <strong>{LABEL_STATUS_KESEHATAN[amb.status as keyof typeof LABEL_STATUS_KESEHATAN] || amb.status}</strong> (Skor: {amb.skor})
                         </p>
                       </div>
                     </div>
