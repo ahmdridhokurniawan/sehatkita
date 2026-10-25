@@ -11,11 +11,11 @@ import { dashboard, ApiError } from "@/lib/api";
 import { tanggal, relatif, angka } from "@/lib/format";
 import type { User, DashboardPribadi } from "@/types";
 
-const HERO_CLS: Record<string, string> = { baik: "baik", waspada: "waspada", perlu_perhatian: "bahaya" };
+const HERO_CLS: Record<string, string> = { normal: "baik", perlu_perhatian: "waspada", berisiko: "bahaya" };
 const LABEL_STATUS: Record<string, string> = {
-  baik: "Kondisi Baik",
-  waspada: "Perlu Diwaspadai",
+  normal: "Kondisi Baik",
   perlu_perhatian: "Perlu Perhatian",
+  berisiko: "Berisiko",
 };
 
 function toneKategori(kategori = ""): "safe" | "warning" | "danger" {
@@ -51,7 +51,7 @@ export default function DashboardUser({ user }: { user: User }) {
 
   if (loading) {
     return (
-      <AppShell greet="Halo" unread={0} onFab={() => {}}>
+      <AppShell greet="Halo" onFab={() => {}}>
         <EmptyState title="Memuat..." desc="Dashboard Anda sedang dimuat..." />
       </AppShell>
     );
@@ -59,7 +59,7 @@ export default function DashboardUser({ user }: { user: User }) {
 
   if (!data || error) {
     return (
-      <AppShell greet="Halo" unread={0} onFab={() => {}}>
+      <AppShell greet="Halo" onFab={() => {}}>
         <div className="card mt-16">
           <div className="alert alert-danger">
             <Icon name="alert-circle" />
@@ -78,7 +78,7 @@ export default function DashboardUser({ user }: { user: User }) {
   const bbTarget = target?.bb_target_kg || 0;
 
   return (
-    <AppShell greet="Halo" unread={0} onFab={() => setCatatTerbuka(true)}>
+    <AppShell greet="Halo" onFab={() => setCatatTerbuka(true)}>
       {/* Ajakan melengkapi data diri (fitur terpisah di menu Profil) */}
       {!user.profil ? (
         <div className="card mt-16">
@@ -215,33 +215,32 @@ export default function DashboardUser({ user }: { user: User }) {
         </section>
       )}
 
-      {/* Rujukan aktif */}
-      {rujukan_aktif !== null && (
+      {/* Rujukan aktif (§8.1 — satu objek atau null) */}
+      {rujukan_aktif ? (
         <section>
           <div className="app-section-title">
             <h2>Rujukan Aktif</h2>
             <Link href="/rujukan">Semua</Link>
           </div>
-          {rujukan_aktif && Array.isArray(rujukan_aktif) && rujukan_aktif.length > 0 ? (
-            <div className="card mt-12">
-              {rujukan_aktif.map((r: any) => (
-                <div className="li" key={r.id}>
-                  <span className="li-ico">
-                    <Icon name="send" size={18} />
-                  </span>
-                  <div className="li-main">
-                    <strong className="text-sm">{r.faskes}</strong>
-                    <span className="tiny">{r.alasan}</span>
-                  </div>
-                </div>
-              ))}
+          <div className="card mt-12">
+            <div className="li">
+              <span className="li-ico">
+                <Icon name="send" size={18} />
+              </span>
+              <div className="li-main">
+                <strong className="text-sm">{rujukan_aktif.faskes?.nama || "Faskes"}</strong>
+                <span className="tiny">{rujukan_aktif.alasan || "Menunggu tindak lanjut"}</span>
+              </div>
+              <div className="li-side">
+                <Badge tone={rujukan_aktif.status === "baru" ? "warning" : "primary"}>{rujukan_aktif.status}</Badge>
+              </div>
             </div>
-          ) : (
-            <div className="card mt-12">
-              <EmptyState title="Tidak ada rujukan aktif" desc="Rujukan akan muncul di sini bila diperlukan tindak lanjut." />
-            </div>
-          )}
+          </div>
         </section>
+      ) : (
+        <div className="card mt-12">
+          <EmptyState title="Tidak ada rujukan aktif" desc="Rujukan akan muncul di sini bila diperlukan tindak lanjut." />
+        </div>
       )}
 
       <p className="tiny center mt-8 mb-16">

@@ -9,22 +9,16 @@ import { clearUserCache } from "@/hooks/useUser";
 
 const SETELAN_MENU = [
   {
-    href: "/setelan/notifikasi",
-    icon: "bell",
-    label: "Notifikasi",
-    desc: "Atur preferensi notifikasi & email",
-  },
-  {
-    href: "/setelan/keamanan",
-    icon: "lock",
-    label: "Keamanan",
-    desc: "Ubah password & atur sesi login",
+    href: "/profil",
+    icon: "user",
+    label: "Profil",
+    desc: "Data diri, tinggi badan, dan riwayat keluarga",
   },
   {
     href: "/setelan/privasi",
     icon: "shield",
     label: "Privasi",
-    desc: "Kelola data pribadi & sharing",
+    desc: "Visibilitas di peringkat & persetujuan data",
   },
 ];
 
@@ -48,7 +42,7 @@ export default function SetelanPage() {
       <div className="row-between mb-16">
         <div>
           <h1 className="h3">Pengaturan</h1>
-          <p className="tiny">Kelola akun, notifikasi, & keamanan.</p>
+          <p className="tiny">Kelola data diri dan persetujuan privasi.</p>
         </div>
       </div>
 

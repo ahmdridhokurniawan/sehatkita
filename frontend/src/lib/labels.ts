@@ -16,7 +16,6 @@ import type {
   JenisProgram,
   StatusProgram,
   StatusPeserta,
-  TipeNotifikasi,
 } from "@/lib/enums";
 
 
@@ -116,12 +115,16 @@ export const LABEL_STATUS_PESERTA: Record<StatusPeserta, string> = {
   berhenti: "Berhenti",
 };
 
-/** Tulisan untuk tipe notifikasi (§27) */
-export const LABEL_TIPE_NOTIFIKASI: Record<TipeNotifikasi, string> = {
-  insight: "Insight",
-  rujukan: "Rujukan",
-  jadwal: "Jadwal",
-  reward: "Reward",
-  sistem: "Sistem",
+/** Tulisan untuk faktor riwayat keluarga (§1.5 — self-report) */
+export const LABEL_FAKTOR: Record<string, string> = {
+  hipertensi: "Hipertensi",
+  diabetes: "Diabetes",
+  obesitas: "Obesitas",
+  jantung: "Jantung",
+  stroke: "Stroke",
+  kolesterol: "Kolesterol tinggi",
+  asma: "Asma",
+  kanker: "Kanker",
+  ginjal: "Gangguan ginjal",
+  tidak_ada: "Tidak ada",
 };
-

@@ -134,8 +134,15 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
             <span className="metric-name">
               <Icon name="send" size={14} /> Rujukan
             </span>
-            <span className="metric-val">{angka(d.rujukan.total)}</span>
-            <div className="tiny mt-4">Total rujukan</div>
+            <span className="metric-val">
+              {angka(
+                (d.rujukan.baru ?? 0) +
+                  (d.rujukan.dihubungi ?? 0) +
+                  (d.rujukan.tertangani ?? 0) +
+                  (d.rujukan.ditolak ?? 0),
+              )}
+            </span>
+            <div className="tiny mt-4">Status dengan ≥ 5 kasus</div>
           </div>
         </div>
       </section>
@@ -181,14 +188,15 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
         ) : null}
       </section>
 
-      {/* Distribusi Risiko */}
+      {/* Distribusi riwayat keluarga (self-report, §9.1) */}
       <section>
         <div className="app-section-title">
-          <h2>Faktor Risiko Terkemuka</h2>
+          <h2>Riwayat Keluarga</h2>
+          <span className="tiny">Self-report peserta</span>
         </div>
         <div className="card mt-12">
-          {d.distribusi_risiko.length ? (
-            d.distribusi_risiko.map((item) => (
+          {d.distribusi_riwayat_keluarga.length ? (
+            d.distribusi_riwayat_keluarga.map((item) => (
               <div className="li" key={item.faktor}>
                 <span className="li-ico" style={{ background: "var(--danger-bg)", color: "var(--danger)" }}>
                   <Icon name="alert-circle" size={18} />
@@ -251,36 +259,33 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
         </div>
       </section>
 
-      {/* Status Rujukan */}
+      {/* Status Rujukan — hanya status yang dikirim backend (§9.2) */}
       <section>
         <div className="app-section-title">
           <h2>Status Rujukan</h2>
+          <span className="tiny">Jumlah &lt; 5 disembunyikan</span>
         </div>
         <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
-          <div className="card card-flat">
-            <div className="row-between">
-              <span className="tiny">Baru</span>
-              <Badge tone="danger">{d.rujukan.baru}</Badge>
-            </div>
-          </div>
-          <div className="card card-flat">
-            <div className="row-between">
-              <span className="tiny">Dihubungi</span>
-              <Badge tone="warning">{d.rujukan.dihubungi}</Badge>
-            </div>
-          </div>
-          <div className="card card-flat">
-            <div className="row-between">
-              <span className="tiny">Tertangani</span>
-              <Badge tone="safe">{d.rujukan.tertangani}</Badge>
-            </div>
-          </div>
-          <div className="card card-flat">
-            <div className="row-between">
-              <span className="tiny">Belum tindak lanjut</span>
-              <Badge tone="warning">{d.rujukan.belum_ditindaklanjuti}</Badge>
-            </div>
-          </div>
+          {(
+            [
+              ["baru", "Baru", "danger"],
+              ["dihubungi", "Dihubungi", "warning"],
+              ["tertangani", "Tertangani", "safe"],
+              ["ditolak", "Ditolak", "danger"],
+            ] as const
+          )
+            .filter(([kunci]) => d.rujukan[kunci] !== undefined)
+            .map(([kunci, label, tone]) => (
+              <div className="card card-flat" key={kunci}>
+                <div className="row-between">
+                  <span className="tiny">{label}</span>
+                  <Badge tone={tone}>{d.rujukan[kunci]}</Badge>
+                </div>
+              </div>
+            ))}
+          {Object.keys(d.rujukan).length === 0 ? (
+            <p className="tiny center py-16">Belum ada rujukan pada periode ini.</p>
+          ) : null}
         </div>
       </section>
 
@@ -299,7 +304,13 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
                 </span>
                 <div className="li-main">
                   <strong>{r.faskes?.nama ?? "Faskes"}</strong>
-                  <span className="tiny">{r.alasan.substring(0, 40)}...</span>
+                  <span className="tiny">
+                    {r.alasan
+                      ? `${r.alasan.substring(0, 40)}...`
+                      : r.otomatis
+                        ? "Rujukan otomatis sistem"
+                        : "Rujukan manual"}
+                  </span>
                 </div>
                 <Badge tone={TONE_RUJUKAN[r.status] || "warning"}>{NAMA_STATUS[r.status] || r.status}</Badge>
               </div>

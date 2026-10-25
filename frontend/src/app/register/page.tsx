@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import Modal from "@/components/ui/Modal";
 import AuthAside from "@/components/auth/AuthAside";
-import { auth, setToken, ApiError } from "@/lib/api";
-import { WILAYAH_DEMO } from "@/lib/demo";
+import { auth, setToken, wilayah as wilayahApi, ApiError } from "@/lib/api";
+import type { Wilayah } from "@/types";
 
 type Err = Record<string, string>;
 
@@ -25,11 +25,35 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [kebijakan, setKebijakan] = useState(false);
 
-  // Kelompokkan wilayah per kecamatan (seperti prototype)
-  const perKecamatan = WILAYAH_DEMO.reduce<Record<string, typeof WILAYAH_DEMO>>((acc, w) => {
-    (acc[w.kecamatan] = acc[w.kecamatan] || []).push(w);
-    return acc;
-  }, {});
+  // §6.1 — daftar wilayah dari backend (publik)
+  const [wilayahList, setWilayahList] = useState<Wilayah[]>([]);
+  const [wilayahGagal, setWilayahGagal] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [kecamatan, kelurahan] = await Promise.all([
+          wilayahApi.list({ tipe: "kecamatan" }),
+          wilayahApi.list({ tipe: "kelurahan" }),
+        ]);
+        const namaKec = new Map(kecamatan.map((k) => [k.id, k.nama]));
+        setWilayahList(
+          kelurahan.map((k) => ({ ...k, parent_nama: namaKec.get(k.parent_id ?? -1) }))
+        );
+      } catch {
+        setWilayahGagal(true);
+      }
+    })();
+  }, []);
+
+  // Kelompokkan wilayah per kecamatan untuk <optgroup>
+  const perKecamatan = useMemo(() => {
+    return wilayahList.reduce<Record<string, Wilayah[]>>((acc, w) => {
+      const kec = (w as Wilayah & { parent_nama?: string }).parent_nama || "Lainnya";
+      (acc[kec] = acc[kec] || []).push(w);
+      return acc;
+    }, {});
+  }, [wilayahList]);
 
   function validasi(): boolean {
     const err: Err = {};
@@ -174,13 +198,17 @@ export default function RegisterPage() {
                   <optgroup label={kec} key={kec}>
                     {perKecamatan[kec].map((w) => (
                       <option value={w.id} key={w.id}>
-                        {w.kelurahan}
+                        {w.nama}
                       </option>
                     ))}
                   </optgroup>
                 ))}
               </select>
-              <div className="hint">Daftar wilayah diambil dari data backend (GET /wilayah).</div>
+              <div className="hint">
+                {wilayahGagal
+                  ? "Gagal memuat wilayah. Muat ulang halaman."
+                  : "Daftar wilayah diambil dari data backend (GET /wilayah)."}
+              </div>
               <div className={`err-msg ${errors.wilayah_id ? "show" : ""}`}>{errors.wilayah_id}</div>
             </div>
 

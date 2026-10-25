@@ -7,13 +7,12 @@
  *
  * Penyesuaian kontrak v1.2 (§19–§32):
  *  - §23  : semua daftar menerima `search` (lihat `ListQuery`).
- *  - §24  : endpoint `/tren` → `/rekam-medis` (`tren` dipertahankan sebagai alias usang).
- *  - §27  : endpoint notifikasi `GET /notifications`.
  *  - §29  : `GET /insight?level=` untuk filter level.
  *  - §12/§25 : program + field reward (badge, exp, level, rank_kelurahan).
  *  - §10  : Posbindu sesi (list/create/detail/update + peserta).
  *  - §14.2: laporan kelurahan (agregat + disclaimer).
  *  - §15  : modul admin (master data) — dipakai Fase D.
+ *  - §20  : notifikasi DITUNDA — tidak ada endpoint /notifications.
  */
 import type {
   AdminPengguna,
@@ -37,8 +36,6 @@ import type {
   LaporanKelurahan,
   LaporanPribadi,
   LogAudit,
-  Notifikasi,
-  NotifikasiQuery,
   PersetujuanData,
   PesertaProgramInput,
   Profil,
@@ -165,6 +162,9 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     return envelope.data;
   }
   // §1.4 — gagal
+  if (response.status === 401 && auth) {
+    tangani401();
+  }
   const errEnv = json as { message?: string; errors?: Record<string, string[]> };
   throw new ApiError(
     errEnv.message ?? "Terjadi kesalahan",
@@ -201,12 +201,34 @@ async function requestPaged<T>(
   if (response.ok) {
     return { data: json.data ?? [], meta: json.meta ?? null };
   }
+  if (response.status === 401 && auth) {
+    tangani401();
+  }
   throw new ApiError(
     json.message ?? "Terjadi kesalahan",
     response.status,
     json.errors,
   );
 }
+/* ============================================================
+ * §20 — Penanganan 401 global
+ * Token kedaluwarsa / tidak valid: hapus token lalu arahkan ke /masuk.
+ * ============================================================ */
+let sedangRedirect = false;
+
+function tangani401(): void {
+  if (typeof window === "undefined") return;
+  clearToken();
+  if (sedangRedirect) return;
+  const diHalamanAuth =
+    window.location.pathname.startsWith("/masuk") ||
+    window.location.pathname.startsWith("/daftar");
+  if (diHalamanAuth) return;
+  sedangRedirect = true;
+  const next = encodeURIComponent(window.location.pathname + window.location.search);
+  window.location.replace(`/masuk?next=${next}`);
+}
+
 /* ============================================================
  * §4 — Auth
  * ============================================================ */
@@ -237,6 +259,8 @@ export interface ProfilInput {
   tingkat_aktivitas: string;
   merokok: boolean;
   riwayat_keluarga: string[];
+  /** §5.2 — default false */
+  tampil_di_peringkat: boolean;
 }
 export const profil = {
   /** §5.1 GET /profil */
@@ -294,29 +318,20 @@ export const dashboard = {
     request<DashboardKelurahan>("/dashboard/kelurahan", { query }),
 };
 /**
- * §8.2 + §24 — Series indikator.
- * Endpoint resmi kini `/rekam-medis` (dulu `/tren`).
+ * §8.2 — Series indikator.
+ * Path resmi `/tren` (§20: rename ke `/rekam-medis` dibatalkan).
+ * Label menunya tetap "Rekam Medis".
  */
 export const rekamMedis = {
-  get: (query: RekamMedisQuery) => request<RekamMedis>("/rekam-medis", { query }),
+  get: (query: RekamMedisQuery) => request<RekamMedis>("/tren", { query }),
 };
-/** @deprecated §24 — pakai `rekamMedis`. Alias ini menunjuk ke `/rekam-medis`. */
+/** @deprecated — pakai `rekamMedis`. Nama lama dipertahankan agar import tidak pecah. */
 export const tren = {
-  get: (query: RekamMedisQuery) => request<RekamMedis>("/rekam-medis", { query }),
+  get: (query: RekamMedisQuery) => request<RekamMedis>("/tren", { query }),
 };
 export const insight = {
   /** §8.3 GET /insight (+ §29 filter `level`) */
   list: (query?: InsightQuery) => request<Insight[]>("/insight", { query }),
-};
-/* ============================================================
- * §27 / §32 — Notifikasi
- * ============================================================ */
-export const notifikasi = {
-  /** §27 GET /notifications */
-  list: (query?: NotifikasiQuery) => request<Notifikasi[]>("/notifications", { query }),
-  /** §27 GET /notifications — dengan `meta` paginasi */
-  listPaged: (query?: NotifikasiQuery) =>
-    requestPaged<Notifikasi>("/notifications", { query }),
 };
 /* ============================================================
  * §10 — Posbindu

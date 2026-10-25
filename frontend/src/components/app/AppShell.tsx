@@ -12,7 +12,6 @@ const NAV = [
   { href: "/dashboard", icon: "home", label: "Beranda" },
   { href: "/rekam-medis", icon: "clipboard", label: "Rekam Medis" },
   { href: "/program", icon: "award", label: "Tantangan" },
-  { href: "/notifikasi", icon: "bell", label: "Notifikasi" },
   { href: "/profil", icon: "user", label: "Profil" },
 ];
 
@@ -23,8 +22,6 @@ type Props = {
   children: React.ReactNode;
   /** Sapaan di topbar, mis. "Halo" */
   greet?: string;
-  /** Jumlah notifikasi belum dibaca (titik merah) */
-  unread?: number;
   /** Sembunyikan tombol FAB */
   noFab?: boolean;
   /** Aksi tombol FAB */
@@ -35,7 +32,7 @@ type Props = {
  * Shell aplikasi masyarakat (mobile-first) — topbar + bottom nav + FAB.
  * Diporting dari prototype `app.js` (App.mount).
  */
-export default function AppShell({ children, greet, unread = 0, noFab, onFab }: Props) {
+export default function AppShell({ children, greet, noFab, onFab }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading } = useUser();
@@ -47,7 +44,7 @@ export default function AppShell({ children, greet, unread = 0, noFab, onFab }: 
   const nama = user?.name || "Pengguna";
   const wilayah = user?.wilayah?.nama || "";
   const nav = ROLE_POSBINDU.includes(user?.role || "")
-    ? [NAV[0], NAV[1], NAV_POSBINDU, NAV[3], NAV[4]]
+    ? [NAV[0], NAV[1], NAV_POSBINDU, NAV[3]]
     : NAV;
 
   if (loading || !user) {
@@ -73,22 +70,6 @@ export default function AppShell({ children, greet, unread = 0, noFab, onFab }: 
         </div>
         <div className="acts">
           <ThemeToggle />
-          <Link href="/notifikasi" className="btn btn-ghost btn-icon" aria-label="Notifikasi" style={{ position: "relative" }}>
-            <Icon name="bell" size={18} />
-            {unread > 0 ? (
-              <span
-                style={{
-                  position: "absolute",
-                  top: 4,
-                  right: 4,
-                  width: 8,
-                  height: 8,
-                  borderRadius: 99,
-                  background: "var(--danger)",
-                }}
-              />
-            ) : null}
-          </Link>
         </div>
       </header>
 
