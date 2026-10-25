@@ -148,7 +148,7 @@ export default function RujukanPage() {
           </div>
 
           <p className="tiny center mt-16 mb-16">
-            <Icon name="info" size={13} /> Data diambil dari GET /rujukan.
+            <Icon name="info" size={13} /> Rujukan ini saran sistem, bukan diagnosis medis.
           </p>
         </>
       )}

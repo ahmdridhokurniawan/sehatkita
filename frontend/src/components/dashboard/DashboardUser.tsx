@@ -9,6 +9,7 @@ import CatatModal from "@/components/catatan/CatatModal";
 import { EmptyState } from "@/components/ui/Empty";
 import { dashboard, ApiError } from "@/lib/api";
 import { tanggal, relatif, angka } from "@/lib/format";
+import { LABEL_INDIKATOR, LABEL_STATUS_RUJUKAN } from "@/lib/labels";
 import type { User, DashboardPribadi } from "@/types";
 
 const HERO_CLS: Record<string, string> = { normal: "baik", perlu_perhatian: "waspada", berisiko: "bahaya" };
@@ -205,10 +206,12 @@ export default function DashboardUser({ user }: { user: User }) {
                   <Icon name="calendar" size={18} />
                 </span>
                 <div className="li-main">
-                  <strong className="text-sm">{sched.indikator}</strong>
+                  <strong className="text-sm">{LABEL_INDIKATOR[sched.indikator] || sched.indikator}</strong>
                   <span className="tiny">{tanggal(sched.jatuh_tempo)}</span>
                 </div>
-                <Badge tone={sched.status === "akan_datang" ? "warning" : "primary"}>{sched.status}</Badge>
+                <Badge tone={sched.status === "akan_datang" ? "warning" : "primary"}>
+                  {sched.status === "akan_datang" ? "Akan datang" : "Terlambat"}
+                </Badge>
               </div>
             ))}
           </div>
@@ -232,7 +235,9 @@ export default function DashboardUser({ user }: { user: User }) {
                 <span className="tiny">{rujukan_aktif.alasan || "Menunggu tindak lanjut"}</span>
               </div>
               <div className="li-side">
-                <Badge tone={rujukan_aktif.status === "baru" ? "warning" : "primary"}>{rujukan_aktif.status}</Badge>
+                <Badge tone={rujukan_aktif.status === "baru" ? "warning" : "primary"}>
+                  {LABEL_STATUS_RUJUKAN[rujukan_aktif.status] || rujukan_aktif.status}
+                </Badge>
               </div>
             </div>
           </div>

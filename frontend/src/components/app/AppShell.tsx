@@ -16,6 +16,8 @@ const NAV = [
 ];
 
 const NAV_POSBINDU = { href: "/posbindu", icon: "activity", label: "Posbindu" };
+const NAV_LAPORAN = { href: "/laporan", icon: "bar-chart", label: "Laporan" };
+const NAV_ADMIN = { href: "/admin", icon: "shield", label: "Admin" };
 const ROLE_POSBINDU = ["kader", "admin_kelurahan", "super_admin"];
 
 type Props = {
@@ -26,13 +28,15 @@ type Props = {
   noFab?: boolean;
   /** Aksi tombol FAB */
   onFab?: () => void;
+  /** Batasi halaman ke role tertentu; role lain diarahkan ke /unauthorized */
+  roles?: string[];
 };
 
 /**
  * Shell aplikasi masyarakat (mobile-first) — topbar + bottom nav + FAB.
  * Diporting dari prototype `app.js` (App.mount).
  */
-export default function AppShell({ children, greet, noFab, onFab }: Props) {
+export default function AppShell({ children, greet, noFab, onFab, roles }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading } = useUser();
@@ -41,13 +45,24 @@ export default function AppShell({ children, greet, noFab, onFab }: Props) {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
 
+  const roleTidakCocok = Boolean(roles && user && !roles.includes(user.role));
+
+  useEffect(() => {
+    if (roleTidakCocok) router.replace("/unauthorized");
+  }, [roleTidakCocok, router]);
+
   const nama = user?.name || "Pengguna";
   const wilayah = user?.wilayah?.nama || "";
-  const nav = ROLE_POSBINDU.includes(user?.role || "")
-    ? [NAV[0], NAV[1], NAV_POSBINDU, NAV[3]]
-    : NAV;
+  const role = user?.role || "";
+  const nav = role === "super_admin"
+    ? [NAV[0], NAV[1], NAV_LAPORAN, NAV_POSBINDU, NAV_ADMIN]
+    : role === "admin_kelurahan"
+      ? [NAV[0], NAV[1], NAV_LAPORAN, NAV_POSBINDU]
+      : ROLE_POSBINDU.includes(role)
+        ? [NAV[0], NAV[1], NAV_POSBINDU, NAV[3]]
+        : NAV;
 
-  if (loading || !user) {
+  if (loading || !user || roleTidakCocok) {
     return (
       <main className="center" style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
         <p className="tiny">Memuat…</p>

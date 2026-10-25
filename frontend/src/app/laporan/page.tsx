@@ -50,7 +50,7 @@ export default function LaporanKelurahanPage() {
   }, [muat]);
 
   return (
-    <AppShell greet="Laporan Kelurahan">
+    <AppShell greet="Laporan Kelurahan" roles={["admin_kelurahan", "super_admin"]}>
       <section>
         <div className="app-section-title">
           <h2>Laporan Agregat</h2>
@@ -230,7 +230,11 @@ export default function LaporanKelurahanPage() {
                     </div>
                   ))
               ) : (
-                <p className="tiny center py-16">Belum ada rujukan pada periode ini.</p>
+                <p className="tiny center py-16">
+                  {d.ada_data_disembunyikan
+                    ? "Jumlah rujukan disembunyikan karena di bawah 5 (privasi)."
+                    : "Belum ada rujukan pada periode ini."}
+                </p>
               )}
             </div>
           </section>

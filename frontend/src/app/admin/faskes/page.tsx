@@ -60,7 +60,7 @@ export default function AdminFaskesPage() {
   }, [filter, cari, daftar]);
 
   return (
-    <AppShell noFab>
+    <AppShell noFab roles={["super_admin"]}>
       <div className="row-between mb-16">
         <div>
           <h1 className="h3">Kelola Faskes</h1>
@@ -131,7 +131,7 @@ export default function AdminFaskesPage() {
           </div>
 
           <p className="tiny center mt-16 mb-16">
-            <Icon name="info" size={13} /> Data dari GET /admin/faskes.
+            <Icon name="info" size={13} /> Data faskes rujukan seluruh wilayah.
           </p>
         </>
       )}

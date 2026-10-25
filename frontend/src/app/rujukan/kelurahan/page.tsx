@@ -64,7 +64,7 @@ export default function RujukanKelurahanPage() {
   const tampil = filterStatus ? daftar.filter((r) => r.status === filterStatus) : daftar;
 
   return (
-    <AppShell greet="Rujukan Kelurahan">
+    <AppShell greet="Rujukan Kelurahan" roles={["admin_kelurahan", "super_admin"]}>
       <section>
         <div className="app-section-title">
           <h2>Status Rujukan</h2>

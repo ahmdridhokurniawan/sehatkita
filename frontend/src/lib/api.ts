@@ -221,12 +221,12 @@ function tangani401(): void {
   clearToken();
   if (sedangRedirect) return;
   const diHalamanAuth =
-    window.location.pathname.startsWith("/masuk") ||
-    window.location.pathname.startsWith("/daftar");
+    window.location.pathname.startsWith("/login") ||
+    window.location.pathname.startsWith("/register");
   if (diHalamanAuth) return;
   sedangRedirect = true;
   const next = encodeURIComponent(window.location.pathname + window.location.search);
-  window.location.replace(`/masuk?next=${next}`);
+  window.location.replace(`/login?next=${next}`);
 }
 
 /* ============================================================
@@ -457,4 +457,13 @@ export const admin = {
     list: (query?: { search?: string }) => request<LogAudit[]>("/admin/log-audit", { query }),
   },
   statistik: () => request<AdminStatistik>("/admin/statistik"),
+  verifikasi: {
+    list: (query?: { wilayah_id?: number; page?: number; per_page?: number }) =>
+      requestPaged<CatatanKesehatan>("/admin/catatan-kesehatan/perlu-verifikasi", { query }),
+    putuskan: (id: number, setuju: boolean) =>
+      request<null>(`/admin/catatan-kesehatan/${id}/verifikasi`, {
+        method: "PATCH",
+        body: { setuju },
+      }),
+  },
 };

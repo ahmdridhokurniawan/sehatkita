@@ -30,7 +30,7 @@ export default function AdminStatistikPage() {
   }, []);
 
   return (
-    <AppShell noFab>
+    <AppShell noFab roles={["super_admin"]}>
       <div className="row-between mb-16">
         <div>
           <h1 className="h3">Statistik Sistem</h1>
@@ -194,7 +194,7 @@ export default function AdminStatistikPage() {
           </div>
 
           <p className="tiny center mt-16 mb-16">
-            <Icon name="info" size={13} /> Data dari GET /admin/statistik.
+            <Icon name="info" size={13} /> Angka dihitung ulang setiap halaman dibuka.
           </p>
         </>
       ) : (

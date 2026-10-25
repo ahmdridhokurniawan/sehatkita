@@ -128,3 +128,13 @@ export const LABEL_FAKTOR: Record<string, string> = {
   ginjal: "Gangguan ginjal",
   tidak_ada: "Tidak ada",
 };
+
+/** Tulisan untuk kode insight (§8.3) — kode mentah jangan tampil ke pengguna */
+export const LABEL_INSIGHT: Record<string, string> = {
+  BELUM_CATAT: "Belum ada catatan",
+  BB_NAIK_3KALI: "Berat badan naik 3 kali berturut-turut",
+  TENSI_TINGGI_2KALI: "Tekanan darah tinggi berulang",
+  STATUS_BERISIKO: "Status kesehatan berisiko",
+  BELUM_SKRINING_GULA: "Belum skrining gula darah",
+  BELUM_CATAT_5HARI: "Belum mencatat 5 hari terakhir",
+};

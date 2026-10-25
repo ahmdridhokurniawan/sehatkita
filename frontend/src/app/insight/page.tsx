@@ -7,6 +7,7 @@ import Segmented from "@/components/ui/Segmented";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
 import { insight as insightApi, ApiError } from "@/lib/api";
 import { tanggal } from "@/lib/format";
+import { LABEL_INSIGHT } from "@/lib/labels";
 import type { Insight } from "@/types";
 import type { LevelInsight } from "@/lib/enums";
 
@@ -110,7 +111,7 @@ export default function InsightPage() {
                     </span>
                     <div className="flex-1">
                       <div className="row-between">
-                        <strong className="text-sm">{i.kode}</strong>
+                        <strong className="text-sm">{LABEL_INSIGHT[i.kode] || i.kode}</strong>
                         <span className={`badge badge-${tone.cls}`}>{tone.label}</span>
                       </div>
                       <p className="tiny mt-4">{i.teks}</p>
