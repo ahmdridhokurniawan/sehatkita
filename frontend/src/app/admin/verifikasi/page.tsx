@@ -14,6 +14,7 @@ import Badge from "@/components/ui/Badge";
 import Icon from "@/components/ui/Icon";
 import { EmptyState } from "@/components/ui/Empty";
 import { tanggal, angka } from "@/lib/format";
+import { LABEL_SUMBER } from "@/lib/labels";
 import { admin as adminApi, ApiError } from "@/lib/api";
 import type { CatatanKesehatan } from "@/types";
 
@@ -106,7 +107,7 @@ export default function AdminVerifikasiPage() {
                   {b.pengguna?.name || "Pengguna"} · {tanggal(b.dicatat_pada)}
                 </strong>
                 <span className="tiny">
-                  Sumber {b.sumber}
+                  Sumber {LABEL_SUMBER[b.sumber] || b.sumber}
                   {b.sistol && b.diastol ? ` · TD ${b.sistol}/${b.diastol}` : ""}
                   {b.gula_darah ? ` · Gula ${angka(b.gula_darah)}` : ""}
                   {b.imt ? ` · IMT ${angka(b.imt)}` : ""}

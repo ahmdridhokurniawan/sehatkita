@@ -12,6 +12,7 @@ import CatatModal from "@/components/catatan/CatatModal";
 import { EmptyState } from "@/components/ui/Empty";
 import { catatanKesehatan, rekamMedis, ApiError } from "@/lib/api";
 import { tanggal } from "@/lib/format";
+import { LABEL_SUMBER } from "@/lib/labels";
 import type { CatatanKesehatan, RekamMedis as RekamMedisType } from "@/types";
 
 const INDIKATOR = [
@@ -254,7 +255,7 @@ export default function RekamMedisPage() {
         {detail ? (
           <>
             <p className="tiny">
-              {tanggal(detail.dicatat_pada, "day")} · {detail.sumber}
+              {tanggal(detail.dicatat_pada, "day")} · {LABEL_SUMBER[detail.sumber] || detail.sumber}
             </p>
             <dl className="dl mt-12">
               {detail.bb_kg !== null && <Baris label="Berat badan" nilai={`${detail.bb_kg} kg`} />}
