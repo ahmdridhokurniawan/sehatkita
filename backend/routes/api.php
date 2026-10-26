@@ -19,50 +19,49 @@ use App\Http\Controllers\WilayahController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
-
-    // ===== 1. PUBLIK =====
-    // /landing-page, /auth/password, /wilayah/{id} dihapus/disesuaikan kontrak
+    // PUBLIC
     Route::post('/auth/register', [AuthController::class, 'register']);
-    Route::post('/auth/login', [AuthController::class, 'login'])->name('login');
+    // rate‑limit login – 5 req / menit → 429
+    Route::post('/auth/login', [AuthController::class, 'login'])
+         ->middleware('throttle:5,1')
+         ->name('login');
+
     Route::get('/wilayah', [WilayahController::class, 'index']);
 
-    // ===== 2. TERPROTEKSI (Bearer token) =====
+    // PROTECTED (sanctum)
     Route::middleware('auth:sanctum')->group(function () {
-
-        // --- Auth & akun ---
+        // Auth
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
-
-        // --- Persetujuan ---
         Route::post('/persetujuan', [AuthController::class, 'consent']);
         Route::delete('/persetujuan', [AuthController::class, 'revokeConsent']);
 
-        // --- Profil ---
+        // Profil
         Route::get('/profil', [ProfilController::class, 'show']);
         Route::put('/profil', [ProfilController::class, 'update']);
 
-        // --- Faskes ---
+        // Faskes
         Route::get('/faskes', [FaskesController::class, 'index']);
 
-        // --- Catatan kesehatan ---
+        // Catatan kesehatan
         Route::get('/catatan-kesehatan', [CatatanKesehatanController::class, 'index']);
         Route::post('/catatan-kesehatan', [CatatanKesehatanController::class, 'store']);
         Route::get('/catatan-kesehatan/{catatan_kesehatan}', [CatatanKesehatanController::class, 'show']);
         Route::delete('/catatan-kesehatan/{catatan_kesehatan}', [CatatanKesehatanController::class, 'destroy']);
 
-        // --- Insight & notifikasi (support level=) ---
+        // Insight & notifikasi
         Route::get('/insight', [InsightController::class, 'index']);
         Route::get('/notifications', [NotificationController::class, 'index']);
 
-        // --- Rekam Medis (Kontrak 24: /tren dihapus, diganti /rekam-medis) ---
+        // Rekam Medis
         Route::get('/rekam-medis', [RekamMedisController::class, 'index']);
 
-        // --- Rujukan ---
+        // Rujukan
         Route::post('/rujukan', [RujukanController::class, 'store']);
         Route::get('/rujukan', [RujukanController::class, 'index']);
         Route::patch('/rujukan/{id}/status', [RujukanController::class, 'updateStatus']);
 
-        // --- Posbindu ---
+        // Posbindu
         Route::get('/posbindu/sesi', [PosbinduController::class, 'indexSesi']);
         Route::post('/posbindu/sesi', [PosbinduController::class, 'storeSesi']);
         Route::get('/posbindu/sesi/{id}', [PosbinduController::class, 'showSesi']);
@@ -70,23 +69,23 @@ Route::prefix('v1')->group(function () {
         Route::post('/posbindu/sesi/{id}/peserta', [PosbinduController::class, 'storePeserta']);
         Route::get('/posbindu/kunjungan', [PosbinduController::class, 'indexKunjungan']);
 
-        // --- Program ---
+        // Program
         Route::get('/program', [ProgramController::class, 'index']);
         Route::post('/program', [ProgramController::class, 'store']);
         Route::post('/program/{id}/peserta', [ProgramController::class, 'ikut']);
         Route::patch('/program/{id}/peserta', [ProgramController::class, 'ubahStatusPeserta']);
 
-        // --- Target & Refleksi ---
+        // Target & refleksi
         Route::put('/target', [TargetRefleksiController::class, 'simpanTarget']);
         Route::post('/refleksi', [TargetRefleksiController::class, 'simpanRefleksi']);
 
-        // --- Dashboard & laporan ---
+        // Dashboard & laporan
         Route::get('/dashboard/pribadi', [DashboardController::class, 'pribadi']);
         Route::get('/dashboard/kelurahan', [DashboardWilayahController::class, 'dashboardKelurahan']);
         Route::get('/laporan/pribadi', [DashboardWilayahController::class, 'laporanPribadi']);
         Route::get('/laporan/kelurahan', [DashboardWilayahController::class, 'laporanKelurahan']);
 
-        // ===== 3. ADMIN MASTER =====
+        // ADMIN MASTER
         Route::prefix('admin')->group(function () {
             Route::get('/statistik', [AdminStatistikController::class, 'index']);
 

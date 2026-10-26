@@ -11,27 +11,36 @@ return new class extends Migration
         Schema::create('catatan_kesehatan', function (Blueprint $table) {
             $table->id();
 
-            // milik siapa data ini
-            $table->foreignId('user_id')->constrained('pengguna')->cascadeOnDelete();
+            // pemilik data
+            $table->foreignId('user_id')
+                  ->constrained('pengguna')
+                  ->cascadeOnDelete();
 
-            // siapa yang menginput (NULL kalau user input sendiri)
-            $table->foreignId('dicatat_oleh')->nullable()->constrained('pengguna')->nullOnDelete();
+            // siapa yang meng-input (NULL bila user input sendiri)
+            $table->foreignId('dicatat_oleh')
+                  ->nullable()
+                  ->constrained('pengguna')
+                  ->nullOnDelete();
 
-            $table->date('dicatat_pada');                       // tanggal pemeriksaan
+            $table->date('dicatat_pada');
 
-            // sumber data: mandiri / kader (Posbindu) / puskesmas
-            $table->enum('sumber', ['mandiri', 'kader', 'puskesmas'])->default('mandiri');
+            // sumber data
+            $table->enum('sumber', ['mandiri', 'kader', 'puskesmas'])
+                  ->default('mandiri');
 
-            // kalau diambil saat Posbindu, tunjuk sesinya
-            $table->foreignId('sesi_posbindu_id')->nullable()->constrained('sesi_posbindu')->nullOnDelete();
+            // sesi Posbindu (opsional)
+            $table->foreignId('sesi_posbindu_id')
+                  ->nullable()
+                  ->constrained('sesi_posbindu')
+                  ->nullOnDelete();
 
-            // ── ANTROPOMETRI (ukuran tubuh) ──
-            $table->decimal('bb_kg', 5, 2)->nullable();         // berat badan (kg)
-            $table->decimal('lingkar_perut', 5, 2)->nullable(); // lingkar perut (cm)
+            // ── ANTROPOMETRI ──
+            $table->decimal('bb_kg', 5, 2)->nullable();
+            $table->decimal('lingkar_perut', 5, 2)->nullable();
 
             // ── TEKANAN DARAH ──
-            $table->unsignedSmallInteger('sistol')->nullable(); // angka atas
-            $table->unsignedSmallInteger('diastol')->nullable();// angka bawah
+            $table->unsignedSmallInteger('sistol')->nullable();
+            $table->unsignedSmallInteger('diastol')->nullable();
 
             // ── BIOKIMIA ──
             $table->unsignedSmallInteger('gula_darah')->nullable();
@@ -46,14 +55,14 @@ return new class extends Migration
 
             $table->text('catatan')->nullable();
 
-            // true = nilai di luar rentang wajar, dikeluarkan dari agregat
+            // flag verifikasi (true = nilai di luar rentang wajar)
             $table->boolean('perlu_verifikasi')->default(false);
 
             $table->timestamps();
 
-            // ── 3 index untuk 3 query tersering ──
-            $table->index(['user_id', 'dicatat_pada']);  // tren pribadi
-            $table->index(['dicatat_pada', 'sumber']);   // rekap wilayah
+            // index untuk query yang paling sering
+            $table->index(['user_id', 'dicatat_pada']);   // tren pribadi
+            $table->index(['dicatat_pada', 'sumber']);    // rekap wilayah
             $table->index('perlu_verifikasi');           // agregat
         });
     }
