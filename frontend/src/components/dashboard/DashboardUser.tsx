@@ -20,13 +20,14 @@ const LABEL_STATUS: Record<string, string> = {
 };
 
 function toneKategori(kategori = ""): "safe" | "warning" | "danger" {
-  if (/berat|diabetes|obesitas|tinggi|berisiko|hipertensi derajat 2/i.test(kategori)) return "danger";
+  if (/krisis|berat|diabetes|obesitas|tinggi|berisiko|hipertensi derajat 2/i.test(kategori)) return "danger";
   if (/hipertensi|prediabetes|batas|gemuk|prehipertensi|derajat 1/i.test(kategori)) return "warning";
   return "safe";
 }
 
 export default function DashboardUser({ user }: { user: User }) {
   const [catatTerbuka, setCatatTerbuka] = useState(false);
+  const [jadwalSemua, setJadwalSemua] = useState(false);
   const [data, setData] = useState<DashboardPribadi | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -193,14 +194,23 @@ export default function DashboardUser({ user }: { user: User }) {
         </section>
       )}
 
-      {/* Jadwal skrining */}
+      {/* Jadwal skrining — ringkas: hanya yang terdekat */}
       {jadwal_skrining_berikutnya && jadwal_skrining_berikutnya.length > 0 && (
         <section>
           <div className="app-section-title">
-            <h2>Jadwal Skrining Berikutnya</h2>
+            <h2>Jadwal Skrining</h2>
+            {jadwal_skrining_berikutnya.length > 1 ? (
+              <button
+                type="button"
+                className="link-btn"
+                onClick={() => setJadwalSemua((v) => !v)}
+              >
+                {jadwalSemua ? "Ringkas" : `${jadwal_skrining_berikutnya.length} jadwal`}
+              </button>
+            ) : null}
           </div>
           <div className="card mt-12">
-            {jadwal_skrining_berikutnya.map((sched) => (
+            {(jadwalSemua ? jadwal_skrining_berikutnya : jadwal_skrining_berikutnya.slice(0, 1)).map((sched) => (
               <div className="li" key={sched.indikator}>
                 <span className="li-ico">
                   <Icon name="calendar" size={18} />
@@ -214,6 +224,11 @@ export default function DashboardUser({ user }: { user: User }) {
                 </Badge>
               </div>
             ))}
+            {!jadwalSemua && jadwal_skrining_berikutnya.length > 1 ? (
+              <p className="tiny mt-8">
+                +{jadwal_skrining_berikutnya.length - 1} jadwal lain
+              </p>
+            ) : null}
           </div>
         </section>
       )}
@@ -243,9 +258,9 @@ export default function DashboardUser({ user }: { user: User }) {
           </div>
         </section>
       ) : (
-        <div className="card mt-12">
-          <EmptyState title="Tidak ada rujukan aktif" desc="Rujukan akan muncul di sini bila diperlukan tindak lanjut." />
-        </div>
+        <p className="tiny mt-4 mb-16">
+          <Icon name="shield-check" size={13} /> Tidak ada rujukan aktif saat ini.
+        </p>
       )}
 
       <p className="tiny center mt-8 mb-16">

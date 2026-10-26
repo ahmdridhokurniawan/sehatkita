@@ -25,10 +25,7 @@ const NAV_DATA: NavItem[] = [
   { href: "/rujukan", icon: "send", label: "Rujukan" },
 ];
 
-const NAV_AKUN: NavItem[] = [
-  { href: "/profil", icon: "user", label: "Profil" },
-  { href: "/setelan", icon: "settings", label: "Pengaturan" },
-];
+const NAV_AKUN: NavItem[] = [{ href: "/profil", icon: "user", label: "Profil" }];
 
 const NAV_ADMIN: NavItem[] = [{ href: "/admin", icon: "shield", label: "Admin" }];
 
@@ -114,9 +111,6 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
   const aktif = (href: string) =>
     pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/"));
 
-  const judulHalaman =
-    grup.flatMap((g) => g.items).find((i) => aktif(i.href))?.label || "SehatKita";
-
   if (loading || !user || roleTidakCocok) {
     return (
       <main className="center" style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
@@ -141,7 +135,7 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
         <nav className="sidebar-nav">
           {grup.map((g) => (
             <div className="nav-group" key={g.judul}>
-              <div className="nav-group-title">{g.judul}</div>
+              {g.items.length > 1 ? <div className="nav-group-title">{g.judul}</div> : null}
               {g.items.map((n) => (
                 <Link key={n.href} href={n.href} className={`snav ${aktif(n.href) ? "active" : ""}`}>
                   <Icon name={n.icon} size={19} />
@@ -205,8 +199,9 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
           </div>
 
           <div className="acts">
-            <span className="crumb-halaman">{judulHalaman}</span>
-            <span className={`badge badge-primary role-badge role-${role}`}>{role.replace("_", " ")}</span>
+            {role === "user" ? null : (
+              <span className={`badge badge-primary role-badge role-${role}`}>{role.replace("_", " ")}</span>
+            )}
             <ThemeToggle />
             <button
               type="button"
