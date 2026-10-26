@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Button from "@/components/ui/Button";
@@ -13,8 +14,8 @@ import { JENIS_KELAMIN, TINGKAT_AKTIVITAS } from "@/lib/enums";
 import type { JenisKelamin, TingkatAktivitas } from "@/lib/enums";
 import { RIWAYAT_KELUARGA_OPTIONS } from "@/lib/session";
 import { LABEL_JENIS_KELAMIN, LABEL_TINGKAT_AKTIVITAS } from "@/lib/labels";
-import { profil as profilApi, ApiError } from "@/lib/api";
-import { refreshUser } from "@/hooks/useUser";
+import { profil as profilApi, auth as authApi, clearToken, ApiError } from "@/lib/api";
+import { refreshUser, clearUserCache } from "@/hooks/useUser";
 import type { Profil } from "@/types";
 
 const PROFIL_KOSONG: Profil = {
@@ -392,6 +393,49 @@ export default function ProfilPage() {
           </div>
         </div>
       )}
+
+      <div className="card mt-16" style={{ display: "grid", gap: 0, padding: 0 }}>
+        <Link
+          href="/setelan"
+          className="li"
+          style={{ borderBottom: "1px solid var(--border)" }}
+        >
+          <span className="li-ico">
+            <Icon name="settings" size={18} />
+          </span>
+          <div className="li-main">
+            <strong className="text-sm">Pengaturan</strong>
+            <span className="tiny">Privasi & persetujuan data</span>
+          </div>
+          <span className="li-side">
+            <Icon name="chevron-right" size={18} />
+          </span>
+        </Link>
+        <button
+          type="button"
+          className="li"
+          style={{ border: "none", background: "none", cursor: "pointer", textAlign: "left", width: "100%" }}
+          onClick={async () => {
+            try {
+              await authApi.logout();
+            } catch {
+              /* token sudah mati */
+            } finally {
+              clearToken();
+              clearUserCache();
+              router.replace("/login");
+            }
+          }}
+        >
+          <span className="li-ico">
+            <Icon name="log-out" size={18} />
+          </span>
+          <div className="li-main">
+            <strong className="text-sm">Keluar</strong>
+            <span className="tiny">Akhiri sesi di perangkat ini</span>
+          </div>
+        </button>
+      </div>
     </AppShell>
   );
 }

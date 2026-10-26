@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
 import ThemeToggle from "@/components/ui/ThemeToggle";
-import { useUser } from "@/hooks/useUser";
+import { useUser, clearUserCache } from "@/hooks/useUser";
+import { auth as authApi, clearToken } from "@/lib/api";
 import { inisial } from "@/lib/format";
 
 const NAV = [
@@ -40,6 +41,20 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading } = useUser();
+  const [keluar, setKeluar] = useState(false);
+
+  async function handleLogout() {
+    setKeluar(true);
+    try {
+      await authApi.logout();
+    } catch {
+      // token mungkin sudah mati — tetap bersihkan lokal
+    } finally {
+      clearToken();
+      clearUserCache();
+      router.replace("/login");
+    }
+  }
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
@@ -85,6 +100,16 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
         </div>
         <div className="acts">
           <ThemeToggle />
+          <button
+            type="button"
+            className="btn btn-icon btn-sm btn-ghost"
+            aria-label="Keluar"
+            title="Keluar"
+            onClick={handleLogout}
+            disabled={keluar}
+          >
+            <Icon name="log-out" size={17} />
+          </button>
         </div>
       </header>
 
