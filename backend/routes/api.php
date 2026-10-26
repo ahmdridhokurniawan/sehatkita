@@ -52,6 +52,9 @@ Route::prefix('v1')->group(function () {
 
         // --- Insight (§8.3) ---
         Route::get('/insight', [InsightController::class, 'index']);
+        // Ambang kategori (read-only untuk semua user) — dipakai halaman Insight
+        // untuk menjelaskan kapan aman / siaga / bahaya. Dirujuk §8.3.
+        Route::get('/insight/ambang', [InsightController::class, 'ambang']);
 
         // --- Rekam Medis / Tren (§8.2) — path resmi tetap `/tren` (§20) ---
         Route::get('/tren', [RekamMedisController::class, 'index']);

@@ -534,3 +534,38 @@ export interface AdminStatistik {
   new_catatan_7d: number;
   total_audit_logs_7d: number;
 }
+
+/* ============================================================
+ * §12.5 Peringkat gamifikasi kelurahan
+ * ============================================================ */
+export interface PeringkatBaris {
+  rank: number;
+  nama: string;
+  exp_total: number;
+  level_gamifikasi: number;
+}
+
+export interface Peringkat {
+  wilayah: { id: number; nama: string };
+  peserta_peringkat: number;
+  daftar: PeringkatBaris[];
+  saya: { rank: number | null; exp_total: number } | null;
+}
+
+/* ============================================================
+ * §8.3 tabel ambang_kategori — dipakai halaman Insight
+ * untuk menjelaskan kapan aman / siaga / bahaya.
+ * ============================================================ */
+export interface AmbangBaris {
+  kode: string;
+  nama: string;
+  satuan: string | null;
+  kategori: string;
+  /** normal | perlu_perhatian | berisiko */
+  status: string;
+  batas_min: number | null;
+  batas_max: number | null;
+  skor: number;
+  memicu_rujukan: boolean;
+  jenis_gula_darah: string | null;
+}

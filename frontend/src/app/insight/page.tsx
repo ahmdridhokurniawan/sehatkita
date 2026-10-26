@@ -8,7 +8,8 @@ import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
 import { insight as insightApi, ApiError } from "@/lib/api";
 import { tanggal } from "@/lib/format";
 import { LABEL_INSIGHT } from "@/lib/labels";
-import type { Insight } from "@/types";
+import PanelAmbang from "@/components/insight/PanelAmbang";
+import type { AmbangBaris, Insight } from "@/types";
 import type { LevelInsight } from "@/lib/enums";
 
 /* ------------------------------------------------------------------
@@ -34,16 +35,19 @@ const URUTAN = ["bahaya", "peringatan", "info"];
 export default function InsightPage() {
   const [filter, setFilter] = useState("semua");
   const [semua, setSemua] = useState<Insight[]>([]);
+  const [ambang, setAmbang] = useState<AmbangBaris[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const muat = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await insightApi.list(
-        filter === "semua" ? undefined : { level: filter as LevelInsight },
-      );
+      const [res, am] = await Promise.all([
+        insightApi.list(filter === "semua" ? undefined : { level: filter as LevelInsight }),
+        insightApi.ambang().catch(() => [] as AmbangBaris[]),
+      ]);
       setSemua(res ?? []);
+      setAmbang(am ?? []);
       setError("");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Gagal memuat insight");
@@ -124,6 +128,8 @@ export default function InsightPage() {
           )}
         </div>
       )}
+
+      <PanelAmbang data={ambang} />
 
       <p className="tiny center mt-16 mb-16">
         <Icon name="shield" size={13} /> Insight berbasis aturan (bukan ML) dan bukan diagnosis medis.

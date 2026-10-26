@@ -18,6 +18,7 @@ import type {
   AdminPengguna,
   AdminPenggunaInput,
   AdminStatistik,
+  AmbangBaris,
   AmbangKategori,
   ApiResponse,
   AuthData,
@@ -38,6 +39,7 @@ import type {
   LogAudit,
   PersetujuanData,
   PesertaProgramInput,
+  Peringkat,
   Profil,
   Program,
   ProgramInput,
@@ -332,6 +334,8 @@ export const tren = {
 export const insight = {
   /** §8.3 GET /insight (+ §29 filter `level`) */
   list: (query?: InsightQuery) => request<Insight[]>("/insight", { query }),
+  /** §8.3 tabel ambang_kategori (read-only) — penjelasan aman/siaga/bahaya */
+  ambang: () => request<AmbangBaris[]>("/insight/ambang"),
 };
 /* ============================================================
  * §10 — Posbindu
@@ -391,6 +395,8 @@ export const program = {
   /** §12.4 PATCH peserta (ubah status keikutsertaan) */
   ubahPeserta: (id: number, payload: PesertaProgramInput) =>
     request<{ status: string }>(`/program/${id}/peserta`, { method: "PATCH", body: payload }),
+  /** §12.5 GET /peringkat — peringkat EXP satu kelurahan */
+  peringkat: (query?: { wilayah_id?: number }) => request<Peringkat>("/peringkat", { query }),
 };
 /* ============================================================
  * §13 — Target & Refleksi

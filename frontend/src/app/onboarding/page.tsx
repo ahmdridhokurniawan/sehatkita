@@ -136,6 +136,7 @@ export default function OnboardingPage() {
             label="Tanggal Lahir"
             name="tgl_lahir"
             type="date"
+            max={new Date().toISOString().slice(0, 10)}
             value={tglLahir}
             onChange={(e) => setTglLahir(e.target.value)}
             error={errors.tglLahir}

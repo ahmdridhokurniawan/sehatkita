@@ -251,6 +251,7 @@ export default function ProfilPage() {
               <Input
                 label="Tanggal Lahir"
                 type="date"
+                max={new Date().toISOString().slice(0, 10)}
                 required
                 value={form.tgl_lahir}
                 error={errors.tgl_lahir}
