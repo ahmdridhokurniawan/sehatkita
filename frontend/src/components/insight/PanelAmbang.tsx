@@ -40,7 +40,8 @@ function rentang(b: AmbangBaris) {
   if (min === null && max !== null) return `< ${angka(max)}`;
   if (min !== null && max === null) return `≥ ${angka(min)}`;
   if (min === null && max === null) return "—";
-  return `${angka(min!)} – ${angka(max!)}`;
+  // Batas atas eksklusif: 18,5 masuk ke rentang berikutnya, bukan dua-duanya.
+  return `${angka(min!)} – <${angka(max!)}`;
 }
 
 export default function PanelAmbang({ data }: { data: AmbangBaris[] }) {
@@ -69,26 +70,24 @@ export default function PanelAmbang({ data }: { data: AmbangBaris[] }) {
     <div className="card card-flat mt-16">
       <button
         type="button"
-        className="row-between w-full"
         onClick={() => setBuka((v) => !v)}
         aria-expanded={buka}
-        style={{ background: "none", border: 0, padding: 0, cursor: "pointer", textAlign: "left" }}
+        className="pa-head"
       >
-        <div className="row items-center gap-10">
-          <span className="li-ico">
-            <Icon name="info" size={19} />
-          </span>
-          <div>
-            <strong className="text-sm">Kapan saya dinyatakan aman, siaga, atau bahaya?</strong>
-            <p className="tiny">Berdasarkan tabel ambang resmi aplikasi.</p>
-          </div>
-        </div>
-        <span className="tiny">
-          <Icon name={buka ? "chevron-up" : "chevron-down"} size={18} />
+        <span className="pa-ico">
+          <Icon name="info" size={19} />
+        </span>
+        <span className="pa-txt">
+          <strong>Kapan saya dinyatakan aman, siaga, atau bahaya?</strong>
+          <span className="tiny">Berdasarkan tabel ambang resmi aplikasi.</span>
+        </span>
+        <span className={`pa-chev${buka ? " buka" : ""}`} aria-hidden="true">
+          <Icon name="chevron-down" size={18} />
         </span>
       </button>
 
-      {buka ? (
+      <div className={`pa-body${buka ? " buka" : ""}`}>
+        <div className="pa-body-in">
         <div className="mt-16">
           <p className="tiny mb-12">
             Setiap indikator dibagi menjadi beberapa rentang. Rentang yang Anda masuki
@@ -147,7 +146,8 @@ export default function PanelAmbang({ data }: { data: AmbangBaris[] }) {
             Indikator. Angka bisa berubah bila kebijakan kesehatan diperbarui.
           </p>
         </div>
-      ) : null}
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,0 +1,369 @@
+/* ==================================================================
+   insight.css — halaman /insight
+   Animasi murni CSS: hanya `transform` + `opacity` (compositor-friendly,
+   tidak memicu reflow) + satu keyframe kecil untuk bar progres.
+   Tanpa library, tanpa JS animasi, tanpa gambar tambahan.
+   Semua animasi dimatikan otomatis oleh `prefers-reduced-motion`.
+   ================================================================== */
+
+/* ---------- Kepala ---------- */
+.ins-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.ins-head h1 { margin-bottom: 2px; }
+
+/* ---------- Kartu ringkasan ---------- */
+.ins-summary {
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.ins-sum-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas:
+    "ico num"
+    "label label"
+    "sub sub";
+  align-items: center;
+  gap: 2px 10px;
+  width: 100%;
+  padding: 14px 16px 15px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+  transition:
+    transform .18s var(--ease),
+    box-shadow .18s var(--ease),
+    border-color .18s var(--ease);
+
+  /* masuk berurutan */
+  opacity: 0;
+  animation: ins-rise .42s var(--ease) forwards;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+.ins-sum-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.ins-sum-card:active { transform: scale(.985); }
+.ins-sum-card:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.ins-sum-card.aktif {
+  border-color: currentColor;
+  box-shadow: 0 0 0 1px currentColor inset, var(--shadow-sm);
+}
+
+.ins-sum-ico {
+  grid-area: ico;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: currentColor;
+  transition: transform .25s var(--ease), background .25s var(--ease);
+}
+.ins-sum-card:hover .ins-sum-ico { transform: scale(1.08) rotate(-4deg); }
+.ins-sum-card.aktif .ins-sum-ico { background: currentColor; }
+.ins-sum-card.aktif .ins-sum-ico svg { color: var(--surface); }
+
+.ins-sum-num {
+  grid-area: num;
+  justify-self: end;
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -.03em;
+  color: currentColor;
+  font-variant-numeric: tabular-nums;
+}
+
+.ins-sum-label {
+  grid-area: label;
+  margin-top: 8px;
+  font-size: .8125rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.ins-sum-sub {
+  grid-area: sub;
+  font-size: .6875rem;
+  color: var(--text-2);
+  line-height: 1.35;
+}
+
+/* Garis aksen bawah — dianimasikan sekali saat kartu masuk */
+.ins-sum-bar {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 3px;
+  background: currentColor;
+  opacity: .85;
+  transform-origin: left center;
+  transform: scaleX(0);
+  animation: ins-bar .55s var(--ease) forwards;
+  animation-delay: calc(var(--i, 0) * 60ms + 220ms);
+}
+.ins-sum-card.tone-danger  { color: var(--danger); }
+.ins-sum-card.tone-warning { color: var(--warning); }
+.ins-sum-card.tone-primary { color: var(--primary); }
+
+/* kilau lembut saat kartu dipilih dari klik */
+.ins-sum-card.sorot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 30%, currentColor 50%, transparent 70%);
+  opacity: .12;
+  transform: translateX(-100%);
+  animation: ins-sheen .7s var(--ease);
+  pointer-events: none;
+}
+
+/* ---------- Daftar kartu ---------- */
+.ins-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.ins-card {
+  position: relative;
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+  transition:
+    transform .18s var(--ease),
+    box-shadow .18s var(--ease),
+    border-color .18s var(--ease);
+
+  opacity: 0;
+  animation: ins-rise .4s var(--ease) forwards;
+  animation-delay: calc(var(--i, 0) * 45ms + 80ms);
+}
+.ins-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+
+/* rel menggantikan borderLeft inline — bisa dianimasikan tinggi */
+.ins-card-rail {
+  flex: 0 0 4px;
+  background: currentColor;
+  transform-origin: top center;
+  transform: scaleY(0);
+  animation: ins-rail .45s var(--ease) forwards;
+  animation-delay: calc(var(--i, 0) * 45ms + 150ms);
+}
+.ins-card.tone-danger  { color: var(--danger); }
+.ins-card.tone-warning { color: var(--warning); }
+.ins-card.tone-primary { color: var(--primary); }
+
+.ins-card-body { flex: 1; min-width: 0; padding: 13px 15px; }
+
+.ins-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.ins-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  color: currentColor;
+  transition: transform .2s var(--ease);
+}
+.ins-card:hover .ins-ico { transform: scale(1.1); }
+
+.ins-card-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ins-card-title strong {
+  font-size: .84375rem;
+  line-height: 1.3;
+  color: var(--text);
+}
+.ins-meta {
+  font-size: .6875rem;
+  color: var(--text-2);
+  text-transform: capitalize;
+}
+
+/* huruf kode di kanan — pemanis, bukan informasi baru */
+.ins-badge {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  color: currentColor;
+  font-size: .625rem;
+  font-weight: 800;
+  letter-spacing: .04em;
+  opacity: .55;
+}
+
+.ins-teks {
+  margin: 9px 0 0;
+  font-size: .8125rem;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+/* ---------- Kerangka muat (skeleton) ---------- */
+.ins-skeleton-wrap { display: grid; gap: 10px; }
+
+.ins-skeleton {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 14px 15px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  opacity: 0;
+  animation: ins-fade .3s var(--ease) forwards;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+.sk-ico {
+  width: 32px; height: 32px; border-radius: 9px; flex: 0 0 auto;
+  background: var(--surface-3);
+  animation: ins-pulse 1.3s ease-in-out infinite;
+}
+.sk-line {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--surface-3);
+  animation: ins-pulse 1.3s ease-in-out infinite;
+}
+.sk-line.w-40 { width: 40%; }
+.sk-line.w-90 { width: 100%; }
+.sk-line.w-60 { width: 60%; }
+
+/* jangkar untuk gulir halus */
+.ins-anchor { scroll-margin-top: 78px; }
+
+/* ---------- Keyframes ---------- */
+@keyframes ins-rise {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes ins-fade { to { opacity: 1; } }
+@keyframes ins-bar { to { transform: scaleX(1); } }
+@keyframes ins-rail { to { transform: scaleY(1); } }
+@keyframes ins-sheen {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+@keyframes ins-pulse {
+  0%, 100% { opacity: .55; }
+  50%      { opacity: 1; }
+}
+
+/* ---------- Panel ambang (accordion) ---------- */
+.pa-head {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  background: none; border: 0; padding: 0; margin: 0;
+  cursor: pointer; text-align: left; color: inherit;
+  border-radius: 12px; -webkit-tap-highlight-color: transparent;
+}
+.pa-head:focus-visible { outline: 2px solid var(--prime); outline-offset: 4px; }
+.pa-ico {
+  width: 38px; height: 38px; border-radius: 11px; flex: none;
+  display: grid; place-items: center;
+  background: color-mix(in srgb, var(--prime) 12%, transparent);
+  color: var(--prime);
+  transition: transform 0.22s var(--ease);
+}
+.pa-head:hover .pa-ico { transform: scale(1.06); }
+.pa-txt { display: grid; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.pa-txt strong { font-size: 0.875rem; line-height: 1.35; }
+.pa-chev {
+  flex: none; display: grid; place-items: center; color: var(--text-3);
+  transition: transform 0.25s var(--ease), color 0.2s var(--ease);
+}
+.pa-chev.buka { transform: rotate(180deg); color: var(--prime); }
+/* Buka/tutup pakai grid-rows 0fr→1fr: transisi halus tanpa ukur tinggi JS
+   dan tanpa memicu reflow berulang (hanya satu transisi di awal). */
+.pa-body {
+  display: grid; grid-template-rows: 0fr;
+  overflow: hidden;
+  transition: grid-template-rows 0.32s var(--ease), opacity 0.28s var(--ease);
+  opacity: 0;
+}
+.pa-body.buka { grid-template-rows: 1fr; opacity: 1; }
+.pa-body-in { min-height: 0; }
+
+/* ---------- Responsif ---------- */
+@media (max-width: 720px) {
+  .ins-summary { grid-template-columns: repeat(3, 1fr) !important; gap: 8px; }
+  .ins-sum-card {
+    padding: 11px 12px 13px;
+    grid-template-areas: "ico num" "label label" "sub sub";
+    gap: 2px 6px;
+  }
+  .ins-sum-ico { width: 28px; height: 28px; border-radius: 8px; }
+  .ins-sum-num { font-size: 1.375rem; }
+  .ins-sum-sub { display: none; }
+  .ins-sum-label { margin-top: 6px; font-size: .75rem; }
+
+  .ins-card-body { padding: 12px; }
+  .ins-teks { font-size: .78125rem; }
+}
+
+@media (max-width: 400px) {
+  .ins-sum-icon-only,
+  .ins-sum-card { padding: 10px 10px 12px; }
+  .ins-sum-num { font-size: 1.25rem; }
+  .ins-badge { display: none; }
+}
+
+/* ---------- Hormati preferensi sistem ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .ins-sum-card,
+  .ins-card,
+  .ins-skeleton,
+  .ins-sum-bar,
+  .ins-card-rail {
+    opacity: 1;
+    transform: none;
+    animation: none !important;
+  }
+  .ins-sum-card.sorot::after { display: none; }
+  .ins-sum-card:hover,
+  .ins-card:hover { transform: none; }
+}
