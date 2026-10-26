@@ -18,6 +18,7 @@ const AKSI_BADGE: Record<string, string> = {
 export default function AdminLogAuditPage() {
   const [daftar, setDaftar] = useState<any[]>([]);
   const [filter, setFilter] = useState<string>("semua");
+  const [cari, setCari] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
 
@@ -40,9 +41,23 @@ export default function AdminLogAuditPage() {
   }, []);
 
   const filtered = useMemo(() => {
-    if (filter === "semua") return daftar;
-    return daftar.filter((log: any) => log.aksi === filter);
-  }, [filter, daftar]);
+    const q = cari.trim().toLowerCase();
+    return daftar.filter((log: any) => {
+      if (filter !== "semua" && log.aksi !== filter) return false;
+      if (!q) return true;
+      const teks = [
+        log.model,
+        log.aksi,
+        log.pengguna?.name,
+        log.pengguna?.email,
+        log.model_id != null ? String(log.model_id) : "",
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return teks.includes(q);
+    });
+  }, [filter, daftar, cari]);
 
   const hitungAksi = (aksi: string) => daftar.filter((l: any) => l.aksi === aksi).length;
 
@@ -116,6 +131,17 @@ export default function AdminLogAuditPage() {
             >
               Delete
             </button>
+          </div>
+
+          <div className="input-icon mb-12">
+            <Icon name="search" size={18} />
+            <input
+              className="input"
+              type="search"
+              placeholder="Cari log (model, aksi, pengguna)…"
+              value={cari}
+              onChange={(e) => setCari(e.target.value)}
+            />
           </div>
 
           <div className="mt-12" style={{ display: "grid", gap: 12 }}>

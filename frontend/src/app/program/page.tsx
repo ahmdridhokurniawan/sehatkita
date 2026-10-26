@@ -61,6 +61,7 @@ export default function ProgramPage() {
   const bolehIkut = role === "user";
 
   const [program, setProgram] = useState<Program[]>([]);
+  const [cari, setCari] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [detail, setDetail] = useState<Program | null>(null);
@@ -158,6 +159,13 @@ export default function ProgramPage() {
     return { berjalan, diikuti, peserta };
   }, [program]);
 
+  // Pencarian judul program (permintaan pembimbing: cari di setiap fitur)
+  const tersaring = useMemo(() => {
+    const q = cari.trim().toLowerCase();
+    if (!q) return program;
+    return program.filter((p) => p.judul.toLowerCase().includes(q));
+  }, [program, cari]);
+
   if (loadingUser) {
     return (
       <AppShell noFab>
@@ -195,6 +203,17 @@ export default function ProgramPage() {
 
       {aksiErr ? <div className="err-msg show mb-12">{aksiErr}</div> : null}
 
+      <div className="input-icon mb-12">
+        <Icon name="search" size={18} />
+        <input
+          className="input"
+          type="search"
+          placeholder="Cari program…"
+          value={cari}
+          onChange={(e) => setCari(e.target.value)}
+        />
+      </div>
+
       {loading ? <Loading /> : null}
       {!loading && error ? <ErrorState message={error} onRetry={muat} /> : null}
 
@@ -209,9 +228,13 @@ export default function ProgramPage() {
         />
       ) : null}
 
-      {!loading && !error && program.length > 0 ? (
+      {!loading && !error && program.length > 0 && tersaring.length === 0 ? (
+        <EmptyState title="Program tidak ditemukan" desc={`Tidak ada program yang cocok dengan “${cari}”.`} />
+      ) : null}
+
+      {!loading && !error && tersaring.length > 0 ? (
         <div style={{ display: "grid", gap: 12 }}>
-          {program.map((p) => {
+          {tersaring.map((p) => {
             const st = hitungStatus(p.mulai, p.selesai);
             const persen = p.target_peserta
               ? Math.min(100, Math.round((p.jumlah_peserta / p.target_peserta) * 100))

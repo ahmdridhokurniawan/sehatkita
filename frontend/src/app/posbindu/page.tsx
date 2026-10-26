@@ -37,6 +37,7 @@ export default function PosbinduPage() {
   const bolehBuatSesi = ROLE_BUAT_SESI.includes(user?.role || "");
 
   const [sesi, setSesi] = useState<SesiPosbindu[]>([]);
+  const [cari, setCari] = useState("");
   const [kunjungan, setKunjungan] = useState<KunjunganPosbindu[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -193,6 +194,28 @@ export default function PosbinduPage() {
     );
   }
 
+  const sesiTersaring = (() => {
+    const q = cari.trim().toLowerCase();
+    if (!q) return sesi;
+    return sesi.filter(
+      (s) =>
+        (s.lokasi ?? "").toLowerCase().includes(q) ||
+        tanggal(s.tanggal).toLowerCase().includes(q) ||
+        s.tanggal.toLowerCase().includes(q),
+    );
+  })();
+
+  const kunjunganTersaring = (() => {
+    const q = cari.trim().toLowerCase();
+    if (!q) return kunjungan;
+    return kunjungan.filter(
+      (k) =>
+        (k.lokasi ?? "").toLowerCase().includes(q) ||
+        tanggal(k.tanggal).toLowerCase().includes(q) ||
+        k.tanggal.toLowerCase().includes(q),
+    );
+  })();
+
   return (
     <AppShell noFab>
       <div className="row-between mb-16" style={{ gap: 12, flexWrap: "wrap" }}>
@@ -210,6 +233,19 @@ export default function PosbinduPage() {
       {loading ? <Loading /> : null}
       {!loading && error ? <ErrorState message={error} onRetry={muat} /> : null}
 
+      {!loading && !error ? (
+        <div className="input-icon mb-12">
+          <Icon name="search" size={18} />
+          <input
+            className="input"
+            type="search"
+            placeholder="Cari sesi (tanggal atau lokasi)…"
+            value={cari}
+            onChange={(e) => setCari(e.target.value)}
+          />
+        </div>
+      ) : null}
+
       {!loading && !error && bolehKelola ? (
         sesi.length === 0 ? (
           <EmptyState
@@ -222,7 +258,12 @@ export default function PosbinduPage() {
           />
         ) : (
           <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
-            {sesi.map((s) => {
+            {sesiTersaring.length === 0 ? (
+              <div className="card card-flat">
+                <EmptyState title="Sesi tidak ditemukan" desc={`Tidak ada sesi yang cocok dengan “${cari}”.`} />
+              </div>
+            ) : null}
+            {sesiTersaring.map((s) => {
               const st = statusSesi(s.tanggal);
               return (
                 <div className="card" key={s.id}>
@@ -254,7 +295,12 @@ export default function PosbinduPage() {
           <EmptyState title="Belum ada kunjungan" desc="Riwayat kunjungan Posbindu Anda akan tampil di sini." />
         ) : (
           <div className="grid mt-12" style={{ gap: 10 }}>
-            {kunjungan.map((k) => (
+            {kunjunganTersaring.length === 0 ? (
+              <div className="card card-flat">
+                <EmptyState title="Kunjungan tidak ditemukan" desc={`Tidak ada yang cocok dengan “${cari}”.`} />
+              </div>
+            ) : null}
+            {kunjunganTersaring.map((k) => (
               <div className="card" key={k.kunjungan_id}>
                 <div className="row-between">
                   <div>

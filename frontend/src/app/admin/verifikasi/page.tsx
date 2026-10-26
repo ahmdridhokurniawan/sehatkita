@@ -29,6 +29,25 @@ export default function AdminVerifikasiPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [proses, setProses] = useState<number | null>(null);
+  const [cari, setCari] = useState("");
+
+  const daftarTersaring = (() => {
+    const q = cari.trim().toLowerCase();
+    if (!q) return daftar;
+    return daftar.filter((b) => {
+      const teks = [
+        b.pengguna?.name,
+        b.pengguna?.email,
+        LABEL_SUMBER[b.sumber] ?? b.sumber,
+        String(b.sistol ?? ""),
+        String(b.diastol ?? ""),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return teks.includes(q);
+    });
+  })();
 
   const muat = useCallback(async () => {
     setLoading(true);
@@ -89,8 +108,24 @@ export default function AdminVerifikasiPage() {
           desc="Semua catatan ber-flag sudah diverifikasi."
         />
       ) : (
+        <>
+        <div className="input-icon mb-12">
+          <Icon name="search" size={18} />
+          <input
+            className="input"
+            type="search"
+            placeholder="Cari catatan (nama, indikator, sumber)…"
+            value={cari}
+            onChange={(e) => setCari(e.target.value)}
+          />
+        </div>
         <div className="card" style={{ padding: 0 }}>
-          {daftar.map((b, idx) => (
+          {daftarTersaring.length === 0 ? (
+            <div style={{ padding: 16 }}>
+              <EmptyState title="Catatan tidak ditemukan" desc={`Tidak ada yang cocok dengan “${cari}”.`} />
+            </div>
+          ) : null}
+          {daftarTersaring.map((b, idx) => (
             <div
               key={b.id}
               className="li"
@@ -140,6 +175,7 @@ export default function AdminVerifikasiPage() {
             </div>
           ))}
         </div>
+        </>
       )}
 
       {meta && meta.last_page > 1 && (

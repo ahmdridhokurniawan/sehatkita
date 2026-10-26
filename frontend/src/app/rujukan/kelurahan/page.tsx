@@ -35,6 +35,7 @@ const URUTAN: StatusRujukan[] = ["baru", "dihubungi", "tertangani", "ditolak"];
 export default function RujukanKelurahanPage() {
   const [daftar, setDaftar] = useState<Rujukan[]>([]);
   const [filterStatus, setFilterStatus] = useState<StatusRujukan | null>(null);
+  const [cari, setCari] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -61,7 +62,18 @@ export default function RujukanKelurahanPage() {
     return hasil;
   }, [daftar]);
 
-  const tampil = filterStatus ? daftar.filter((r) => r.status === filterStatus) : daftar;
+  const tampil = useMemo(() => {
+    const dasar = filterStatus ? daftar.filter((r) => r.status === filterStatus) : daftar;
+    const q = cari.trim().toLowerCase();
+    if (!q) return dasar;
+    return dasar.filter((r) => {
+      const teks = [r.faskes?.nama, r.indikator, r.status, r.catatan, r.alasan]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return teks.includes(q);
+    });
+  }, [daftar, filterStatus, cari]);
 
   return (
     <AppShell greet="Rujukan Kelurahan" roles={["admin_kelurahan", "super_admin"]}>
@@ -111,10 +123,26 @@ export default function RujukanKelurahanPage() {
           ) : null}
         </div>
 
+        <div className="input-icon mt-12">
+          <Icon name="search" size={18} />
+          <input
+            className="input"
+            type="search"
+            placeholder="Cari rujukan (nama, indikator, status)…"
+            value={cari}
+            onChange={(e) => setCari(e.target.value)}
+          />
+        </div>
+
         {loading ? (
           <Loading />
         ) : error ? (
           <ErrorState message={error} onRetry={muat} />
+        ) : tampil.length === 0 && cari ? (
+          <EmptyState
+            title="Rujukan tidak ditemukan"
+            desc={`Tidak ada rujukan yang cocok dengan “${cari}”.`}
+          />
         ) : tampil.length ? (
           <div className="card mt-12">
             {tampil.map((r) => (

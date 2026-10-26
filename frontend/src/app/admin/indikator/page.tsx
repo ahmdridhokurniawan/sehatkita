@@ -12,6 +12,7 @@ export default function AdminIndikatorPage() {
   const [indikator, setIndikator] = useState<any[]>([]);
   const [ambang, setAmbang] = useState<any[]>([]);
   const [tab, setTab] = useState<"indikator" | "ambang">("indikator");
+  const [cari, setCari] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
 
@@ -36,6 +37,25 @@ export default function AdminIndikatorPage() {
       }
     })();
   }, []);
+
+  const q = cari.trim().toLowerCase();
+  const indikatorTersaring = q
+    ? indikator.filter(
+        (i: any) =>
+          String(i.nama ?? "").toLowerCase().includes(q) ||
+          String(i.kode ?? "").toLowerCase().includes(q),
+      )
+    : indikator;
+  const ambangTersaring = q
+    ? ambang.filter((a: any) => {
+        const kode = a.indikator?.kode ?? a.kode ?? "";
+        return (
+          String(kode).toLowerCase().includes(q) ||
+          String(a.kategori ?? "").toLowerCase().includes(q) ||
+          String(a.indikator?.nama ?? a.nama ?? "").toLowerCase().includes(q)
+        );
+      })
+    : ambang;
 
   return (
     <AppShell noFab roles={["super_admin"]}>
@@ -78,14 +98,28 @@ export default function AdminIndikatorPage() {
             </button>
           </div>
 
+          <div className="input-icon mb-12">
+            <Icon name="search" size={18} />
+            <input
+              className="input"
+              type="search"
+              placeholder={tab === "indikator" ? "Cari indikator…" : "Cari ambang (kode/kategori)…"}
+              value={cari}
+              onChange={(e) => setCari(e.target.value)}
+            />
+          </div>
+
           <div className="mt-12" style={{ display: "grid", gap: 12 }}>
             {tab === "indikator" &&
-              (indikator.length === 0 ? (
+              (indikatorTersaring.length === 0 ? (
                 <div className="card card-flat">
-                  <EmptyState title="Tidak ada indikator" desc="Belum ada indikator kesehatan." />
+                  <EmptyState
+                    title={cari ? "Indikator tidak ditemukan" : "Tidak ada indikator"}
+                    desc={cari ? `Tidak ada yang cocok dengan “${cari}”.` : "Belum ada indikator kesehatan."}
+                  />
                 </div>
               ) : (
-                indikator.map((ind: any) => (
+                indikatorTersaring.map((ind: any) => (
                   <div className="card card-flat" key={ind.id}>
                     <div className="row items-start gap-10">
                       <span className="li-ico">
@@ -105,12 +139,15 @@ export default function AdminIndikatorPage() {
               ))}
 
             {tab === "ambang" &&
-              (ambang.length === 0 ? (
+              (ambangTersaring.length === 0 ? (
                 <div className="card card-flat">
-                  <EmptyState title="Tidak ada ambang" desc="Belum ada ambang batas kategori." />
+                  <EmptyState
+                    title={cari ? "Ambang tidak ditemukan" : "Tidak ada ambang"}
+                    desc={cari ? `Tidak ada yang cocok dengan “${cari}”.` : "Belum ada ambang batas kategori."}
+                  />
                 </div>
               ) : (
-                ambang.map((amb: any) => (
+                ambangTersaring.map((amb: any) => (
                   <div className="card card-flat" key={amb.id}>
                     <div className="row items-start gap-10">
                       <span className="li-ico">
