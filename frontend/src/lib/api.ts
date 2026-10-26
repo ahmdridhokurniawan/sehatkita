@@ -61,9 +61,12 @@ import type {
  * Konfigurasi
  * ============================================================ */
 // Base URL dari kontrak-api.md
-// Bisa diubah lewat file .env.local (lihat bawah)
+// Bisa diubah lewat file .env.local (lihat bawah);
+// NEXT_PUBLIC_API_BASE_URL tetap didukung untuk kompatibilitas.
 export const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://pm-monitoring.test/api/v1";
+  process.env.NEXT_PUBLIC_API_URL ??
+  process.env.NEXT_PUBLIC_API_BASE_URL ??
+  "http://pm-monitoring.test/api/v1";
 // Nama kunci untuk menyimpan token di browser
 const TOKEN_KEY = "sehatkita_token";
 /* ============================================================
