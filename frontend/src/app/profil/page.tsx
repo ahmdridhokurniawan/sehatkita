@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Button from "@/components/ui/Button";
@@ -13,20 +14,22 @@ import { JENIS_KELAMIN, TINGKAT_AKTIVITAS } from "@/lib/enums";
 import type { JenisKelamin, TingkatAktivitas } from "@/lib/enums";
 import { RIWAYAT_KELUARGA_OPTIONS } from "@/lib/session";
 import { LABEL_JENIS_KELAMIN, LABEL_TINGKAT_AKTIVITAS } from "@/lib/labels";
-import { profil as profilApi, ApiError } from "@/lib/api";
-import { refreshUser } from "@/hooks/useUser";
+import { profil as profilApi, auth as authApi, clearToken, ApiError } from "@/lib/api";
+import { refreshUser, clearUserCache } from "@/hooks/useUser";
 import type { Profil } from "@/types";
 
 const PROFIL_KOSONG: Profil = {
   user_id: 0,
-  tgl_lahir: "",
-  usia: 0,
-  jenis_kelamin: "L",
-  tinggi_cm: 0,
-  tingkat_aktivitas: "sedang",
-  merokok: false,
+  tgl_lahir: null,
+  usia: null,
+  jenis_kelamin: null,
+  tinggi_cm: null,
+  tingkat_aktivitas: null,
+  merokok: null,
   riwayat_keluarga: [],
-  updated_at: "",
+  tampil_di_peringkat: false,
+  profil_lengkap: false,
+  updated_at: null,
 };
 
 type FormState = {
@@ -36,22 +39,25 @@ type FormState = {
   tingkat_aktivitas: string;
   merokok: boolean;
   riwayat_keluarga: string[];
+  tampil_di_peringkat: boolean;
 };
 
 type Errors = Partial<Record<"tgl_lahir" | "jenis_kelamin" | "tinggi_cm" | "tingkat_aktivitas", string>>;
 
 function keForm(p: Profil): FormState {
   return {
-    tgl_lahir: p.tgl_lahir,
-    jenis_kelamin: p.jenis_kelamin,
-    tinggi_cm: p.tinggi_cm === 0 ? "" : String(p.tinggi_cm),
-    tingkat_aktivitas: p.tingkat_aktivitas,
-    merokok: p.merokok,
-    riwayat_keluarga: [...p.riwayat_keluarga],
+    tgl_lahir: p.tgl_lahir ?? "",
+    jenis_kelamin: p.jenis_kelamin ?? "",
+    tinggi_cm: p.tinggi_cm == null ? "" : String(p.tinggi_cm),
+    tingkat_aktivitas: p.tingkat_aktivitas ?? "",
+    merokok: p.merokok ?? false,
+    riwayat_keluarga: [...(p.riwayat_keluarga ?? [])],
+    tampil_di_peringkat: p.tampil_di_peringkat ?? false,
   };
 }
 
-function formatTanggal(iso: string): string {
+function formatTanggal(iso: string | null): string {
+  if (!iso) return "—";
   const [tahun, bulan, hari] = iso.slice(0, 10).split("-");
   if (!tahun || !bulan || !hari) return iso;
   return `${hari}/${bulan}/${tahun}`;
@@ -172,7 +178,8 @@ export default function ProfilPage() {
         tinggi_cm: Number(form.tinggi_cm),
         tingkat_aktivitas: form.tingkat_aktivitas as TingkatAktivitas,
         merokok: form.merokok,
-        riwayat_keluarga: form.riwayat_keluarga,
+        riwayat_keluarga: form.riwayat_keluarga.length ? form.riwayat_keluarga : ["tidak_ada"],
+        tampil_di_peringkat: form.tampil_di_peringkat,
       };
       const res = await profilApi.update(payload);
       setProfil(res);
@@ -315,6 +322,21 @@ export default function ProfilPage() {
               </div>
             </div>
 
+            <div className="mt-12">
+              <Checkbox
+                label={
+                  <div>
+                    <div className="text-sm fw-600">Tampilkan nama di peringkat</div>
+                    <div className="tiny">
+                      Bila mati, kamu muncul sebagai &quot;Peserta anonim&quot; (§12.5).
+                    </div>
+                  </div>
+                }
+                checked={form.tampil_di_peringkat}
+                onChange={(e) => ubahForm("tampil_di_peringkat", e.target.checked)}
+              />
+            </div>
+
             <div className="row gap-8 mt-16">
               <Button type="submit" icon="check" disabled={saving}>
                 {saving ? "Menyimpan…" : "Simpan Perubahan"}
@@ -330,11 +352,29 @@ export default function ProfilPage() {
           <strong className="text-sm">Data Diri</strong>
           <div className="grid grid-3 mt-12" style={{ gap: 12 }}>
             <Baris label="Tanggal lahir" value={formatTanggal(profil.tgl_lahir)} />
-            <Baris label="Usia" value={`${profil.usia} tahun`} />
-            <Baris label="Jenis kelamin" value={LABEL_JENIS_KELAMIN[profil.jenis_kelamin]} />
-            <Baris label="Tinggi badan" value={`${profil.tinggi_cm} cm`} />
-            <Baris label="Tingkat aktivitas" value={LABEL_TINGKAT_AKTIVITAS[profil.tingkat_aktivitas]} />
-            <Baris label="Merokok" value={profil.merokok ? "Ya" : "Tidak"} />
+            <Baris label="Usia" value={profil.usia == null ? "—" : `${profil.usia} tahun`} />
+            <Baris
+              label="Jenis kelamin"
+              value={
+                profil.jenis_kelamin ? LABEL_JENIS_KELAMIN[profil.jenis_kelamin] : "—"
+              }
+            />
+            <Baris
+              label="Tinggi badan"
+              value={profil.tinggi_cm == null ? "—" : `${profil.tinggi_cm} cm`}
+            />
+            <Baris
+              label="Tingkat aktivitas"
+              value={
+                profil.tingkat_aktivitas
+                  ? LABEL_TINGKAT_AKTIVITAS[profil.tingkat_aktivitas]
+                  : "—"
+              }
+            />
+            <Baris
+              label="Merokok"
+              value={profil.merokok == null ? "—" : profil.merokok ? "Ya" : "Tidak"}
+            />
           </div>
 
           <div className="mt-16" style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
@@ -353,6 +393,49 @@ export default function ProfilPage() {
           </div>
         </div>
       )}
+
+      <div className="card mt-16" style={{ display: "grid", gap: 0, padding: 0 }}>
+        <Link
+          href="/setelan"
+          className="li"
+          style={{ borderBottom: "1px solid var(--border)" }}
+        >
+          <span className="li-ico">
+            <Icon name="settings" size={18} />
+          </span>
+          <div className="li-main">
+            <strong className="text-sm">Pengaturan</strong>
+            <span className="tiny">Privasi & persetujuan data</span>
+          </div>
+          <span className="li-side">
+            <Icon name="chevron-right" size={18} />
+          </span>
+        </Link>
+        <button
+          type="button"
+          className="li"
+          style={{ border: "none", background: "none", cursor: "pointer", textAlign: "left", width: "100%" }}
+          onClick={async () => {
+            try {
+              await authApi.logout();
+            } catch {
+              /* token sudah mati */
+            } finally {
+              clearToken();
+              clearUserCache();
+              router.replace("/login");
+            }
+          }}
+        >
+          <span className="li-ico">
+            <Icon name="log-out" size={18} />
+          </span>
+          <div className="li-main">
+            <strong className="text-sm">Keluar</strong>
+            <span className="tiny">Akhiri sesi di perangkat ini</span>
+          </div>
+        </button>
+      </div>
     </AppShell>
   );
 }

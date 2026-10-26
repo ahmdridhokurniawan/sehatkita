@@ -1,16 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Segmented from "@/components/ui/Segmented";
-import { EmptyState } from "@/components/ui/Empty";
-import { INSIGHT_DEMO } from "@/lib/demo";
+import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
+import { insight as insightApi, ApiError } from "@/lib/api";
+import { tanggal } from "@/lib/format";
+import { LABEL_INSIGHT } from "@/lib/labels";
+import type { Insight } from "@/types";
+import type { LevelInsight } from "@/lib/enums";
 
 /* ------------------------------------------------------------------
-   Insight Kesehatan — halaman masyarakat.
-   Menampilkan saran otomatis (rule engine backend) dengan filter
-   tingkat: bahaya / peringatan / info.
+   Insight Kesehatan — §8.3 GET /insight.
+   Saran rule-engine backend, filter tingkat: bahaya/peringatan/info.
    ------------------------------------------------------------------ */
 
 const TINGKAT = [
@@ -30,13 +33,35 @@ const URUTAN = ["bahaya", "peringatan", "info"];
 
 export default function InsightPage() {
   const [filter, setFilter] = useState("semua");
+  const [semua, setSemua] = useState<Insight[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const daftar = useMemo(() => {
-    const terurut = [...INSIGHT_DEMO].sort((a, b) => URUTAN.indexOf(a.t) - URUTAN.indexOf(b.t));
-    return filter === "semua" ? terurut : terurut.filter((i) => i.t === filter);
+  const muat = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await insightApi.list(
+        filter === "semua" ? undefined : { level: filter as LevelInsight },
+      );
+      setSemua(res ?? []);
+      setError("");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Gagal memuat insight");
+    } finally {
+      setLoading(false);
+    }
   }, [filter]);
 
-  const hitung = (t: string) => INSIGHT_DEMO.filter((i) => i.t === t).length;
+  useEffect(() => {
+    muat();
+  }, [muat]);
+
+  const daftar = useMemo(
+    () => [...semua].sort((a, b) => URUTAN.indexOf(a.level) - URUTAN.indexOf(b.level)),
+    [semua],
+  );
+
+  const hitung = (t: string) => semua.filter((i) => i.level === t).length;
 
   return (
     <AppShell noFab>
@@ -47,7 +72,6 @@ export default function InsightPage() {
         </div>
       </div>
 
-      {/* Ringkasan jumlah per tingkat */}
       <div className="grid grid-3 mb-12" style={{ gap: 10 }}>
         {URUTAN.map((t) => (
           <div className="metric" key={t} style={{ alignItems: "center" }}>
@@ -62,34 +86,44 @@ export default function InsightPage() {
 
       <Segmented items={TINGKAT} value={filter} onChange={setFilter} />
 
-      <div className="mt-12" style={{ display: "grid", gap: 12 }}>
-        {daftar.length === 0 ? (
-          <div className="card card-flat">
-            <EmptyState title="Tidak ada insight" desc="Tidak ada insight pada tingkat ini." />
-          </div>
-        ) : (
-          daftar.map((i, idx) => (
-            <div
-              className="card card-flat"
-              key={idx}
-              style={{ borderLeft: `4px solid var(--${TONE[i.t].cls})` }}
-            >
-              <div className="row items-start gap-10">
-                <span className={`text-${TONE[i.t].cls}`}>
-                  <Icon name={i.i} size={20} />
-                </span>
-                <div className="flex-1">
-                  <div className="row-between">
-                    <strong className="text-sm">{i.j}</strong>
-                    <span className={`badge badge-${TONE[i.t].cls}`}>{TONE[i.t].label}</span>
-                  </div>
-                  <p className="tiny mt-4">{i.p}</p>
-                </div>
-              </div>
+      {loading ? (
+        <Loading />
+      ) : error ? (
+        <ErrorState message={error} onRetry={muat} />
+      ) : (
+        <div className="mt-12" style={{ display: "grid", gap: 12 }}>
+          {daftar.length === 0 ? (
+            <div className="card card-flat">
+              <EmptyState title="Tidak ada insight" desc="Tidak ada insight pada tingkat ini." />
             </div>
-          ))
-        )}
-      </div>
+          ) : (
+            daftar.map((i) => {
+              const tone = TONE[i.level] ?? TONE.info;
+              return (
+                <div
+                  className="card card-flat"
+                  key={i.kode}
+                  style={{ borderLeft: `4px solid var(--${tone.cls})` }}
+                >
+                  <div className="row items-start gap-10">
+                    <span className={`text-${tone.cls}`}>
+                      <Icon name={tone.ico} size={20} />
+                    </span>
+                    <div className="flex-1">
+                      <div className="row-between">
+                        <strong className="text-sm">{LABEL_INSIGHT[i.kode] || i.kode}</strong>
+                        <span className={`badge badge-${tone.cls}`}>{tone.label}</span>
+                      </div>
+                      <p className="tiny mt-4">{i.teks}</p>
+                      <p className="tiny mt-4">{tanggal(i.dibuat_pada, "short")}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
 
       <p className="tiny center mt-16 mb-16">
         <Icon name="shield" size={13} /> Insight berbasis aturan (bukan ML) dan bukan diagnosis medis.

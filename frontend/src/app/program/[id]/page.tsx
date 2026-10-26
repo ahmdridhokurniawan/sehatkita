@@ -13,8 +13,8 @@ import { angka, tanggal } from "@/lib/format";
 import { program as programApi, ApiError } from "@/lib/api";
 import type { Program } from "@/types";
 
-/* Detail program — backend belum punya GET /program/{id},
-   jadi data diambil dari GET /program lalu difilter per id. */
+/* Detail program — kontrak §12 tidak punya GET /program/{id};
+   data diambil dari GET /program lalu difilter per id. */
 
 const LABEL_JENIS: Record<string, string> = {
   olahraga: "Olahraga",

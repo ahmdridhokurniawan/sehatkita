@@ -47,7 +47,7 @@ export default function AdminLogAuditPage() {
   const hitungAksi = (aksi: string) => daftar.filter((l: any) => l.aksi === aksi).length;
 
   return (
-    <AppShell noFab>
+    <AppShell noFab roles={["super_admin"]}>
       <div className="row-between mb-16">
         <div>
           <h1 className="h3">Log Audit</h1>
@@ -149,7 +149,7 @@ export default function AdminLogAuditPage() {
           </div>
 
           <p className="tiny center mt-16 mb-16">
-            <Icon name="info" size={13} /> Data dari GET /admin/log-audit.
+            <Icon name="info" size={13} /> Log mencatat akses super admin ke data individu.
           </p>
         </>
       )}

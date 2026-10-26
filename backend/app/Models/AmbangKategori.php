@@ -13,11 +13,13 @@ class AmbangKategori extends Model
     // Kolom yang boleh diisi massal (menu admin: kelola ambang indikator).
     protected $fillable = [
         'indikator_id',  // milik indikator mana
+        'jenis_gula_darah', // puasa | 2jam_pp | NULL (kontrak 8.3)
         'batas_min',     // batas bawah rentang, mis. 18.50
         'batas_max',     // batas atas; NULL = tak berbatas (obesitas, dst.)
         'kategori',      // label kategori, mis. "normal", "gemuk"
         'status',        // normal | perlu_perhatian | berisiko
         'skor',          // sumbangan skor risiko, mis. 2
+        'memicu_rujukan', // true = otomatis buat rujukan (kontrak 11)
     ];
 
     // Cast tipe kolom numerik.
@@ -27,6 +29,7 @@ class AmbangKategori extends Model
             'batas_min' => 'decimal:2',
             'batas_max' => 'decimal:2',
             'skor'      => 'integer',
+            'memicu_rujukan' => 'boolean',
         ];
     }
 

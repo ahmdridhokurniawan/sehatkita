@@ -24,6 +24,18 @@ const ADMIN_MENU = [
     desc: "Atur indikator & ambang batas kategori",
   },
   {
+    href: "/admin/statistik",
+    icon: "line-chart",
+    label: "Statistik Sistem",
+    desc: "Angka keseluruhan sistem",
+  },
+  {
+    href: "/admin/verifikasi",
+    icon: "check-circle",
+    label: "Verifikasi Catatan",
+    desc: "Setujui / tolak catatan ber-flag",
+  },
+  {
     href: "/admin/log-audit",
     icon: "file-text",
     label: "Log Audit",
@@ -33,11 +45,11 @@ const ADMIN_MENU = [
 
 export default function AdminPage() {
   return (
-    <AppShell noFab>
+    <AppShell noFab roles={["super_admin"]}>
       <div className="row-between mb-16">
         <div>
           <h1 className="h3">Admin Dashboard</h1>
-          <p className="tiny">Master data & system management (super_admin only).</p>
+          <p className="tiny">Kelola master data: pengguna, faskes, indikator, dan log audit.</p>
         </div>
       </div>
 
@@ -66,7 +78,7 @@ export default function AdminPage() {
       </div>
 
       <p className="tiny center mt-16 mb-16">
-        <Icon name="shield" size={13} /> Super admin access required.
+        <Icon name="shield" size={13} /> Hanya super admin yang dapat mengubah master data.
       </p>
     </AppShell>
   );

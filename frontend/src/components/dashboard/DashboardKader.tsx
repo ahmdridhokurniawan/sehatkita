@@ -1,60 +1,77 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/Empty";
-import { tanggal, relatif } from "@/lib/format";
-import type { User } from "@/types";
+import { tanggal } from "@/lib/format";
+import { posbindu, rujukan, ApiError } from "@/lib/api";
+import type { User, SesiPosbindu, Rujukan } from "@/types";
 
-// Demo data untuk kader dashboard
-const KADER_DEMO = {
-  sesi_bulan_ini: 4,
-  peserta_aktif: 12,
-  kunjungan_bulan_ini: 28,
-  rujukan_proses: 3,
-  sesi_terbaru: [
-    {
-      id: 1,
-      tanggal: "2026-10-15",
-      lokasi: "Balai Kelurahan",
-      peserta_hadir: 8,
-      peserta_target: 10,
-      indikator: ["BB", "TD", "GD"],
-    },
-    {
-      id: 2,
-      tanggal: "2026-10-08",
-      lokasi: "Balai RW",
-      peserta_hadir: 6,
-      peserta_target: 8,
-      indikator: ["BB", "TD"],
-    },
-  ],
-  peserta_perlu_tindak_lanjut: [
-    { id: 1, nama: "Ibu Siti", masalah: "Tekanan darah tinggi", status: "rujukan_proses" },
-    { id: 2, nama: "Bapak Hendra", masalah: "Gula darah tinggi", status: "pantau" },
-    { id: 3, nama: "Ibu Ratna", masalah: "BB naik 3 kg", status: "konsultasi" },
-  ],
-  notifikasi: [
-    { id: 1, judul: "Sesi minggu depan terjadwal", pesan: "Sesi Posbindu Senin 21 Okt di Balai Kelurahan", dibuat_pada: "2026-10-17T10:30:00Z" },
-    { id: 2, judul: "Ada peserta baru", pesan: "Bu Dewi mendaftar untuk mengikuti Posbindu", dibuat_pada: "2026-10-16T14:15:00Z" },
-  ],
+const LABEL_STATUS_RUJUKAN: Record<string, string> = {
+  baru: "Baru",
+  dihubungi: "Dihubungi",
+  tertangani: "Tertangani",
+  ditolak: "Ditolak",
 };
 
-const STATUS_COLOR: Record<string, "primary" | "warning" | "danger"> = {
-  rujukan_proses: "danger",
-  pantau: "warning",
-  konsultasi: "primary",
+const TONE_STATUS_RUJUKAN: Record<string, "warning" | "primary" | "safe" | "danger"> = {
+  baru: "warning",
+  dihubungi: "primary",
+  tertangani: "safe",
+  ditolak: "danger",
 };
+
+function bulanSekarang(iso: string) {
+  return iso?.slice(0, 7) === new Date().toISOString().slice(0, 7);
+}
 
 export default function DashboardKader({ user }: { user: User }) {
-  const unread = KADER_DEMO.notifikasi.length;
+  const [sesi, setSesi] = useState<SesiPosbindu[]>([]);
+  const [daftarRujukan, setDaftarRujukan] = useState<Rujukan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let batal = false;
+
+    async function muat() {
+      try {
+        setLoading(true);
+        const [s, r] = await Promise.all([
+          // §10.1 — kader hanya menerima sesi miliknya.
+          posbindu.sesiList({}),
+          // §11.2 — kader menerima rujukan warga binaannya (tidak teredaksi).
+          rujukan.list({}),
+        ]);
+        if (batal) return;
+        setSesi(s);
+        setDaftarRujukan(r);
+        setError(null);
+      } catch (err) {
+        if (batal) return;
+        setError((err as ApiError).message || "Gagal memuat dashboard kader");
+      } finally {
+        if (!batal) setLoading(false);
+      }
+    }
+
+    muat();
+    return () => {
+      batal = true;
+    };
+  }, []);
+
+  const sesiBulanIni = sesi.filter((s) => bulanSekarang(s.tanggal));
+  const hadirBulanIni = sesiBulanIni.reduce((n, s) => n + (s.hadir || 0), 0);
+  const sesiAkanDatang = sesi.filter((s) => s.tanggal >= new Date().toISOString().slice(0, 10)).length;
+  const rujukanTerbuka = daftarRujukan.filter((r) => r.status === "baru" || r.status === "dihubungi");
 
   return (
-    <AppShell greet="Halo Kader" unread={unread}>
-      {/* Ringkasan aktivitas */}
+    <AppShell greet="Halo Kader">
+      {/* Ringkasan aktivitas — dihitung dari API, bukan angka demo */}
       <section>
         <div className="app-section-title">
           <h2>Aktivitas Bulan Ini</h2>
@@ -64,113 +81,100 @@ export default function DashboardKader({ user }: { user: User }) {
             <span className="metric-name">
               <Icon name="calendar" size={14} /> Sesi
             </span>
-            <span className="metric-val">{KADER_DEMO.sesi_bulan_ini}</span>
-            <div className="tiny mt-4">Sesi Posbindu diadakan</div>
+            <span className="metric-val">{loading ? "—" : sesiBulanIni.length}</span>
+            <div className="tiny mt-4">Sesi Posbindu bulan ini</div>
           </div>
           <div className="metric">
             <span className="metric-name">
-              <Icon name="users" size={14} /> Peserta Aktif
+              <Icon name="users" size={14} /> Kehadiran
             </span>
-            <span className="metric-val">{KADER_DEMO.peserta_aktif}</span>
-            <div className="tiny mt-4">Terdaftar di Posbindu</div>
+            <span className="metric-val">{loading ? "—" : hadirBulanIni}</span>
+            <div className="tiny mt-4">Peserta hadir bulan ini</div>
           </div>
           <div className="metric">
             <span className="metric-name">
-              <Icon name="check-circle" size={14} /> Kunjungan
+              <Icon name="calendar-check" size={14} /> Terjadwal
             </span>
-            <span className="metric-val">{KADER_DEMO.kunjungan_bulan_ini}</span>
-            <div className="tiny mt-4">Pencatatan dilakukan</div>
+            <span className="metric-val">{loading ? "—" : sesiAkanDatang}</span>
+            <div className="tiny mt-4">Sesi akan datang</div>
           </div>
           <div className="metric">
             <span className="metric-name">
               <Icon name="alert-circle" size={14} /> Rujukan
             </span>
-            <span className="metric-val">{KADER_DEMO.rujukan_proses}</span>
-            <div className="tiny mt-4">Proses tindak lanjut</div>
+            <span className="metric-val">{loading ? "—" : rujukanTerbuka.length}</span>
+            <div className="tiny mt-4">Perlu tindak lanjut</div>
           </div>
         </div>
       </section>
 
+      {error ? (
+        <div className="alert alert-danger mt-16">
+          <Icon name="alert-circle" />
+          <div>{error}</div>
+        </div>
+      ) : null}
+
       {/* Sesi terbaru */}
       <section>
         <div className="app-section-title">
-          <h2>Sesi Posbindu Terbaru</h2>
-          <Link href="/kader/sesi">Lihat semua</Link>
+          <h2>Sesi Posbindu</h2>
+          <Link href="/posbindu">Kelola</Link>
         </div>
         <div className="card mt-12">
-          {KADER_DEMO.sesi_terbaru.map((sesi) => (
-            <div className="li" key={sesi.id}>
-              <span className="li-ico" style={{ background: "var(--primary-050)", color: "var(--primary)" }}>
-                <Icon name="calendar-check" size={18} />
-              </span>
-              <div className="li-main">
-                <strong>{tanggal(sesi.tanggal, "day")}</strong>
-                <span className="tiny">{sesi.lokasi}</span>
-              </div>
-              <div className="li-side">
-                <div className="tiny">
-                  {sesi.peserta_hadir}/{sesi.peserta_target} peserta
+          {loading ? (
+            <EmptyState title="Memuat..." desc="Mengambil data sesi dari server." />
+          ) : sesi.length ? (
+            sesi.slice(0, 5).map((s) => (
+              <div className="li" key={s.id}>
+                <span className="li-ico" style={{ background: "var(--primary-050)", color: "var(--primary)" }}>
+                  <Icon name="calendar-check" size={18} />
+                </span>
+                <div className="li-main">
+                  <strong>{tanggal(s.tanggal, "day")}</strong>
+                  <span className="tiny">{s.lokasi}</span>
+                </div>
+                <div className="li-side">
+                  <div className="tiny">
+                    {s.hadir}/{s.jumlah_peserta} peserta
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          ) : (
+            <EmptyState title="Belum ada sesi" desc="Sesi Posbindu yang ditugaskan kepada Anda akan tampil di sini." />
+          )}
         </div>
       </section>
 
-      {/* Peserta perlu tindak lanjut */}
+      {/* Rujukan warga binaan — §11.2 */}
       <section>
         <div className="app-section-title">
-          <h2>Peserta Perlu Tindak Lanjut</h2>
-          <Link href="/kader/peserta">Daftar lengkap</Link>
+          <h2>Rujukan Perlu Tindak Lanjut</h2>
+          <Link href="/rujukan">Daftar lengkap</Link>
         </div>
-        {KADER_DEMO.peserta_perlu_tindak_lanjut.length ? (
+        {rujukanTerbuka.length ? (
           <div className="card mt-12">
-            {KADER_DEMO.peserta_perlu_tindak_lanjut.map((p) => (
-              <div className="li" key={p.id}>
+            {rujukanTerbuka.map((r) => (
+              <div className="li" key={r.id}>
                 <span className="li-ico" style={{ color: "var(--danger)" }}>
                   <Icon name="alert-triangle" size={18} />
                 </span>
                 <div className="li-main">
-                  <strong>{p.nama}</strong>
-                  <span className="tiny">{p.masalah}</span>
+                  <strong>{r.faskes?.nama || "Faskes"}</strong>
+                  <span className="tiny">{r.alasan || "Tanpa alasan tertulis"}</span>
                 </div>
-                <Badge tone={STATUS_COLOR[p.status] || "primary"}>{p.status.replace("_", " ")}</Badge>
+                <Badge tone={TONE_STATUS_RUJUKAN[r.status] || "primary"}>
+                  {LABEL_STATUS_RUJUKAN[r.status] || r.status}
+                </Badge>
               </div>
             ))}
           </div>
         ) : (
           <div className="card card-flat mt-12">
-            <EmptyState title="Semua peserta dalam kondisi baik" />
+            <EmptyState title={loading ? "Memuat..." : "Tidak ada rujukan terbuka"} desc="Semua rujukan sudah ditindaklanjuti." />
           </div>
         )}
-      </section>
-
-      {/* Notifikasi */}
-      <section>
-        <div className="app-section-title">
-          <h2>Notifikasi</h2>
-          <Link href="/notifikasi">Semua</Link>
-        </div>
-        <div className="card mt-12">
-          {KADER_DEMO.notifikasi.length ? (
-            KADER_DEMO.notifikasi.map((n) => (
-              <div className="li" key={n.id}>
-                <span className="li-ico">
-                  <Icon name="bell" size={18} />
-                </span>
-                <div className="li-main">
-                  <strong>{n.judul}</strong>
-                  <span>{n.pesan}</span>
-                </div>
-                <div className="li-side">
-                  <span className="tiny">{relatif(n.dibuat_pada)}</span>
-                </div>
-              </div>
-            ))
-          ) : (
-            <EmptyState title="Tidak ada notifikasi baru" />
-          )}
-        </div>
       </section>
 
       <p className="tiny center mt-8 mb-16">

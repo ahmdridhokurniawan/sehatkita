@@ -1,56 +1,83 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
 import ThemeToggle from "@/components/ui/ThemeToggle";
-import { useUser } from "@/hooks/useUser";
+import { useUser, clearUserCache } from "@/hooks/useUser";
+import { auth as authApi, clearToken } from "@/lib/api";
 import { inisial } from "@/lib/format";
 
 const NAV = [
   { href: "/dashboard", icon: "home", label: "Beranda" },
   { href: "/rekam-medis", icon: "clipboard", label: "Rekam Medis" },
   { href: "/program", icon: "award", label: "Tantangan" },
-  { href: "/notifikasi", icon: "bell", label: "Notifikasi" },
   { href: "/profil", icon: "user", label: "Profil" },
 ];
 
 const NAV_POSBINDU = { href: "/posbindu", icon: "activity", label: "Posbindu" };
+const NAV_LAPORAN = { href: "/laporan", icon: "bar-chart", label: "Laporan" };
+const NAV_ADMIN = { href: "/admin", icon: "shield", label: "Admin" };
 const ROLE_POSBINDU = ["kader", "admin_kelurahan", "super_admin"];
 
 type Props = {
   children: React.ReactNode;
   /** Sapaan di topbar, mis. "Halo" */
   greet?: string;
-  /** Jumlah notifikasi belum dibaca (titik merah) */
-  unread?: number;
   /** Sembunyikan tombol FAB */
   noFab?: boolean;
   /** Aksi tombol FAB */
   onFab?: () => void;
+  /** Batasi halaman ke role tertentu; role lain diarahkan ke /unauthorized */
+  roles?: string[];
 };
 
 /**
  * Shell aplikasi masyarakat (mobile-first) — topbar + bottom nav + FAB.
  * Diporting dari prototype `app.js` (App.mount).
  */
-export default function AppShell({ children, greet, unread = 0, noFab, onFab }: Props) {
+export default function AppShell({ children, greet, noFab, onFab, roles }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading } = useUser();
+  const [keluar, setKeluar] = useState(false);
+
+  async function handleLogout() {
+    setKeluar(true);
+    try {
+      await authApi.logout();
+    } catch {
+      // token mungkin sudah mati — tetap bersihkan lokal
+    } finally {
+      clearToken();
+      clearUserCache();
+      router.replace("/login");
+    }
+  }
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
 
+  const roleTidakCocok = Boolean(roles && user && !roles.includes(user.role));
+
+  useEffect(() => {
+    if (roleTidakCocok) router.replace("/unauthorized");
+  }, [roleTidakCocok, router]);
+
   const nama = user?.name || "Pengguna";
   const wilayah = user?.wilayah?.nama || "";
-  const nav = ROLE_POSBINDU.includes(user?.role || "")
-    ? [NAV[0], NAV[1], NAV_POSBINDU, NAV[3], NAV[4]]
-    : NAV;
+  const role = user?.role || "";
+  const nav = role === "super_admin"
+    ? [NAV[0], NAV[1], NAV_LAPORAN, NAV_POSBINDU, NAV_ADMIN]
+    : role === "admin_kelurahan"
+      ? [NAV[0], NAV[1], NAV_LAPORAN, NAV_POSBINDU]
+      : ROLE_POSBINDU.includes(role)
+        ? [NAV[0], NAV[1], NAV_POSBINDU, NAV[3]]
+        : NAV;
 
-  if (loading || !user) {
+  if (loading || !user || roleTidakCocok) {
     return (
       <main className="center" style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
         <p className="tiny">Memuat…</p>
@@ -73,22 +100,16 @@ export default function AppShell({ children, greet, unread = 0, noFab, onFab }: 
         </div>
         <div className="acts">
           <ThemeToggle />
-          <Link href="/notifikasi" className="btn btn-ghost btn-icon" aria-label="Notifikasi" style={{ position: "relative" }}>
-            <Icon name="bell" size={18} />
-            {unread > 0 ? (
-              <span
-                style={{
-                  position: "absolute",
-                  top: 4,
-                  right: 4,
-                  width: 8,
-                  height: 8,
-                  borderRadius: 99,
-                  background: "var(--danger)",
-                }}
-              />
-            ) : null}
-          </Link>
+          <button
+            type="button"
+            className="btn btn-icon btn-sm btn-ghost"
+            aria-label="Keluar"
+            title="Keluar"
+            onClick={handleLogout}
+            disabled={keluar}
+          >
+            <Icon name="log-out" size={17} />
+          </button>
         </div>
       </header>
 

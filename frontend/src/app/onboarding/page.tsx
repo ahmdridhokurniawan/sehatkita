@@ -83,6 +83,7 @@ export default function OnboardingPage() {
         tingkat_aktivitas: aktivitas,
         merokok,
         riwayat_keluarga: riwayat,
+        tampil_di_peringkat: false,
       });
 
       // §5.3 POST /persetujuan

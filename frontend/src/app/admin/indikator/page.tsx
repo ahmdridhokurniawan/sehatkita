@@ -7,6 +7,7 @@ import Badge from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/Empty";
 import { admin as adminApi, ApiError } from "@/lib/api";
 
+import { LABEL_STATUS_KESEHATAN } from "@/lib/labels";
 export default function AdminIndikatorPage() {
   const [indikator, setIndikator] = useState<any[]>([]);
   const [ambang, setAmbang] = useState<any[]>([]);
@@ -37,7 +38,7 @@ export default function AdminIndikatorPage() {
   }, []);
 
   return (
-    <AppShell noFab>
+    <AppShell noFab roles={["super_admin"]}>
       <div className="row-between mb-16">
         <div>
           <h1 className="h3">Indikator & Ambang</h1>
@@ -126,7 +127,7 @@ export default function AdminIndikatorPage() {
                           Batas: {amb.batas_min} — {amb.batas_max}
                         </p>
                         <p className="tiny mt-2">
-                          Status: <strong>{amb.status}</strong> (Skor: {amb.skor})
+                          Status: <strong>{LABEL_STATUS_KESEHATAN[amb.status as keyof typeof LABEL_STATUS_KESEHATAN] || amb.status}</strong> (Skor: {amb.skor})
                         </p>
                       </div>
                     </div>
@@ -136,7 +137,7 @@ export default function AdminIndikatorPage() {
           </div>
 
           <p className="tiny center mt-16 mb-16">
-            <Icon name="info" size={13} /> Data dari GET /admin/indikator & GET /admin/ambang-kategori.
+            <Icon name="info" size={13} /> Ambang menentukan kategori yang dipakai saat menilai catatan baru.
           </p>
         </>
       )}

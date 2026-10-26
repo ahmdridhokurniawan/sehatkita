@@ -3,17 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\CatatanKesehatan;
+use App\Models\Pengguna;
 use App\Services\HealthCalculatorService;
 use Illuminate\Http\Request;
 
 /**
- * Rekam medis = series indikator untuk grafik. Kontrak 8.2.
- * Endpoint resmi /rekam-medis (dulu /tren, lihat kontrak 24).
+ * Series indikator untuk grafik. Kontrak §8.2.
+ * Path resmi tetap `/tren` (§20: rename ke /rekam-medis dibatalkan);
+ * `/rekam-medis` dipertahankan sebagai alias agar FE lama tidak pecah.
  */
 class RekamMedisController extends Controller
 {
-    // Satuan tiap indikator. Sengaja disamakan dengan daftar INDIKATOR di
-    // frontend (app/rekam-medis/page.tsx) supaya label grafik tidak beda.
     private const SATUAN = [
         'bb_kg'         => 'kg',
         'imt'           => 'kg/m2',
@@ -25,7 +25,6 @@ class RekamMedisController extends Controller
         'lingkar_perut' => 'cm',
     ];
 
-    // periode -> jumlah bulan (kontrak 8.2: 1m, 3m, 6m, 1y)
     private const PERIODE = [
         '1m' => 1,
         '3m' => 3,
@@ -33,28 +32,36 @@ class RekamMedisController extends Controller
         '1y' => 12,
     ];
 
-    // Service kalkulasi disuntik lewat constructor (Laravel urus sendiri).
     public function __construct(
         private HealthCalculatorService $kalkulator
     ) {}
 
-    /** GET /rekam-medis?indikator=imt,bb_kg&periode=3m */
+    /** GET /tren?indikator=imt,bb_kg&periode=3m[&user_id=] */
     public function index(Request $request)
     {
         $user = $request->user();
 
-        // Indikator boleh banyak, dipisah koma. Yang tidak dikenal dibuang,
-        // jadi user tidak bisa menyuntikkan nama kolom sembarangan ke query.
+        // §8.2 — kader boleh lihat warga binaannya lewat ?user_id=
+        $target = $user;
+        if ($request->filled('user_id') && (int) $request->user_id !== (int) $user->id) {
+            if (! in_array($user->role, ['kader', 'super_admin'], true)) {
+                abort(404);
+            }
+
+            $target = Pengguna::findOrFail((int) $request->user_id);
+
+            if ($user->role === 'kader' && (int) $target->kader_id !== (int) $user->id) {
+                abort(404);
+            }
+        }
+
         $diminta = array_filter(explode(',', (string) $request->query('indikator', 'bb_kg')));
         $diminta = array_values(array_intersect($diminta, array_keys(self::SATUAN)));
 
-        // Kalau semua yang diminta tidak dikenal -> fallback bb_kg,
-        // supaya grafik tidak kosong tanpa penjelasan.
         if ($diminta === []) {
             $diminta = ['bb_kg'];
         }
 
-        // Periode di luar daftar -> 3m.
         $periode = $request->query('periode', '3m');
         if (! isset(self::PERIODE[$periode])) {
             $periode = '3m';
@@ -62,10 +69,11 @@ class RekamMedisController extends Controller
 
         $sejak = now()->subMonths(self::PERIODE[$periode])->startOfDay();
 
-        // with('pengguna.profil') wajib: perhitungan IMT butuh tinggi badan
-        // dari profil, kalau tidak akan query DB per baris (N+1).
-        $catatan = $user->catatanKesehatan()
+        // §8.2 — log `perlu_verifikasi` dilewati; with('pengguna.profil') hindari N+1.
+        $catatan = CatatanKesehatan::query()
+            ->where('user_id', $target->id)
             ->where('dicatat_pada', '>=', $sejak)
+            ->where('perlu_verifikasi', false)
             ->orderBy('dicatat_pada')
             ->orderBy('id')
             ->with('pengguna.profil')
@@ -74,21 +82,22 @@ class RekamMedisController extends Controller
         $series = [];
 
         foreach ($diminta as $kode) {
-            $titik = [];
+            // §8.2 — satu titik per hari = nilai log terakhir hari itu.
+            $perHari = [];
 
             foreach ($catatan as $c) {
                 $nilai = $this->nilai($kode, $c);
 
-                // Indikator yang tidak diisi di catatan itu dilewati,
-                // bukan diisi 0 (0 akan merusak bentuk grafik).
                 if ($nilai === null) {
                     continue;
                 }
 
-                $titik[] = [
-                    'tanggal' => $c->dicatat_pada->toDateString(),
-                    'nilai'   => $nilai,
-                ];
+                $perHari[$c->dicatat_pada->toDateString()] = $nilai;
+            }
+
+            $titik = [];
+            foreach ($perHari as $tanggal => $nilai) {
+                $titik[] = ['tanggal' => $tanggal, 'nilai' => $nilai];
             }
 
             $series[] = [

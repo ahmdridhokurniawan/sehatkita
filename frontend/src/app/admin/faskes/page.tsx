@@ -15,6 +15,11 @@ const FILTER = [
   { value: "klinik", label: "Klinik" },
 ];
 
+const LABEL_JENIS_FASKES: Record<string, string> = {
+  puskesmas: "Puskesmas",
+  rumah_sakit: "Rumah Sakit",
+  klinik: "Klinik",
+};
 const JENIS_BADGE: Record<string, string> = {
   puskesmas: "info",
   rumah_sakit: "danger",
@@ -60,7 +65,7 @@ export default function AdminFaskesPage() {
   }, [filter, cari, daftar]);
 
   return (
-    <AppShell noFab>
+    <AppShell noFab roles={["super_admin"]}>
       <div className="row-between mb-16">
         <div>
           <h1 className="h3">Kelola Faskes</h1>
@@ -118,7 +123,7 @@ export default function AdminFaskesPage() {
                     <div className="flex-1">
                       <div className="row-between">
                         <strong className="text-sm">{f.nama}</strong>
-                        <Badge tone={JENIS_BADGE[f.jenis] as any || "muted"}>{f.jenis}</Badge>
+                        <Badge tone={JENIS_BADGE[f.jenis] as any || "muted"}>{LABEL_JENIS_FASKES[f.jenis] || f.jenis}</Badge>
                       </div>
                       <p className="tiny mt-4">{f.alamat}</p>
                       <p className="tiny mt-2">Wilayah: {f.wilayah?.nama || "—"}</p>
@@ -131,7 +136,7 @@ export default function AdminFaskesPage() {
           </div>
 
           <p className="tiny center mt-16 mb-16">
-            <Icon name="info" size={13} /> Data dari GET /admin/faskes.
+            <Icon name="info" size={13} /> Data faskes rujukan seluruh wilayah.
           </p>
         </>
       )}

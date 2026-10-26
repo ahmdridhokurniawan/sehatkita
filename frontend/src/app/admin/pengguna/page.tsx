@@ -70,7 +70,7 @@ export default function AdminPenggunaPage() {
   }, [filter, cari, daftar]);
 
   return (
-    <AppShell noFab>
+    <AppShell noFab roles={["super_admin"]}>
       <div className="row-between mb-16">
         <div>
           <h1 className="h3">Kelola Pengguna</h1>
@@ -143,7 +143,7 @@ export default function AdminPenggunaPage() {
           </div>
 
           <p className="tiny center mt-16 mb-16">
-            <Icon name="info" size={13} /> Data dari GET /admin/pengguna.
+            <Icon name="info" size={13} /> Ubah role atau wilayah lewat tombol di tiap baris.
           </p>
         </>
       )}

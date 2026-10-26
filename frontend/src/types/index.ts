@@ -17,7 +17,6 @@ import type {
   StatusProgram,
   StatusPeserta,
   LevelInsight,
-  TipeNotifikasi,
 } from "@/lib/enums";
 /* ============================================================
  * §1.2 / §1.3 / §1.4 — Envelope response dari backend
@@ -80,14 +79,17 @@ export interface Faskes {
  * ============================================================ */
 export interface Profil {
   user_id: number;
-  tgl_lahir: string; // "1998-04-11"
-  usia: number;
-  jenis_kelamin: JenisKelamin;
-  tinggi_cm: number;
-  tingkat_aktivitas: TingkatAktivitas;
-  merokok: boolean;
+  /** null bila profil belum diisi (§5.1) */
+  tgl_lahir: string | null;
+  usia: number | null;
+  jenis_kelamin: JenisKelamin | null;
+  tinggi_cm: number | null;
+  tingkat_aktivitas: TingkatAktivitas | null;
+  merokok: boolean | null;
   riwayat_keluarga: string[];
-  updated_at: string;
+  tampil_di_peringkat: boolean;
+  profil_lengkap: boolean;
+  updated_at: string | null;
 }
 /** Profil versi ringkas yang ikut di GET /auth/me */
 export interface ProfilRingkas {
@@ -217,27 +219,25 @@ export interface JadwalSkrining {
   jatuh_tempo: string;
   status: string;
 }
-/** §25/§31 — ringkasan gamifikasi yang ikut di dashboard pribadi */
-export interface RewardRingkas {
-  exp: number;
-  level: number;
-  level_nama: string;
+/** §8.1 — blok gamifikasi di dashboard pribadi */
+export interface GamifikasiRingkas {
+  exp_total: number;
+  level_gamifikasi: number;
   badge: string[];
-  rank_kelurahan: number;
-  total_peserta_kelurahan: number;
+  rank_kelurahan: number | null;
 }
 export interface DashboardPribadi {
   status_kesehatan: StatusKesehatan;
   skor_risiko: number;
-  indikator_terkini: IndikatorTerkini;
+  /** §8.1 — false bila profil belum lengkap (tinggi/tgl lahir/jk kosong) */
+  profil_lengkap: boolean;
+  indikator_terkini: IndikatorTerkini | null;
   perbandingan: PerbandinganPeriode;
-  target: TargetRingkas;
+  target: TargetRingkas | null;
   jadwal_skrining_berikutnya: JadwalSkrining[];
   rujukan_aktif: Rujukan | null;
-  /** §31 — notifikasi yang akan datang (insight, rujukan, reward) */
-  next_notifications: Notifikasi[];
-  /** §25 — ringkasan gamifikasi (opsional, muncul bila ada) */
-  reward?: RewardRingkas;
+  /** §8.1 — gamifikasi (exp, level, badge, rank_kelurahan) */
+  gamifikasi?: GamifikasiRingkas;
 }
 export interface TrenTitik {
   tanggal: string;
@@ -279,25 +279,6 @@ export interface InsightQuery {
   search?: string;
 }
 /* ============================================================
- * §27 / §32 — Notifikasi
- * ============================================================ */
-export interface Notifikasi {
-  id: number;
-  tipe: TipeNotifikasi;
-  judul: string;
-  pesan: string;
-  dibaca: boolean;
-  /** untuk tipe `insight` */
-  level?: LevelInsight | null;
-  /** id sumber terkait (rujukan/program/insight), bila ada */
-  ref_id?: number | null;
-  dibuat_pada: string;
-}
-export interface NotifikasiQuery extends ListQuery {
-  tipe?: TipeNotifikasi;
-  belum_dibaca?: boolean;
-}
-/* ============================================================
  * §9 — Dashboard Kelurahan (agregat anonim)
  * ============================================================ */
 export interface DistribusiItem {
@@ -307,12 +288,11 @@ export interface DistribusiItem {
   jumlah: number;
 }
 export interface RekapRujukan {
-  total: number;
-  baru: number;
-  dihubungi: number;
-  tertangani: number;
-  ditolak: number;
-  belum_ditindaklanjuti: number;
+  /** §9.1 — hanya status dengan jumlah ≥ 5; `total` TIDAK dikirim (suppression). */
+  baru?: number;
+  dihubungi?: number;
+  tertangani?: number;
+  ditolak?: number;
 }
 export interface TrenKelurahan {
   periode: string;
@@ -325,11 +305,14 @@ export interface DashboardKelurahan {
   total_pengguna_aktif: number;
   total_pencatatan: number;
   distribusi_imt: DistribusiItem[];
-  distribusi_risiko: DistribusiItem[];
+  /** §9.1 — menggantikan nama lama `distribusi_risiko` (self-report). */
+  distribusi_riwayat_keluarga: DistribusiItem[];
   distribusi_kelompok_usia: DistribusiItem[];
   rujukan: RekapRujukan;
   kepatuhan_pencatatan_persen: number;
   tren: TrenKelurahan[];
+  /** §9.2 — ada sel < 5 yang disembunyikan backend. */
+  ada_data_disembunyikan: boolean;
 }
 export interface DashboardKelurahanQuery {
   periode?: "1m" | "3m" | "6m" | "1y";
@@ -383,13 +366,16 @@ export interface KunjunganQuery extends ListQuery {
  * ============================================================ */
 export interface Rujukan {
   id: number;
-  user_id: number;
+  /** §11.2 — admin_kelurahan menerima bentuk TEREDAKSI (field ini absen). */
+  user_id?: number;
   faskes: { id: number; nama: string };
-  alasan: string;
+  alasan?: string;
   status: StatusRujukan;
-  dibuat_oleh: { id: number; name: string };
-  ditangani_oleh: { id: number; name: string } | null;
-  catatan: string | null;
+  otomatis?: boolean;
+  indikator?: string | null;
+  dibuat_oleh?: { id: number; name: string } | null;
+  ditangani_oleh?: { id: number; name: string } | null;
+  catatan?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -527,12 +513,24 @@ export interface LogAudit {
   ip: string;
   user_agent: string;
   created_at: string;
+  pengguna?: { id: number; name: string; email: string } | null;
 }
 export interface AdminStatistik {
-  total_pengguna: number;
-  total_catatan: number;
+  total_users: number;
+  users_by_role: Record<string, number>;
   total_rujukan: number;
+  rujukan_by_status: Record<string, number>;
   total_program: number;
+  total_program_participants: number;
+  program_by_status: Record<string, number>;
+  total_catatan: number;
+  avg_imt: number | null;
+  avg_sistol: number | null;
+  avg_diastol: number | null;
   total_wilayah: number;
   total_faskes: number;
+  new_users_7d: number;
+  new_rujukan_7d: number;
+  new_catatan_7d: number;
+  total_audit_logs_7d: number;
 }

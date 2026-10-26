@@ -1,155 +1,262 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
-import Button from "@/components/ui/Button";
-import Card from "@/components/ui/Card";
 import Bar from "@/components/charts/Bar";
 import Line from "@/components/charts/Line";
-import { dummyDashboardKelurahan, dummySesiPosbindu } from "@/lib/dummy";
-import { tanggal, angka } from "@/lib/format";
+import { ErrorState, Loading } from "@/components/ui/Empty";
+import { laporan as laporanApi, ApiError } from "@/lib/api";
+import { LABEL_KATEGORI_IMT, LABEL_FAKTOR } from "@/lib/labels";
+import { angka } from "@/lib/format";
+import type { LaporanKelurahan } from "@/types";
+import type { KategoriImt } from "@/lib/enums";
+
+/* Laporan agregat kelurahan — kontrak §14.2.
+   Suppression sel < 5 dijalankan backend (§9.2); FE tidak pernah
+   menerima angka mentah, jadi tidak ada yang perlu disaring di sini. */
+
+type Periode = "1m" | "3m" | "6m" | "1y";
+
+const LABEL_PERIODE: Record<Periode, string> = {
+  "1m": "1 bulan",
+  "3m": "3 bulan",
+  "6m": "6 bulan",
+  "1y": "12 bulan",
+};
 
 export default function LaporanKelurahanPage() {
-  const d = dummyDashboardKelurahan;
-  const [periode, setPeriode] = useState("3m");
+  const [periode, setPeriode] = useState<Periode>("3m");
+  const [d, setD] = useState<LaporanKelurahan | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const PERIODE_LABEL: Record<string, string> = {
-    "1m": "1 bulan",
-    "3m": "3 bulan",
-    "6m": "6 bulan",
-    "12m": "12 bulan",
-  };
+  const muat = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await laporanApi.kelurahan({ periode });
+      setD(data);
+      setError("");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Gagal memuat laporan");
+    } finally {
+      setLoading(false);
+    }
+  }, [periode]);
+
+  useEffect(() => {
+    muat();
+  }, [muat]);
 
   return (
-    <AppShell greet="Laporan Kelurahan">
-      {/* Filter & Export */}
+    <AppShell greet="Laporan Kelurahan" roles={["admin_kelurahan", "super_admin"]}>
       <section>
         <div className="app-section-title">
           <h2>Laporan Agregat</h2>
           <div className="row-end" style={{ gap: 8 }}>
-            <select value={periode} onChange={(e) => setPeriode(e.target.value)} className="input" style={{ maxWidth: 120 }}>
-              <option value="1m">1 bulan</option>
-              <option value="3m">3 bulan</option>
-              <option value="6m">6 bulan</option>
-              <option value="12m">12 bulan</option>
+            <select
+              value={periode}
+              onChange={(e) => setPeriode(e.target.value as Periode)}
+              className="input"
+              style={{ maxWidth: 140 }}
+            >
+              {(Object.keys(LABEL_PERIODE) as Periode[]).map((p) => (
+                <option key={p} value={p}>
+                  {LABEL_PERIODE[p]}
+                </option>
+              ))}
             </select>
-            <Button size="sm">
-              <Icon name="download" size={14} /> Export PDF
-            </Button>
           </div>
         </div>
       </section>
 
-      {/* Ringkasan metrik */}
-      <section>
-        <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
-          <div className="card card-metric">
-            <div className="tiny">Peserta Terdaftar</div>
-            <div className="metric-val">{angka(d.total_peserta)}</div>
-          </div>
-          <div className="card card-metric">
-            <div className="tiny">Pengguna Aktif</div>
-            <div className="metric-val">{angka(d.total_pengguna_aktif)}</div>
-          </div>
-          <div className="card card-metric">
-            <div className="tiny">Total Pencatatan</div>
-            <div className="metric-val">{angka(d.total_pencatatan)}</div>
-          </div>
-          <div className="card card-metric">
-            <div className="tiny">Kepatuhan</div>
-            <div className="metric-val">{d.kepatuhan_pencatatan_persen}%</div>
-          </div>
-        </div>
-      </section>
-
-      {/* Grafik Distribusi IMT */}
-      <section>
-        <div className="app-section-title">
-          <h2>Distribusi IMT</h2>
-        </div>
-        <div className="card mt-12">
-          <Bar
-            labels={d.distribusi_imt.map((x) => x.kategori ?? "")}
-            values={d.distribusi_imt.map((x) => x.jumlah)}
-            height={250}
-          />
-        </div>
-        <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
-          {d.distribusi_imt.map((item) => (
-            <div className="card card-flat" key={item.kategori}>
-              <div className="row-between">
-                <span>{item.kategori}</span>
-                <strong>{persen(item.jumlah, d.total_peserta)}%</strong>
+      {loading ? (
+        <Loading />
+      ) : error || !d ? (
+        <ErrorState message={error || "Data tidak tersedia"} onRetry={muat} />
+      ) : (
+        <>
+          {/* Ringkasan metrik */}
+          <section>
+            <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
+              <div className="card card-metric">
+                <div className="tiny">Peserta Terdaftar</div>
+                <div className="metric-val">{angka(d.total_peserta)}</div>
               </div>
-              <div className="progress mt-8" style={{ height: 4 }}>
-                <div className="progress-bar" style={{ width: `${persen(item.jumlah, d.total_peserta)}%` }}></div>
+              <div className="card card-metric">
+                <div className="tiny">Pengguna Aktif</div>
+                <div className="metric-val">{angka(d.total_pengguna_aktif)}</div>
+              </div>
+              <div className="card card-metric">
+                <div className="tiny">Total Pencatatan</div>
+                <div className="metric-val">{angka(d.total_pencatatan)}</div>
+              </div>
+              <div className="card card-metric">
+                <div className="tiny">Kepatuhan</div>
+                <div className="metric-val">{d.kepatuhan_pencatatan_persen}%</div>
               </div>
             </div>
-          ))}
-        </div>
-      </section>
+          </section>
 
-      {/* Grafik Distribusi Risiko */}
-      <section>
-        <div className="app-section-title">
-          <h2>Distribusi Risiko</h2>
-        </div>
-        <div className="card mt-12">
-          <Bar
-            labels={d.distribusi_risiko.map((x) => x.faktor ?? "")}
-            values={d.distribusi_risiko.map((x) => x.jumlah)}
-            height={250}
-            horizontal
-          />
-        </div>
-      </section>
-
-      {/* Grafik Tren Pencatatan */}
-      <section>
-        <div className="app-section-title">
-          <h2>Tren Pencatatan ({PERIODE_LABEL[periode]})</h2>
-        </div>
-        <div className="card mt-12">
-          <Line
-            labels={d.tren.map((x) => x.periode)}
-            series={[{ name: "Pencatatan", data: d.tren.map((x) => x.total_pencatatan) }]}
-            unit="catatan"
-            height={200}
-          />
-        </div>
-      </section>
-
-      {/* Distribusi Kelompok Usia */}
-      <section>
-        <div className="app-section-title">
-          <h2>Distribusi Kelompok Usia</h2>
-        </div>
-        <div className="card mt-12">
-          {d.distribusi_kelompok_usia.map((item) => (
-            <div className="li" key={item.kelompok}>
-              <div className="li-main">
-                <strong>{item.kelompok} tahun</strong>
-              </div>
-              <div className="text-right">
-                <strong>{angka(item.jumlah)}</strong>
-                <span className="tiny block mt-4">{persen(item.jumlah, d.total_peserta)}%</span>
-              </div>
+          {/* Distribusi IMT */}
+          <section>
+            <div className="app-section-title">
+              <h2>Distribusi IMT</h2>
             </div>
-          ))}
-        </div>
-      </section>
+            <div className="card mt-12">
+              {d.distribusi_imt.length ? (
+                <Bar
+                  labels={d.distribusi_imt.map((x) => labelImt(x.kategori))}
+                  values={d.distribusi_imt.map((x) => x.jumlah)}
+                  height={250}
+                />
+              ) : (
+                <p className="tiny center py-16">Belum ada data IMT pada periode ini.</p>
+              )}
+            </div>
+            {d.distribusi_imt.length ? (
+              <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
+                {d.distribusi_imt.map((item) => (
+                  <div className="card card-flat" key={item.kategori}>
+                    <div className="row-between">
+                      <span>{labelImt(item.kategori)}</span>
+                      <strong>{persen(item.jumlah, d.total_peserta)}%</strong>
+                    </div>
+                    <div className="progress mt-8" style={{ height: 4 }}>
+                      <div
+                        className="progress-bar"
+                        style={{ width: `${persen(item.jumlah, d.total_peserta)}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </section>
 
-      {/* Catatan */}
-      <p className="tiny center mt-8 mb-16">
-        <Icon name="info" size={13} /> Data diperbarui secara real-time dari pencatatan kader di lapangan.
-      </p>
+          {/* Riwayat keluarga (self-report) */}
+          <section>
+            <div className="app-section-title">
+              <h2>Riwayat Keluarga</h2>
+              <span className="tiny">Self-report peserta</span>
+            </div>
+            <div className="card mt-12">
+              {d.distribusi_riwayat_keluarga.length ? (
+                <Bar
+                  labels={d.distribusi_riwayat_keluarga.map(
+                    (x) => LABEL_FAKTOR[x.faktor ?? ""] ?? x.faktor ?? "",
+                  )}
+                  values={d.distribusi_riwayat_keluarga.map((x) => x.jumlah)}
+                  height={250}
+                  horizontal
+                />
+              ) : (
+                <p className="tiny center py-16">Belum ada riwayat keluarga tercatat.</p>
+              )}
+            </div>
+          </section>
+
+          {/* Tren pencatatan */}
+          <section>
+            <div className="app-section-title">
+              <h2>Tren Pencatatan ({LABEL_PERIODE[periode]})</h2>
+            </div>
+            <div className="card mt-12">
+              {d.tren.length ? (
+                <Line
+                  labels={d.tren.map((x) => x.periode)}
+                  series={[{ name: "Pencatatan", data: d.tren.map((x) => x.total_pencatatan) }]}
+                  unit="catatan"
+                  height={200}
+                />
+              ) : (
+                <p className="tiny center py-16">Belum ada pencatatan pada periode ini.</p>
+              )}
+            </div>
+          </section>
+
+          {/* Kelompok usia */}
+          <section>
+            <div className="app-section-title">
+              <h2>Distribusi Kelompok Usia</h2>
+            </div>
+            <div className="card mt-12">
+              {d.distribusi_kelompok_usia.length ? (
+                d.distribusi_kelompok_usia.map((item) => (
+                  <div className="li" key={item.kelompok}>
+                    <div className="li-main">
+                      <strong>{item.kelompok} tahun</strong>
+                    </div>
+                    <div className="text-right">
+                      <strong>{angka(item.jumlah)}</strong>
+                      <span className="tiny block mt-4">
+                        {persen(item.jumlah, d.total_peserta)}%
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="tiny center py-16">
+                  Kelompok dengan jumlah &lt; 5 tidak ditampilkan.
+                </p>
+              )}
+            </div>
+          </section>
+
+          {/* Status rujukan — hanya status yang lolos suppression */}
+          <section>
+            <div className="app-section-title">
+              <h2>Status Rujukan</h2>
+              <span className="tiny">Jumlah &lt; 5 disembunyikan</span>
+            </div>
+            <div className="card mt-12">
+              {Object.keys(d.rujukan).length ? (
+                (
+                  [
+                    ["baru", "Baru", "danger"],
+                    ["dihubungi", "Dihubungi", "warning"],
+                    ["tertangani", "Tertangani", "safe"],
+                    ["ditolak", "Ditolak", "danger"],
+                  ] as const
+                )
+                  .filter(([kunci]) => d.rujukan[kunci] !== undefined)
+                  .map(([kunci, label, tone]) => (
+                    <div className="li" key={kunci}>
+                      <div className="li-main">
+                        <strong>{label}</strong>
+                      </div>
+                      <Badge tone={tone}>{d.rujukan[kunci]}</Badge>
+                    </div>
+                  ))
+              ) : (
+                <p className="tiny center py-16">
+                  {d.ada_data_disembunyikan
+                    ? "Jumlah rujukan disembunyikan karena di bawah 5 (privasi)."
+                    : "Belum ada rujukan pada periode ini."}
+                </p>
+              )}
+            </div>
+          </section>
+
+          {d.ada_data_disembunyikan ? (
+            <p className="tiny center mt-8">
+              <Icon name="shield" size={13} /> Sebagian sel disembunyikan untuk melindungi privasi
+              (jumlah &lt; 5).
+            </p>
+          ) : null}
+
+          <p className="tiny center mt-8 mb-16">{d.disclaimer}</p>
+        </>
+      )}
     </AppShell>
   );
 }
 
-// Helper persen
+function labelImt(kategori?: string): string {
+  return LABEL_KATEGORI_IMT[kategori as KategoriImt] ?? kategori ?? "—";
+}
+
 function persen(nilai: number, total: number): number {
-  return Math.round((nilai / total) * 100);
+  return total > 0 ? Math.round((nilai / total) * 100) : 0;
 }
