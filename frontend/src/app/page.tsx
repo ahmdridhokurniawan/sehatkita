@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
 import ThemeToggle from "@/components/ui/ThemeToggle";
@@ -53,10 +53,42 @@ function FaqItem({ q, a, open, onToggle }: { q: string; a: string; open: boolean
         {q} <Icon name="chevron-down" />
       </button>
       <div className="acc-a">
-        <div className="acc-a-inner">{a}</div>
+        <div className="acc-a-inner">
+          <div className="acc-a-pad">{a}</div>
+        </div>
       </div>
     </div>
   );
+}
+
+/* ---------------- Reveal saat masuk viewport ----------------
+   Satu IntersectionObserver untuk semua elemen [data-reveal].
+   Elemen langsung dilepas dari observer setelah tampil supaya
+   tidak ada kerja tambahan saat scroll (tetap ringan). */
+function useReveal() {
+  useEffect(() => {
+    const els = Array.from(document.querySelectorAll<HTMLElement>("[data-reveal]:not(.in)"));
+    if (!els.length) return;
+
+    const kurangiGerak = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (kurangiGerak || !("IntersectionObserver" in window)) {
+      els.forEach((el) => el.classList.add("in"));
+      return;
+    }
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (!e.isIntersecting) continue;
+          e.target.classList.add("in");
+          io.unobserve(e.target);
+        }
+      },
+      { rootMargin: "0px 0px -8% 0px", threshold: 0.12 },
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
 }
 
 export default function LandingPage() {
@@ -65,6 +97,7 @@ export default function LandingPage() {
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
   const [navOpen, setNavOpen] = useState(false);
   const [legal, setLegal] = useState<string | null>(null);
+  useReveal();
 
   return (
     <div className="landing">
@@ -85,6 +118,8 @@ export default function LandingPage() {
             <a href="#cara-kerja">Cara Kerja</a>
             <a href="#tentang">Tentang</a>
             <a href="#faq">FAQ</a>
+            <Link href="/login" className="nav-auth">Masuk</Link>
+            <Link href="/register" className="nav-auth">Daftar</Link>
           </nav>
           <div className="header-actions">
             <ThemeToggle />
@@ -107,7 +142,7 @@ export default function LandingPage() {
       <section className="hero" id="beranda">
         <div className="container">
           <div className="hero-grid">
-            <div>
+            <div className="hero-copy">
               <span className="eyebrow">Platform Monitoring PTM</span>
               <h1 className="display mt-12">
                 Kenali Kondisi Tubuhmu.
@@ -146,7 +181,7 @@ export default function LandingPage() {
                     </button>
                   ))}
                 </div>
-                <div>
+                <div className="pane-anim" key={tabHero}>
                   <PreviewPanel tab={tabHero} />
                 </div>
               </div>
@@ -158,7 +193,7 @@ export default function LandingPage() {
       {/* ============ FITUR ============ */}
       <section className="section" id="fitur">
         <div className="container">
-          <div className="sec-head center">
+          <div className="sec-head center" data-reveal>
             <span className="eyebrow">Fitur</span>
             <h2 className="h1">Semua yang Anda butuhkan untuk memantau kesehatan</h2>
             <p className="lead">
@@ -166,39 +201,39 @@ export default function LandingPage() {
             </p>
           </div>
           <div className="grid grid-3">
-            <div className="feat">
+            <div className="feat" data-reveal>
               <span className="feat-ico"><Icon name="file-text" /></span>
               <h3>Rekam Medis</h3>
               <p>Simpan riwayat berat badan, tekanan darah, gula darah, kolesterol, dan lainnya dalam satu tempat.</p>
               <span className="feat-link">Lihat riwayat <Icon name="arrow-right" size={15} /></span>
             </div>
-            <div className="feat">
+            <div className="feat" data-reveal>
               <span className="feat-ico"><Icon name="sparkles" /></span>
               <h3>Insight Kesehatan</h3>
               <p>Analisis otomatis dari data yang Anda catat, dengan penjelasan sederhana dan rekomendasi tindak lanjut.</p>
             </div>
-            <div className="feat">
+            <div className="feat" data-reveal>
               <span className="feat-ico"><Icon name="send" /></span>
               <h3>Rujukan &amp; Notifikasi</h3>
               <p>Terhubung ke fasilitas kesehatan dan dapatkan pemberitahuan saat tindak lanjut diperlukan.</p>
             </div>
-            <div className="feat">
+            <div className="feat" data-reveal>
               <span className="feat-ico"><Icon name="target" /></span>
               <h3>Target Kesehatan</h3>
               <p>Tetapkan target berat badan, aktivitas, dan asupan air, lalu pantau perkembangannya.</p>
             </div>
-            <div className="feat feat-wide feat-accent">
+            <div className="feat feat-wide feat-accent" data-reveal>
               <span className="feat-ico"><Icon name="award" /></span>
  <h3>Tantangan &amp; Reward</h3>
               <p>Ikuti tantangan kesehatan bersama warga, kumpulkan badge, dan naik level sesuai partisipasi nyata.</p>
               <span className="feat-link">Jelajahi tantangan <Icon name="arrow-right" size={15} /></span>
             </div>
-            <div className="feat">
+            <div className="feat" data-reveal>
               <span className="feat-ico"><Icon name="building" /></span>
               <h3>Program Kesehatan Kelurahan</h3>
               <p>Ikuti kegiatan Posbindu, penyuluhan, dan pemeriksaan kesehatan di wilayah Anda.</p>
             </div>
-            <div className="feat">
+            <div className="feat" data-reveal>
               <span className="feat-ico"><Icon name="bar-chart" /></span>
               <h3>Dashboard Pemantauan Wilayah</h3>
               <p>Admin kelurahan memantau kondisi agregat masyarakat tanpa membuka data pribadi individu.</p>
@@ -210,18 +245,18 @@ export default function LandingPage() {
       {/* ============ CARA KERJA ============ */}
       <section className="section" id="cara-kerja" style={{ background: "var(--surface-2)" }}>
         <div className="container">
-          <div className="sec-head center">
+          <div className="sec-head center" data-reveal>
             <span className="eyebrow">Cara Kerja</span>
             <h2 className="h1">Mulai dalam beberapa langkah sederhana</h2>
           </div>
           <div className="grid grid-2" style={{ alignItems: "start" }}>
-            <div className="steps">
+            <div className="steps" data-reveal>
               <div className="step"><span className="step-num">1</span><div><h4>Daftar &amp; setujui kebijakan</h4><p>Masyarakat mendaftar dan menyetujui kebijakan penggunaan data.</p></div></div>
               <div className="step"><span className="step-num">2</span><div><h4>Masuk ke dashboard</h4><p>Pengguna masuk dan langsung dapat menggunakan aplikasi.</p></div></div>
               <div className="step"><span className="step-num">3</span><div><h4>Lengkapi profil</h4><p>Lengkapi data profil kapan pun Anda siap.</p></div></div>
               <div className="step"><span className="step-num">4</span><div><h4>Catat hasil pemeriksaan</h4><p>Catat hasil pemeriksaan mandiri atau dari Posbindu.</p></div></div>
             </div>
-            <div className="steps">
+            <div className="steps" data-reveal>
               <div className="step"><span className="step-num">5</span><div><h4>Lihat hasil analisis</h4><p>Sistem menampilkan hasil analisis dari backend secara sederhana.</p></div></div>
               <div className="step"><span className="step-num">6</span><div><h4>Ikuti program &amp; tantangan</h4><p>Bergabung dengan program kesehatan dan tantangan wilayah.</p></div></div>
               <div className="step"><span className="step-num">7</span><div><h4>Petugas menindaklanjuti</h4><p>Kader, admin kelurahan, dan fasilitas kesehatan melihat informasi sesuai kewenangannya.</p></div></div>
@@ -233,12 +268,12 @@ export default function LandingPage() {
       {/* ============ PREVIEW INTERAKTIF (BESAR) ============ */}
       <section className="section">
         <div className="container">
-          <div className="sec-head center">
+          <div className="sec-head center" data-reveal>
             <span className="eyebrow">Pratinjau Produk</span>
             <h2 className="h1">Antarmuka yang benar-benar berfungsi</h2>
             <p className="lead">Pilih tab untuk melihat tampilan masing-masing bagian SehatKita.</p>
           </div>
-          <div className="card card-pad-lg">
+          <div className="card card-pad-lg" data-reveal>
             <div className="tabs">
               {TAB_LABELS.map(([id, label]) => (
                 <button key={id} className={`tab ${tabBig === id ? "active" : ""}`} onClick={() => setTabBig(id)} type="button">
@@ -246,7 +281,7 @@ export default function LandingPage() {
                 </button>
               ))}
             </div>
-            <div className="mt-20">
+            <div className="mt-20 pane-anim" key={tabBig}>
               <PreviewPanel tab={tabBig} />
             </div>
           </div>
@@ -257,7 +292,7 @@ export default function LandingPage() {
       <section className="section" id="tentang" style={{ background: "var(--surface-2)" }}>
         <div className="container">
           <div className="grid grid-2" style={{ gap: 44, alignItems: "center" }}>
-            <div>
+            <div data-reveal>
               <span className="eyebrow">Tentang</span>
               <h2 className="h1 mt-12">Mendukung pemantauan PTM di Kota Banjarbaru</h2>
               <p className="lead mt-16">
@@ -267,19 +302,19 @@ export default function LandingPage() {
                 keputusan program kesehatan.
               </p>
               <div className="grid grid-2 mt-24" style={{ gap: 14 }}>
-                <div className="card card-flat">
+                <div className="card card-flat" data-reveal>
                   <span className="feat-ico mb-12"><Icon name="map-pin" /></span>
                   <h4 className="h4">Berbasis Wilayah</h4>
                   <p className="tiny mt-4">Terhubung kelurahan di Kota Banjarbaru.</p>
                 </div>
-                <div className="card card-flat">
+                <div className="card card-flat" data-reveal>
                   <span className="feat-ico mb-12"><Icon name="lock" /></span>
                   <h4 className="h4">Privasi Terjaga</h4>
                   <p className="tiny mt-4">Data individual tidak dibagikan ke role agregat.</p>
                 </div>
               </div>
             </div>
-            <div className="card card-pad-lg card-raised">
+            <div className="card card-pad-lg card-raised" data-reveal>
               <div className="alert alert-warning mb-16">
                 <Icon name="alert-triangle" />
                 <div>
@@ -310,11 +345,11 @@ export default function LandingPage() {
       {/* ============ FAQ ============ */}
       <section className="section" id="faq">
         <div className="container container-narrow">
-          <div className="sec-head center">
+          <div className="sec-head center" data-reveal>
             <span className="eyebrow">FAQ</span>
             <h2 className="h1">Pertanyaan yang sering diajukan</h2>
           </div>
-          <div>
+          <div data-reveal>
             {FAQ_LANDING.map(([q, a], i) => (
               <FaqItem key={i} q={q} a={a} open={faqOpen === i} onToggle={() => setFaqOpen(faqOpen === i ? null : i)} />
             ))}
@@ -325,7 +360,7 @@ export default function LandingPage() {
       {/* ============ CTA BAND ============ */}
       <section className="section-sm">
         <div className="container">
-          <div className="cta-band">
+          <div className="cta-band" data-reveal>
             <div>
               <h2 className="h2">Siap memantau kesehatan Anda?</h2>
               <p>Bergabung bersama masyarakat Kota Banjarbaru untuk membangun kebiasaan hidup lebih sehat.</p>

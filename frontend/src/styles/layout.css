@@ -88,6 +88,7 @@
   transition: all .16s var(--ease);
 }
 .nav-main a:hover, .nav-main a.active { color: var(--primary); background: var(--primary-050); }
+.nav-main .nav-auth { display: none; } /* hanya dipakai di menu mobile */
 .header-actions { margin-left: auto; display: flex; align-items: center; gap: 9px; }
 
 .nav-toggle { display: none; }
@@ -101,6 +102,17 @@
     box-shadow: var(--shadow-md); gap: 3px;
   }
   .nav-main.open a { padding: 12px 14px; }
+  .nav-main.open .nav-auth { display: block; }
+}
+
+/* Layar sangat sempit: rapatkan header supaya tidak ada scroll horizontal.
+   Tombol "Mulai Sekarang" pindah ke menu (nav-auth) agar header tidak meluber. */
+@media (max-width: 480px) {
+  .site-header .container { gap: 8px; }
+  .header-actions { gap: 6px; }
+  .header-actions .btn-primary { display: none; }
+  .brand { font-size: 1.0625rem; gap: 8px; }
+  .brand-mark { width: 32px; height: 32px; }
 }
 
 /* Hero */
@@ -180,9 +192,13 @@
 }
 .acc-q svg { width: 19px; height: 19px; color: var(--text-2); transition: transform .25s var(--ease); flex: none; }
 .acc.open .acc-q svg { transform: rotate(180deg); color: var(--primary); }
-.acc-a { max-height: 0; overflow: hidden; transition: max-height .3s var(--ease); }
-.acc-a-inner { padding: 0 18px 17px; font-size: .875rem; color: var(--text-2); line-height: 1.7; }
-.acc.open .acc-a { max-height: 400px; }
+/* Buka/tutup pakai grid-template-rows 0fr→1fr: transisi halus, tinggi otomatis,
+   tanpa ukur tinggi lewat JS (dulu max-height 400px memotong jawaban panjang). */
+.acc-a { display: grid; grid-template-rows: 0fr; overflow: hidden; opacity: 0;
+  transition: grid-template-rows .32s var(--ease), opacity .26s var(--ease); }
+.acc-a-inner { min-height: 0; overflow: hidden; }
+.acc-a-pad { padding: 0 18px 17px; font-size: .875rem; color: var(--text-2); line-height: 1.7; }
+.acc.open .acc-a { grid-template-rows: 1fr; opacity: 1; }
 
 /* Section headings */
 .sec-head { max-width: 640px; margin-bottom: 40px; }
