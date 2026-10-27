@@ -4,28 +4,38 @@
    tanpa library, tanpa animasi yang memicu reflow tiap frame.
    ========================================================= */
 
-/* ---------- Hero: masuk bertahap saat halaman dibuka ---------- */
-.hero-copy > * {
-  opacity: 0;
-  transform: translateY(14px);
-  animation: hero-in 0.62s var(--ease, cubic-bezier(.22,.61,.36,1)) forwards;
+/* ---------- Hero: masuk bertahap saat halaman dibuka ----------
+   Animasi dipasang lewat kelas `.hero-run` (bukan langsung di selector)
+   supaya bisa diputar ulang: kelas dicabut saat hero keluar layar,
+   dipasang lagi saat hero masuk layar. */
+@media (scripting: enabled) {
+  .hero-copy > * {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  .preview-shell {
+    opacity: 0;
+    transform: translateY(22px) scale(0.985);
+  }
+  .hero.hero-run .hero-copy > * {
+    animation: hero-in 0.62s var(--ease, cubic-bezier(.22,.61,.36,1)) forwards;
+  }
+  .hero.hero-run .preview-shell {
+    animation: hero-preview 0.78s var(--ease, cubic-bezier(.22,.61,.36,1)) 0.22s forwards;
+  }
 }
+
 .hero-copy > *:nth-child(1) { animation-delay: 0.04s; }
 .hero-copy > *:nth-child(2) { animation-delay: 0.11s; }
 .hero-copy > *:nth-child(3) { animation-delay: 0.18s; }
 .hero-copy > *:nth-child(4) { animation-delay: 0.25s; }
 .hero-copy > *:nth-child(5) { animation-delay: 0.32s; }
+/* Mockup punya delay sendiri di atas; jangan ditimpa aturan anak hero-copy. */
 
 @keyframes hero-in {
   to { opacity: 1; transform: none; }
 }
 
-/* Mockup dashboard: muncul sedikit lebih lambat + naik pelan */
-.preview-shell {
-  opacity: 0;
-  transform: translateY(22px) scale(0.985);
-  animation: hero-preview 0.78s var(--ease, cubic-bezier(.22,.61,.36,1)) 0.22s forwards;
-}
 @keyframes hero-preview {
   to { opacity: 1; transform: none; }
 }

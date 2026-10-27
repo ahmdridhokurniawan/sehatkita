@@ -63,11 +63,12 @@ function FaqItem({ q, a, open, onToggle }: { q: string; a: string; open: boolean
 
 /* ---------------- Reveal saat masuk viewport ----------------
    Satu IntersectionObserver untuk semua elemen [data-reveal].
-   Elemen langsung dilepas dari observer setelah tampil supaya
-   tidak ada kerja tambahan saat scroll (tetap ringan). */
+   Kelas `in` dipasang saat elemen masuk layar dan dicabut saat
+   keluar, jadi animasinya berulang tiap kali di-scroll.
+   Elemen tetap "in" kalau masih terlihat, jadi tidak berkedip. */
 function useReveal() {
   useEffect(() => {
-    const els = Array.from(document.querySelectorAll<HTMLElement>("[data-reveal]:not(.in)"));
+    const els = Array.from(document.querySelectorAll<HTMLElement>("[data-reveal]"));
     if (!els.length) return;
 
     const kurangiGerak = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -76,17 +77,42 @@ function useReveal() {
       return;
     }
 
+    // Mulai dari tersembunyi hanya jika JS aktif (CSS pakai sama-sama data-reveal).
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
-          if (!e.isIntersecting) continue;
-          e.target.classList.add("in");
-          io.unobserve(e.target);
+          // Ambang kecil supaya elemen yang cuma menyentuh tepi layar
+          // tidak bolak-balik memicu animasi (kedip).
+          if (e.isIntersecting && e.intersectionRatio > 0.08) {
+            e.target.classList.add("in");
+          } else if (!e.isIntersecting && e.intersectionRatio === 0) {
+            e.target.classList.remove("in");
+          }
         }
       },
-      { rootMargin: "0px 0px -8% 0px", threshold: 0.12 },
+      { rootMargin: "-6% 0px -6% 0px", threshold: [0, 0.08] },
     );
     els.forEach((el) => io.observe(el));
+
+    // Hero diputar ulang: `hero-run` dipasang saat hero terlihat,
+    // dicabut saat keluar layar supaya animasinya bisa jalan lagi.
+    const hero = document.querySelector<HTMLElement>(".hero");
+    if (hero) {
+      const ioHero = new IntersectionObserver(
+        (entries) => {
+          const e = entries[0];
+          if (e.isIntersecting) hero.classList.add("hero-run");
+          else hero.classList.remove("hero-run");
+        },
+        { threshold: 0, rootMargin: "-10% 0px -10% 0px" },
+      );
+      ioHero.observe(hero);
+      return () => {
+        io.disconnect();
+        ioHero.disconnect();
+      };
+    }
+
     return () => io.disconnect();
   }, []);
 }
