@@ -77,25 +77,42 @@ function useReveal() {
       return;
     }
 
-    // Mulai dari tersembunyi hanya jika JS aktif (CSS pakai sama-sama data-reveal).
+    // rootMargin 0 supaya elemen yang masih terlihat sebagian TIDAK dicabut
+    // (kalau dicabut, konten di tepi layar sempat transparan = terlihat seperti bug).
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
-          // Ambang kecil supaya elemen yang cuma menyentuh tepi layar
-          // tidak bolak-balik memicu animasi (kedip).
-          if (e.isIntersecting && e.intersectionRatio > 0.08) {
+          if (e.isIntersecting) {
             e.target.classList.add("in");
-          } else if (!e.isIntersecting && e.intersectionRatio === 0) {
+          } else {
+            // Hanya dicabut kalau benar-benar 0 px terlihat.
             e.target.classList.remove("in");
           }
         }
       },
-      { rootMargin: "-6% 0px -6% 0px", threshold: [0, 0.08] },
+      { threshold: [0, 0.15] },
     );
     els.forEach((el) => io.observe(el));
 
+    /* Elemen yang sudah terlewati (di atas layar) dipaksa tampil.
+       Tanpa ini, scroll cepat / lompat anchor bisa meninggalkan konten
+       transparan selamanya karena observer tidak pernah melihatnya. */
+    let raf = 0;
+    const sapu = () => {
+      raf = 0;
+      for (const el of els) {
+        if (el.classList.contains("in")) continue;
+        if (el.getBoundingClientRect().bottom < 0) el.classList.add("in");
+      }
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(sapu);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+
     // Hero diputar ulang: `hero-run` dipasang saat hero terlihat,
-    // dicabut saat keluar layar supaya animasinya bisa jalan lagi.
+    // dicabut saat hero benar-benar hilang dari layar.
     const hero = document.querySelector<HTMLElement>(".hero");
     if (hero) {
       const ioHero = new IntersectionObserver(
@@ -104,16 +121,24 @@ function useReveal() {
           if (e.isIntersecting) hero.classList.add("hero-run");
           else hero.classList.remove("hero-run");
         },
-        { threshold: 0, rootMargin: "-10% 0px -10% 0px" },
+        { threshold: 0 },
       );
       ioHero.observe(hero);
       return () => {
         io.disconnect();
         ioHero.disconnect();
+        window.removeEventListener("scroll", onScroll);
+        window.removeEventListener("resize", onScroll);
+        if (raf) cancelAnimationFrame(raf);
       };
     }
 
-    return () => io.disconnect();
+    return () => {
+      io.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, []);
 }
 
