@@ -22,8 +22,10 @@ Route::prefix('v1')->group(function () {
 
     // ===== 1. PUBLIK =====
     // /landing-page, /auth/password, /wilayah/{id} dihapus/disesuaikan kontrak
-    Route::post('/auth/register', [AuthController::class, 'register']);
-    Route::post('/auth/login', [AuthController::class, 'login'])->name('login');
+    // throttle: batasi percobaan supaya password tidak bisa ditebak otomatis.
+    // 5 percobaan / menit per IP untuk login, 10 / menit untuk daftar.
+    Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
+    Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1')->name('login');
     Route::get('/wilayah', [WilayahController::class, 'index']);
 
     // ===== 2. TERPROTEKSI (Bearer token) =====

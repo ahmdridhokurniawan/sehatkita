@@ -214,29 +214,37 @@ class DashboardWilayahController extends Controller
     /** Kelompok umur 5 tahunan per user (§9.1). */
     private function kelompokUsia(int $wilayahId): array
     {
-        $rows = DB::table('pengguna as p')
+        // Umur dihitung di PHP, bukan lewat TIMESTAMPDIFF/YEAR: fungsi itu hanya
+        // ada di MySQL sehingga query tidak bisa diuji di SQLite (dan gagal di
+        // driver lain). Hasilnya identik, tapi portabel.
+        $lahir = DB::table('pengguna as p')
             ->join('profil as pr', 'p.id', '=', 'pr.user_id')
             ->where('p.wilayah_id', $wilayahId)
             ->where('p.role', 'user')
             ->whereNotNull('p.consent_at')
             ->whereNotNull('pr.tgl_lahir')
-            ->selectRaw('FLOOR(TIMESTAMPDIFF(YEAR, pr.tgl_lahir, CURDATE()) / 5) * 5 AS dasar, COUNT(*) AS jumlah')
-            ->groupBy('dasar')
-            ->orderBy('dasar')
-            ->get();
+            ->pluck('pr.tgl_lahir');
 
-        $mentah = [];
+        $hariIni = now()->startOfDay();
+        $hitung = [];
 
-        foreach ($rows as $r) {
-            $mentah[$r->dasar.'-'.($r->dasar + 4)] = (int) $r->jumlah;
+        foreach ($lahir as $tgl) {
+            $umur = (int) \Illuminate\Support\Carbon::parse($tgl)->diffInYears($hariIni);
+            $dasar = intdiv($umur, 5) * 5;
+            $kunci = $dasar . '-' . ($dasar + 4);
+            $hitung[$kunci] = ($hitung[$kunci] ?? 0) + 1;
         }
 
-        return $mentah;
+        ksort($hitung, SORT_NATURAL);
+
+        return $hitung;
     }
 
     /** Tren pencatatan bulanan (§9.1). */
     private function tren(int $wilayahId, $tglMulai)
     {
+        // Pengelompokan bulan dilakukan di PHP supaya tidak bergantung pada
+        // DATE_FORMAT (MySQL saja) dan tetap jalan di SQLite saat tes.
         return DB::table('catatan_kesehatan as ck')
             ->join('pengguna as p', 'ck.user_id', '=', 'p.id')
             ->where('p.wilayah_id', $wilayahId)
@@ -245,11 +253,15 @@ class DashboardWilayahController extends Controller
             ->where('ck.dicatat_pada', '>=', $tglMulai)
             ->where('ck.perlu_verifikasi', false)
             ->whereNull('ck.deleted_at')
-            ->selectRaw("DATE_FORMAT(ck.dicatat_pada, '%Y-%m') AS periode, COUNT(*) AS total_pencatatan")
-            ->groupBy('periode')
-            ->orderBy('periode')
-            ->get()
-            ->map(fn ($r) => ['periode' => $r->periode, 'total_pencatatan' => (int) $r->total_pencatatan]);
+            ->orderBy('ck.dicatat_pada')
+            ->pluck('ck.dicatat_pada')
+            ->map(fn ($tgl) => \Illuminate\Support\Carbon::parse($tgl)->format('Y-m'))
+            ->countBy()
+            ->map(fn ($jumlah, $periode) => [
+                'periode'          => $periode,
+                'total_pencatatan' => (int) $jumlah,
+            ])
+            ->values();
     }
 
     /**

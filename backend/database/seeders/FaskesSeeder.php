@@ -51,21 +51,31 @@ class FaskesSeeder extends Seeder
             ],
         ];
 
-        // 3. Masukkan sekaligus. Tiap baris ditambah timestamps wajib.
-        DB::table('faskes')->insert(
-            array_map(function ($f) {
-                return [
-                    'wilayah_id' => $f['wilayah_id'],
+        // 3. Masukkan dengan updateOrCreate (bukan insert biasa) supaya seeder
+        //    aman dijalankan berulang: `insert` selalu menambah baris baru,
+        //    sehingga faskes jadi dobel tiap kali db:seed dijalankan.
+        foreach ($faskes as $f) {
+            $ada = DB::table('faskes')->where('nama', $f['nama'])->exists();
+
+            $isi = [
+                'wilayah_id' => $f['wilayah_id'],
+                'jenis'      => $f['jenis'],
+                'alamat'     => $f['alamat'],
+                'telepon'    => null,             // nullable — admin isi nanti
+                'lat'        => null,
+                'lng'        => null,
+                'updated_at' => now(),
+            ];
+
+            if ($ada) {
+                // Jangan sentuh created_at saat update.
+                DB::table('faskes')->where('nama', $f['nama'])->update($isi);
+            } else {
+                DB::table('faskes')->insert($isi + [
                     'nama'       => $f['nama'],
-                    'jenis'      => $f['jenis'],
-                    'alamat'     => $f['alamat'],
-                    'telepon'    => null,                  // nullable — kosong dulu, admin isi nanti
-                    'lat'        => null,                            
-                    'lng'        => null,
-                    'created_at' => now(),                // timestamps wajib diisi manual di DB::insert
-                    'updated_at' => now(),
-                ];
-            }, $faskes)
-        );
+                    'created_at' => now(),
+                ]);
+            }
+        }
     }
 }

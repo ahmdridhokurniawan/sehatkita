@@ -1,0 +1,54 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'backend/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Siapkan PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, sqlite3, bcmath, gd, zip
+          coverage: none
+
+      - name: Cache Composer
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: composer-${{ hashFiles('backend/composer.lock') }}
+
+      - name: Install dependency
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Siapkan .env
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # Catatan: `vendor/bin/pint --test` sengaja belum dipakai karena ~24 file
+      # lama belum mengikuti gaya Pint. Rapikan dulu dengan `vendor/bin/pint`
+      # di satu commit khusus, baru aktifkan gerbang ini.
+      - name: Jalankan tes
+        # config:clear wajib: kalau config sudah di-cache, nilai env dari
+        # phpunit.xml (DB sqlite :memory:, cache array) diabaikan sehingga
+        # tes memakai database asli dan hasilnya acak.
+        run: |
+          php artisan config:clear
+          php artisan test
