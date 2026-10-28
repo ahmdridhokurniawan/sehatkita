@@ -1,0 +1,17 @@
+# Aturan Kepemilikan Kode (CODEOWNERS)
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default: Pemilik repositori
+* @ahmdridhokurniawan
+
+# Konfigurasi GitHub & Workflow (Daffa dilarang ubah rules)
+/.github/                       @ahmdridhokurniawan
+
+# Backend, Database, Konfigurasi Server, dan Kontrak API (Wajib Review Ridho)
+/backend/                       @ahmdridhokurniawan
+/.github/workflows/backend*     @ahmdridhokurniawan
+/kontrak-api.md                 @ahmdridhokurniawan
+
+# Frontend (Daffa)
+/frontend/                      @DAFFASUPERPOWER mdffaulia@gmail.com
+/.github/workflows/frontend*    @DAFFASUPERPOWER mdffaulia@gmail.com
