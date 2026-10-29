@@ -11,7 +11,7 @@ class PenggunaWilayahSeeder extends Seeder
     public function run(): void
     {
         // 1️ password semua akun demo (model Pengguna punya cast "hashed")
-        $password = 'demo123';
+        $password = 'demo1234';
 
         // 2 cari id kecamatan Banjarbaru Utara (kode 63.72.04)
         $kecamatanId = Wilayah::where('kode', '63.72.04')->value('id');

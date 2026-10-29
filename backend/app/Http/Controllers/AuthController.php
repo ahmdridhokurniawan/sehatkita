@@ -93,4 +93,21 @@ class AuthController extends Controller
 
         return response()->json(['success' => true, 'message' => 'Persetujuan dicatat', 'data' => $request->user()]);
     }
+
+    // DELETE /api/v1/persetujuan
+    public function revokeConsent(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user->consent_at === null) {
+            return response()->json(['success' => false, 'message' => 'Tidak ada persetujuan yang tersimpan'], 400);
+        }
+
+        $user->update([
+            'consent_at'      => null,
+            'versi_kebijakan' => null,
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Persetujuan berhasil dicabut', 'data' => $user]);
+    }
 }
