@@ -32,6 +32,9 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# Template wajib ikut repo: tanpa ini, anggota tim lain tidak tahu alamat API
+# dan aplikasi gagal dengan "Failed to fetch".
+!.env.example
 
 # vercel
 .vercel

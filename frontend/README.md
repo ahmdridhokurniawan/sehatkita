@@ -75,12 +75,25 @@ cd C:/Users/asus/sehatkita/frontend
 # 2. Install dependencies
 npm install
 
-# 3. Run dev server (port 3002)
+# 3. Salin template environment, lalu buka .env.local
+cp .env.example .env.local
+
+# 4. Isi NEXT_PUBLIC_API_URL sesuai alamat backend yang kamu pakai:
+#    - Laradock di laptop sendiri : http://pm-monitoring.test/api/v1
+#    - php artisan serve          : http://127.0.0.1:8000/api/v1
+#    - backend di laptop rekan    : http://<IP-lokal-rekan>/api/v1
+#    Tanpa langkah ini aplikasi gagal dengan "Tidak bisa menghubungi server".
+
+# 5. Run dev server (port 3002)
 npm run dev
 
-# 4. Open browser
+# 6. Open browser
 # http://localhost:3002
 ```
+
+> `pm-monitoring.test` adalah hostname lokal yang hanya ada di laptop yang
+> menjalankan Docker Laradock. Di laptop lain hostname itu tidak menunjuk ke
+> mana pun, jadi API harus diisi alamat yang benar di `.env.local`.
 
 ### Build Production
 

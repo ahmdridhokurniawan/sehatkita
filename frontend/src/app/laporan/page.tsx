@@ -7,10 +7,11 @@ import Badge from "@/components/ui/Badge";
 import Bar from "@/components/charts/Bar";
 import Line from "@/components/charts/Line";
 import { ErrorState, Loading } from "@/components/ui/Empty";
-import { laporan as laporanApi, ApiError } from "@/lib/api";
+import { laporan as laporanApi, wilayah as wilayahApi, ApiError } from "@/lib/api";
+import { useUser } from "@/hooks/useUser";
 import { LABEL_KATEGORI_IMT, LABEL_FAKTOR } from "@/lib/labels";
 import { angka } from "@/lib/format";
-import type { LaporanKelurahan } from "@/types";
+import type { LaporanKelurahan, Wilayah } from "@/types";
 import type { KategoriImt } from "@/lib/enums";
 
 /* Laporan agregat kelurahan — kontrak §14.2.
@@ -27,15 +28,54 @@ const LABEL_PERIODE: Record<Periode, string> = {
 };
 
 export default function LaporanKelurahanPage() {
+  const { user, loading: loadingUser } = useUser();
   const [periode, setPeriode] = useState<Periode>("3m");
   const [d, setD] = useState<LaporanKelurahan | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  /* super_admin tidak punya wilayah sendiri, jadi backend menolak tanpa
+     `wilayah_id` (422 "wilayah_id wajib untuk super_admin"). Dulu halaman ini
+     langsung memanggil API tanpa parameter itu dan selalu berakhir
+     "Gagal memuat data". Sekarang super_admin memilih kelurahan dulu. */
+  const perluPilihWilayah = user?.role === "super_admin";
+  const [wilayahList, setWilayahList] = useState<Wilayah[]>([]);
+  const [wilayahId, setWilayahId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!perluPilihWilayah) return;
+    let aktif = true;
+    wilayahApi
+      .list({ tipe: "kelurahan" })
+      .then((rows) => {
+        if (!aktif) return;
+        setWilayahList(rows);
+        if (rows.length) setWilayahId((kini) => kini ?? rows[0].id);
+      })
+      .catch(() => aktif && setWilayahList([]));
+    return () => {
+      aktif = false;
+    };
+  }, [perluPilihWilayah]);
+
   const muat = useCallback(async () => {
+    /* Role baru diketahui setelah /auth/me selesai. Jangan memanggil API
+       selagi role belum pasti — kalau tidak, super_admin terlanjur memanggil
+       tanpa `wilayah_id` dan backend membalas 422 "Validasi gagal". */
+    if (loadingUser) return;
+    // Tunggu pilihan kelurahan; jangan memanggil API yang pasti 422.
+    if (perluPilihWilayah && !wilayahId) {
+      setLoading(false);
+      setD(null);
+      setError("");
+      return;
+    }
     setLoading(true);
     try {
-      const data = await laporanApi.kelurahan({ periode });
+      const data = await laporanApi.kelurahan({
+        periode,
+        ...(perluPilihWilayah && wilayahId ? { wilayah_id: wilayahId } : {}),
+      });
       setD(data);
       setError("");
     } catch (err) {
@@ -43,7 +83,7 @@ export default function LaporanKelurahanPage() {
     } finally {
       setLoading(false);
     }
-  }, [periode]);
+  }, [periode, perluPilihWilayah, wilayahId, loadingUser]);
 
   useEffect(() => {
     muat();
@@ -55,10 +95,27 @@ export default function LaporanKelurahanPage() {
         <div className="app-section-title">
           <h2>Laporan Agregat</h2>
           <div className="row-end" style={{ gap: 8 }}>
+            {perluPilihWilayah ? (
+              <select
+                value={wilayahId ?? ""}
+                onChange={(e) => setWilayahId(Number(e.target.value) || null)}
+                className="input"
+                aria-label="Pilih kelurahan"
+                style={{ maxWidth: 200 }}
+              >
+                {wilayahList.length ? null : <option value="">Pilih kelurahan…</option>}
+                {wilayahList.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.nama}
+                  </option>
+                ))}
+              </select>
+            ) : null}
             <select
               value={periode}
               onChange={(e) => setPeriode(e.target.value as Periode)}
               className="input"
+              aria-label="Pilih periode laporan"
               style={{ maxWidth: 140 }}
             >
               {(Object.keys(LABEL_PERIODE) as Periode[]).map((p) => (
@@ -71,7 +128,7 @@ export default function LaporanKelurahanPage() {
         </div>
       </section>
 
-      {loading ? (
+      {loading || (perluPilihWilayah && !wilayahId && !error) ? (
         <Loading />
       ) : error || !d ? (
         <ErrorState message={error || "Data tidak tersedia"} onRetry={muat} />

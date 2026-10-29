@@ -169,6 +169,15 @@ export default function RekamMedisPage() {
 
       <div className="app-section-title mt-20">
         <h2>Riwayat Catatan</h2>
+        {/* Tombol teks: FAB "+" saja tidak cukup jelas untuk pengguna baru,
+            dan teks kosong di bawah menyebut "tombol Catat Kesehatan". */}
+        <button
+          className="btn btn-sm btn-primary"
+          type="button"
+          onClick={() => setCatatTerbuka(true)}
+        >
+          <Icon name="plus" size={16} /> Catat
+        </button>
       </div>
       <div className="input-icon mt-12">
         <Icon name="search" size={18} />
@@ -186,7 +195,7 @@ export default function RekamMedisPage() {
 
       <div className="mt-16">
         {baris.length === 0 ? (
-          <EmptyState title="Belum ada catatan" desc="Tekan tombol Catat Kesehatan untuk mulai mencatat." />
+          <EmptyState title="Belum ada catatan" desc="Tekan tombol Catat di kanan atas untuk mulai mencatat." />
         ) : (
           baris.map((c) => {
             const items = [

@@ -129,6 +129,23 @@ function buildUrl(path: string, query?: object): string {
   }
   return url.toString();
 }
+/** Wrapper fetch: ubah kegagalan jaringan jadi pesan yang bisa dimengerti. */
+async function kirim(url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch {
+    // fetch melempar TypeError("Failed to fetch") bila server tidak terjangkau:
+    // alamat salah (mis. hostname lokal di laptop lain), backend mati, atau
+    // diblokir CORS/jaringan. Pesan aslinya bahasa Inggris dan tidak
+    // menjelaskan apa pun ke pengguna.
+    throw new ApiError(
+      `Tidak bisa menghubungi server (${API_BASE_URL}). ` +
+        "Pastikan backend berjalan dan alamat API di .env.local sudah benar.",
+      0,
+    );
+  }
+}
+
 /** Fungsi inti: kirim request ke backend & tangani envelope response */
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = "GET", body, query, auth = true } = options;
@@ -143,7 +160,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     const token = getToken();
     if (token) headers["Authorization"] = `Bearer ${token}`;
   }
-  const response = await fetch(buildUrl(path, query), {
+  const response = await kirim(buildUrl(path, query), {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -192,7 +209,7 @@ async function requestPaged<T>(
     const token = getToken();
     if (token) headers["Authorization"] = `Bearer ${token}`;
   }
-  const response = await fetch(buildUrl(path, query), {
+  const response = await kirim(buildUrl(path, query), {
     method,
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,

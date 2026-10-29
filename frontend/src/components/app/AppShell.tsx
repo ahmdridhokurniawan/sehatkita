@@ -221,7 +221,10 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
         </main>
       </div>
 
-      {!noFab ? (
+      {/* FAB hanya muncul kalau memang ada aksinya. Dulu halaman tanpa
+          `onFab` tetap menampilkan tombol "+" yang mati saat diklik, dan di
+          layar kecil tombol itu menutupi sudut kartu. */}
+      {!noFab && onFab ? (
         <button className="fab" aria-label="Catat kesehatan" onClick={onFab} type="button">
           <Icon name="plus" size={26} />
         </button>

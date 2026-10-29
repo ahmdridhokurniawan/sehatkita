@@ -467,6 +467,33 @@ table.tbl tbody tr:hover { background: var(--surface-2); }
   .container { padding-inline: 16px; }
   .hide-mobile { display: none !important; }
   .toast-wrap { top: auto; bottom: 82px; left: 14px; right: 14px; max-width: none; }
+
+  /* Target sentuh minimum 44x44 px (WCAG 2.5.5 / Apple HIG).
+     Di layar kecil tombol ikon 34-40 px terlalu kecil untuk jempol. */
+  .btn-icon, .btn-icon.btn-sm {
+    width: 44px; height: 44px; min-height: 44px;
+  }
+  .btn-sm { min-height: 44px; padding: 9px 14px; }
+  .segment button { min-height: 44px; padding: 8px 14px; }
+  .tab { min-height: 44px; }
+  /* Tautan teks kecil: beri bidang sentuh vertikal tanpa mengubah tampilan. */
+  .link-btn, .app-section-title a {
+    min-height: 44px; display: inline-flex; align-items: center;
+  }
+  .header-actions .btn-icon, .theme-toggle { width: 44px; height: 44px; }
+  /* Item menu drawer/sidebar. `<Link>` jadi `<a class="snav">`, bukan turunan. */
+  a.snav, .nav-main a { min-height: 44px; }
+  /* Dropdown/input di HP melebar penuh: dua kontrol sebaris (kelurahan +
+     periode) tidak mungkin muat di 390 px tanpa terpotong. Aturan inline
+     `max-width` tetap dihormati karena tidak melebihi lebar induk. */
+  .app-section-title .row-end { width: 100%; justify-content: stretch; }
+  .app-section-title .row-end > .input { flex: 1 1 140px; max-width: none !important; }
+}
+/* Drawer + bottom-nav dipakai sampai 980px, jadi target sentuh berlaku di
+   rentang itu juga (tablet disentuh jari, bukan tetikus). */
+@media (max-width: 980px) {
+  a.snav, .bottom-nav a { min-height: 44px; }
+  .bottom-nav a { justify-content: center; }
 }
 @media (min-width: 721px) { .show-mobile { display: none !important; } }
 
