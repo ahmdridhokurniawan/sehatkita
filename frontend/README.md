@@ -75,14 +75,14 @@ cd C:/Users/asus/sehatkita/frontend
 # 2. Install dependencies
 npm install
 
-# 3. Salin template environment, lalu buka .env.local
+# 3. Salin template environment (isinya sudah cukup untuk kasus umum)
 cp .env.example .env.local
 
-# 4. Isi NEXT_PUBLIC_API_URL sesuai alamat backend yang kamu pakai:
-#    - Laradock di laptop sendiri : http://pm-monitoring.test/api/v1
-#    - php artisan serve          : http://127.0.0.1:8000/api/v1
-#    - backend di laptop rekan    : http://<IP-lokal-rekan>/api/v1
-#    Tanpa langkah ini aplikasi gagal dengan "Tidak bisa menghubungi server".
+# 4. KALAU backend tidak di `pm-monitoring.test` di laptop ini, buka
+#    .env.local dan sesuaikan satu baris API_PROXY_TARGET:
+#      - php artisan serve       : http://127.0.0.1:8000
+#      - backend di laptop rekan : http://<IP-lokal-rekan>
+#    Alamat ini dipakai server Next.js, bukan browser — jadi tidak ada CORS.
 
 # 5. Run dev server (port 3002)
 npm run dev
@@ -91,9 +91,14 @@ npm run dev
 # http://localhost:3002
 ```
 
+> Semua request `/api/v1/*` diteruskan server Next.js ke `API_PROXY_TARGET`
+> (lihat `next.config.ts`). Browser tidak pernah memanggil backend secara
+> langsung, sehingga tidak ada preflight CORS dan tidak ada
+> "Failed to fetch" — berapa pun port dev yang kamu pakai.
+>
 > `pm-monitoring.test` adalah hostname lokal yang hanya ada di laptop yang
 > menjalankan Docker Laradock. Di laptop lain hostname itu tidak menunjuk ke
-> mana pun, jadi API harus diisi alamat yang benar di `.env.local`.
+> mana pun, jadi ganti `API_PROXY_TARGET` di `.env.local`.
 
 ### Build Production
 

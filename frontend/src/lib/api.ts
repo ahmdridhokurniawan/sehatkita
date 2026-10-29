@@ -60,13 +60,18 @@ import type {
 /* ============================================================
  * Konfigurasi
  * ============================================================ */
-// Base URL dari kontrak-api.md
-// Bisa diubah lewat file .env.local (lihat bawah);
-// NEXT_PUBLIC_API_BASE_URL tetap didukung untuk kompatibilitas.
+// Alamat API. Default: path relatif, sehingga browser memanggil origin yang
+// sama dan Next.js meneruskannya ke backend lewat rewrite di next.config.ts.
+// Tidak ada CORS, tidak ada preflight, dan alamat backend boleh berbeda-beda
+// per laptop tanpa menyentuh kode.
+//
+// Kalau backend berada di origin lain dan Anda memang ingin memanggilnya
+// langsung dari browser, set NEXT_PUBLIC_API_URL=http://host/api/v1 di
+// .env.local. Selama variabel itu kosong, pemanggilan tetap satu origin.
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   process.env.NEXT_PUBLIC_API_BASE_URL ??
-  "http://pm-monitoring.test/api/v1";
+  "/api/v1";
 // Nama kunci untuk menyimpan token di browser
 const TOKEN_KEY = "sehatkita_token";
 /* ============================================================
@@ -119,7 +124,13 @@ interface RequestOptions {
 }
 /** Bangun URL lengkap dengan query string */
 function buildUrl(path: string, query?: object): string {
-  const url = new URL(`${API_BASE_URL}${path}`);
+  // API_BASE_URL bisa berupa path relatif ("/api/v1") — `new URL` menolak
+  // string relatif, jadi alas absolutnya diambil dari origin halaman.
+  const dasar =
+    API_BASE_URL.startsWith("http://") || API_BASE_URL.startsWith("https://")
+      ? API_BASE_URL
+      : `${typeof window !== "undefined" ? window.location.origin : "http://localhost"}${API_BASE_URL}`;
+  const url = new URL(`${dasar}${path}`);
   if (query) {
     for (const [key, value] of Object.entries(query as Record<string, unknown>)) {
       if (value !== undefined && value !== null && value !== "") {
