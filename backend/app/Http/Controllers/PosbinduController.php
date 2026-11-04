@@ -9,18 +9,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
-/**
- * Modul Posbindu — kontrak 10.
- */
 class PosbinduController extends Controller
 {
-    // Boleh buat/ubah sesi (10.2 & 10.4).
     private const ROLE_ADMIN = ['admin_kelurahan', 'super_admin'];
-
-    // Boleh kelola & catat peserta (10.1 & 10.5).
     private const ROLE_PETUGAS = ['kader', 'admin_kelurahan', 'super_admin'];
 
-    // GET /posbindu/sesi
+    // Daftar sesi Posbindu
     public function indexSesi(Request $request)
     {
         $user = $request->user();
@@ -28,13 +22,12 @@ class PosbinduController extends Controller
 
         $query = SesiPosbindu::query()
             ->with('kader:id,name')
-            // jumlah_peserta = total kunjungan; hadir = yang hadir=true.
             ->withCount([
                 'kunjungan as jumlah_peserta',
                 'kunjungan as hadir' => fn ($q) => $q->where('hadir', true),
             ]);
 
-        // Non-super_admin hanya wilayah kerjanya.
+        // Filter wilayah kerja
         if ($user->role !== 'super_admin') {
             $query->where('wilayah_id', $user->wilayah_id);
         }
@@ -58,7 +51,7 @@ class PosbinduController extends Controller
         ]);
     }
 
-    // POST /posbindu/sesi
+    // Buat sesi Posbindu baru
     public function storeSesi(Request $request)
     {
         $this->hanyaAdmin($request->user());
@@ -71,7 +64,6 @@ class PosbinduController extends Controller
             'catatan'    => 'nullable|string',
         ]);
 
-        // status tidak dikirim kontrak -> default akan_datang.
         $sesi = SesiPosbindu::create($data + ['status' => 'akan_datang']);
 
         return response()->json([
@@ -81,7 +73,7 @@ class PosbinduController extends Controller
         ], 201);
     }
 
-    // GET /posbindu/sesi/{id}
+    // Detail sesi Posbindu
     public function showSesi(Request $request, int $id)
     {
         // Kontrak 10.3 cukup login; tidak dibatasi role.
@@ -117,7 +109,7 @@ class PosbinduController extends Controller
         ]);
     }
 
-    // PUT /posbindu/sesi/{id}
+    // Ubah data sesi Posbindu
     public function updateSesi(Request $request, int $id)
     {
         $this->hanyaAdmin($request->user());
@@ -147,7 +139,7 @@ class PosbinduController extends Controller
         ]);
     }
 
-    // POST /posbindu/sesi/{id}/peserta
+    // Catat kehadiran dan data kesehatan peserta Posbindu
     public function storePeserta(Request $request, int $id)
     {
         $user = $request->user();
@@ -172,7 +164,6 @@ class PosbinduController extends Controller
             'catatan_kesehatan.jenis_gula_darah' => 'nullable|in:puasa,2jam_pp',
         ]);
 
-        // Hadir=false tidak boleh bawa catatan kesehatan.
         if (! $data['hadir'] && ! empty($data['catatan_kesehatan'])) {
             return response()->json([
                 'success' => false,
@@ -180,7 +171,6 @@ class PosbinduController extends Controller
             ], 422);
         }
 
-        // Unique(sesi_id,user_id): tidak boleh tercatat dua kali.
         if (KunjunganPosbindu::where('sesi_id', $id)->where('user_id', $data['user_id'])->exists()) {
             return response()->json([
                 'success' => false,
@@ -230,7 +220,7 @@ class PosbinduController extends Controller
         ], 201);
     }
 
-    // GET /posbindu/kunjungan
+    // Riwayat kunjungan Posbindu
     public function indexKunjungan(Request $request)
     {
         $user = $request->user();
@@ -238,7 +228,6 @@ class PosbinduController extends Controller
         $query = KunjunganPosbindu::query()
             ->with(['sesi:id,tanggal,lokasi', 'pengguna:id,name']);
 
-        // user biasa hanya miliknya; petugas boleh filter user_id.
         if ($user->role === 'user') {
             $query->where('user_id', $user->id);
         } elseif ($request->filled('user_id')) {
@@ -266,7 +255,7 @@ class PosbinduController extends Controller
         ]);
     }
 
-    // DELETE /posbindu/sesi/{id} — kontrak 10.7
+    // Hapus sesi Posbindu
     public function destroySesi(Request $request, int $id)
     {
         $this->hanyaAdmin($request->user());
@@ -279,7 +268,6 @@ class PosbinduController extends Controller
             ], 404);
         }
 
-        // admin_kelurahan hanya boleh menghapus sesi wilayahnya (kontrak 16).
         if ($request->user()->role === 'admin_kelurahan') {
             abort_unless(
                 (int) $sesi->wilayah_id === (int) $request->user()->wilayah_id,
@@ -288,7 +276,6 @@ class PosbinduController extends Controller
             );
         }
 
-        // Kunjungan ikut terhapus (FK cascade), catatan kesehatan dipertahankan.
         $sesi->delete();
 
         return response()->json([
@@ -298,7 +285,7 @@ class PosbinduController extends Controller
         ]);
     }
 
-    // Bentuk satu sesi sesuai contoh kontrak 10.1.
+    // Format data sesi Posbindu
     private function bentukSesi(SesiPosbindu $s): array
     {
         return [

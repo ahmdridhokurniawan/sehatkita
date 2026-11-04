@@ -16,13 +16,13 @@ class DashboardController extends Controller
         private PeringkatService $peringkat
     ) {}
 
-    /** Kolom pengukuran yang punya ambang & muncul di `indikator_terkini`. */
+    // Daftar kolom pengukuran utama
     private const KOLOM_INDIKATOR = [
         'bb_kg', 'sistol', 'diastol', 'gula_darah', 'kolesterol',
         'asam_urat', 'lingkar_perut', 'tidur_jam',
     ];
 
-    // GET /api/v1/dashboard/pribadi — kontrak §8.1
+    // Data dashboard kesehatan pribadi
     public function pribadi(Request $request)
     {
         $user   = $request->user();
@@ -31,14 +31,14 @@ class DashboardController extends Controller
         $periode  = $this->periodeSah($request->query('periode'));
         $tglMulai = now()->subMonths($this->bulanPeriode($periode));
 
-        // Semua log sah user, terbaru dulu (outlier dilewati — §8.1).
+        // Ambil catatan terverifikasi milik pengguna
         $semua = CatatanKesehatan::where('user_id', $user->id)
             ->where('perlu_verifikasi', false)
             ->orderBy('dicatat_pada', 'desc')
             ->orderBy('id', 'desc')
             ->get();
 
-        // `indikator_terkini` = log terbaru PER INDIKATOR (boleh beda tanggal).
+        // Nilai terbaru untuk setiap indikator
         $terkini = [];
         foreach (self::KOLOM_INDIKATOR as $kolom) {
             $baris = $semua->firstWhere(fn ($c) => $c->{$kolom} !== null);
@@ -48,7 +48,7 @@ class DashboardController extends Controller
             }
         }
 
-        // Tinggi efektif: snapshot log terbaru yang punya tinggi, lalu profil.
+        // Tinggi badan efektif (riwayat terbaru atau profil)
         $tinggiTerakhir = $semua
             ->first(fn ($c) => $c->tinggi_cm !== null)?->tinggi_cm;
 
@@ -56,7 +56,7 @@ class DashboardController extends Controller
             ? (float) $tinggiTerakhir
             : ($profil?->tinggi_cm !== null ? (float) $profil->tinggi_cm : null);
 
-        // Baris sintetis berisi nilai terbaru tiap indikator → dipakai mesin hitung.
+        // Model sintetis untuk kalkulasi status gabungan
         $sintetis = new CatatanKesehatan($terkini + [
             'tinggi_cm' => $tinggiEfektif,
             'jenis_gula_darah' => $semua->first(fn ($c) => $c->gula_darah !== null)?->jenis_gula_darah,
@@ -86,7 +86,6 @@ class DashboardController extends Controller
                 'asam_urat'       => $terkini['asam_urat'] ?? null,
                 'kategori_asam_urat'  => $this->kalkulator->kategori('asam_urat', $terkini['asam_urat'] ?? null)['kategori'] ?? null,
                 'lingkar_perut'   => $terkini['lingkar_perut'] ?? null,
-                // Tanggal & sumber = log terbaru yang punya salah satu ukuran.
                 'dicatat_pada'    => $semua->first(fn ($c) => $this->punyaUkuran($c))?->dicatat_pada?->toDateString(),
                 'sumber'          => $semua->first(fn ($c) => $this->punyaUkuran($c))?->sumber,
             ]
@@ -114,7 +113,7 @@ class DashboardController extends Controller
         ]);
     }
 
-    // GET /api/v1/laporan/pribadi — kontrak §14.1
+    // Laporan ringkasan kesehatan pribadi
     public function laporanPribadi(Request $request)
     {
         $user    = $request->user();
@@ -220,7 +219,7 @@ class DashboardController extends Controller
         return $nilai === null ? null : (float) $nilai;
     }
 
-    /** Ada minimal satu pengukuran di baris ini (bukan hanya catatan kosong)? */
+    // Cek apakah ada minimal satu pengukuran
     private function punyaUkuran(CatatanKesehatan $c): bool
     {
         foreach (self::KOLOM_INDIKATOR as $kolom) {
@@ -232,7 +231,7 @@ class DashboardController extends Controller
         return false;
     }
 
-    /** `perbandingan`: nilai log terakhir bulan ini − bulan lalu (§8.1). */
+    // Hitung perbandingan indikator bulan ini terhadap bulan lalu
     private function perbandingan($semua): array
     {
         $sekarang = now();
@@ -255,7 +254,7 @@ class DashboardController extends Controller
         ];
     }
 
-    /** Blok `target` §8.1/§13.1. */
+    // Format data target berat badan
     private function blokTarget($profil, ?float $bbTerkini): array
     {
         $awal   = $profil?->bb_awal_kg !== null ? (float) $profil->bb_awal_kg : null;
@@ -274,7 +273,7 @@ class DashboardController extends Controller
         ];
     }
 
-    /** Blok `gamifikasi` §8.1/§12.5. */
+    // Format data capaian gamifikasi
     private function blokGamifikasi($user): array
     {
         return [
@@ -285,10 +284,7 @@ class DashboardController extends Controller
         ];
     }
 
-    /**
-     * `jadwal_skrining_berikutnya` §8.1: tanggal log terakhir +
-     * `indikator.interval_skrining_hari` (default 30).
-     */
+    // Hitung jadwal skrining berkala berikutnya
     private function jadwalSkrining($semua, ?float $tinggiEfektif): array
     {
         $interval = \App\Models\Indikator::pluck('interval_skrining_hari', 'kode');
@@ -311,13 +307,12 @@ class DashboardController extends Controller
             ];
         }
 
-        // Yang paling dekat lebih dulu.
         usort($hasil, fn ($a, $b) => strcmp($a['jatuh_tempo'], $b['jatuh_tempo']));
 
         return $hasil;
     }
 
-    /** `rujukan_aktif` §8.1: rujukan berstatus baru/dihubungi, terbaru. */
+    // Ambil rujukan aktif terbaru
     private function rujukanAktif($user): ?array
     {
         $r = Rujukan::with('faskes')

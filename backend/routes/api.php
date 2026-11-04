@@ -20,54 +20,49 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
 
-    // ===== 1. PUBLIK =====
-    // /landing-page, /auth/password, /wilayah/{id} dihapus/disesuaikan kontrak
-    // throttle: batasi percobaan supaya password tidak bisa ditebak otomatis.
-    // 5 percobaan / menit per IP untuk login, 10 / menit untuk daftar.
+    // Rute Publik
     Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1')->name('login');
     Route::get('/wilayah', [WilayahController::class, 'index']);
 
-    // ===== 2. TERPROTEKSI (Bearer token) =====
+    // Rute Terproteksi Sanctum
     Route::middleware('auth:sanctum')->group(function () {
 
-        // --- Auth & akun ---
+        // Autentikasi
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
 
-        // --- Persetujuan ---
+        // Persetujuan kebijakan
         Route::post('/persetujuan', [AuthController::class, 'consent']);
         Route::delete('/persetujuan', [AuthController::class, 'revokeConsent']);
 
-        // --- Profil ---
+        // Profil
         Route::get('/profil', [ProfilController::class, 'show']);
         Route::put('/profil', [ProfilController::class, 'update']);
 
-        // --- Faskes ---
+        // Faskes
         Route::get('/faskes', [FaskesController::class, 'index']);
 
-        // --- Catatan kesehatan ---
+        // Catatan kesehatan
         Route::get('/catatan-kesehatan', [CatatanKesehatanController::class, 'index']);
         Route::post('/catatan-kesehatan', [CatatanKesehatanController::class, 'store']);
         Route::get('/catatan-kesehatan/{catatan_kesehatan}', [CatatanKesehatanController::class, 'show']);
         Route::delete('/catatan-kesehatan/{catatan_kesehatan}', [CatatanKesehatanController::class, 'destroy']);
 
-        // --- Insight (§8.3) ---
+        // Insight & ambang indikator
         Route::get('/insight', [InsightController::class, 'index']);
-        // Ambang kategori (read-only untuk semua user) — dipakai halaman Insight
-        // untuk menjelaskan kapan aman / siaga / bahaya. Dirujuk §8.3.
         Route::get('/insight/ambang', [InsightController::class, 'ambang']);
 
-        // --- Rekam Medis / Tren (§8.2) — path resmi tetap `/tren` (§20) ---
+        // Tren kesehatan & rekam medis
         Route::get('/tren', [RekamMedisController::class, 'index']);
-        Route::get('/rekam-medis', [RekamMedisController::class, 'index']); // alias FE lama
+        Route::get('/rekam-medis', [RekamMedisController::class, 'index']);
 
-        // --- Rujukan ---
+        // Rujukan
         Route::post('/rujukan', [RujukanController::class, 'store']);
         Route::get('/rujukan', [RujukanController::class, 'index']);
         Route::patch('/rujukan/{id}/status', [RujukanController::class, 'updateStatus']);
 
-        // --- Posbindu ---
+        // Posbindu
         Route::get('/posbindu/sesi', [PosbinduController::class, 'indexSesi']);
         Route::post('/posbindu/sesi', [PosbinduController::class, 'storeSesi']);
         Route::get('/posbindu/sesi/{id}', [PosbinduController::class, 'showSesi']);
@@ -76,26 +71,26 @@ Route::prefix('v1')->group(function () {
         Route::post('/posbindu/sesi/{id}/peserta', [PosbinduController::class, 'storePeserta']);
         Route::get('/posbindu/kunjungan', [PosbinduController::class, 'indexKunjungan']);
 
-        // --- Program ---
+        // Program kesehatan & peringkat
         Route::get('/program', [ProgramController::class, 'index']);
         Route::post('/program', [ProgramController::class, 'store']);
         Route::post('/program/{id}/peserta', [ProgramController::class, 'ikut']);
         Route::patch('/program/{id}/peserta', [ProgramController::class, 'ubahStatusPeserta']);
         Route::get('/peringkat', [PeringkatController::class, 'index']);
 
-        // --- Target & Refleksi ---
+        // Target & refleksi
         Route::get('/target', [TargetRefleksiController::class, 'target']);
         Route::put('/target', [TargetRefleksiController::class, 'simpanTarget']);
         Route::get('/refleksi', [TargetRefleksiController::class, 'refleksi']);
         Route::post('/refleksi', [TargetRefleksiController::class, 'simpanRefleksi']);
 
-        // --- Dashboard & laporan ---
+        // Dashboard & laporan
         Route::get('/dashboard/pribadi', [DashboardController::class, 'pribadi']);
         Route::get('/dashboard/kelurahan', [DashboardWilayahController::class, 'dashboardKelurahan']);
         Route::get('/laporan/pribadi', [DashboardWilayahController::class, 'laporanPribadi']);
         Route::get('/laporan/kelurahan', [DashboardWilayahController::class, 'laporanKelurahan']);
 
-        // ===== 3. ADMIN MASTER =====
+        // Modul Master Admin
         Route::prefix('admin')->group(function () {
             Route::get('/statistik', [AdminStatistikController::class, 'index']);
 
@@ -121,7 +116,7 @@ Route::prefix('v1')->group(function () {
 
             Route::get('/log-audit', [AdminMasterController::class, 'indexLogAudit']);
 
-            // §15 — verifikasi log ber-flag
+            // Verifikasi data catatan kesehatan
             Route::get('/catatan-kesehatan/perlu-verifikasi', [CatatanKesehatanController::class, 'perluVerifikasiList']);
             Route::patch('/catatan-kesehatan/{id}/verifikasi', [CatatanKesehatanController::class, 'verifikasi']);
         });

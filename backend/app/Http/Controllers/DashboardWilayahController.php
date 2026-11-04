@@ -11,10 +11,10 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardWilayahController extends Controller
 {
-    /** Ambang suppression kontrak §9.2. */
+    // Batas minimum sel untuk privasi data agregat
     private const MIN_SEL = 5;
 
-    // GET /dashboard/kelurahan — kontrak §9.1
+    // Data agregat statistik dashboard kelurahan
     public function dashboardKelurahan(Request $request)
     {
         $data = $this->agregat($request);
@@ -22,7 +22,7 @@ class DashboardWilayahController extends Controller
         return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
     }
 
-    // GET /laporan/kelurahan — §14.2: struktur sama + disclaimer
+    // Laporan agregat kesehatan kelurahan
     public function laporanKelurahan(Request $request)
     {
         $data = $this->agregat($request);
@@ -31,23 +31,19 @@ class DashboardWilayahController extends Controller
         return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
     }
 
-    // GET /laporan/pribadi — §14.1 (delegasi ke DashboardController)
+    // Laporan ringkasan kesehatan pribadi
     public function laporanPribadi(Request $request)
     {
         return app(DashboardController::class)->laporanPribadi($request);
     }
 
-    /*
-    |------------------------------------------------------------------
-    | Agregat anonim — satu sumber angka untuk §9.1 & §14.2
-    |------------------------------------------------------------------
-    */
+    // Kalkulasi agregat data anonim per wilayah
     private function agregat(Request $request): array
     {
         $user = $request->user();
         abort_unless(in_array($user->role, ['admin_kelurahan', 'super_admin']), 403, 'Akses ditolak');
 
-        // admin_kelurahan terkunci ke wilayahnya; wilayah lain → 404 (§9.1)
+        // Batasi wilayah sesuai peran pengguna
         if ($user->role === 'admin_kelurahan') {
             $wilayahId = $user->wilayah_id;
         } else {
@@ -67,7 +63,7 @@ class DashboardWilayahController extends Controller
             '1m' => 1, '6m' => 6, '1y' => 12, default => 3,
         });
 
-        // `total_peserta` = user role user dengan consent aktif (§9.1).
+        // Hitung total peserta yang telah menyetujui kebijakan
         $populasi = Pengguna::where('wilayah_id', $wilayahId)
             ->where('role', 'user')
             ->whereNotNull('consent_at')
@@ -94,7 +90,6 @@ class DashboardWilayahController extends Controller
             ->groupBy('status')
             ->pluck('total', 'status');
 
-        // §9.1: `rujukan` hanya status yang jumlahnya ≥ 5, tanpa `total`.
         $rujukanMentah = collect(['baru', 'dihubungi', 'tertangani', 'ditolak'])
             ->mapWithKeys(fn ($s) => [$s => (int) ($rujukan[$s] ?? 0)])
             ->all();
@@ -127,13 +122,9 @@ class DashboardWilayahController extends Controller
         ];
     }
 
-    /**
-     * Distribusi IMT per USER dari log terbaru masing-masing (§9.1),
-     * dibatasi periode. Mengembalikan hitungan MENTAH (belum disuppress).
-     */
+    // Hitung distribusi kategori IMT per pengguna dari log terbaru
     private function distribusiImt(int $wilayahId, $tglMulai): array
     {
-        // Ambil log terakhir per user pada periode ini (id terbesar = terbaru).
         $terakhir = DB::table('catatan_kesehatan as ck')
             ->join('pengguna as p', 'ck.user_id', '=', 'p.id')
             ->where('p.wilayah_id', $wilayahId)
@@ -154,7 +145,6 @@ class DashboardWilayahController extends Controller
             ->orderByDesc('ck.dicatat_pada')
             ->orderByDesc('ck.id')
             ->get()
-            // Satu baris per user: yang pertama setelah pengurutan.
             ->unique('user_id');
 
         $mentah = ['kurus' => 0, 'normal' => 0, 'gemuk' => 0, 'obesitas' => 0];
@@ -175,10 +165,7 @@ class DashboardWilayahController extends Controller
         return $mentah;
     }
 
-    /**
-     * Distribusi riwayat keluarga (self-report) per user (§9.1).
-     * Menggantikan nama lama `distribusi_risiko`.
-     */
+    // Hitung distribusi faktor riwayat penyakit keluarga
     private function distribusiRiwayatKeluarga(int $wilayahId): array
     {
         $rows = DB::table('pengguna as p')
@@ -211,12 +198,9 @@ class DashboardWilayahController extends Controller
         return $mentah;
     }
 
-    /** Kelompok umur 5 tahunan per user (§9.1). */
+    // Hitung sebaran demografi kelompok usia 5 tahunan
     private function kelompokUsia(int $wilayahId): array
     {
-        // Umur dihitung di PHP, bukan lewat TIMESTAMPDIFF/YEAR: fungsi itu hanya
-        // ada di MySQL sehingga query tidak bisa diuji di SQLite (dan gagal di
-        // driver lain). Hasilnya identik, tapi portabel.
         $lahir = DB::table('pengguna as p')
             ->join('profil as pr', 'p.id', '=', 'pr.user_id')
             ->where('p.wilayah_id', $wilayahId)
@@ -240,11 +224,9 @@ class DashboardWilayahController extends Controller
         return $hitung;
     }
 
-    /** Tren pencatatan bulanan (§9.1). */
+    // Tren jumlah pencatatan kesehatan per bulan
     private function tren(int $wilayahId, $tglMulai)
     {
-        // Pengelompokan bulan dilakukan di PHP supaya tidak bergantung pada
-        // DATE_FORMAT (MySQL saja) dan tetap jalan di SQLite saat tes.
         return DB::table('catatan_kesehatan as ck')
             ->join('pengguna as p', 'ck.user_id', '=', 'p.id')
             ->where('p.wilayah_id', $wilayahId)
@@ -264,17 +246,7 @@ class DashboardWilayahController extends Controller
             ->values();
     }
 
-    /**
-     * §9.2 — suppression sel kecil + complementary suppression.
-     *
-     * 1. Sel dengan jumlah 0..4 tidak dikirim sama sekali.
-     * 2. Bila tepat SATU sel tersembunyi dan total kelompoknya bisa
-     *    dihitung pembaca (total kelompok diketahui), sembunyikan juga
-     *    sel terkecil berikutnya.
-     * 3. Kelompok kosong (semua sel 0) → tidak ada sel tersembunyi.
-     *
-     * @return array{tampil: array<string,int>, disembunyikan: bool}
-     */
+    // Filter privasi untuk menyembunyikan sel di bawah batas minimum
     private function saringKelompok(array $mentah): array
     {
         $adaData = array_filter($mentah, fn ($n) => (int) $n > 0);

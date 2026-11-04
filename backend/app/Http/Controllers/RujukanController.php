@@ -8,20 +8,13 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
-/**
- * Modul rujukan — kontrak 11.
- * 11.1 POST   /rujukan             -> buat rujukan (kader/admin)
- * 11.2 GET    /rujukan             -> daftar (user: miliknya, petugas: wilayahnya)
- * 11.3 PATCH  /rujukan/{id}/status -> ubah status tindak lanjut
- */
 class RujukanController extends Controller
 {
     private const ROLE_PETUGAS = ['kader', 'admin_kelurahan', 'super_admin'];
-    /** §11.1 — hanya kader & super_admin yang boleh MEMBUAT rujukan. */
     private const ROLE_PEMBUAT = ['kader', 'super_admin'];
     private const STATUS       = ['baru', 'dihubungi', 'tertangani', 'ditolak'];
 
-    // POST /rujukan
+    // Buat rujukan faskes baru
     public function store(Request $request)
     {
         $user = $request->user();
@@ -37,7 +30,7 @@ class RujukanController extends Controller
             'alasan'    => 'required|string|max:255',
         ]);
 
-        // Kader/admin_kelurahan hanya boleh merujuk warganya sendiri.
+        // Pembatasan wilayah untuk non-super admin
         if ($user->role !== 'super_admin') {
             $pemilik = Pengguna::query()
                 ->whereKey($data['user_id'])
@@ -62,7 +55,7 @@ class RujukanController extends Controller
         ], 201);
     }
 
-    // GET /rujukan?status=&wilayah_id=&dari=&sampai=&search=&per_page=
+    // Daftar rujukan faskes
     public function index(Request $request)
     {
         $user = $request->user();
@@ -70,7 +63,7 @@ class RujukanController extends Controller
         $query = Rujukan::with(['faskes', 'pembuat', 'penangan']);
 
         if (! in_array($user->role, self::ROLE_PETUGAS, true)) {
-            $query->where('user_id', $user->id);           // user: milik sendiri
+            $query->where('user_id', $user->id);
         } else {
             if ($user->role !== 'super_admin') {
                 $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $user->wilayah_id));
@@ -102,7 +95,7 @@ class RujukanController extends Controller
         ]);
     }
 
-    // PATCH /rujukan/{id}/status
+    // Perbarui status rujukan
     public function updateStatus(Request $request, int $id)
     {
         $user = $request->user();
@@ -113,15 +106,12 @@ class RujukanController extends Controller
             'catatan' => 'nullable|string|max:500',
         ]);
 
-        // Data di luar scope wilayah = 404 (bukan 403); kader kelurahan A
-        // tidak boleh mengubah rujukan kelurahan B hanya dengan menebak id.
         $query = Rujukan::query();
         if ($user->role !== 'super_admin') {
             $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $user->wilayah_id));
         }
         $rujukan = $query->findOrFail($id);
 
-        // §11.3 — status hanya maju, dan `catatan` wajib saat menolak.
         $urutan = ['baru' => 0, 'dihubungi' => 1, 'tertangani' => 2, 'ditolak' => 2];
 
         if ($urutan[$data['status']] < $urutan[$rujukan->status]) {
@@ -149,6 +139,7 @@ class RujukanController extends Controller
         ]);
     }
 
+    // Format data rujukan (redaksi identitas untuk admin kelurahan)
     private function bentuk(Rujukan $r, ?Pengguna $pemanggil = null): array
     {
         $dasar = [
@@ -161,8 +152,6 @@ class RujukanController extends Controller
             'updated_at' => $r->updated_at?->toIso8601String(),
         ];
 
-        // §11.2 — admin_kelurahan menerima bentuk TEREDAKSI:
-        // tanpa user_id, nama, dan alasan.
         if ($pemanggil && $pemanggil->role === 'admin_kelurahan') {
             return $dasar;
         }

@@ -12,13 +12,11 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
-/**
- * Admin Master — Kontrak 15. Hanya super_admin.
- */
 class AdminMasterController extends Controller
 {
     // ================= INDIKATOR =================
 
+    // Daftar master indikator kesehatan
     public function indexIndikator(Request $request)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -106,6 +104,7 @@ class AdminMasterController extends Controller
 
     // ================= AMBANG KATEGORI =================
 
+    // Daftar ambang batas kategori indikator
     public function indexAmbang(Request $request)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -191,6 +190,7 @@ class AdminMasterController extends Controller
 
     // ================= PENGGUNA =================
 
+    // Daftar pengguna sistem
     public function indexPengguna(Request $request)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -216,6 +216,7 @@ class AdminMasterController extends Controller
         ]);
     }
 
+    // Tambah akun pengguna baru
     public function storePengguna(Request $request)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -228,7 +229,6 @@ class AdminMasterController extends Controller
             'wilayah_id' => 'nullable|exists:wilayah,id',
         ]);
 
-        // password otomatis di-hash oleh cast "hashed".
         $pengguna = Pengguna::create($data);
 
         return response()->json([
@@ -238,6 +238,7 @@ class AdminMasterController extends Controller
         ], 201);
     }
 
+    // Ubah data pengguna
     public function updatePengguna(Request $request, int $id)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -258,7 +259,7 @@ class AdminMasterController extends Controller
 
         $pengguna->update($data);
 
-        // Nonaktif / ganti password -> paksa login ulang.
+        // Cabut token saat akun dinonaktifkan atau sandi diubah
         if (($request->has('aktif') && ! $request->boolean('aktif')) || $request->filled('password')) {
             $pengguna->tokens()->delete();
         }
@@ -270,6 +271,7 @@ class AdminMasterController extends Controller
         ]);
     }
 
+    // Nonaktifkan akun pengguna
     public function destroyPengguna(Request $request, int $id)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -286,7 +288,6 @@ class AdminMasterController extends Controller
             ], 422);
         }
 
-        // Nonaktifkan, bukan hapus: riwayat tetap utuh.
         $pengguna->update(['aktif' => false]);
         $pengguna->tokens()->delete();
 
@@ -299,6 +300,7 @@ class AdminMasterController extends Controller
 
     // ================= FASKES =================
 
+    // Daftar fasilitas kesehatan
     public function indexFaskes(Request $request)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -324,6 +326,7 @@ class AdminMasterController extends Controller
         ]);
     }
 
+    // Tambah faskes baru
     public function storeFaskes(Request $request)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -337,6 +340,7 @@ class AdminMasterController extends Controller
         ], 201);
     }
 
+    // Ubah data faskes
     public function updateFaskes(Request $request, int $id)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -355,6 +359,7 @@ class AdminMasterController extends Controller
         ]);
     }
 
+    // Hapus faskes
     public function destroyFaskes(Request $request, int $id)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -367,7 +372,6 @@ class AdminMasterController extends Controller
         try {
             $faskes->delete();
         } catch (QueryException $e) {
-            // rujukan.faskes_id restrictOnDelete.
             return response()->json([
                 'success' => false,
                 'message' => 'Faskes masih dipakai rujukan, tidak bisa dihapus',
@@ -383,6 +387,7 @@ class AdminMasterController extends Controller
 
     // ================= LOG AUDIT =================
 
+    // Riwayat log audit aktivitas sistem
     public function indexLogAudit(Request $request)
     {
         $this->hanyaSuperAdmin($request->user());

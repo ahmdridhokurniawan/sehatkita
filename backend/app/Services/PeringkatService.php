@@ -5,24 +5,15 @@ namespace App\Services;
 use App\Models\Pengguna;
 use Illuminate\Support\Collection;
 
-/**
- * Peringkat gamifikasi kelurahan — kontrak §12.5 & §8.1 (`rank_kelurahan`).
- *
- * Dihitung saat dibaca (tidak disimpan) dari `pengguna.exp_total`
- * warga satu kelurahan. Bukan data kesehatan.
- */
 class PeringkatService
 {
-    /** Ambang suppression kontrak §9.2 / §12.5. */
+    // Batas minimal peserta untuk menampilkan peringkat
     public const MIN_PESERTA = 5;
 
-    /** Maksimal baris yang dikirim ke FE (§12.5). */
+    // Jumlah maksimal peserta di papan peringkat
     public const MAKS_BARIS = 10;
 
-    /**
-     * Peserta satu kelurahan, terurut exp_total terbesar.
-     * Dipakai internal (rankUser) dan publik (daftar).
-     */
+    // Ambil daftar peserta aktif satu kelurahan terurut EXP tertinggi
     private function peserta(int $wilayahId): Collection
     {
         return Pengguna::query()
@@ -31,16 +22,12 @@ class PeringkatService
             ->where('role', 'user')
             ->where('aktif', true)
             ->orderByDesc('exp_total')
-            ->orderBy('id')               // tie-break stabil
+            ->orderBy('id')
             ->get()
             ->values();
     }
 
-    /**
-     * Daftar peserta peringkat satu kelurahan.
-     * Nama disamarkan bila `profil.tampil_di_peringkat` false.
-     * Kosong bila peserta < 5 (suppression §12.5).
-     */
+    // Ambil daftar peringkat satu kelurahan (anonim jika profil disembunyikan)
     public function daftar(int $wilayahId): Collection
     {
         $peserta = $this->peserta($wilayahId);
@@ -64,7 +51,7 @@ class PeringkatService
             ->values();
     }
 
-    /** Jumlah peserta yang ikut diperingkat. */
+    // Hitung total peserta aktif di wilayah
     public function jumlahPeserta(int $wilayahId): int
     {
         return Pengguna::where('wilayah_id', $wilayahId)
@@ -73,10 +60,7 @@ class PeringkatService
             ->count();
     }
 
-    /**
-     * Peringkat seorang user di kelurahannya.
-     * Null bila peserta < 5 (suppression) atau user tidak punya wilayah.
-     */
+    // Ambil posisi peringkat pengguna di kelurahannya
     public function rankUser(Pengguna $user): ?int
     {
         if (! $user->wilayah_id) {

@@ -1,5 +1,5 @@
 <?php
-// database/seeders/PenggunaWilayahSeeder.php
+
 namespace Database\Seeders;
 
 use App\Models\Pengguna;
@@ -10,10 +10,10 @@ class PenggunaWilayahSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1️ password semua akun demo (model Pengguna punya cast "hashed")
+        // Sandi seragam akun demo
         $password = 'demo1234';
 
-        // 2 cari id kecamatan Banjarbaru Utara (kode 63.72.04)
+        // Ambil ID kecamatan Banjarbaru Utara
         $kecamatanId = Wilayah::where('kode', '63.72.04')->value('id');
 
         if (! $kecamatanId) {
@@ -21,17 +21,16 @@ class PenggunaWilayahSeeder extends Seeder
             return;
         }
 
-        // 3️⃣ ambil semua kelurahan yang child‑nya kecamatan itu
+        // Ambil daftar kelurahan di bawah kecamatan
         $kelurahan = Wilayah::where('parent_id', $kecamatanId)
             ->where('tipe', 'kelurahan')
             ->orderBy('kode')
             ->get();
 
         foreach ($kelurahan as $w) {
-            // contoh: "Loktabat Utara" → "loktabatutara"
             $slug = strtolower(str_replace(' ', '', $w->nama));
 
-            // 👤 admin kelurahan – akses agregat kelurahan saja
+            // Akun admin kelurahan
             Pengguna::updateOrCreate(
                 ['email' => "admin.{$slug}@sehatkita.test"],
                 [
@@ -45,7 +44,7 @@ class PenggunaWilayahSeeder extends Seeder
                 ]
             );
 
-            // 👥 kader – dapat mengelola data warga di wilayahnya
+            // Akun kader posbindu
             Pengguna::updateOrCreate(
                 ['email' => "kader.{$slug}@sehatkita.test"],
                 [
@@ -60,6 +59,27 @@ class PenggunaWilayahSeeder extends Seeder
             );
         }
 
-        $this->command->info('Seeder PenggunaWilayah selesai – admin & kader Banjarbaru Utara terbuat.');
+        // 👤 super admin – akses penuh master data & statistik sistem
+        Pengguna::updateOrCreate(
+            ['email' => 'superadmin@sehatkita.test'],
+            [
+                'name'            => 'Super Admin Dinkes',
+                'password'        => $password,
+                'role'            => 'super_admin',
+                'wilayah_id'      => null,
+                'aktif'           => true,
+                'consent_at'      => now(),
+                'versi_kebijakan' => '1.0',
+            ]
+        );
+
+        // Update akun demo lama agar seragam 8 karakter
+        $demoSa = Pengguna::where('email', 'demo.superadmin@example.test')->first();
+        if ($demoSa) {
+            $demoSa->password = $password;
+            $demoSa->save();
+        }
+
+        $this->command->info('Seeder PenggunaWilayah selesai – super admin, admin kelurahan, & kader terbuat.');
     }
 }

@@ -6,25 +6,9 @@ use App\Models\AmbangKategori;
 use App\Models\CatatanKesehatan;
 use Illuminate\Support\Facades\Cache;
 
-/**
- * ─────────────────────────────────────────────────────────────────────
- *  HealthCalculatorService — mesin kalkulasi kesehatan
- * ─────────────────────────────────────────────────────────────────────
- *  Sumber kebenaran tunggal untuk:
- *    1. IMT
- *    2. Kategori tiap indikator (tabel ambang_kategori, kontrak §8.3)
- *    3. Status kesehatan + skor risiko (formula definitif kontrak §8.1)
- *    4. Flag perlu_verifikasi (kontrak §7.2)
- *
- *  Aturan rentang: [batas_min, batas_max) — bawah termasuk, atas TIDAK.
- *  Gula darah punya dua set ambang (puasa / 2jam_pp).
- */
 class HealthCalculatorService
 {
-    /**
-     * Skor maksimum per indikator (kontrak §8.1) untuk normalisasi skor_risiko.
-     * Tensi memakai kategori yang lebih berat dari sistol/diastol → maks 3.
-     */
+    // Skor maksimal per indikator untuk normalisasi skor risiko
     public const SKOR_MAKS = [
         'imt'         => 2,
         'tensi'       => 3,
@@ -33,7 +17,7 @@ class HealthCalculatorService
         'asam_urat'   => 2,
     ];
 
-    /** Urutan keparahan kategori tensi (kontrak §1.5). */
+    // Urutan keparahan kategori tensi
     private const URUTAN_KATEGORI = [
         'normal'          => 0,
         'perlu_perhatian' => 1,
@@ -41,16 +25,7 @@ class HealthCalculatorService
         'krisis'          => 3,
     ];
 
-    /*
-    |-------------------------------------------------------------------
-    | 1. Ambang batas (dari DB, di-cache)
-    |-------------------------------------------------------------------
-    */
-
-    /**
-     * Ambil daftar ambang untuk 1 kode indikator.
-     * $jenisGula hanya dipakai untuk kode `gula_darah` (puasa | 2jam_pp).
-     */
+    // Ambil daftar ambang kategori indikator (dengan cache)
     public function ambang(string $kode, ?string $jenisGula = null): array
     {
         $semua = Cache::remember('ambang_kategori:semua', now()->addHour(), function () {
@@ -75,19 +50,13 @@ class HealthCalculatorService
         return $semua[$kunci] ?? [];
     }
 
-    /** Bersihkan cache ambang (dipanggil admin setelah ubah master data). */
+    // Bersihkan cache ambang
     public function lupakanCache(): void
     {
         Cache::forget('ambang_kategori:semua');
     }
 
-    /*
-    |-------------------------------------------------------------------
-    | 2. IMT
-    |-------------------------------------------------------------------
-    */
-
-    /** IMT = berat (kg) / tinggi(m)². Null bila data belum lengkap. */
+    // Hitung IMT = berat (kg) / (tinggi (m))^2
     public function hitungImt(?float $bbKg, ?float $tinggiCm): ?float
     {
         if ($bbKg === null || $tinggiCm === null || $tinggiCm <= 0) {
@@ -96,19 +65,10 @@ class HealthCalculatorService
 
         $meter = $tinggiCm / 100;
 
-        return round($bbKg / ($meter * $meter), 2);   // 2 desimal (kontrak 1.6)
+        return round($bbKg / ($meter * $meter), 2);
     }
 
-    /*
-    |-------------------------------------------------------------------
-    | 3. Kategori per indikator
-    |-------------------------------------------------------------------
-    */
-
-    /**
-     * Cari rentang ambang yang memuat $nilai.
-     * Rentang [batas_min, batas_max); batas_max null = terbuka ke atas.
-     */
+    // Ambil kategori indikator berdasarkan nilai pengukuran
     public function kategori(string $kode, ?float $nilai, ?string $jenisGula = null): ?array
     {
         if ($nilai === null) {
@@ -126,10 +86,7 @@ class HealthCalculatorService
         return null;
     }
 
-    /**
-     * Dari beberapa hasil ambang, ambil yang PALING PARAH.
-     * Urut: keparahan kategori, lalu skor terbesar.
-     */
+    // Tentukan kategori dengan tingkat risiko paling tinggi
     public function kategoriTerburuk(array $hasil): ?array
     {
         return collect($hasil)
@@ -138,9 +95,7 @@ class HealthCalculatorService
             ->first();
     }
 
-    /**
-     * Kategori tekanan darah = yang lebih berat antara sistol & diastol.
-     */
+    // Kategori tensi mengambil yang terberat antara sistol dan diastol
     public function kategoriTensi(?int $sistol, ?int $diastol): ?array
     {
         return $this->kategoriTerburuk([
@@ -149,16 +104,7 @@ class HealthCalculatorService
         ]);
     }
 
-    /*
-    |-------------------------------------------------------------------
-    | 4. Skor risiko & status (kontrak §8.1)
-    |-------------------------------------------------------------------
-    */
-
-    /**
-     * Skor risiko 0–100 = round(Σ skor / Σ skor_maks × 100)
-     * hanya atas indikator yang terukur pada log ini.
-     */
+    // Hitung skor risiko normalisasi 0-100
     public function skorRisiko(CatatanKesehatan $c): int
     {
         $terukur = $this->komponenSkor($c);
@@ -172,10 +118,7 @@ class HealthCalculatorService
         return (int) min(100, round(array_sum(array_column($terukur, 'skor')) / $maks * 100));
     }
 
-    /**
-     * Daftar komponen skor yang terukur: [{kunci, skor, maks}, …]
-     * Dipakai skorRisiko() dan untuk menentukan status.
-     */
+    // Ambil daftar skor komponen indikator yang terukur
     public function komponenSkor(CatatanKesehatan $c): array
     {
         $komponen = [];
@@ -224,10 +167,7 @@ class HealthCalculatorService
         return $komponen;
     }
 
-    /**
-     * Status kesehatan = skor tertinggi antar indikator (kontrak §1.5):
-     * 0 → normal, 1 → perlu_perhatian, ≥2 → berisiko.
-     */
+    // Tentukan status kesehatan berdasarkan skor indikator tertinggi
     public function statusKesehatan(CatatanKesehatan $c): string
     {
         $tertinggi = max([0, ...array_column($this->komponenSkor($c), 'skor')]);
@@ -239,7 +179,7 @@ class HealthCalculatorService
         };
     }
 
-    /** Status dari satu skor (dipakai agregat wilayah). */
+    // Konversi nilai skor ke status kesehatan
     public function statusDariSkor(int $skor): string
     {
         return match (true) {
@@ -249,19 +189,7 @@ class HealthCalculatorService
         };
     }
 
-    /*
-    |-------------------------------------------------------------------
-    | 5. Snapshot saat insert (kontrak §7.1)
-    |-------------------------------------------------------------------
-    */
-
-    /**
-     * Hitung semua field turunan untuk DISIMPAN di baris log.
-     * Dipanggil controller pada POST /catatan-kesehatan.
-     *
-     * @param  array  $data  data mentah yang akan diinsert
-     * @param  float|null  $tinggiCm  tinggi efektif (profil atau input kader)
-     */
+    // Generate snapshot kategori saat penyimpanan data
     public function snapshot(array $data, ?float $tinggiCm): array
     {
         $bb = isset($data['bb_kg']) ? (float) $data['bb_kg'] : null;
@@ -288,12 +216,7 @@ class HealthCalculatorService
         ];
     }
 
-    /**
-     * Indikator mana saja yang memicu rujukan otomatis (§8.3).
-     * Contoh: sistol/diastol ≥ 180/110 → kategori `krisis`.
-     *
-     * @return array<string> kunci indikator
-     */
+    // Cek indikator yang memenuhi ambang batas rujukan otomatis
     public function indikatorMemicuRujukan(CatatanKesehatan $c): array
     {
         $hasil = [];
@@ -317,16 +240,7 @@ class HealthCalculatorService
         return $hasil;
     }
 
-    /*
-    |-------------------------------------------------------------------
-    | 6. Rentang wajar → perlu_verifikasi
-    |-------------------------------------------------------------------
-    */
-
-    /**
-     * Ada nilai di luar rentang wajar? (tabel kontrak §7.2)
-     * Log tetap disimpan, ditandai, dan dikeluarkan dari agregat.
-     */
+    // Cek apakah nilai berada di luar rentang wajar (perlu verifikasi petugas)
     public function perluVerifikasi(array $data): bool
     {
         $rentang = [
@@ -349,7 +263,6 @@ class HealthCalculatorService
             }
         }
 
-        // diastol ≥ sistol: mungkin, tapi tidak wajar → flag (kontrak §7.2).
         if (isset($data['sistol'], $data['diastol']) && $data['diastol'] >= $data['sistol']) {
             return true;
         }
@@ -357,16 +270,7 @@ class HealthCalculatorService
         return false;
     }
 
-    /*
-    |-------------------------------------------------------------------
-    | 7. Rangkuman response JSON (bentuk kontrak §7.2)
-    |-------------------------------------------------------------------
-    */
-
-    /**
-     * Field hitung-server untuk 1 catatan. Nilai diambil dari SNAPSHOT
-     * yang tersimpan, bukan dihitung ulang dari ambang saat ini.
-     */
+    // Format rangkuman hasil kalkulasi untuk response JSON
     public function rangkum(CatatanKesehatan $c): array
     {
         return [
