@@ -18,6 +18,14 @@ const target = (process.env.API_PROXY_TARGET ?? "http://pm-monitoring.test").rep
 );
 
 const nextConfig: NextConfig = {
+  // Proxy Next.js punya batas tunggu bawaan 30 detik. Login memanggil bcrypt
+  // dan di laptop ini butuh 10-48 detik (CPU lambat + Docker bind mount),
+  // sehingga proxy memutus koneksi lebih dulu: "socket hang up" / ECONNRESET,
+  // lalu halaman menampilkan "Respons backend tidak valid (status 500)".
+  // Naikkan batasnya supaya proxy menunggu selama backend masih bekerja.
+  experimental: {
+    proxyTimeout: 180_000,
+  },
   async rewrites() {
     return [
       {

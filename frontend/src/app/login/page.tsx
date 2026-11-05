@@ -27,7 +27,10 @@ export default function LoginPage() {
     if (!email) err.email = "Email wajib diisi.";
     else if (!/^\S+@\S+\.\S+$/.test(email)) err.email = "Format email tidak valid.";
     if (!password) err.password = "Password wajib diisi.";
-    else if (password.length < 8) err.password = "Password minimal 8 karakter.";
+    // Login TIDAK boleh memeriksa panjang password. Aturan minimal 8 karakter
+    // hanya untuk pendaftaran akun baru. Kalau diperiksa di sini, akun lama
+    // dengan password lebih pendek tidak akan pernah bisa masuk — padahal
+    // backend sendiri menerimanya.
     setErrors(err);
     return Object.keys(err).length === 0;
   }
