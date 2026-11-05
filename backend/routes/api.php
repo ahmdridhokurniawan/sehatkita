@@ -15,6 +15,7 @@ use App\Http\Controllers\ProfilController;
 use App\Http\Controllers\ProgramController;
 use App\Http\Controllers\RekamMedisController;
 use App\Http\Controllers\RujukanController;
+use App\Http\Controllers\TargetKesehatanController;
 use App\Http\Controllers\TargetRefleksiController;
 use App\Http\Controllers\WilayahController;
 use Illuminate\Support\Facades\Route;
@@ -84,6 +85,13 @@ Route::prefix('v1')->group(function () {
         Route::put('/target', [TargetRefleksiController::class, 'simpanTarget']);
         Route::get('/refleksi', [TargetRefleksiController::class, 'refleksi']);
         Route::post('/refleksi', [TargetRefleksiController::class, 'simpanRefleksi']);
+
+        // Target dinamis warga
+        Route::get('/target-kesehatan', [TargetKesehatanController::class, 'index']);
+        Route::post('/target-kesehatan', [TargetKesehatanController::class, 'store']);
+        Route::put('/target-kesehatan/{id}', [TargetKesehatanController::class, 'update']);
+        Route::patch('/target-kesehatan/{id}/capai', [TargetKesehatanController::class, 'capai']);
+        Route::delete('/target-kesehatan/{id}', [TargetKesehatanController::class, 'destroy']);
 
         // Pengaduan warga
         Route::get('/pengaduan', [PengaduanController::class, 'index']);
