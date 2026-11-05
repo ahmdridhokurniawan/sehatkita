@@ -36,10 +36,15 @@ class ProgramController extends Controller
             $this->saringStatus($query, $statusFilter, $hariIni);
         }
 
-        foreach (['jenis', 'wilayah_id'] as $kolom) {
-            if ($request->filled($kolom)) {
-                $query->where($kolom, $request->query($kolom));
-            }
+        // User & admin kelurahan melihat program kota dan kelurahannya
+        if ($user->role !== 'super_admin' && $user->wilayah_id) {
+            $query->where(fn ($q) => $q->whereNull('wilayah_id')->orWhere('wilayah_id', $user->wilayah_id));
+        } elseif ($request->filled('wilayah_id')) {
+            $query->where('wilayah_id', $request->query('wilayah_id'));
+        }
+
+        if ($request->filled('jenis')) {
+            $query->where('jenis', $request->query('jenis'));
         }
 
         $this->saringCari($query, ['judul'], $request);
@@ -89,8 +94,14 @@ class ProgramController extends Controller
         abort_unless(in_array($user->role, ['admin_kelurahan', 'super_admin'], true),
             403, 'Hanya admin kelurahan atau super admin yang boleh membuat program.');
 
+        // Normalisasi wilayah 0 menjadi null untuk super admin
+        if ((int) $request->input('wilayah_id') === 0) {
+            $request->merge(['wilayah_id' => null]);
+        }
+
+        // Validasi wilayah_id fleksibel (null untuk cakupan kota)
         $data = $request->validate([
-            'wilayah_id'         => 'required|exists:wilayah,id',
+            'wilayah_id'         => 'nullable|exists:wilayah,id',
             'judul'              => 'required|string|max:150',
             'jenis'              => ['required', Rule::in(['olahraga', 'edukasi', 'pemeriksaan', 'lainnya'])],
             'kategori_aktivitas' => 'nullable|string|max:50',
@@ -104,9 +115,12 @@ class ProgramController extends Controller
             'mulai.required' => 'Tanggal mulai wajib diisi.',
         ]);
 
-        // admin_kelurahan tidak boleh membuat program untuk kelurahan lain.
+        // Admin kelurahan terkunci ke wilayahnya, super admin null (se-kota) jika kosong/0
         if ($user->role === 'admin_kelurahan') {
             $data['wilayah_id'] = $user->wilayah_id;
+        } else {
+            $wId = $request->input('wilayah_id');
+            $data['wilayah_id'] = ($wId && (int) $wId > 0) ? (int) $wId : null;
         }
 
         // Kontrak: exp_reward default 50; status TIDAK diterima dari body.

@@ -14,6 +14,7 @@ class AuthController extends Controller
     {
         $validated = $request->validate([
             'name'       => 'required|string|max:255',
+            'nik'        => 'nullable|string|size:16|regex:/^[0-9]+$/|unique:pengguna,nik',
             'email'      => 'required|email|unique:pengguna,email',
             'password'   => 'required|string|min:8|confirmed',
             'wilayah_id' => 'required|exists:wilayah,id',
@@ -21,6 +22,7 @@ class AuthController extends Controller
 
         $user = Pengguna::create([
             'name'       => $validated['name'],
+            'nik'        => $validated['nik'] ?? null,
             'email'      => $validated['email'],
             'password'   => Hash::make($validated['password']),
             'wilayah_id' => $validated['wilayah_id'],

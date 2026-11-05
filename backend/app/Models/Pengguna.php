@@ -17,6 +17,7 @@ class Pengguna extends Model
     // Kolom yang boleh diisi massal (register / update profil).
     protected $fillable = [
         'name',              // nama lengkap
+        'nik',               // nomor induk kependudukan 16 digit
         'email',             // untuk login
         'password',          // sudah di-hash (lihat casts())
         'role',              // super_admin | admin_kelurahan | kader | user

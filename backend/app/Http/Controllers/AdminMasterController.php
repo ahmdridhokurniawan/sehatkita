@@ -223,6 +223,7 @@ class AdminMasterController extends Controller
 
         $data = $request->validate([
             'name'       => 'required|string|max:100',
+            'nik'        => 'nullable|string|size:16|regex:/^[0-9]+$/|unique:pengguna,nik',
             'email'      => 'required|email|max:150|unique:pengguna,email',
             'password'   => ['required', Password::min(8)],
             'role'       => ['required', Rule::in(['super_admin', 'admin_kelurahan', 'kader', 'user'])],
@@ -250,12 +251,18 @@ class AdminMasterController extends Controller
 
         $data = $request->validate([
             'name'       => 'sometimes|string|max:100',
+            'nik'        => ['sometimes', 'nullable', 'string', 'size:16', 'regex:/^[0-9]+$/', Rule::unique('pengguna', 'nik')->ignore($id)],
             'email'      => ['sometimes', 'email', 'max:150', Rule::unique('pengguna', 'email')->ignore($id)],
             'password'   => ['sometimes', Password::min(8)],
             'role'       => ['sometimes', Rule::in(['super_admin', 'admin_kelurahan', 'kader', 'user'])],
             'wilayah_id' => 'sometimes|nullable|exists:wilayah,id',
             'aktif'      => 'sometimes|boolean',
         ]);
+
+        // Lepas kader lama bila warga mutasi kelurahan
+        if ($request->has('wilayah_id') && (int) $request->wilayah_id !== (int) $pengguna->wilayah_id) {
+            $data['kader_id'] = null;
+        }
 
         $pengguna->update($data);
 

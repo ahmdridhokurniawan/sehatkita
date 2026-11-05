@@ -38,12 +38,15 @@ class CatatanKesehatanController extends Controller
                 $query->whereHas('pengguna', fn ($q) => $this->scopeBinaan($q, $user));
             }
 
+        } elseif ($user->role === 'admin_kelurahan') {
+            // Admin kelurahan melihat catatan warga kelurahannya (read-only)
+            $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $user->wilayah_id));
+
         } elseif ($user->role === 'super_admin') {
             if ($request->filled('user_id')) {
                 $query->where('user_id', $request->user_id);
             }
         } else {
-            // Admin kelurahan dibatasi ke data agregat
             abort(403, 'Akses ditolak');
         }
 
@@ -182,10 +185,11 @@ class CatatanKesehatanController extends Controller
         abort_unless($catatan, 404, 'Catatan tidak ditemukan');
 
         $boleh = match ($user->role) {
-            'user'        => $catatan->user_id === $user->id,
-            'kader'       => $catatan->pengguna && $this->dalamBinaan($user, $catatan->pengguna),
-            'super_admin' => true,
-            default       => false,
+            'user'            => $catatan->user_id === $user->id,
+            'kader'           => $catatan->pengguna && $this->dalamBinaan($user, $catatan->pengguna),
+            'admin_kelurahan' => $catatan->pengguna && (int) $catatan->pengguna->wilayah_id === (int) $user->wilayah_id,
+            'super_admin'     => true,
+            default           => false,
         };
 
         abort_unless($boleh, 404, 'Catatan tidak ditemukan');
