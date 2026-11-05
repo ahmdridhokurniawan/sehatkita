@@ -79,6 +79,8 @@ Route::prefix('v1')->group(function () {
         Route::delete('/posbindu/sesi/{id}', [PosbinduController::class, 'destroySesi']);
         Route::post('/posbindu/sesi/{id}/peserta', [PosbinduController::class, 'storePeserta']);
         Route::get('/posbindu/kunjungan', [PosbinduController::class, 'indexKunjungan']);
+        Route::get('/posbindu/peserta/cari-nik', [PosbinduController::class, 'cariNik']);
+        Route::get('/pengguna/cari-nik', [PosbinduController::class, 'cariNik']);
 
         // Program kesehatan & peringkat
         Route::get('/program', [ProgramController::class, 'index']);

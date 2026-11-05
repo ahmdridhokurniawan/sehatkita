@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CatatanKesehatan;
 use App\Models\KunjunganPosbindu;
+use App\Models\Pengguna;
 use App\Models\SesiPosbindu;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -318,5 +319,48 @@ class PosbinduController extends Controller
             403,
             'Hanya kader atau admin kelurahan yang berhak mengelola Posbindu.'
         );
+    }
+
+    /**
+     * Cari warga/pengguna berdasarkan awalan NIK untuk dropdown autocomplete.
+     * Hanya dapat diakses oleh kader, admin kelurahan, dan super admin.
+     */
+    public function cariNik(Request $request)
+    {
+        $this->hanyaPetugas($request->user());
+
+        $nik = trim((string) ($request->query('nik') ?? $request->query('q') ?? ''));
+        $nikBersih = preg_replace('/[^0-9]/', '', $nik);
+
+        if (strlen($nikBersih) < 3) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Ketik minimal 3 digit NIK',
+                'data'    => [],
+            ]);
+        }
+
+        $hasil = Pengguna::query()
+            ->select('id', 'name', 'nik', 'wilayah_id')
+            ->with('wilayah:id,nama')
+            ->where('aktif', true)
+            ->whereNotNull('nik')
+            ->where('nik', 'like', "{$nikBersih}%")
+            ->orderBy('nik', 'asc')
+            ->limit(10)
+            ->get()
+            ->map(fn ($p) => [
+                'id'         => $p->id,
+                'name'       => $p->name,
+                'nik'        => $p->nik,
+                'wilayah_id' => $p->wilayah_id,
+                'wilayah'    => $p->wilayah?->nama,
+            ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'OK',
+            'data'    => $hasil,
+        ]);
     }
 }

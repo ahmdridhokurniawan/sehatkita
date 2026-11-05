@@ -204,7 +204,7 @@ class AdminMasterController extends Controller
             $query->where('wilayah_id', $request->wilayah_id);
         }
 
-        $this->saringCari($query, ['name', 'email'], $request);
+        $this->saringCari($query, ['name', 'email', 'nik'], $request);
 
         $list = $query->orderBy('name')->paginate($this->perHalaman($request));
 
