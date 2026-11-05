@@ -136,6 +136,85 @@ class ProgramController extends Controller
         ], 201);
     }
 
+    public function show(Request $request, int $id)
+    {
+        $user = $request->user();
+        $program = Program::findOrFail($id);
+
+        $statusSaya = null;
+        if ($user->role === 'user') {
+            $statusSaya = PesertaProgram::where('program_id', $program->id)
+                ->where('user_id', $user->id)
+                ->value('status');
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Detail program',
+            'data'    => $this->baris($program, $statusSaya),
+        ]);
+    }
+
+    public function update(Request $request, int $id)
+    {
+        $user = $request->user();
+        abort_unless(in_array($user->role, ['admin_kelurahan', 'super_admin'], true), 403, 'Akses ditolak.');
+
+        $program = Program::findOrFail($id);
+
+        if ($user->role === 'admin_kelurahan') {
+            abort_unless((int) $program->wilayah_id === (int) $user->wilayah_id, 403, 'Anda hanya dapat mengedit program kelurahan Anda.');
+        }
+
+        if ($request->has('wilayah_id') && (int) $request->input('wilayah_id') === 0) {
+            $request->merge(['wilayah_id' => null]);
+        }
+
+        $data = $request->validate([
+            'wilayah_id'         => 'sometimes|nullable|exists:wilayah,id',
+            'judul'              => 'sometimes|string|max:150',
+            'jenis'              => ['sometimes', Rule::in(['olahraga', 'edukasi', 'pemeriksaan', 'lainnya'])],
+            'kategori_aktivitas' => 'sometimes|nullable|string|max:50',
+            'target_peserta'     => 'sometimes|nullable|integer|min:1',
+            'mulai'              => 'sometimes|date',
+            'selesai'            => 'sometimes|nullable|date|after_or_equal:mulai',
+            'exp_reward'         => 'sometimes|nullable|integer|min:0|max:10000',
+            'badge_reward'       => 'sometimes|nullable|string|max:100',
+        ]);
+
+        if ($user->role === 'admin_kelurahan') {
+            unset($data['wilayah_id']);
+        }
+
+        $program->update($data);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Program berhasil diperbarui',
+            'data'    => $this->baris($program->fresh(), null),
+        ]);
+    }
+
+    public function destroy(Request $request, int $id)
+    {
+        $user = $request->user();
+        abort_unless(in_array($user->role, ['admin_kelurahan', 'super_admin'], true), 403, 'Akses ditolak.');
+
+        $program = Program::findOrFail($id);
+
+        if ($user->role === 'admin_kelurahan') {
+            abort_unless((int) $program->wilayah_id === (int) $user->wilayah_id, 403, 'Anda hanya dapat menghapus program kelurahan Anda.');
+        }
+
+        $program->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Program berhasil dihapus',
+            'data'    => null,
+        ]);
+    }
+
     // POST /program/{id}/peserta — kontrak 12.3
     public function ikut(Request $request, int $id)
     {

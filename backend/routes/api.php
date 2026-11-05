@@ -83,6 +83,9 @@ Route::prefix('v1')->group(function () {
         // Program kesehatan & peringkat
         Route::get('/program', [ProgramController::class, 'index']);
         Route::post('/program', [ProgramController::class, 'store']);
+        Route::get('/program/{id}', [ProgramController::class, 'show']);
+        Route::put('/program/{id}', [ProgramController::class, 'update']);
+        Route::delete('/program/{id}', [ProgramController::class, 'destroy']);
         Route::post('/program/{id}/peserta', [ProgramController::class, 'ikut']);
         Route::patch('/program/{id}/peserta', [ProgramController::class, 'ubahStatusPeserta']);
         Route::get('/peringkat', [PeringkatController::class, 'index']);
