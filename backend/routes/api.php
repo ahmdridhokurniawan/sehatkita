@@ -8,6 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardWilayahController;
 use App\Http\Controllers\FaskesController;
 use App\Http\Controllers\InsightController;
+use App\Http\Controllers\PengaduanController;
 use App\Http\Controllers\PeringkatController;
 use App\Http\Controllers\PosbinduController;
 use App\Http\Controllers\ProfilController;
@@ -83,6 +84,12 @@ Route::prefix('v1')->group(function () {
         Route::put('/target', [TargetRefleksiController::class, 'simpanTarget']);
         Route::get('/refleksi', [TargetRefleksiController::class, 'refleksi']);
         Route::post('/refleksi', [TargetRefleksiController::class, 'simpanRefleksi']);
+
+        // Pengaduan warga
+        Route::get('/pengaduan', [PengaduanController::class, 'index']);
+        Route::post('/pengaduan', [PengaduanController::class, 'store']);
+        Route::get('/pengaduan/{id}', [PengaduanController::class, 'show']);
+        Route::patch('/pengaduan/{id}/tanggapi', [PengaduanController::class, 'tanggapi']);
 
         // Dashboard & laporan
         Route::get('/dashboard/pribadi', [DashboardController::class, 'pribadi']);
