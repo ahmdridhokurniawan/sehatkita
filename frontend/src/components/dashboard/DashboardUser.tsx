@@ -6,6 +6,7 @@ import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
 import CatatModal from "@/components/catatan/CatatModal";
+import TargetModal from "@/components/dashboard/TargetModal";
 import { EmptyState } from "@/components/ui/Empty";
 import { dashboard, ApiError } from "@/lib/api";
 import { tanggal, relatif, angka } from "@/lib/format";
@@ -27,6 +28,7 @@ function toneKategori(kategori = ""): "safe" | "warning" | "danger" {
 
 export default function DashboardUser({ user }: { user: User }) {
   const [catatTerbuka, setCatatTerbuka] = useState(false);
+  const [targetTerbuka, setTargetTerbuka] = useState(false);
   const [jadwalSemua, setJadwalSemua] = useState(false);
   const [data, setData] = useState<DashboardPribadi | null>(null);
   const [loading, setLoading] = useState(true);
@@ -172,7 +174,9 @@ export default function DashboardUser({ user }: { user: User }) {
         <section>
           <div className="app-section-title">
             <h2>Target Kesehatan</h2>
-            <Link href="/profil">Atur target</Link>
+            <button type="button" className="link-btn" onClick={() => setTargetTerbuka(true)}>
+              Atur target
+            </button>
           </div>
           <div className="card mt-12">
             <div className="row-between mb-8">
@@ -271,6 +275,13 @@ export default function DashboardUser({ user }: { user: User }) {
       <CatatModal
         open={catatTerbuka}
         onClose={() => setCatatTerbuka(false)}
+        onSaved={() => setReload((v) => v + 1)}
+      />
+
+      <TargetModal
+        open={targetTerbuka}
+        onClose={() => setTargetTerbuka(false)}
+        awal={data?.target}
         onSaved={() => setReload((v) => v + 1)}
       />
     </AppShell>
