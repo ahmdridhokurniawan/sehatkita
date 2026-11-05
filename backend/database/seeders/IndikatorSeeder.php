@@ -34,11 +34,10 @@ class IndikatorSeeder extends Seeder
                 'satuan'   => 'mmHg',
                 'kelompok' => 'pemeriksaan fisik',
                 'ambang'   => [
-                    [0,     119, 'optimal',      'normal',          0],
-                    [120,   129, 'normal',       'normal',          1],
-                    [130,   139, 'tinggi-1',     'perlu_perhatian', 2],
-                    [140,   159, 'hipertensi-1', 'berisiko',        3],
-                    [160,   null, 'hipertensi-2', 'berisiko',        4],
+                    [0,   130,  'normal',          'normal',          0],
+                    [130, 140,  'perlu_perhatian', 'perlu_perhatian', 1],
+                    [140, 180,  'tinggi',          'berisiko',        2],
+                    [180, null, 'krisis',          'berisiko',        3],
                 ],
             ],
             [
@@ -47,11 +46,10 @@ class IndikatorSeeder extends Seeder
                 'satuan'   => 'mmHg',
                 'kelompok' => 'pemeriksaan fisik',
                 'ambang'   => [
-                    [0,   79,  'optimal',      'normal',          0],
-                    [80,  84,  'normal',       'normal',          1],
-                    [85,  89,  'tinggi-1',     'perlu_perhatian', 2],
-                    [90,  99,  'hipertensi-1', 'berisiko',        3],
-                    [100, null, 'hipertensi-2', 'berisiko',        4],
+                    [0,   85,   'normal',          'normal',          0],
+                    [85,  90,   'perlu_perhatian', 'perlu_perhatian', 1],
+                    [90,  110,  'tinggi',          'berisiko',        2],
+                    [110, null, 'krisis',          'berisiko',        3],
                 ],
             ],
             [
