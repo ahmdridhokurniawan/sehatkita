@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminExportController;
 use App\Http\Controllers\AdminMasterController;
 use App\Http\Controllers\AdminStatistikController;
 use App\Http\Controllers\AuthController;
@@ -108,6 +109,7 @@ Route::prefix('v1')->group(function () {
         // Modul Master Admin
         Route::prefix('admin')->group(function () {
             Route::get('/statistik', [AdminStatistikController::class, 'index']);
+            Route::get('/export', [AdminExportController::class, 'export']);
 
             Route::get('/indikator', [AdminMasterController::class, 'indexIndikator']);
             Route::post('/indikator', [AdminMasterController::class, 'storeIndikator']);
