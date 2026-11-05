@@ -1,6 +1,6 @@
 # Kontrak API — Sistem Monitoring Kesehatan PTM (Skala Kecamatan)
 
-**Versi 1.5.1** · 2026-10-24 · Base URL `http://pm-monitoring.test/api/v1` · Laravel + Sanctum (token) · FE: SPA/desktop
+**Versi 1.6.0** · 2026-11-05 · Base URL `http://sehatkita.test/api/v1` · Laravel + Sanctum (token) · FE: SPA/desktop
 
 > **Aturan pakai dokumen ini:**
 >
@@ -22,11 +22,18 @@
 | 4   | PDF laporan digenerate FE, BE kirim JSON                                                                                                                                                   | BE tidak mengurus layout                        |
 | 5   | **Ambang & kategori kesehatan diambil dari tabel `ambang_kategori`**, tidak di-hardcode. `status`/`level` diturunkan dari `skor` (§1.5), tidak disimpan terpisah. | Admin bisa mengubah tanpa deploy; satu sumber kebenaran |
 | 6   | **Rujukan otomatis dipicu saat catatan disimpan**, bukan saat `GET /insight`. Maksimal **satu rujukan per log**; log ber-flag `perlu_verifikasi` **tidak** memicu; verifikasi `setuju:true` tidak memicu ulang. | GET tidak boleh menulis data; hindari rujukan ganda |
-| 7   | `admin_kelurahan` **tidak pernah** melihat data individu (hanya agregat dan rujukan teredaksi)                                                                                             | Privasi; dasar pengujian                        |
-| 8   | Notifikasi **ditunda** (§20)                                                                                                                                                               | Belum ada bentuk response/tabel yang disepakati |
+| 7   | `admin_kelurahan` dapat melihat riwayat catatan kesehatan warga kelurahannya secara **read-only** (`GET /catatan-kesehatan`); aksi tulis/hapus tetap dilarang. Laporan tetap agregat. | Monitoring kelurahan sesuai arahan Dinkes       |
+| 8   | Notifikasi pengingat diintegrasikan via **Bot Telegram resmi** (`/telegram/*` dan artisan scheduler bulanan)                                                                              | Biaya nol, format rapi, aman dari blokir        |
 | 9   | **Consent wajib** untuk `POST /catatan-kesehatan` **dan** `PUT /profil`; tanpa consent → 422 | Profil memuat riwayat keluarga; data kesehatan tidak boleh terkumpul tanpa izin |
 | 10  | **Tarik consent** menghentikan pencatatan baru, tetapi pemilik tetap dapat **membaca & menghapus** data lamanya; keluar dari agregat/peringkat/laporan | Transparansi pemilik data; audit tetap tersedia |
 | 11  | Akses/ubah `super_admin` pada data individu **dan perubahan status rujukan** wajib dicatat di `log_audit` | Dasar pengujian audit |
+| 12  | Kolom `nik` (16 digit angka, unik) ada di tabel `pengguna` | Identitas resmi kependudukan Kemenkes           |
+| 13  | **Ambang Tensi resmi Kemenkes RI/PERHI**: Sistol normal < 130 mmHg, Diastol normal < 85 mmHg | Standar klinis nasional Kemenkes RI             |
+| 14  | Modul `program` mendukung **CRUD penuh**: Super Admin bisa membuat se-kota (`wilayah_id = null`), Admin Kelurahan membuat per wilayahnya | Fleksibilitas program Dinkes & kelurahan        |
+| 15  | Modul `pengaduan`: Warga dapat mengirim keluhan Posbindu/faskes ke pihak kelurahan; Admin Kelurahan menanggapi | Layanan aspirasi & evaluasi mutu kelurahan      |
+| 16  | Modul `target_kesehatan`: Warga dapat membuat target dinamis multi-metrik (BB, TB, massa otot, tensi, air minum) dengan pesan motivasi capaian | Motivasi personal warga & gamifikasi            |
+| 17  | Ekspor data master/rekapitulasi oleh `super_admin` via `GET /admin/export` format **CSV (UTF-8 BOM)** | Rekapitulasi pelaporan Dinkes ke Excel/SPSS     |
+| 18  | Mutasi warga: Bila `wilayah_id` warga diubah, `kader_id` otomatis di-reset ke `null` | Mencegah kebocoran data warga ke kader lama     |
 
 ---
 
@@ -174,6 +181,7 @@ Mendaftarkan warga (`role` otomatis `user`). Rate limit: **10 percobaan/menit pe
 ```json
 {
   "name": "Budi Santoso",
+  "nik": "6372041234560001",
   "email": "budi@mail.com",
   "password": "rahasia123",
   "password_confirmation": "rahasia123",
@@ -188,6 +196,7 @@ Mendaftarkan warga (`role` otomatis `user`). Rate limit: **10 percobaan/menit pe
   "user": {
     "id": 12,
     "name": "Budi Santoso",
+    "nik": "6372041234560001",
     "email": "budi@mail.com",
     "role": "user",
     "wilayah_id": 3,
@@ -198,7 +207,7 @@ Mendaftarkan warga (`role` otomatis `user`). Rate limit: **10 percobaan/menit pe
 }
 ```
 
-**Validasi:** `password` min 8 karakter & sama dengan konfirmasi; `email` unik (case-insensitive, disimpan lowercase) → 422 bila sudah ada; `wilayah_id` harus bertipe `kelurahan`. Setelah register, FE menampilkan prompt persetujuan (§5.3).
+**Validasi:** `nik` opsional (bila diisi wajib 16 digit angka dan unik); `password` min 8 karakter & sama dengan konfirmasi; `email` unik (case-insensitive, disimpan lowercase) → 422 bila sudah ada; `wilayah_id` harus bertipe `kelurahan`. Setelah register, FE menampilkan prompt persetujuan (§5.3).
 
 ### 4.2 POST `/auth/login` (publik)
 
@@ -458,20 +467,20 @@ Wajib: `dicatat_pada`, `sumber`, dan minimal satu pengukuran (§7.1). Untuk `sum
 Query: `?page=&per_page=&indikator=imt&dari=&sampai=&search=&user_id=`
 
 - `user` → hanya miliknya; `user_id` milik orang lain → **404**.
-- `kader` → `?user_id=` warga binaannya; di luar binaan → **404**.
-- `admin_kelurahan` → **tidak boleh** (403); pakai §9.
-- `super_admin` → boleh (audit/verifikasi), dicatat di `log_audit`.
+- `kader` → seluruh warga binaannya; atau `?user_id=` spesifik (di luar binaan → **404**).
+- `admin_kelurahan` → **boleh (read-only)** untuk seluruh catatan warga di kelurahannya sendiri.
+- `super_admin` → boleh semua (audit/verifikasi), dicatat di `log_audit`.
 - `indikator=imt` → hanya log yang punya nilai `imt`.
 
 **200** array objek §7.2 + paginasi.
 
 ### 7.4 GET `/catatan-kesehatan/{id}`
 
-Di luar scope → 404. **200** objek §7.2.
+Melihat detail satu catatan kesehatan. Akses: pemilik (`user`), kader pembina (`kader`), admin kelurahan wilayah bersangkutan (`admin_kelurahan`), dan `super_admin`. Di luar scope → 404. **200** objek §7.2.
 
 ### 7.5 DELETE `/catatan-kesehatan/{id}`
 
-`user` pemilik; `kader` hanya log warga binaannya (aturan sama dengan GET, selain itu 404); `super_admin`. Soft delete. **200** `data: null`.
+`user` pemilik; `kader` hanya log warga binaannya; `super_admin`. `admin_kelurahan` **dilarang** (read-only). Soft delete. **200** `data: null`.
 
 ---
 
@@ -938,13 +947,28 @@ Query: `?status=berjalan&search=`. `status` dihitung dari `mulai`/`selesai`. `di
 
 ### 12.2 POST `/program` (admin_kelurahan, super_admin)
 
-Body: `wilayah_id`, `judul`, `jenis`, `kategori_aktivitas`, `target_peserta`, `mulai`, `selesai`, `exp_reward` (default 50), `badge_reward` (opsional). **Tanpa** `status`. **201** objek program.
+Body: `wilayah_id`, `judul`, `jenis`, `kategori_aktivitas`, `target_peserta`, `mulai`, `selesai`, `exp_reward` (default 50), `badge_reward` (opsional).
+- `super_admin`: boleh mengirim `wilayah_id: null` atau `0` untuk program yang berlaku **se-Kota Banjarbaru**.
+- `admin_kelurahan`: otomatis terkunci ke `wilayah_id` kelurahan miliknya.
+**201** objek program.
 
-### 12.3 POST `/program/{id}/peserta` (user)
+### 12.3 GET `/program/{id}` (auth)
+
+Detail satu program. Mengembalikan objek program lengkap beserta flag `diikuti` dan `status_saya` (bila pemanggil role `user`). **200** objek program.
+
+### 12.4 PUT `/program/{id}` (admin_kelurahan, super_admin)
+
+Mengubah data program (judul, kuota, tanggal, exp_reward). `admin_kelurahan` hanya dapat mengubah program milik kelurahannya sendiri. **200** objek program terbaru.
+
+### 12.5 DELETE `/program/{id}` (admin_kelurahan, super_admin)
+
+Menghapus program. `admin_kelurahan` hanya dapat menghapus program milik kelurahannya. **200** `{"success": true, "message": "Program berhasil dihapus", "data": null}`.
+
+### 12.6 POST `/program/{id}/peserta` (user)
 
 Ikut program. **201** `data`: `{"status":"terdaftar"}`. Sudah terdaftar → 422.
 
-### 12.4 PATCH `/program/{id}/peserta` (user, kader, admin_kelurahan, super_admin)
+### 12.7 PATCH `/program/{id}/peserta` (user, kader, admin_kelurahan, super_admin)
 
 ```json
 { "user_id": 12, "status": "selesai" }
@@ -955,7 +979,7 @@ Ikut program. **201** `data`: `{"status":"terdaftar"}`. Sudah terdaftar → 422.
 
 **200** `data`: `{"status":"selesai","exp_didapat":100,"exp_total":220,"level_gamifikasi":3,"badge_baru":"jagoan_pushup"}`
 
-### 12.5 GET `/peringkat` (auth)
+### 12.8 GET `/peringkat` (auth)
 
 Query: `?wilayah_id=3`. Peringkat dihitung (tidak disimpan) dari `exp_total` warga satu kelurahan. **Bukan data kesehatan.** Nama tampil **hanya bila** user mengaktifkan `tampil_di_peringkat` (§5.2); selain itu `"Peserta anonim"`. Bila peserta peringkat < 5, `daftar` kosong dan `rank` = `null` (suppression §9.2).
 
@@ -1022,6 +1046,18 @@ Bila belum pernah diisi, semua field `null`.
 
 Query: `?page=&per_page=`. **200** array refleksi miliknya + paginasi, terbaru dulu.
 
+### 13.5 Modul Target Dinamis (`/target-kesehatan`)
+
+Warga dapat membuat target bebas metrik (berat badan, tinggi, massa otot, tensi, air minum, langkah harian, dsb) dengan tenggat waktu dan pesan motivasi pencapaian.
+
+- **GET `/target-kesehatan`** (user): Mengambil daftar target miliknya (`?tercapai=true/false`).
+- **POST `/target-kesehatan`** (user): Membuat target baru.
+  - Body: `judul` (str 100), `jenis_target` (str 50), `nilai_awal` (num), `nilai_target` (num), `satuan` (str 20), `tenggat_waktu` (date, opsional), `catatan_motivasi` (str, opsional).
+  - **201** objek target baru.
+- **PUT `/target-kesehatan/{id}`** (user): Memperbarui target miliknya. **200** objek target.
+- **PATCH `/target-kesehatan/{id}/capai`** (user): Menandai status target tercapai/batal (`{"tercapai": true}`). Server otomatis mengembalikan pesan motivasi capaian di field `motivasi`. **200** objek target.
+- **DELETE `/target-kesehatan/{id}`** (user): Menghapus target miliknya. **200** `data: null`.
+
 ---
 
 ## 14. Modul Laporan
@@ -1064,6 +1100,32 @@ Query: `?periode=3m`
 
 Agregat, mengikuti suppression §9.2. **200** struktur seperti `/dashboard/kelurahan` ditambah `disclaimer`.
 
+### 14.3 Modul Pengaduan Warga (`/pengaduan`)
+
+Sarana aspirasi dan pelaporan warga kepada kantor kelurahan setempat dan puskesmas binaan.
+
+- **POST `/pengaduan`** (user): Warga mengirim pengaduan.
+  - Body: `judul` (str 150), `isi` (text), `kategori` (`layanan_posbindu`, `faskes`, `rujukan`, `aplikasi`, `lainnya`), `wilayah_id` (opsional, default kelurahan user).
+  - **201** objek pengaduan (`status: "menunggu"`).
+- **GET `/pengaduan`** (auth): Daftar pengaduan.
+  - `user`: hanya miliknya.
+  - `admin_kelurahan`: daftar pengaduan warga kelurahannya.
+  - `super_admin`: daftar se-kota (`?wilayah_id=`).
+  - Query: `?status=&kategori=&search=`. **200** array pengaduan + paginasi.
+- **GET `/pengaduan/{id}`** (auth): Rincian pengaduan beserta identitas penanggap dan tanggal tanggapan. **200** objek pengaduan.
+- **PATCH `/pengaduan/{id}/tanggapi`** (admin_kelurahan, super_admin): Pihak kelurahan memberikan tanggapan resmi dan memperbarui status pengaduan.
+  - Body: `status` (`diproses`, `selesai`, `ditolak`), `tanggapan` (text).
+  - **200** objek pengaduan terbaru.
+
+### 14.4 Modul Integrasi Bot Telegram & Pengingat (`/telegram`)
+
+Menghubungkan akun SehatKita dengan Bot Telegram resmi Dinas Kesehatan Kota Banjarbaru untuk pengingat skrining rutin bulanan.
+
+- **GET `/telegram/status`** (user): Cek status koneksi dan peroleh tautan pairing bot (`link_telegram: "https://t.me/sehatkita_ptm_bot?start={token}"`).
+- **POST `/telegram/putuskan`** (user): Memutuskan hubungan akun dengan Telegram.
+- **POST `/telegram/webhook`** (publik): Webhook penerima kiriman perintah `/start {token}` dari Telegram saat warga memulai bot. Otomatis menyimpan `telegram_chat_id` dan membalas pesan selamat datang.
+- **Artisan Command `php artisan reminder:skrining-ptm`**: Berjalan berkala (cron), mendeteksi warga yang tidak melakukan pemeriksaan Posbindu dalam 30 hari terakhir dan mengirim notifikasi ramah ke Telegram masing-masing warga.
+
 ---
 
 ## 15. Modul Admin (Master Data)
@@ -1076,13 +1138,14 @@ Butuh role `super_admin`.
 | PUT/DELETE | `/admin/indikator/{id}`                     | Ubah / hapus indikator                                                                         |
 | GET/POST   | `/admin/ambang-kategori`                    | Daftar / tambah ambang                                                                         |
 | PUT/DELETE | `/admin/ambang-kategori/{id}`               | Ubah / hapus ambang                                                                            |
-| GET/POST   | `/admin/pengguna`                           | Daftar (filter role) / buat akun kader atau admin kelurahan                                    |
-| PUT        | `/admin/pengguna/{id}`                      | Ubah data/role/wilayah dan **tetapkan `kader_id`** warga                                       |
+| GET/POST   | `/admin/pengguna`                           | Daftar (filter role) / buat akun kader atau admin kelurahan (`nik`, `name`, `email`)           |
+| PUT        | `/admin/pengguna/{id}`                      | Ubah data/role/wilayah/nik; **mutasi `wilayah_id` otomatis reset `kader_id` ke `null`**        |
 | DELETE     | `/admin/pengguna/{id}`                      | Nonaktifkan: `aktif = false` dan semua token dicabut                                           |
 | GET/POST   | `/admin/faskes`                             | Daftar / tambah faskes                                                                         |
 | PUT/DELETE | `/admin/faskes/{id}`                        | Ubah / hapus faskes                                                                            |
 | GET        | `/admin/log-audit`                          | Riwayat aktivitas, termasuk `baca_data_individu` oleh `super_admin`                            |
 | GET        | `/admin/statistik`                          | Statistik keseluruhan sistem                                                                   |
+| GET        | `/admin/export`                             | **Ekspor CSV (UTF-8 BOM)**: `?tipe=catatan\|posbindu\|rujukan&wilayah_id=`                      |
 | GET        | `/admin/catatan-kesehatan/perlu-verifikasi` | Log ber-flag `perlu_verifikasi` (`?wilayah_id=`)                                               |
 | PATCH      | `/admin/catatan-kesehatan/{id}/verifikasi`  | `{"setuju":true}` → `perlu_verifikasi=false` (masuk agregat); `{"setuju":false}` → soft delete |
 
@@ -1123,7 +1186,7 @@ Butuh role `super_admin`.
 | GET /wilayah                                 | ✅          | ✅               | ✅    | ✅                      | ✅     |
 | GET /faskes                                  | ✅          | ✅               | ✅    | ✅                      | –      |
 | POST /catatan-kesehatan                      | ✅          | –                | ✅\*  | ✅\*                    | –      |
-| GET /catatan-kesehatan, /{id}                | ✅ (audit)  | –                | ✅\*  | ✅\*                    | –      |
+| GET /catatan-kesehatan, /{id}                | ✅ (audit)  | ✅\* (read-only) | ✅\*  | ✅\*                    | –      |
 | DELETE /catatan-kesehatan/{id}               | ✅          | –                | ✅\*  | ✅\*                    | –      |
 | GET /dashboard/pribadi, /insight             | –           | –                | –     | ✅                      | –      |
 | GET /tren                                    | –           | –                | ✅\*  | ✅\*                    | –      |
@@ -1136,24 +1199,31 @@ Butuh role `super_admin`.
 | GET /rujukan                                 | ✅          | ✅\* (teredaksi) | ✅\*  | ✅\*                    | –      |
 | PATCH /rujukan/{id}/status                   | ✅          | ✅\*             | ✅\*  | –                       | –      |
 | GET /admin/catatan-kesehatan/perlu-verifikasi; PATCH .../verifikasi | ✅ | – | – | – | – |
-| GET /program, /peringkat                     | ✅          | ✅               | ✅    | ✅                      | –      |
-| POST /program                                | ✅          | ✅\*             | –     | –                       | –      |
+| GET /program, /program/{id}, /peringkat      | ✅          | ✅               | ✅    | ✅                      | –      |
+| POST, PUT, DELETE /program                   | ✅          | ✅\*             | –     | –                       | –      |
 | POST /program/{id}/peserta                   | –           | –                | –     | ✅                      | –      |
 | PATCH /program/{id}/peserta                  | ✅          | ✅\*             | ✅\*  | ✅\* (hanya `berhenti`) | –      |
 | GET, PUT /target; GET, POST /refleksi        | –           | –                | –     | ✅                      | –      |
+| GET, POST, PUT, DELETE /target-kesehatan     | –           | –                | –     | ✅                      | –      |
+| POST /pengaduan                              | –           | –                | –     | ✅                      | –      |
+| GET /pengaduan, /pengaduan/{id}              | ✅          | ✅\*             | –     | ✅\*                    | –      |
+| PATCH /pengaduan/{id}/tanggapi               | ✅          | ✅\*             | –     | –                       | –      |
+| GET /telegram/status, POST .../putuskan      | –           | –                | –     | ✅                      | –      |
+| POST /telegram/webhook                       | –           | –                | –     | –                       | ✅     |
+| GET /admin/export                            | ✅          | –                | –     | –                       | –      |
 | GET /laporan/pribadi                         | –           | –                | –     | ✅                      | –      |
 | /admin/\*                                    | ✅          | –                | –     | –                       | –      |
 
 ---
 
-## 17. Lampiran: Daftar Tabel (16 tabel: 15 aktif + `pengobatan` cadangan)
+## 17. Lampiran: Daftar Tabel (18 tabel: 17 aktif + `pengobatan` cadangan)
 
 Acuan migrasi BE. Nama final; jangan diubah tanpa Changelog.
 
 | #   | Tabel                | Kolom inti                                                                                                                                                                                                                                                                                                                                                                                                      |
 | --- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | `wilayah`            | id, parent_id, nama, tipe, kode                                                                                                                                                                                                                                                                                                                                                                                 |
-| 2   | `pengguna`           | id, name, email, password, role, wilayah_id, kader_id (nullable), **aktif**, consent_at, versi_kebijakan, **exp_total**, **level_gamifikasi**                                                                                                                                                                                                                                                                   |
+| 2   | `pengguna`           | id, name, **nik**, email, **telegram_chat_id**, **telegram_connect_token**, password, role, wilayah_id, kader_id (nullable), **aktif**, consent_at, versi_kebijakan, **exp_total**, **level_gamifikasi**                                                                                                                                                                                                     |
 | 3   | `profil`             | user_id, tgl_lahir, jenis_kelamin, tinggi_cm, tingkat_aktivitas, merokok, riwayat_keluarga (json), **tampil_di_peringkat**, bb_target_kg, **bb_awal_kg**, target_aktivitas_per_minggu, target_air_ml                                                                                                                                                                                                            |
 | 4   | `catatan_kesehatan`  | id, user_id, dicatat_oleh, dicatat_pada, sumber, sesi_posbindu_id, bb_kg, tinggi_cm (snapshot), imt, kategori_imt, sistol, diastol, kategori_tensi, gula_darah, jenis_gula_darah, kategori_gula_darah, kolesterol, kategori_kolesterol, asam_urat, kategori_asam_urat, lingkar_perut, tidur_jam, merokok, konsumsi_manis, status_kesehatan, skor_imt, skor_tensi, skor_gula_darah, skor_kolesterol, skor_asam_urat, catatan, perlu_verifikasi, deleted_at, created_at — **append-only** |
 | 5   | `indikator`          | id, kode, nama, satuan, kelompok, **interval_skrining_hari**                                                                                                                                                                                                                                                                                                                                                    |
@@ -1164,10 +1234,12 @@ Acuan migrasi BE. Nama final; jangan diubah tanpa Changelog.
 | 10  | `faskes`             | id, wilayah_id, nama, jenis, alamat, telepon, lat, lng (lat/lng cadangan, belum ada endpoint peta)                                                                                                                                                                                                                                                                                                              |
 | 11  | `pengobatan`         | id, user_id, nama_obat, dosis, mulai, selesai, aktif — **cadangan: belum ada endpoint, migrasi ditunda**                                                                                                                                                                                                                                                                                                        |
 | 12  | `log_audit`          | id, user_id, aksi, model, model_id, ip, user_agent, created_at                                                                                                                                                                                                                                                                                                                                                  |
-| 13  | `program`            | id, wilayah_id, judul, jenis, **kategori_aktivitas**, target_peserta, mulai, selesai, **exp_reward**, **badge_reward** (`status` dihitung)                                                                                                                                                                                                                                                                      |
+| 13  | `program`            | id, **wilayah_id** (nullable = se-kota), judul, jenis, **kategori_aktivitas**, target_peserta, mulai, selesai, **exp_reward**, **badge_reward** (`status` dihitung)                                                                                                                                                                                                                                            |
 | 14  | `peserta_program`    | program_id, user_id, status, selesai_pada                                                                                                                                                                                                                                                                                                                                                                       |
 | 15  | `refleksi`           | id, user_id, minggu, catatan, created_at — unik (user_id, minggu)                                                                                                                                                                                                                                                                                                                                               |
 | 16  | `badge_pengguna`     | id, user_id, badge, diraih_pada                                                                                                                                                                                                                                                                                                                                                                                 |
+| 17  | `pengaduan`          | id, user_id, wilayah_id, judul, isi, kategori, status, tanggapan, ditanggapi_oleh, ditanggapi_pada, created_at, updated_at                                                                                                                                                                                                                                                                                      |
+| 18  | `target_kesehatan`   | id, user_id, judul, jenis_target, nilai_awal, nilai_target, satuan, tenggat_waktu, tercapai, tercapai_pada, catatan_motivasi, created_at, updated_at                                                                                                                                                                                                                                                             |
 
 > Tabel `pengguna` menggantikan `users` bawaan Laravel. Model `User` **wajib** memakai `protected $table = 'pengguna';`.
 
@@ -1211,7 +1283,9 @@ Contoh: `GET /catatan-kesehatan?search=lembur`.
 | Role `kelurahan` sebagai alias               | Dibatalkan. Enum role tetap 4 nilai; `admin_kelurahan` sudah ada           |
 | `next_notifications` di `/dashboard/pribadi` | Dicabut                                                                    |
 
-**Ditunda (belum dijadwalkan; jangan dikarang di BE/FE):** notifikasi (`GET /notifikasi`, tabel `notifikasi`), lupa/reset password, verifikasi email, refresh/kedaluwarsa token, `PUT`/`DELETE /program/{id}`, peta faskes (`lat`/`lng`), modul `pengobatan`.
+**Ditunda (belum dijadwalkan; jangan dikarang di BE/FE):** lupa/reset password, verifikasi email, refresh/kedaluwarsa token, peta faskes (`lat`/`lng`), modul `pengobatan`.
+
+**Catatan implementasi v1.6.0:** Notifikasi pengingat bulanan resmi diintegrasikan via Bot Telegram (`/telegram/*` dan artisan `reminder:skrining-ptm`), dan modul `program` kini mendukung CRUD penuh (`GET /{id}`, `PUT`, `DELETE`).
 
 **Kebijakan token:** Sanctum token tidak kedaluwarsa otomatis. FE **wajib** menghapus token tersimpan dan mengarahkan ke login saat menerima `401`.
 
@@ -1275,3 +1349,4 @@ Bagian ini bukan kontrak API.
 | 1.4   | 2026-10-23 | Konsolidasi: sisa v1.2 dibersihkan, UI dipindah ke lampiran, changelog satu tabel                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | BE   |
 | 1.5   | 2026-10-24 | **(1)** Ambang & kategori lengkap tanpa celah di §8.3 (`ambang_kategori`, kolom `memicu_rujukan`, kategori `krisis`/`tinggi`); pemetaan skor→status→level §1.5; rumus `skor_risiko` baru (36) dan `progress_persen`. **(2)** Rujukan otomatis dipicu saat simpan; kolom `rujukan.otomatis`, `rujukan.indikator`; anti-duplikat; fallback faskes. **(3)** Validasi: dua lapis rentang (mustahil 422 / wajar flag), `tidur_jam` wajar 0–24 → 3–12, minimal satu pengukuran, pasangan sistol-diastol, consent → 422, `jenis_gula_darah` wajib. **(4)** `catatan_kesehatan` append-only + snapshot `kategori_*`. **(5)** Privasi: §10.3, §10.5 (hanya kader/super_admin, 404, duplikat 422), §11.2 rujukan teredaksi untuk `admin_kelurahan`, `log_audit` akses super_admin; `POST /rujukan` hanya kader/super_admin. **(6)** Dashboard kelurahan: `distribusi_risiko` → `distribusi_riwayat_keluarga`, field `rujukan.total` dan `belum_ditindaklanjuti` dihapus, `ada_data_disembunyikan`, complementary suppression. **(7)** Gamifikasi: `exp_total`/`level_gamifikasi` di `pengguna`, tabel `badge_pengguna`, `program.kategori_aktivitas/exp_reward/badge_reward`, `GET /peringkat`, `profil.tampil_di_peringkat`; field reward dihapus dari `peserta_program`; `PATCH /program/{id}/peserta` menerima `user_id`. **(8)** `pengguna.aktif`, `profil.bb_awal_kg`, `indikator.interval_skrining_hari`; `GET /profil` kosong → 200 + `profil_lengkap:false`; `auth/me.profil` bisa `null`. **(9)** Login: rate limit per email+IP, tanpa aturan panjang password. **(10)** `/tren` satu titik per hari. **(11)** Enum baru (`kategori_*`, `wilayah.tipe`, `faskes.jenis`, `status_sesi`); §19 kolom pencarian; §21 TODO-KONFIRMASI; lampiran UI & bug dalam satu dokumen | BE   |
 | 1.5.1 | 2026-10-24 | Klarifikasi tanpa ubah bentuk: consent juga untuk `PUT /profil`; tarik consent → pemilik tetap bisa baca/hapus data lama; rujukan tetap ada; tinggi profil 120–220 (422); `tampil_di_peringkat` tidak di-reset; read-only dikirim → 422; snapshot `skor_*`; `ambang_kategori.status` dihapus; audit mencakup verifikasi & ubah status rujukan; register rate limit; `per_page` 1–100; TODO #4/#7 selesai | BE |
+| 1.6.0 | 2026-11-05 | **Penyesuaian Arahan Pembimbing Lapangan & Dinas Kesehatan RI:**<br>**(1)** `admin_kelurahan` diberikan akses **read-only** pada catatan rekam medis warga kelurahannya (`GET /catatan-kesehatan`, `GET /catatan-kesehatan/{id}`). Aksi `POST`/`DELETE` tetap dilarang.<br>**(2)** Penyelarasan ambang batas tekanan darah resmi **Kemenkes RI / PERHI**: Sistol normal < 130 mmHg (tensi 120 pas adalah Normal, bukan pra-hipertensi), Diastol normal < 85 mmHg (80 pas adalah Normal).<br>**(3)** Penambahan kolom `nik` (16 digit angka, unik) pada tabel `pengguna` + validasi registrasi/admin master.<br>**(4)** Modul `program` mendukung **CRUD penuh**: Super Admin bisa membuat se-kota (`wilayah_id = null`), Admin Kelurahan membuat per kelurahan; penambahan endpoint `GET /program/{id}`, `PUT /program/{id}`, dan `DELETE /program/{id}`.<br>**(5)** Modul baru `pengaduan`: Warga melapor keluhan layanan Posbindu/faskes ke pihak kelurahan (`POST /pengaduan`), Admin Kelurahan memberikan tanggapan resmi (`PATCH /pengaduan/{id}/tanggapi`).<br>**(6)** Modul baru `target_kesehatan`: Warga dapat menyetel target dinamis multi-metrik (BB, TB, massa otot, tensi, dll) dengan respon motivasi otomatis saat target tercapai.<br>**(7)** Modul Ekspor Data Super Admin: `GET /admin/export?tipe=catatan\|posbindu\|rujukan` menghasilkan file download CSV stream (UTF-8 BOM).<br>**(8)** Modul Integrasi Bot Telegram & Pengingat Bulanan: pairing akun warga via deep link (`/telegram/status`, `/telegram/webhook`) dan artisan scheduler bulanan (`reminder:skrining-ptm`).<br>**(9)** Mutasi warga: Bila `wilayah_id` warga diubah, `kader_id` otomatis di-reset ke `null` untuk melindungi privasi data warga. | BE |
