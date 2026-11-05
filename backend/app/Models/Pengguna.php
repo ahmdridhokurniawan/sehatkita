@@ -19,6 +19,8 @@ class Pengguna extends Model
         'name',              // nama lengkap
         'nik',               // nomor induk kependudukan 16 digit
         'email',             // untuk login
+        'telegram_chat_id',
+        'telegram_connect_token',
         'password',          // sudah di-hash (lihat casts())
         'role',              // super_admin | admin_kelurahan | kader | user
         'wilayah_id',        // user terdaftar di kelurahan mana

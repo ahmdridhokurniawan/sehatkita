@@ -18,6 +18,7 @@ use App\Http\Controllers\RekamMedisController;
 use App\Http\Controllers\RujukanController;
 use App\Http\Controllers\TargetKesehatanController;
 use App\Http\Controllers\TargetRefleksiController;
+use App\Http\Controllers\TelegramController;
 use App\Http\Controllers\WilayahController;
 use Illuminate\Support\Facades\Route;
 
@@ -27,6 +28,7 @@ Route::prefix('v1')->group(function () {
     Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1')->name('login');
     Route::get('/wilayah', [WilayahController::class, 'index']);
+    Route::post('/telegram/webhook', [TelegramController::class, 'webhook']);
 
     // Rute Terproteksi Sanctum
     Route::middleware('auth:sanctum')->group(function () {
@@ -42,6 +44,10 @@ Route::prefix('v1')->group(function () {
         // Profil
         Route::get('/profil', [ProfilController::class, 'show']);
         Route::put('/profil', [ProfilController::class, 'update']);
+
+        // Integrasi Bot Telegram
+        Route::get('/telegram/status', [TelegramController::class, 'status']);
+        Route::post('/telegram/putuskan', [TelegramController::class, 'putuskan']);
 
         // Faskes
         Route::get('/faskes', [FaskesController::class, 'index']);
