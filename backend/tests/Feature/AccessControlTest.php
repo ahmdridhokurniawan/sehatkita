@@ -146,4 +146,14 @@ class AccessControlTest extends TestCase
             ->postJson('/api/v1/admin/indikator', ['kode' => 'zz', 'nama' => 'Uji', 'satuan' => 'x'])
             ->assertStatus(403);
     }
+
+    public function test_non_user_tidak_boleh_akses_target_dan_refleksi(): void
+    {
+        $kader = $this->pengguna('kader');
+
+        $this->asUser($kader)->getJson('/api/v1/target')->assertStatus(403);
+        $this->asUser($kader)->putJson('/api/v1/target', ['target_air_ml' => 2000])->assertStatus(403);
+        $this->asUser($kader)->getJson('/api/v1/refleksi')->assertStatus(403);
+        $this->asUser($kader)->postJson('/api/v1/refleksi', ['minggu' => '2026-W45', 'catatan' => 'Uji'])->assertStatus(403);
+    }
 }

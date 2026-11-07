@@ -33,6 +33,8 @@ class TargetRefleksiController extends Controller
     // PUT /target - kontrak 13.2
     public function simpanTarget(Request $request)
     {
+        abort_unless($request->user()->role === 'user', 403, 'Hanya user biasa yang memakai fitur target ini.');
+
         // Semua kolom nullable: PATCH-like, hanya yang dikirim yang berubah.
         $data = $request->validate([
             'bb_target_kg'                => 'nullable|numeric|min:1|max:300',
@@ -74,6 +76,8 @@ class TargetRefleksiController extends Controller
     // POST /refleksi - kontrak 13.3
     public function simpanRefleksi(Request $request)
     {
+        abort_unless($request->user()->role === 'user', 403, 'Hanya user biasa yang memakai fitur refleksi ini.');
+
         $data = $request->validate([
             'minggu'  => ['required', 'string', 'max:10', 'regex:/^\d{4}-W\d{2}$/'],
             'catatan' => 'required|string|max:2000',
@@ -109,6 +113,8 @@ class TargetRefleksiController extends Controller
     // GET /refleksi - kontrak 13.4
     public function refleksi(Request $request)
     {
+        abort_unless($request->user()->role === 'user', 403, 'Hanya user biasa yang memakai fitur refleksi ini.');
+
         $list = Refleksi::where('user_id', $request->user()->id)
             ->orderByDesc('minggu')
             ->orderByDesc('id')
