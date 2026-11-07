@@ -214,13 +214,14 @@ class CatatanKesehatanTest extends TestCase
             ->assertStatus(404);
     }
 
-    public function test_admin_kelurahan_tidak_boleh_akses_data_individu(): void
+    // Admin kelurahan memiliki akses read-only rekam medis warga kelurahannya (kontrak v1.6.0)
+    public function test_admin_kelurahan_dapat_melihat_rekam_medis_read_only(): void
     {
         $admin = $this->pengguna('admin_kelurahan');
 
         $this->asUser($admin)
             ->getJson('/api/v1/catatan-kesehatan')
-            ->assertStatus(403);
+            ->assertStatus(200);
     }
 
     public function test_tanpa_token_ditolak_401(): void
