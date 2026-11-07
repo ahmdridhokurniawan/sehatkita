@@ -7,6 +7,7 @@ use App\Models\Faskes;
 use App\Models\Indikator;
 use App\Models\LogAudit;
 use App\Models\Pengguna;
+use App\Services\HealthCalculatorService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -14,6 +15,8 @@ use Illuminate\Validation\Rules\Password;
 
 class AdminMasterController extends Controller
 {
+    public function __construct(private HealthCalculatorService $kalkulator) {}
+
     // ================= INDIKATOR =================
 
     // Daftar master indikator kesehatan
@@ -135,6 +138,7 @@ class AdminMasterController extends Controller
 
         $ambang = AmbangKategori::create($request->validate($this->aturanAmbang()));
         $ambang->load('indikator:id,kode,nama,satuan');
+        $this->kalkulator->lupakanCache();
 
         return response()->json([
             'success' => true,
@@ -162,6 +166,7 @@ class AdminMasterController extends Controller
 
         $ambang->update($request->validate($aturan));
         $ambang->load('indikator:id,kode,nama,satuan');
+        $this->kalkulator->lupakanCache();
 
         return response()->json([
             'success' => true,
@@ -180,6 +185,7 @@ class AdminMasterController extends Controller
         }
 
         $ambang->delete();
+        $this->kalkulator->lupakanCache();
 
         return response()->json([
             'success' => true,
@@ -453,6 +459,8 @@ class AdminMasterController extends Controller
                     'satuan' => $a->indikator->satuan,
                 ]
                 : null,
+            'jenis_gula_darah' => $a->jenis_gula_darah,
+            'memicu_rujukan'   => (bool) $a->memicu_rujukan,
             'batas_min'  => $a->batas_min === null ? null : (float) $a->batas_min,
             'batas_max'  => $a->batas_max === null ? null : (float) $a->batas_max,
             'kategori'   => $a->kategori,
@@ -464,7 +472,9 @@ class AdminMasterController extends Controller
     private function aturanAmbang(): array
     {
         return [
-            'indikator_id' => 'required|exists:indikator,id',
+            'indikator_id'     => 'required|exists:indikator,id',
+            'jenis_gula_darah' => 'nullable|in:puasa,2jam_pp',
+            'memicu_rujukan'   => 'sometimes|boolean',
             'batas_min'    => 'required|numeric',
             'batas_max'    => 'nullable|numeric|gte:batas_min',
             'kategori'     => 'required|string|max:50',
