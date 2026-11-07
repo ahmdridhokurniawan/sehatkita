@@ -38,13 +38,15 @@ class LandingPageController extends Controller
         // 3️⃣ Kategori IMT – ambil dari tabel `ambang_kategori` (seeded)
         //    (asumsi model AmbangKategori sudah ada)
         $imtKategori = \DB::table('ambang_kategori')
-            ->select('kategori', 'batas_bawah', 'batas_atas')
-            ->orderBy('batas_bawah')
+            ->join('indikator', 'ambang_kategori.indikator_id', '=', 'indikator.id')
+            ->where('indikator.kode', 'imt')
+            ->select('ambang_kategori.kategori', 'ambang_kategori.batas_min', 'ambang_kategori.batas_max')
+            ->orderBy('ambang_kategori.batas_min')
             ->get()
             ->map(function ($row) {
                 return [
                     'kategori'    => $row->kategori,
-                    'rentang'     => $row->batas_bawah . ' – ' . ($row->batas_atas ?? '∞'),
+                    'rentang'     => $row->batas_min . ' – ' . ($row->batas_max ?? '∞'),
                 ];
             });
 
