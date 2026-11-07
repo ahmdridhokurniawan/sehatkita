@@ -15,6 +15,7 @@ class TelegramController extends Controller
     public function status(Request $request)
     {
         $user = $request->user();
+        abort_unless($user->role === 'user', 403, 'Fitur integrasi Bot Telegram hanya untuk pengguna warga.');
 
         if (! $user->telegram_connect_token) {
             $user->update(['telegram_connect_token' => Str::random(16)]);
@@ -31,6 +32,8 @@ class TelegramController extends Controller
     public function putuskan(Request $request)
     {
         $user = $request->user();
+        abort_unless($user->role === 'user', 403, 'Fitur integrasi Bot Telegram hanya untuk pengguna warga.');
+
         $user->update([
             'telegram_chat_id'       => null,
             'telegram_connect_token' => Str::random(16),

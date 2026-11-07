@@ -185,4 +185,16 @@ class AccessControlTest extends TestCase
         $this->asUser($userB)->getJson("/api/v1/pengaduan/{$id}")->assertStatus(404);
         $this->asUser($userA)->getJson("/api/v1/pengaduan/{$id}")->assertOk();
     }
+
+    public function test_hak_akses_telegram_hanya_warga(): void
+    {
+        $user  = $this->pengguna('user');
+        $admin = $this->pengguna('admin_kelurahan');
+
+        $this->asUser($admin)->getJson('/api/v1/telegram/status')->assertStatus(403);
+        $this->asUser($admin)->postJson('/api/v1/telegram/putuskan')->assertStatus(403);
+
+        $this->asUser($user)->getJson('/api/v1/telegram/status')->assertOk();
+        $this->asUser($user)->postJson('/api/v1/telegram/putuskan')->assertOk();
+    }
 }
