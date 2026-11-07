@@ -3,15 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Models\CatatanKesehatan;
+use App\Models\Faskes;
 use App\Models\KunjunganPosbindu;
 use App\Models\Pengguna;
+use App\Models\Rujukan;
 use App\Models\SesiPosbindu;
+use App\Services\HealthCalculatorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class PosbinduController extends Controller
 {
+    public function __construct(private HealthCalculatorService $kalkulator) {}
+
     private const ROLE_ADMIN = ['admin_kelurahan', 'super_admin'];
     private const ROLE_PETUGAS = ['kader', 'admin_kelurahan', 'super_admin'];
 
@@ -184,18 +189,35 @@ class PosbinduController extends Controller
 
         DB::transaction(function () use ($sesi, $user, $data, &$kunjunganId, &$catatanKesehatanId) {
             if ($data['hadir'] && ! empty($data['catatan_kesehatan'])) {
-                $ck = CatatanKesehatan::create([
-                    'user_id'          => $data['user_id'],
+                $warga = Pengguna::with('profil')->findOrFail($data['user_id']);
+                $rawCk = $data['catatan_kesehatan'];
+
+                $tinggiEfektif = $warga->profil?->tinggi_cm !== null
+                    ? (float) $warga->profil->tinggi_cm
+                    : null;
+
+                $snapshot = $this->kalkulator->snapshot($rawCk, $tinggiEfektif);
+
+                $isi = array_merge($rawCk, $snapshot, [
+                    'user_id'          => $warga->id,
+                    'wilayah_id'       => $warga->wilayah_id ?? $sesi->wilayah_id,
                     'dicatat_oleh'     => $user->id,
                     'dicatat_pada'     => $sesi->tanggal,
                     'sumber'           => 'kader',
                     'sesi_posbindu_id' => $sesi->id,
-                    'bb_kg'            => $data['catatan_kesehatan']['bb_kg'] ?? null,
-                    'sistol'           => $data['catatan_kesehatan']['sistol'] ?? null,
-                    'diastol'          => $data['catatan_kesehatan']['diastol'] ?? null,
-                    'gula_darah'       => $data['catatan_kesehatan']['gula_darah'] ?? null,
-                    'jenis_gula_darah' => $data['catatan_kesehatan']['jenis_gula_darah'] ?? null,
+                    'perlu_verifikasi' => $this->kalkulator->perluVerifikasi($rawCk),
                 ]);
+
+                $ck = CatatanKesehatan::create($isi);
+                $ck->status_kesehatan = $this->kalkulator->statusKesehatan($ck);
+                $ck->skor_risiko      = $this->kalkulator->skorRisiko($ck);
+                $ck->save();
+
+                // Rujukan otomatis untuk data wajar
+                if (! $ck->perlu_verifikasi) {
+                    $this->buatRujukanOtomatis($ck, $warga);
+                }
+
                 $catatanKesehatanId = $ck->id;
             }
 
@@ -362,5 +384,71 @@ class PosbinduController extends Controller
             'message' => 'OK',
             'data'    => $hasil,
         ]);
+    }
+
+    // Buat rujukan otomatis jika indikator memenuhi ambang batas rujukan
+    private function buatRujukanOtomatis(CatatanKesehatan $catatan, Pengguna $pemilik): void
+    {
+        $pemicu = $this->kalkulator->indikatorMemicuRujukan($catatan);
+
+        if ($pemicu === []) {
+            return;
+        }
+
+        $faskesId = $this->cariPuskesmas($pemilik);
+
+        if (! $faskesId) {
+            return;
+        }
+
+        foreach ($pemicu as $indikator) {
+            $nama = in_array($indikator, ['sistol', 'diastol'], true) ? 'tensi' : $indikator;
+
+            $sudahAda = Rujukan::where('user_id', $pemilik->id)
+                ->where('indikator', $nama)
+                ->whereIn('status', ['baru', 'dihubungi'])
+                ->exists();
+
+            if ($sudahAda) {
+                continue;
+            }
+
+            Rujukan::create([
+                'user_id'     => $pemilik->id,
+                'faskes_id'   => $faskesId,
+                'alasan'      => 'Rujukan ini saran sistem, bukan diagnosis medis.',
+                'dibuat_oleh' => null,
+                'status'      => 'baru',
+                'otomatis'    => true,
+                'indikator'   => $nama,
+            ]);
+        }
+    }
+
+    // Cari puskesmas di wilayah pengguna atau wilayah induk kecamatan
+    private function cariPuskesmas(Pengguna $pemilik): ?int
+    {
+        if (! $pemilik->wilayah_id) {
+            return null;
+        }
+
+        $puskesmas = Faskes::where('wilayah_id', $pemilik->wilayah_id)
+            ->where('jenis', 'puskesmas')
+            ->orderBy('id')
+            ->value('id');
+
+        if ($puskesmas) {
+            return (int) $puskesmas;
+        }
+
+        $induk = DB::table('wilayah')->where('id', $pemilik->wilayah_id)->value('parent_id');
+
+        if (! $induk) {
+            return null;
+        }
+
+        $id = Faskes::where('wilayah_id', $induk)->where('jenis', 'puskesmas')->orderBy('id')->value('id');
+
+        return $id ? (int) $id : null;
     }
 }

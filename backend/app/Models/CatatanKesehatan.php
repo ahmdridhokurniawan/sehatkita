@@ -16,6 +16,7 @@ class CatatanKesehatan extends Model
     // Append-only (kontrak §7.1): tidak ada UPDATE selain perlu_verifikasi.
     protected $fillable = [
         'user_id',           // milik siapa data ini
+        'wilayah_id',        // wilayah kelurahan data dicatat
         'dicatat_oleh',      // siapa yang input (NULL kalau user input sendiri)
         'dicatat_pada',      // tanggal pemeriksaan
         'sumber',            // mandiri | kader | puskesmas
