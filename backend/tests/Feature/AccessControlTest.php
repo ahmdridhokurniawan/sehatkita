@@ -156,4 +156,33 @@ class AccessControlTest extends TestCase
         $this->asUser($kader)->getJson('/api/v1/refleksi')->assertStatus(403);
         $this->asUser($kader)->postJson('/api/v1/refleksi', ['minggu' => '2026-W45', 'catatan' => 'Uji'])->assertStatus(403);
     }
+
+    public function test_hak_akses_pengaduan_dan_lingkup_404(): void
+    {
+        $userA = $this->pengguna('user');
+        $userB = $this->pengguna('user');
+        $kader = $this->pengguna('kader');
+        $admin = $this->pengguna('super_admin');
+
+        $this->asUser($kader)->getJson('/api/v1/pengaduan')->assertStatus(403);
+
+        $this->asUser($admin)->postJson('/api/v1/pengaduan', [
+            'judul'      => 'Uji',
+            'isi'        => 'Keluhan staf',
+            'kategori'   => 'aplikasi',
+            'wilayah_id' => $this->wilayah()->id,
+        ])->assertStatus(403);
+
+        $res = $this->asUser($userA)->postJson('/api/v1/pengaduan', [
+            'judul'      => 'Antrean lama',
+            'isi'        => 'Pelayanan posbindu lambat',
+            'kategori'   => 'layanan_posbindu',
+            'wilayah_id' => $this->wilayah()->id,
+        ])->assertCreated();
+
+        $id = $res->json('data.id');
+
+        $this->asUser($userB)->getJson("/api/v1/pengaduan/{$id}")->assertStatus(404);
+        $this->asUser($userA)->getJson("/api/v1/pengaduan/{$id}")->assertOk();
+    }
 }

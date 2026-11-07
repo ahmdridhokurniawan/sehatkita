@@ -12,6 +12,8 @@ class PengaduanController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
+        abort_unless(in_array($user->role, ['user', 'admin_kelurahan', 'super_admin'], true), 403, 'Akses ditolak.');
+
         $query = Pengaduan::with(['pengguna:id,name,email', 'wilayah:id,nama', 'penanggap:id,name,role']);
 
         if ($user->role === 'user') {
@@ -45,6 +47,7 @@ class PengaduanController extends Controller
     public function store(Request $request)
     {
         $user = $request->user();
+        abort_unless($user->role === 'user', 403, 'Hanya user yang dapat mengirim pengaduan.');
 
         $data = $request->validate([
             'judul'      => 'required|string|max:150',
@@ -75,18 +78,20 @@ class PengaduanController extends Controller
     public function show(Request $request, int $id)
     {
         $user = $request->user();
+        abort_unless(in_array($user->role, ['user', 'admin_kelurahan', 'super_admin'], true), 403, 'Akses ditolak.');
+
         $pengaduan = Pengaduan::with(['pengguna:id,name,email', 'wilayah:id,nama', 'penanggap:id,name,role'])->find($id);
 
         abort_unless($pengaduan, 404, 'Pengaduan tidak ditemukan.');
 
         $boleh = match ($user->role) {
-            'user'            => $pengaduan->user_id === $user->id,
+            'user'            => (int) $pengaduan->user_id === (int) $user->id,
             'admin_kelurahan' => (int) $pengaduan->wilayah_id === (int) $user->wilayah_id,
             'super_admin'     => true,
             default           => false,
         };
 
-        abort_unless($boleh, 403, 'Akses ditolak.');
+        abort_unless($boleh, 404, 'Pengaduan tidak ditemukan.');
 
         return response()->json([
             'success' => true,
@@ -104,7 +109,7 @@ class PengaduanController extends Controller
         abort_unless($pengaduan, 404, 'Pengaduan tidak ditemukan.');
 
         if ($user->role === 'admin_kelurahan') {
-            abort_unless((int) $pengaduan->wilayah_id === (int) $user->wilayah_id, 403, 'Bukan wilayah Anda.');
+            abort_unless((int) $pengaduan->wilayah_id === (int) $user->wilayah_id, 404, 'Pengaduan tidak ditemukan.');
         }
 
         $data = $request->validate([
