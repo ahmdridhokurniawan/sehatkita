@@ -52,7 +52,11 @@ class AdminExportController extends Controller
         $query = CatatanKesehatan::with(['pengguna.profil', 'pengguna.wilayah'])->latest('dicatat_pada');
 
         if ($request->filled('wilayah_id')) {
-            $query->where('wilayah_id', $request->wilayah_id);
+            $wId = (int) $request->wilayah_id;
+            $query->where(function ($q) use ($wId) {
+                $q->where('wilayah_id', $wId)
+                  ->orWhereHas('pengguna', fn ($sub) => $sub->where('wilayah_id', $wId));
+            });
         }
 
         $query->chunk(100, function ($rows) use ($handle) {
@@ -88,6 +92,11 @@ class AdminExportController extends Controller
 
         $query = KunjunganPosbindu::with(['sesi.wilayah', 'sesi.kader', 'pengguna'])->latest('id');
 
+        if ($request->filled('wilayah_id')) {
+            $wId = (int) $request->wilayah_id;
+            $query->whereHas('sesi', fn ($q) => $q->where('wilayah_id', $wId));
+        }
+
         $query->chunk(100, function ($rows) use ($handle) {
             foreach ($rows as $k) {
                 fputcsv($handle, [
@@ -109,6 +118,11 @@ class AdminExportController extends Controller
         fputcsv($handle, ['ID Rujukan', 'Tanggal Dibuat', 'Nama Warga', 'NIK', 'Kelurahan', 'Faskes Tujuan', 'Alasan Rujukan', 'Status']);
 
         $query = Rujukan::with(['pengguna.wilayah', 'faskes'])->latest('id');
+
+        if ($request->filled('wilayah_id')) {
+            $wId = (int) $request->wilayah_id;
+            $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $wId));
+        }
 
         $query->chunk(100, function ($rows) use ($handle) {
             foreach ($rows as $ruj) {

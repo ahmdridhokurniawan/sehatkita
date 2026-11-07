@@ -145,6 +145,7 @@ class CatatanKesehatanController extends Controller
 
         $isi = array_merge($data, $snapshot, [
             'user_id'      => $pemilik->id,
+            'wilayah_id'   => $pemilik->wilayah_id,
             'dicatat_oleh' => $user->id,
         ]);
 
