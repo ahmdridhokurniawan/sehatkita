@@ -17,7 +17,7 @@ const NAV_UTAMA: NavItem[] = [
   { href: "/rekam-medis", icon: "clipboard", label: "Rekam Medis" },
   { href: "/program", icon: "award", label: "Tantangan" },
   { href: "/peringkat", icon: "trending-up", label: "Peringkat" },
-  { href: "/insight", icon: "zap", label: "Insight" },
+  { href: "/insight", icon: "zap", label: "History" },
 ];
 
 const NAV_DATA: NavItem[] = [

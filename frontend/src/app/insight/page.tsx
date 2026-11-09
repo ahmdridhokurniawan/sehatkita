@@ -102,7 +102,7 @@ export default function InsightPage() {
     <AppShell noFab>
       <header className="ins-head">
         <div>
-          <h1 className="h3">Insight Kesehatan</h1>
+          <h1 className="h3">History Kesehatan</h1>
           <p className="tiny">
             {loading
               ? "Menyusun saran dari catatan terakhirmu…"
