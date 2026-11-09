@@ -183,7 +183,7 @@ export default function DashboardUser({ user }: { user: User }) {
           <div className="app-section-title">
             <h2>Target Kesehatan</h2>
             <button type="button" className="link-btn" onClick={() => setTargetTerbuka(true)}>
-              Atur target
+              Target
             </button>
           </div>
           <div className="card mt-12">

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
+import GrafikRingkas from "@/components/admin/GrafikRingkas";
 
 const ADMIN_MENU = [
   {
@@ -52,6 +53,8 @@ export default function AdminPage() {
           <p className="tiny">Kelola master data: pengguna, faskes, indikator, dan log audit.</p>
         </div>
       </div>
+
+      <GrafikRingkas />
 
       <div className="card" style={{ display: "grid", gap: 0 }}>
         {ADMIN_MENU.map((item, idx) => (

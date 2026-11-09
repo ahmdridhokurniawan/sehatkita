@@ -124,7 +124,7 @@ export default function TargetModal({ open, onClose, awal, onSaved }: Props) {
       onClose={onClose}
       title={
         <div>
-          <h3 className="h3">Atur Target Kesehatan</h3>
+          <h3 className="h3">Target Kesehatan</h3>
           <p className="tiny" style={{ marginTop: 4 }}>
             Isi target yang ingin Anda capai. Semua kolom opsional.
           </p>
