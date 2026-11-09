@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Segmented from "@/components/ui/Segmented";
@@ -112,6 +113,9 @@ export default function InsightPage() {
                   : `${total} saran · tidak ada yang mendesak`}
           </p>
         </div>
+        <Link href="/insight/panduan" className="btn btn-primary btn-sm">
+          <Icon name="file-text" size={15} /> Panduan
+        </Link>
       </header>
 
       <div className="ins-summary grid grid-3">

@@ -10,6 +10,7 @@ import TargetModal from "@/components/dashboard/TargetModal";
 import KalkulatorBMI from "@/components/dashboard/KalkulatorBMI";
 import KalenderJadwal from "@/components/dashboard/KalenderJadwal";
 import { EmptyState } from "@/components/ui/Empty";
+import LottieLoading from "@/components/ui/LottieLoading";
 import { dashboard, ApiError } from "@/lib/api";
 import { tanggal, relatif, angka } from "@/lib/format";
 import { LABEL_STATUS_RUJUKAN } from "@/lib/labels";
@@ -57,7 +58,7 @@ export default function DashboardUser({ user }: { user: User }) {
   if (loading) {
     return (
       <AppShell greet="Halo" onFab={() => {}}>
-        <EmptyState title="Memuat..." desc="Dashboard Anda sedang dimuat..." />
+        <LottieLoading label="Memuat dashboard…" />
       </AppShell>
     );
   }
@@ -156,14 +157,20 @@ export default function DashboardUser({ user }: { user: User }) {
                 <span className="metric-val">
                   {ind.val} <small>{ind.unit}</small>
                 </span>
-                {ind.kat && (
-                  <div className="row-between mt-8">
-                    <Badge tone={toneKategori(ind.kat)}>{ind.kat}</Badge>
-                    {indikator_terkini.dicatat_pada && (
-                      <span className="tiny">{tanggal(indikator_terkini.dicatat_pada, "short")}</span>
-                    )}
-                  </div>
-                )}
+                <div className="metric-foot">
+                  {ind.kat ? (
+                    <div className="row-between" style={{ gap: 6 }}>
+                      <Badge tone={toneKategori(ind.kat)}>{ind.kat}</Badge>
+                      {indikator_terkini.dicatat_pada && (
+                        <span>{tanggal(indikator_terkini.dicatat_pada, "short")}</span>
+                      )}
+                    </div>
+                  ) : indikator_terkini.dicatat_pada ? (
+                    <span>Diperbarui {relatif(indikator_terkini.dicatat_pada)}</span>
+                  ) : (
+                    <span>&nbsp;</span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
