@@ -93,7 +93,9 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
     grup.push({ judul: "Administrasi", items: NAV_ADMIN });
     grup.push({ judul: "Akun", items: NAV_AKUN });
   } else if (role === "admin_kelurahan") {
-    grup.push({ judul: "Menu", items: [NAV_UTAMA[0], NAV_UTAMA[1]] });
+    // Admin kelurahan tidak boleh lihat rekam medis individual (privasi, backend 403).
+    // Hanya dashboard + konten agregat.
+    grup.push({ judul: "Menu", items: [NAV_UTAMA[0], NAV_UTAMA[2], NAV_UTAMA[4]] });
     grup.push({ judul: "Data & Laporan", items: [NAV_DATA[0], NAV_DATA[1], NAV_DATA[2]] });
     grup.push({ judul: "Akun", items: NAV_AKUN });
   } else if (role === "kader") {
