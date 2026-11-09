@@ -134,6 +134,7 @@ Route::prefix('v1')->group(function () {
 
             Route::get('/pengguna', [AdminMasterController::class, 'indexPengguna']);
             Route::post('/pengguna', [AdminMasterController::class, 'storePengguna']);
+            Route::get('/pengguna/{id}/riwayat-wilayah', [AdminMasterController::class, 'riwayatWilayahPengguna']);
             Route::put('/pengguna/{id}', [AdminMasterController::class, 'updatePengguna']);
             Route::delete('/pengguna/{id}', [AdminMasterController::class, 'destroyPengguna']);
 

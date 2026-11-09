@@ -27,14 +27,16 @@ class PenggunaWilayahSeeder extends Seeder
             ->orderBy('kode')
             ->get();
 
-        foreach ($kelurahan as $w) {
+        foreach ($kelurahan as $index => $w) {
             $slug = strtolower(str_replace(' ', '', $w->nama));
+            $seq = $index + 1;
 
             // Akun admin kelurahan
             Pengguna::updateOrCreate(
                 ['email' => "admin.{$slug}@sehatkita.test"],
                 [
                     'name'            => "Admin {$w->nama}",
+                    'nik'             => sprintf('637204100185%04d', $seq),
                     'password'        => $password,
                     'role'            => 'admin_kelurahan',
                     'wilayah_id'      => $w->id,
@@ -49,6 +51,7 @@ class PenggunaWilayahSeeder extends Seeder
                 ['email' => "kader.{$slug}@sehatkita.test"],
                 [
                     'name'            => "Kader {$w->nama}",
+                    'nik'             => sprintf('637204200190%04d', $seq),
                     'password'        => $password,
                     'role'            => 'kader',
                     'wilayah_id'      => $w->id,
@@ -64,6 +67,7 @@ class PenggunaWilayahSeeder extends Seeder
             ['email' => 'superadmin@sehatkita.test'],
             [
                 'name'            => 'Super Admin Dinkes',
+                'nik'             => '6372000101850001',
                 'password'        => $password,
                 'role'            => 'super_admin',
                 'wilayah_id'      => null,

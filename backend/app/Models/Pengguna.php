@@ -140,4 +140,10 @@ class Pengguna extends Model
     {
         return $this->hasMany(CatatanKesehatan::class, 'dicatat_oleh');
     }
+
+    // Relasi: riwayat perpindahan wilayah / mutasi kelurahan user (U12).
+    public function riwayatWilayah(): HasMany
+    {
+        return $this->hasMany(RiwayatWilayah::class, 'user_id')->latest();
+    }
 }

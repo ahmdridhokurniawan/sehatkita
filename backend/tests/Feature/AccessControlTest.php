@@ -197,4 +197,37 @@ class AccessControlTest extends TestCase
         $this->asUser($user)->getJson('/api/v1/telegram/status')->assertOk();
         $this->asUser($user)->postJson('/api/v1/telegram/putuskan')->assertOk();
     }
+
+    public function test_riwayat_mutasi_wilayah_warga(): void
+    {
+        $superAdmin = $this->pengguna('super_admin');
+        $user       = $this->pengguna('user');
+
+        $wilayahBaru = Wilayah::firstOrCreate(
+            ['kode' => '63.72.05.1002'],
+            ['nama' => 'Loktabat Selatan', 'tipe' => 'kelurahan']
+        );
+
+        $this->asUser($superAdmin)->putJson("/api/v1/admin/pengguna/{$user->id}", [
+            'wilayah_id'    => $wilayahBaru->id,
+            'alasan_mutasi' => 'Pindah domisili tugas kantor',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('riwayat_wilayah', [
+            'user_id'           => $user->id,
+            'wilayah_asal_id'   => $this->wilayah()->id,
+            'wilayah_tujuan_id' => $wilayahBaru->id,
+            'alasan'            => 'Pindah domisili tugas kantor',
+            'diubah_oleh'       => $superAdmin->id,
+        ]);
+
+        $riwayatRes = $this->asUser($superAdmin)->getJson("/api/v1/admin/pengguna/{$user->id}/riwayat-wilayah")
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertCount(1, $riwayatRes->json('data'));
+
+        // Non super admin ditolak
+        $this->asUser($user)->getJson("/api/v1/admin/pengguna/{$user->id}/riwayat-wilayah")->assertStatus(403);
+    }
 }

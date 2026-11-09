@@ -7,6 +7,7 @@ use App\Models\Faskes;
 use App\Models\Indikator;
 use App\Models\LogAudit;
 use App\Models\Pengguna;
+use App\Models\RiwayatWilayah;
 use App\Services\HealthCalculatorService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -265,8 +266,17 @@ class AdminMasterController extends Controller
             'aktif'      => 'sometimes|boolean',
         ]);
 
-        // Lepas kader lama bila warga mutasi kelurahan
+        // Catat riwayat perpindahan wilayah dan lepas kader lama bila warga mutasi kelurahan (U12)
         if ($request->has('wilayah_id') && (int) $request->wilayah_id !== (int) $pengguna->wilayah_id) {
+            if ($request->filled('wilayah_id')) {
+                RiwayatWilayah::create([
+                    'user_id'           => $pengguna->id,
+                    'wilayah_asal_id'   => $pengguna->wilayah_id,
+                    'wilayah_tujuan_id' => (int) $data['wilayah_id'],
+                    'alasan'            => $request->input('alasan_mutasi', 'Mutasi domisili warga'),
+                    'diubah_oleh'       => $request->user()->id,
+                ]);
+            }
             $data['kader_id'] = null;
         }
 
@@ -281,6 +291,32 @@ class AdminMasterController extends Controller
             'success' => true,
             'message' => 'Data pengguna diubah',
             'data'    => $pengguna->load('wilayah:id,nama,tipe'),
+        ]);
+    }
+
+    // Ambil riwayat perpindahan wilayah warga (U12)
+    public function riwayatWilayahPengguna(Request $request, int $id)
+    {
+        $this->hanyaSuperAdmin($request->user());
+
+        $pengguna = Pengguna::find($id);
+        if (! $pengguna) {
+            return $this->tidakDitemukan('Pengguna tidak ditemukan');
+        }
+
+        $riwayat = RiwayatWilayah::with([
+            'wilayahAsal:id,nama,tipe',
+            'wilayahTujuan:id,nama,tipe',
+            'pengubah:id,name,role',
+        ])
+            ->where('user_id', $pengguna->id)
+            ->latest('id')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Riwayat wilayah pengguna',
+            'data'    => $riwayat,
         ]);
     }
 

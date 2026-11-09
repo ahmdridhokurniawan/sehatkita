@@ -34,6 +34,7 @@ class WargaDummySeeder extends Seeder
             ['email' => 'warga.loktabatutara@sehatkita.test'],
             [
                 'name'            => 'Budi Santoso',
+                'nik'             => '6372041206880001',
                 'password'        => $password,
                 'role'            => 'user',
                 'wilayah_id'      => $wilayah->id,
@@ -122,10 +123,13 @@ class WargaDummySeeder extends Seeder
 
         $listUser = [];
         foreach ($daftarWarga as $index => $w) {
+            $seq = $index + 2;
+            $tglLahir = str_replace('-', '', substr($w['lahir'], 2)); // YYMMDD
             $user = Pengguna::updateOrCreate(
                 ['email' => $w['email']],
                 [
                     'name'            => $w['nama'],
+                    'nik'             => sprintf('637204%s%04d', $tglLahir, $seq),
                     'password'        => $password,
                     'role'            => 'user',
                     'wilayah_id'      => $wilayah->id,
