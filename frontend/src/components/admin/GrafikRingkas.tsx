@@ -17,6 +17,8 @@ export default function GrafikRingkas() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
+  const [mengunduh, setMengunduh] = useState("");
+  const [kesalahan, setKesalahan] = useState<string>("");
 
   useEffect(() => {
     (async () => {
@@ -31,29 +33,22 @@ export default function GrafikRingkas() {
     })();
   }, []);
 
-  const ekspor = () => {
-    if (!stats) return;
-    const rows = [
-      ["Metrik", "Nilai"],
-      ["Total Pengguna", String(stats.total_users ?? 0)],
-      ["Kader", String(stats.users_by_role?.kader ?? 0)],
-      ["Admin Kelurahan", String(stats.users_by_role?.admin_kelurahan ?? 0)],
-      ["Total Program", String(stats.total_program ?? 0)],
-      ["Peserta Program", String(stats.total_program_participants ?? 0)],
-      ["Total Rujukan", String(stats.total_rujukan ?? 0)],
-      ["Total Catatan", String(stats.total_catatan ?? 0)],
-      ["Rata-rata BMI", String(stats.avg_imt ?? 0)],
-      ["Rata-rata Sistol", String(stats.avg_sistol ?? 0)],
-      ["Rata-rata Diastol", String(stats.avg_diastol ?? 0)],
-    ];
-    const csv = rows.map((r) => r.map((c) => `"${c.replace(/"/g, '""')}"`).join(",")).join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `statistik-sehatkita-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const ekspor = async (tipe: "catatan" | "posbindu" | "rujukan") => {
+    setMengunduh(tipe);
+    setKesalahan("");
+    try {
+      const blob = await adminApi.ekspor(tipe);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${tipe}-sehatkita-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setKesalahan(err instanceof ApiError ? err.message : "Gagal mengunduh data");
+    } finally {
+      setMengunduh("");
+    }
   };
 
   const max = Math.max(1, ...BAR_GROUPS.map((b) => Number(stats?.[b.key] ?? 0)));
@@ -65,14 +60,28 @@ export default function GrafikRingkas() {
           <h2>Grafik Ringkas</h2>
           <p className="tiny">Ringkasan data platform.</p>
         </div>
-        <button
-          type="button"
-          className="btn btn-ghost btn-sm"
-          onClick={ekspor}
-          disabled={loading || !stats}
-        >
-          <Icon name="download" size={15} /> Ekspor CSV
-        </button>
+        <div style={{ textAlign: "right" }}>
+          <div className="row gap-6">
+            {(
+              [
+                ["catatan", "Catatan"],
+                ["posbindu", "Posbindu"],
+                ["rujukan", "Rujukan"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => ekspor(key)}
+                disabled={!!mengunduh}
+              >
+                <Icon name="download" size={15} /> {mengunduh === key ? "…" : label}
+              </button>
+            ))}
+          </div>
+          {kesalahan ? <p className="tiny text-danger mt-4">{kesalahan}</p> : null}
+        </div>
       </div>
 
       {loading ? (

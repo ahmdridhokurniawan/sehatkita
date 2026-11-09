@@ -6,7 +6,7 @@ import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
 import CatatModal from "@/components/catatan/CatatModal";
-import TargetModal from "@/components/dashboard/TargetModal";
+import TargetBaru from "@/components/dashboard/TargetBaru";
 import KalkulatorBMI from "@/components/dashboard/KalkulatorBMI";
 import KalenderJadwal from "@/components/dashboard/KalenderJadwal";
 import { EmptyState } from "@/components/ui/Empty";
@@ -31,7 +31,6 @@ function toneKategori(kategori = ""): "safe" | "warning" | "danger" {
 
 export default function DashboardUser({ user }: { user: User }) {
   const [catatTerbuka, setCatatTerbuka] = useState(false);
-  const [targetTerbuka, setTargetTerbuka] = useState(false);
   const [data, setData] = useState<DashboardPribadi | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -77,11 +76,7 @@ export default function DashboardUser({ user }: { user: User }) {
     );
   }
 
-  const { status_kesehatan, skor_risiko, indikator_terkini, perbandingan, target, jadwal_skrining_berikutnya, rujukan_aktif } = data;
-
-  const progress = target?.progress_persen || 0;
-  const bbNow = indikator_terkini?.bb_kg || 0;
-  const bbTarget = target?.bb_target_kg || 0;
+  const { status_kesehatan, skor_risiko, indikator_terkini, perbandingan, jadwal_skrining_berikutnya, rujukan_aktif } = data;
 
   return (
     <AppShell greet="Halo" onFab={() => setCatatTerbuka(true)}>
@@ -177,43 +172,13 @@ export default function DashboardUser({ user }: { user: User }) {
         </section>
       )}
 
-      {/* Target */}
-      {target && (
-        <section>
-          <div className="app-section-title">
-            <h2>Target Kesehatan</h2>
-            <button type="button" className="link-btn" onClick={() => setTargetTerbuka(true)}>
-              Target
-            </button>
-          </div>
-          <div className="card mt-12">
-            {progress >= 100 ? (
-              <div className="alert alert-success mb-8">
-                <Icon name="award" />{" "}
-                <div>
-                  <strong>Target tercapai! 🎉</strong>
-                  <div className="tiny mt-4">Keren! Berat badanmu sudah mencapai target. Pertahankan pola sehatmu.</div>
-                </div>
-              </div>
-            ) : null}
-            <div className="row-between mb-8">
-              <span className="text-sm fw-600">Berat badan</span>
-              <span className="tiny">
-                {bbTarget > 0 ? (
-                  <>
-                    <b className="text-primary">{bbNow || "—"}</b> / {bbTarget} kg
-                  </>
-                ) : (
-                  "Belum ada target"
-                )}
-              </span>
-            </div>
-            <div className="progress">
-              <i style={{ width: `${progress}%` }} />
-            </div>
-          </div>
-        </section>
-      )}
+      {/* Target — dinamis (U9) */}
+      <section>
+        <div className="app-section-title">
+          <h2>Target Kesehatan</h2>
+        </div>
+        <TargetBaru />
+      </section>
 
       {/* Jadwal skrining — ringkas: hanya yang terdekat */}
       {jadwal_skrining_berikutnya && jadwal_skrining_berikutnya.length > 0 && (
@@ -271,13 +236,6 @@ export default function DashboardUser({ user }: { user: User }) {
       <CatatModal
         open={catatTerbuka}
         onClose={() => setCatatTerbuka(false)}
-        onSaved={() => setReload((v) => v + 1)}
-      />
-
-      <TargetModal
-        open={targetTerbuka}
-        onClose={() => setTargetTerbuka(false)}
-        awal={data?.target}
         onSaved={() => setReload((v) => v + 1)}
       />
     </AppShell>

@@ -453,6 +453,39 @@ export interface Target {
   target_aktivitas_per_minggu: number | null;
   target_air_ml: number | null;
 }
+/** §13.4 — target kesehatan dinamis (CRUD /target-kesehatan) */
+export type JenisTarget =
+  | "berat_badan"
+  | "tinggi_badan"
+  | "massa_otot"
+  | "lingkar_perut"
+  | "air_minum"
+  | "aktivitas"
+  | "lainnya";
+export interface TargetKesehatan {
+  id: number;
+  judul: string;
+  jenis_target: JenisTarget | string;
+  nilai_awal: number | null;
+  nilai_target: number;
+  satuan: string;
+  tenggat_waktu: string | null;
+  catatan_motivasi: string | null;
+  tercapai: boolean;
+  tercapai_pada: string | null;
+  user_id: number;
+  created_at: string;
+  updated_at: string;
+}
+export interface TargetKesehatanInput {
+  judul: string;
+  jenis_target: JenisTarget | string;
+  nilai_awal?: number | null;
+  nilai_target: number;
+  satuan: string;
+  tenggat_waktu?: string | null;
+  catatan_motivasi?: string | null;
+}
 export interface Refleksi {
   id: number;
   minggu: string;
@@ -533,6 +566,52 @@ export interface LogAudit {
   user_agent: string;
   created_at: string;
   pengguna?: { id: number; name: string; email: string } | null;
+}
+/** §A3 — Pengaduan warga */
+export type KategoriPengaduan =
+  | "layanan_posbindu"
+  | "faskes"
+  | "rujukan"
+  | "aplikasi"
+  | "lainnya";
+export type StatusPengaduan = "menunggu" | "diproses" | "selesai" | "ditolak";
+export interface Pengaduan {
+  id: number;
+  user_id: number;
+  wilayah_id: number;
+  judul: string;
+  isi: string;
+  kategori: KategoriPengaduan | string;
+  status: StatusPengaduan;
+  tanggapan: string | null;
+  created_at: string;
+  updated_at: string;
+  pengguna?: { id: number; name: string; email: string } | null;
+  wilayah?: { id: number; nama: string } | null;
+  penanggap?: { id: number; name: string; role: string } | null;
+}
+export interface PengaduanInput {
+  judul: string;
+  isi: string;
+  kategori: KategoriPengaduan;
+  wilayah_id?: number | null;
+}
+export interface PengaduanTanggapiInput {
+  status: Exclude<StatusPengaduan, "menunggu">;
+  tanggapan: string;
+}
+/** §U12 — Riwayat perpindahan wilayah pengguna */
+export interface RiwayatWilayah {
+  id: number;
+  user_id: number;
+  wilayah_asal_id: number | null;
+  wilayah_tujuan_id: number | null;
+  alasan: string | null;
+  diubah_oleh: number | null;
+  created_at: string;
+  wilayahAsal?: { id: number; nama: string; tipe: string } | null;
+  wilayahTujuan?: { id: number; nama: string; tipe: string } | null;
+  pengubah?: { id: number; name: string; role: string } | null;
 }
 export interface AdminStatistik {
   total_users: number;

@@ -54,6 +54,12 @@ import type {
   SesiPosbinduInput,
   Target,
   TargetInput,
+  TargetKesehatan,
+  TargetKesehatanInput,
+  Pengaduan,
+  PengaduanInput,
+  PengaduanTanggapiInput,
+  RiwayatWilayah,
   User,
   Wilayah,
   WargaCari,
@@ -447,6 +453,21 @@ export const target = {
   /** §13.1 PUT */
   set: (payload: TargetInput) => request<Target>("/target", { method: "PUT", body: payload }),
 };
+/** §13.4 — CRUD target kesehatan dinamis /target-kesehatan */
+export const targetKesehatan = {
+  list: (query?: { tercapai?: boolean }) =>
+    request<TargetKesehatan[]>("/target-kesehatan", { query }),
+  buat: (payload: TargetKesehatanInput) =>
+    request<TargetKesehatan>("/target-kesehatan", { method: "POST", body: payload }),
+  ubah: (id: number, payload: Partial<TargetKesehatanInput>) =>
+    request<TargetKesehatan>(`/target-kesehatan/${id}`, { method: "PUT", body: payload }),
+  capai: (id: number, tercapai = true) =>
+    request<TargetKesehatan>(`/target-kesehatan/${id}/capai`, {
+      method: "PATCH",
+      body: { tercapai },
+    }),
+  hapus: (id: number) => request<null>(`/target-kesehatan/${id}`, { method: "DELETE" }),
+};
 export const refleksi = {
   /** §13.2 POST */
   create: (payload: { minggu: string; catatan: string }) =>
@@ -492,6 +513,7 @@ export const admin = {
     update: (id: number, payload: Partial<AdminPenggunaInput>) =>
       request<AdminPengguna>(`/admin/pengguna/${id}`, { method: "PUT", body: payload }),
     hapus: (id: number) => request<null>(`/admin/pengguna/${id}`, { method: "DELETE" }),
+    riwayatWilayah: (id: number) => request<RiwayatWilayah[]>(`/admin/pengguna/${id}/riwayat-wilayah`),
   },
   faskes: {
     list: (query?: { search?: string }) => request<Faskes[]>("/admin/faskes", { query }),
@@ -505,6 +527,24 @@ export const admin = {
     list: (query?: { search?: string }) => request<LogAudit[]>("/admin/log-audit", { query }),
   },
   statistik: () => request<AdminStatistik>("/admin/statistik"),
+  /** §S3 — unduh CSV stream. Mengembalikan Blob untuk di-download. */
+  ekspor: async (tipe: "catatan" | "posbindu" | "rujukan"): Promise<Blob> => {
+    const token = getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await fetch(`${API_BASE_URL}/admin/export?tipe=${tipe}`, { headers });
+    if (!res.ok) {
+      let pesan = "Gagal mengunduh data.";
+      try {
+        const j = await res.json();
+        pesan = j?.message ?? pesan;
+      } catch {
+        /* abaikan */
+      }
+      throw new ApiError(pesan, res.status);
+    }
+    return res.blob();
+  },
   verifikasi: {
     list: (query?: { wilayah_id?: number; page?: number; per_page?: number }) =>
       requestPaged<CatatanKesehatan>("/admin/catatan-kesehatan/perlu-verifikasi", { query }),
@@ -514,4 +554,15 @@ export const admin = {
         body: { setuju },
       }),
   },
+};
+
+/** §A3 — Pengaduan warga */
+export const pengaduanApi = {
+  list: (query?: { status?: string; kategori?: string; search?: string }) =>
+    request<Pengaduan[]>("/pengaduan", { query }),
+  detail: (id: number) => request<Pengaduan>(`/pengaduan/${id}`),
+  buat: (payload: PengaduanInput) =>
+    request<Pengaduan>("/pengaduan", { method: "POST", body: payload }),
+  tanggapi: (id: number, payload: PengaduanTanggapiInput) =>
+    request<Pengaduan>(`/pengaduan/${id}/tanggapi`, { method: "PATCH", body: payload }),
 };

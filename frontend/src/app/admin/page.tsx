@@ -31,6 +31,12 @@ const ADMIN_MENU = [
     desc: "Angka keseluruhan sistem",
   },
   {
+    href: "/admin/pengaduan",
+    icon: "alert-circle",
+    label: "Pengaduan",
+    desc: "Kelola pengaduan warga",
+  },
+  {
     href: "/admin/verifikasi",
     icon: "check-circle",
     label: "Verifikasi Catatan",

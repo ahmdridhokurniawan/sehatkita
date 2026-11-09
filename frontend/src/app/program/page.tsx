@@ -10,10 +10,10 @@ import Input from "@/components/ui/Input";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
 import { useUser } from "@/hooks/useUser";
 import { angka, tanggal } from "@/lib/format";
-import { program as programApi, ApiError } from "@/lib/api";
+import { program as programApi, wilayah as wilayahApi, ApiError } from "@/lib/api";
 import { JENIS_PROGRAM } from "@/lib/enums";
 import type { JenisProgram } from "@/lib/enums";
-import type { Program } from "@/types";
+import type { Program, Wilayah } from "@/types";
 
 /* ------------------------------------------------------------------
    Program / Tantangan (kontrak §12)
@@ -72,6 +72,8 @@ export default function ProgramPage() {
   const [buatOpen, setBuatOpen] = useState(false);
   const [fJudul, setFJudul] = useState("");
   const [fJenis, setFJenis] = useState<JenisProgram>("olahraga");
+  const [fWilayah, setFWilayah] = useState("");
+  const [kelurahan, setKelurahan] = useState<Wilayah[]>([]);
   const [fTarget, setFTarget] = useState("50");
   const [fMulai, setFMulai] = useState("");
   const [fSelesai, setFSelesai] = useState("");
@@ -93,6 +95,19 @@ export default function ProgramPage() {
   useEffect(() => {
     if (!loadingUser && user) muat();
   }, [loadingUser, user, muat]);
+
+  useEffect(() => {
+    if (!loadingUser && role === "super_admin") {
+      (async () => {
+        try {
+          const w = await wilayahApi.list();
+          setKelurahan((w || []).filter((x) => x.tipe === "kelurahan"));
+        } catch {
+          setKelurahan([]);
+        }
+      })();
+    }
+  }, [loadingUser, role]);
 
   async function toggle(p: Program) {
     setProses(p.id);
@@ -126,7 +141,7 @@ export default function ProgramPage() {
     setSaving(true);
     try {
       await programApi.create({
-        wilayah_id: user?.wilayah_id || 0,
+        wilayah_id: role === "super_admin" ? Number(fWilayah) || 0 : user?.wilayah_id || 0,
         judul: fJudul.trim(),
         jenis: fJenis,
         target_peserta: Number(fTarget) || 1,
@@ -135,6 +150,7 @@ export default function ProgramPage() {
       });
       setBuatOpen(false);
       setFJudul("");
+      setFWilayah("");
       setFTarget("50");
       setFMulai("");
       setFSelesai("");
@@ -384,6 +400,19 @@ export default function ProgramPage() {
             ))}
           </select>
         </div>
+        {role === "super_admin" ? (
+          <div className="mt-12">
+            <label className="label">Kelurahan</label>
+            <select className="select" value={fWilayah} onChange={(e) => setFWilayah(e.target.value)}>
+              <option value="">Semua (se-kota)</option>
+              {kelurahan.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.nama}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
         <div className="mt-12">
           <Input
             label="Target peserta"

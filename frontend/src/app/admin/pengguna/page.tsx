@@ -8,9 +8,10 @@ import Modal from "@/components/ui/Modal";
 import Segmented from "@/components/ui/Segmented";
 import { EmptyState } from "@/components/ui/Empty";
 import { useToast } from "@/components/ui/Toast";
+import { tanggal } from "@/lib/format";
 import { admin as adminApi, wilayah as wilayahApi, ApiError } from "@/lib/api";
 import type { Role } from "@/lib/enums";
-import type { AdminPengguna, AdminPenggunaInput, Wilayah } from "@/types";
+import type { AdminPengguna, AdminPenggunaInput, Wilayah, RiwayatWilayah } from "@/types";
 
 const FILTER = [
   { value: "semua", label: "Semua" },
@@ -96,6 +97,11 @@ export default function AdminPenggunaPage() {
   const [sasaran, setSasaran] = useState<AdminPengguna | null>(null);
   const [memproses, setMemproses] = useState(false);
 
+  const [riwayatTarget, setRiwayatTarget] = useState<AdminPengguna | null>(null);
+  const [riwayat, setRiwayat] = useState<RiwayatWilayah[]>([]);
+  const [riwayatLoad, setRiwayatLoad] = useState(false);
+  const [riwayatErr, setRiwayatErr] = useState("");
+
   const muat = useCallback(async () => {
     setLoading(true);
     try {
@@ -165,6 +171,21 @@ export default function AdminPenggunaPage() {
   function ubah<K extends keyof FormState>(kunci: K, nilai: FormState[K]) {
     setForm((p) => ({ ...p, [kunci]: nilai }));
     setErrForm((p) => ({ ...p, [kunci]: "" }));
+  }
+
+  async function bukaRiwayat(p: AdminPengguna) {
+    setRiwayatTarget(p);
+    setRiwayat([]);
+    setRiwayatErr("");
+    setRiwayatLoad(true);
+    try {
+      const r = await adminApi.pengguna.riwayatWilayah(p.id);
+      setRiwayat(r || []);
+    } catch (e) {
+      setRiwayatErr(e instanceof ApiError ? e.message : "Gagal memuat riwayat wilayah.");
+    } finally {
+      setRiwayatLoad(false);
+    }
   }
 
   async function kirimForm() {
@@ -330,6 +351,13 @@ export default function AdminPenggunaPage() {
                     </div>
                   </div>
                   <div className="row mt-12" style={{ gap: 8, justifyContent: "flex-end" }}>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      onClick={() => bukaRiwayat(p)}
+                    >
+                      <Icon name="clock" size={14} /> Riwayat
+                    </button>
                     <button
                       type="button"
                       className="btn btn-outline btn-sm"
@@ -504,6 +532,49 @@ export default function AdminPenggunaPage() {
               <div className="hint">Menonaktifkan akun mencabut semua sesi yang sedang berjalan.</div>
             )}
           </div>
+        ) : null}
+      </Modal>
+
+      {/* ---------- Riwayat wilayah ---------- */}
+      <Modal
+        open={riwayatTarget !== null}
+        onClose={() => setRiwayatTarget(null)}
+        title={<h3 className="h3">Riwayat Wilayah</h3>}
+      >
+        {riwayatTarget ? (
+          <>
+            <p className="tiny muted mb-12">{riwayatTarget.name}</p>
+            {riwayatLoad ? (
+              <p className="tiny center">Memuat…</p>
+            ) : riwayatErr ? (
+              <div className="alert alert-danger">{riwayatErr}</div>
+            ) : riwayat.length === 0 ? (
+              <EmptyState title="Belum ada perpindahan" desc="Pengguna ini belum pernah pindah wilayah." />
+            ) : (
+              <div style={{ display: "grid", gap: 8 }}>
+                {riwayat.map((r) => (
+                  <div key={r.id} className="card card-flat">
+                    <div className="row-between">
+                      <strong className="text-sm">
+                        {r.wilayahAsal?.nama ?? "—"}
+                        <span
+                          style={{ display: "inline-flex", verticalAlign: "middle", margin: "0 6px" }}
+                        >
+                          <Icon name="arrow-right" size={14} />
+                        </span>
+                        {r.wilayahTujuan?.nama ?? "—"}
+                      </strong>
+                      <span className="tiny muted">{tanggal(r.created_at, "short")}</span>
+                    </div>
+                    {r.alasan ? <p className="tiny mt-4">{r.alasan}</p> : null}
+                    {r.pengubah ? (
+                      <p className="tiny muted mt-4">diubah oleh {r.pengubah.name}</p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         ) : null}
       </Modal>
 
