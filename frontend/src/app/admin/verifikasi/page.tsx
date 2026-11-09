@@ -143,7 +143,7 @@ export default function AdminVerifikasiPage() {
                 </strong>
                 <span className="tiny">
                   Sumber {LABEL_SUMBER[b.sumber] || b.sumber}
-                  {b.sistol && b.diastol ? ` · TD ${b.sistol}/${b.diastol}` : ""}
+                  {b.sistol && b.diastol ? ` · Tekanan darah ${b.sistol}/${b.diastol}` : ""}
                   {b.gula_darah ? ` · Gula ${angka(b.gula_darah)}` : ""}
                   {b.imt ? ` · IMT ${angka(b.imt)}` : ""}
                 </span>

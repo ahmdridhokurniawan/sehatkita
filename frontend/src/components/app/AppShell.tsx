@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
 import ThemeToggle from "@/components/ui/ThemeToggle";
+import Modal from "@/components/ui/Modal";
 import { useUser, clearUserCache } from "@/hooks/useUser";
 import { auth as authApi, clearToken } from "@/lib/api";
 import { inisial } from "@/lib/format";
@@ -50,6 +51,7 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
   const pathname = usePathname();
   const { user, loading } = useUser();
   const [keluar, setKeluar] = useState(false);
+  const [konfirmasiKeluar, setKonfirmasiKeluar] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const [ciut, setCiut] = useState(false);
 
@@ -65,7 +67,6 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
       router.replace("/login");
     }
   }
-
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
@@ -159,7 +160,7 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
           <button
             type="button"
             className="btn btn-sm btn-outline w-full mt-8"
-            onClick={handleLogout}
+            onClick={() => setKonfirmasiKeluar(true)}
             disabled={keluar}
           >
             <Icon name="log-out" size={16} /> <span>{keluar ? "Keluar…" : "Keluar"}</span>
@@ -210,7 +211,7 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
               className="btn btn-icon btn-sm btn-ghost top-logout"
               aria-label="Keluar"
               title="Keluar"
-              onClick={handleLogout}
+              onClick={() => setKonfirmasiKeluar(true)}
               disabled={keluar}
             >
               <Icon name="log-out" size={17} />
@@ -240,6 +241,28 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
           </Link>
         ))}
       </nav>
+
+      <Modal
+        open={konfirmasiKeluar}
+        onClose={() => setKonfirmasiKeluar(false)}
+        title="Keluar"
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setKonfirmasiKeluar(false)}
+            >
+              Batal
+            </button>
+            <button type="button" className="btn btn-danger" onClick={handleLogout} disabled={keluar}>
+              {keluar ? "Keluar…" : "Ya, keluar"}
+            </button>
+          </>
+        }
+      >
+        <p className="tiny">Apakah kamu yakin ingin keluar dari akun ini?</p>
+      </Modal>
     </div>
   );
 }

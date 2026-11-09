@@ -7,10 +7,12 @@ import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
 import CatatModal from "@/components/catatan/CatatModal";
 import TargetModal from "@/components/dashboard/TargetModal";
+import KalkulatorBMI from "@/components/dashboard/KalkulatorBMI";
+import KalenderJadwal from "@/components/dashboard/KalenderJadwal";
 import { EmptyState } from "@/components/ui/Empty";
 import { dashboard, ApiError } from "@/lib/api";
 import { tanggal, relatif, angka } from "@/lib/format";
-import { LABEL_INDIKATOR, LABEL_STATUS_RUJUKAN } from "@/lib/labels";
+import { LABEL_STATUS_RUJUKAN } from "@/lib/labels";
 import type { User, DashboardPribadi } from "@/types";
 
 const HERO_CLS: Record<string, string> = { normal: "baik", perlu_perhatian: "waspada", berisiko: "bahaya" };
@@ -29,7 +31,6 @@ function toneKategori(kategori = ""): "safe" | "warning" | "danger" {
 export default function DashboardUser({ user }: { user: User }) {
   const [catatTerbuka, setCatatTerbuka] = useState(false);
   const [targetTerbuka, setTargetTerbuka] = useState(false);
-  const [jadwalSemua, setJadwalSemua] = useState(false);
   const [data, setData] = useState<DashboardPribadi | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -135,10 +136,10 @@ export default function DashboardUser({ user }: { user: User }) {
           </div>
           <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
             {[
-              { label: "BMI", val: indikator_terkini.imt ?? "—", unit: "kg/m²", kat: indikator_terkini.kategori_imt },
-              { label: "BB", val: indikator_terkini.bb_kg ?? "—", unit: "kg", kat: "" },
+              { label: "IMT", val: indikator_terkini.imt ?? "—", unit: "kg/m²", kat: indikator_terkini.kategori_imt },
+              { label: "Berat badan", val: indikator_terkini.bb_kg ?? "—", unit: "kg", kat: "" },
               {
-                label: "Tensi",
+                label: "Tekanan darah",
                 val:
                   indikator_terkini.sistol != null && indikator_terkini.diastol != null
                     ? `${indikator_terkini.sistol}/${indikator_terkini.diastol}`
@@ -146,7 +147,7 @@ export default function DashboardUser({ user }: { user: User }) {
                 unit: "mmHg",
                 kat: indikator_terkini.kategori_tensi,
               },
-              { label: "Gula Darah", val: indikator_terkini.gula_darah ?? "—", unit: "mg/dL", kat: "" },
+              { label: "Gula darah", val: indikator_terkini.gula_darah ?? "—", unit: "mg/dL", kat: "" },
             ].map((ind) => (
               <div className="metric" key={ind.label}>
                 <span className="metric-name">
@@ -179,6 +180,15 @@ export default function DashboardUser({ user }: { user: User }) {
             </button>
           </div>
           <div className="card mt-12">
+            {progress >= 100 ? (
+              <div className="alert alert-success mb-8">
+                <Icon name="award" />{" "}
+                <div>
+                  <strong>Target tercapai! 🎉</strong>
+                  <div className="tiny mt-4">Keren! Berat badanmu sudah mencapai target. Pertahankan pola sehatmu.</div>
+                </div>
+              </div>
+            ) : null}
             <div className="row-between mb-8">
               <span className="text-sm fw-600">Berat badan</span>
               <span className="tiny">
@@ -203,39 +213,18 @@ export default function DashboardUser({ user }: { user: User }) {
         <section>
           <div className="app-section-title">
             <h2>Jadwal Skrining</h2>
-            {jadwal_skrining_berikutnya.length > 1 ? (
-              <button
-                type="button"
-                className="link-btn"
-                onClick={() => setJadwalSemua((v) => !v)}
-              >
-                {jadwalSemua ? "Ringkas" : `${jadwal_skrining_berikutnya.length} jadwal`}
-              </button>
-            ) : null}
           </div>
-          <div className="card mt-12">
-            {(jadwalSemua ? jadwal_skrining_berikutnya : jadwal_skrining_berikutnya.slice(0, 1)).map((sched) => (
-              <div className="li" key={sched.indikator}>
-                <span className="li-ico">
-                  <Icon name="calendar" size={18} />
-                </span>
-                <div className="li-main">
-                  <strong className="text-sm">{LABEL_INDIKATOR[sched.indikator] || sched.indikator}</strong>
-                  <span className="tiny">{tanggal(sched.jatuh_tempo)}</span>
-                </div>
-                <Badge tone={sched.status === "akan_datang" ? "warning" : "primary"}>
-                  {sched.status === "akan_datang" ? "Akan datang" : "Terlambat"}
-                </Badge>
-              </div>
-            ))}
-            {!jadwalSemua && jadwal_skrining_berikutnya.length > 1 ? (
-              <p className="tiny mt-8">
-                +{jadwal_skrining_berikutnya.length - 1} jadwal lain
-              </p>
-            ) : null}
-          </div>
+          <KalenderJadwal jadwal={jadwal_skrining_berikutnya} />
         </section>
       )}
+
+      {/* Kalkulator IMT */}
+      <section>
+        <div className="app-section-title">
+          <h2>Kalkulator IMT</h2>
+        </div>
+        <KalkulatorBMI />
+      </section>
 
       {/* Rujukan aktif (§8.1 — satu objek atau null) */}
       {rujukan_aktif ? (
