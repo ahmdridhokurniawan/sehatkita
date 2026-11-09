@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Modal from "@/components/ui/Modal";
 import Icon from "@/components/ui/Icon";
 import { useToast } from "@/components/ui/Toast";
+import PilihWarga from "@/components/warga/PilihWarga";
+import { useUser } from "@/hooks/useUser";
 import { RANGE, validAngka, validTglPemeriksaan } from "@/lib/validasi";
-import { catatanKesehatan, ApiError } from "@/lib/api";
-import type { CatatanKesehatanInput } from "@/types";
+import { catatanKesehatan, posbindu as posbinduApi, ApiError } from "@/lib/api";
+import { tanggal } from "@/lib/format";
+import type { CatatanKesehatanInput, SesiPosbindu, WargaCari } from "@/types";
 
 /* ------------------------------------------------------------------
    Form "Catat Kesehatan" — diporting dari prototype catatan-form.js.
@@ -58,8 +61,15 @@ type Props = {
 
 export default function CatatModal({ open, onClose, onSaved }: Props) {
   const toast = useToast();
+  const { user } = useUser();
+  const petugas = user?.role === "kader" || user?.role === "admin_kelurahan" || user?.role === "super_admin";
+
   const [waktu, setWaktu] = useState(nowLocal);
   const [sumber, setSumber] = useState("");
+  const [warga, setWarga] = useState<WargaCari | null>(null);
+  const [sesiId, setSesiId] = useState("");
+  const [daftarSesi, setDaftarSesi] = useState<SesiPosbindu[]>([]);
+  const [muatSesi, setMuatSesi] = useState(false);
   const [angka, setAngka] = useState<Record<string, string>>({});
   const [jenisGula, setJenisGula] = useState("");
   const [konsumsiManis, setKonsumsiManis] = useState("");
@@ -68,9 +78,52 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
   const [err, setErr] = useState<Record<string, string>>({});
   const [simpan, setSimpan] = useState(false);
 
+  /* Sumber yang boleh dipilih (mengikuti aturan backend `tentukanPemilik`):
+     - user / admin_kelurahan: hanya "mandiri" (tercatat atas nama sendiri)
+     - kader: hanya "kader" (butuh warga + sesi posbindu)
+     - super_admin: ketiganya */
+  const sumberTersedia = useMemo(() => {
+    if (user?.role === "super_admin") return SUMBER;
+    if (user?.role === "kader") return SUMBER.filter((s) => s.v === "kader");
+    return SUMBER.filter((s) => s.v === "mandiri");
+  }, [user?.role]);
+
+  /* Kader hanya boleh mencatat warga wilayah kerjanya (backend `dalamBinaan`) */
+  const batasWilayah = user?.role === "kader" ? user.wilayah_id : null;
+
+  /* Warga & admin kelurahan hanya punya satu pilihan sumber; langsung pilih. */
+  useEffect(() => {
+    if (open && !petugas && sumber === "") setSumber("mandiri");
+  }, [open, petugas, sumber]);
+
+  /* Dropdown sesi hanya relevan bila sumber = kader */
+  const butuhSesi = sumber === "kader";
+
+  useEffect(() => {
+    if (!open || !butuhSesi || daftarSesi.length > 0) return;
+    let aktif = true;
+    setMuatSesi(true);
+    posbinduApi
+      .sesiList()
+      .then((data) => {
+        if (aktif) setDaftarSesi(data ?? []);
+      })
+      .catch(() => {
+        if (aktif) setDaftarSesi([]);
+      })
+      .finally(() => {
+        if (aktif) setMuatSesi(false);
+      });
+    return () => {
+      aktif = false;
+    };
+  }, [open, butuhSesi, daftarSesi.length]);
+
   function reset() {
     setWaktu(nowLocal());
-    setSumber("");
+    setSumber(petugas ? "" : "mandiri");
+    setWarga(null);
+    setSesiId("");
     setAngka({});
     setJenisGula("");
     setKonsumsiManis("");
@@ -95,6 +148,15 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
     if (!sumber) e.sumber = "Sumber wajib dipilih.";
 
     const payload: Record<string, unknown> = { dicatat_pada: waktu, sumber };
+
+    // Sumber kader wajib menyertakan warga + sesi posbindu (aturan backend)
+    if (sumber === "kader") {
+      if (!warga) e.user_id = "Pilih warga binaan terlebih dahulu.";
+      else payload.user_id = warga.id;
+      if (!sesiId) e.sesi_posbindu_id = "Pilih sesi posbindu.";
+      else payload.sesi_posbindu_id = Number(sesiId);
+    }
+
     for (const f of FIELD_ANGKA) {
       const t = (angka[f.id] || "").trim();
       if (t === "") continue;
@@ -196,7 +258,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
             }}
           >
             <option value="">Pilih sumber…</option>
-            {SUMBER.map((s) => (
+            {sumberTersedia.map((s) => (
               <option key={s.v} value={s.v}>
                 {s.l}
               </option>
@@ -204,6 +266,48 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
           </select>
           {err.sumber ? <div className="err-msg show">{err.sumber}</div> : null}
         </div>
+
+        {sumber === "kader" ? (
+          <>
+            <PilihWarga
+              value={warga}
+              onChange={(w) => {
+                setWarga(w);
+                setErr((p) => ({ ...p, user_id: "" }));
+              }}
+              error={err.user_id}
+              id="catat-warga"
+              wilayahId={batasWilayah}
+            />
+
+            <div className="field">
+              <label className="label" htmlFor="sesi_posbindu_id">
+                Sesi posbindu <span className="req">*</span>
+              </label>
+              <select
+                className={"select" + (err.sesi_posbindu_id ? " is-error" : "")}
+                id="sesi_posbindu_id"
+                value={sesiId}
+                onChange={(e) => {
+                  setSesiId(e.target.value);
+                  setErr((p) => ({ ...p, sesi_posbindu_id: "" }));
+                }}
+                disabled={muatSesi}
+              >
+                <option value="">{muatSesi ? "Memuat sesi…" : "Pilih sesi…"}</option>
+                {daftarSesi.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {tanggal(s.tanggal, "short")} · {s.lokasi}
+                  </option>
+                ))}
+              </select>
+              {err.sesi_posbindu_id ? <div className="err-msg show">{err.sesi_posbindu_id}</div> : null}
+              {!muatSesi && daftarSesi.length === 0 ? (
+                <div className="hint">Belum ada sesi posbindu di wilayah Anda. Minta admin kelurahan membuat sesi dulu.</div>
+              ) : null}
+            </div>
+          </>
+        ) : null}
       </fieldset>
 
       <fieldset className="form-section">

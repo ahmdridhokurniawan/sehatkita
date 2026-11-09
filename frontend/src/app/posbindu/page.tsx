@@ -9,9 +9,10 @@ import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
 import { useUser } from "@/hooks/useUser";
+import PilihWarga from "@/components/warga/PilihWarga";
 import { angka, tanggal } from "@/lib/format";
 import { posbindu as posbinduApi, ApiError } from "@/lib/api";
-import type { KunjunganPosbindu, SesiPosbindu, SesiPosbinduDetail } from "@/types";
+import type { KunjunganPosbindu, SesiPosbindu, SesiPosbinduDetail, WargaCari } from "@/types";
 
 /* ------------------------------------------------------------------
    Posbindu — sesi pemeriksaan & kunjungan warga.
@@ -55,7 +56,7 @@ export default function PosbinduPage() {
   const [detail, setDetail] = useState<SesiPosbinduDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailErr, setDetailErr] = useState("");
-  const [pUserId, setPUserId] = useState("");
+  const [pWarga, setPWarga] = useState<WargaCari | null>(null);
   const [pHadir, setPHadir] = useState(true);
   const [pBb, setPBb] = useState("");
   const [pSistol, setPSistol] = useState("");
@@ -139,11 +140,11 @@ export default function PosbinduPage() {
   async function tambahPeserta() {
     if (!detailId) return;
     setPErr("");
-    const uid = Number(pUserId);
-    if (!uid) {
-      setPErr("Isi ID warga.");
+    if (!pWarga) {
+      setPErr("Pilih warga terlebih dahulu.");
       return;
     }
+    const uid = pWarga.id;
 
     const catatanKesehatan: Record<string, number | string> = {};
     if (pHadir) {
@@ -169,7 +170,7 @@ export default function PosbinduPage() {
             ? (catatanKesehatan as never)
             : undefined,
       });
-      setPUserId("");
+      setPWarga(null);
       setPBb("");
       setPSistol("");
       setPDiastol("");
@@ -406,16 +407,15 @@ export default function PosbinduPage() {
 
             <strong className="text-sm">Tambah peserta</strong>
             <p className="tiny mt-4">
-              Masukkan ID warga binaan (belum ada endpoint daftar warga untuk kader).
+              Cari warga dengan NIK, lalu pilih dari daftar hasil.
             </p>
             <div className="mt-8">
-              <Input
-                label="ID warga"
-                type="number"
-                placeholder="14"
-                value={pUserId}
-                onChange={(e) => setPUserId(e.target.value)}
-                required
+              <PilihWarga
+                value={pWarga}
+                onChange={setPWarga}
+                id="posbindu-warga"
+                label="Warga"
+                wilayahId={user?.role === "kader" ? user.wilayah_id : null}
               />
             </div>
 

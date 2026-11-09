@@ -57,6 +57,7 @@ const ROLE_OPSI = (Object.keys(ROLE_LABEL) as Role[]).map((r) => ({
 
 type FormState = {
   name: string;
+  nik: string;
   email: string;
   password: string;
   role: Role;
@@ -66,6 +67,7 @@ type FormState = {
 
 const FORM_KOSONG: FormState = {
   name: "",
+  nik: "",
   email: "",
   password: "",
   role: "kader",
@@ -149,6 +151,7 @@ export default function AdminPenggunaPage() {
     setSunting(p);
     setForm({
       name: p.name,
+      nik: p.nik ?? "",
       email: p.email,
       password: "",
       role: p.role,
@@ -181,6 +184,10 @@ export default function AdminPenggunaPage() {
       e.wilayah_id = `Wilayah wajib dipilih untuk role ${ROLE_LABEL[form.role]}.`;
     }
 
+    // NIK: 16 digit angka bila diisi
+    const nik = form.nik.trim();
+    if (nik !== "" && !/^\d{16}$/.test(nik)) e.nik = "NIK harus 16 digit angka.";
+
     setErrForm(e);
     if (Object.keys(e).length > 0) {
       toast.warning("Periksa kembali field yang ditandai.");
@@ -194,6 +201,7 @@ export default function AdminPenggunaPage() {
     };
     if (form.wilayah_id !== "") payload.wilayah_id = Number(form.wilayah_id);
     if (form.password !== "") payload.password = form.password;
+    if (nik !== "") payload.nik = nik;
     if (sunting) payload.aktif = form.aktif;
 
     setSimpan(true);
@@ -216,6 +224,7 @@ export default function AdminPenggunaPage() {
         if (apiErr.errors.password) map.password = apiErr.errors.password[0];
         if (apiErr.errors.role) map.role = apiErr.errors.role[0];
         if (apiErr.errors.wilayah_id) map.wilayah_id = apiErr.errors.wilayah_id[0];
+        if (apiErr.errors.nik) map.nik = apiErr.errors.nik[0];
         setErrForm(map);
       }
       toast.warning(apiErr.message || "Gagal menyimpan pengguna.");
@@ -376,6 +385,27 @@ export default function AdminPenggunaPage() {
             onChange={(e) => ubah("name", e.target.value)}
           />
           {errForm.name ? <div className="err-msg show">{errForm.name}</div> : null}
+        </div>
+
+        <div className="field">
+          <label className="label" htmlFor="nik">
+            NIK <span className="opt">(opsional)</span>
+          </label>
+          <input
+            className={"input" + (errForm.nik ? " is-error" : "")}
+            id="nik"
+            inputMode="numeric"
+            maxLength={16}
+            autoComplete="off"
+            placeholder="16 digit — dipakai untuk pencarian warga di Posbindu"
+            value={form.nik}
+            onChange={(e) => ubah("nik", e.target.value.replace(/\D/g, ""))}
+          />
+          {errForm.nik ? (
+            <div className="err-msg show">{errForm.nik}</div>
+          ) : (
+            <div className="hint">Warga tanpa NIK tidak bisa dicari kader di form Posbindu.</div>
+          )}
         </div>
 
         <div className="field">

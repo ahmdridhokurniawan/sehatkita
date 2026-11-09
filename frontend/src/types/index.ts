@@ -156,6 +156,15 @@ export interface CatatanKesehatan {
   perlu_verifikasi: boolean;
   // Relasi
   dicatat_oleh: { id: number; name: string } | null;
+  /** Objek warga pemilik catatan — hanya dikirim untuk petugas (§7.2) */
+  pengguna?: {
+    id: number;
+    name: string;
+    email?: string;
+    wilayah_id?: number;
+    wilayah?: { id: number; nama: string } | null;
+    profil?: ProfilRingkas | null;
+  } | null;
   created_at: string;
 }
 /** Payload untuk POST /catatan-kesehatan (hanya field yang boleh dikirim FE) */
@@ -488,9 +497,18 @@ export interface AmbangKategori {
   status: StatusKesehatan;
   skor: number;
 }
+/** Blok §23 — hasil pencarian warga oleh petugas (autocomplete NIK) */
+export interface WargaCari {
+  id: number;
+  name: string;
+  nik: string;
+  wilayah_id: number;
+  wilayah: string | null;
+}
 export interface AdminPengguna {
   id: number;
   name: string;
+  nik?: string | null;
   email: string;
   role: Role;
   wilayah_id: number;
@@ -499,6 +517,7 @@ export interface AdminPengguna {
 }
 export interface AdminPenggunaInput {
   name: string;
+  nik?: string;
   email: string;
   role: Role;
   wilayah_id: number;

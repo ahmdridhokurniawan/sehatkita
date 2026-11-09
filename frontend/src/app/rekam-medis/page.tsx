@@ -10,6 +10,7 @@ import Pagination, { type Meta } from "@/components/ui/Pagination";
 import Line from "@/components/charts/Line";
 import CatatModal from "@/components/catatan/CatatModal";
 import { EmptyState } from "@/components/ui/Empty";
+import { useUser } from "@/hooks/useUser";
 import { catatanKesehatan, rekamMedis, ApiError } from "@/lib/api";
 import { tanggal } from "@/lib/format";
 import { LABEL_SUMBER } from "@/lib/labels";
@@ -42,6 +43,8 @@ function toneKategori(k = ""): "safe" | "warning" | "danger" {
 }
 
 export default function RekamMedisPage() {
+  const { user } = useUser();
+  const petugas = user?.role === "kader" || user?.role === "admin_kelurahan" || user?.role === "super_admin";
   const [periode, setPeriode] = useState<"1m" | "3m" | "6m" | "1y">("3m");
   const [indikator, setIndikator] = useState<string>("bb_kg");
   const [cari, setCari] = useState("");
@@ -93,7 +96,17 @@ export default function RekamMedisPage() {
     const q = cari.trim().toLowerCase();
     if (!q) return catatan;
     return catatan.filter((c) =>
-      [tanggal(c.dicatat_pada, "day"), c.sumber, c.kategori_imt || "", String(c.bb_kg || "")].join(" ").toLowerCase().includes(q)
+      [
+        tanggal(c.dicatat_pada, "day"),
+        c.sumber,
+        c.kategori_imt || "",
+        String(c.bb_kg || ""),
+        c.pengguna?.name || "",
+        c.pengguna?.wilayah?.nama || "",
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(q)
     );
   }, [cari, catatan]);
 
@@ -214,6 +227,12 @@ export default function RekamMedisPage() {
                     <div>
                       <strong className="text-sm">{tanggal(c.dicatat_pada, "day")}</strong>
                       <div className="tiny">{c.sumber === "mandiri" ? "Catatan mandiri" : "Posbindu / Kader"}</div>
+                      {petugas && c.pengguna ? (
+                        <div className="tiny" style={{ marginTop: 2 }}>
+                          <Icon name="user" size={12} /> {c.pengguna.name}
+                          {c.pengguna.wilayah?.nama ? ` · ${c.pengguna.wilayah.nama}` : ""}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                   <div className="row gap-6">
@@ -266,6 +285,13 @@ export default function RekamMedisPage() {
             <p className="tiny">
               {tanggal(detail.dicatat_pada, "day")} · {LABEL_SUMBER[detail.sumber] || detail.sumber}
             </p>
+            {petugas && detail.pengguna ? (
+              <p className="tiny">
+                <Icon name="user" size={12} /> {detail.pengguna.name}
+                {detail.pengguna.wilayah?.nama ? ` · ${detail.pengguna.wilayah.nama}` : ""}
+                {detail.dicatat_oleh ? ` · dicatat oleh ${detail.dicatat_oleh.name}` : ""}
+              </p>
+            ) : null}
             <dl className="dl mt-12">
               {detail.bb_kg !== null && <Baris label="Berat badan" nilai={`${detail.bb_kg} kg`} />}
               {detail.imt !== null && <Baris label="IMT" nilai={detail.imt} />}

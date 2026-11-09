@@ -56,6 +56,7 @@ import type {
   TargetInput,
   User,
   Wilayah,
+  WargaCari,
 } from "@/types";
 /* ============================================================
  * Konfigurasi
@@ -399,6 +400,16 @@ export const posbindu = {
   /** §10.6 GET /posbindu/kunjungan */
   kunjungan: (query?: KunjunganQuery) =>
     request<KunjunganPosbindu[]>("/posbindu/kunjungan", { query }),
+};
+/* ============================================================
+ * §23 — Pencarian warga (petugas) — autocomplete NIK
+ * ============================================================ */
+export const pengguna = {
+  /**
+   * GET /pengguna/cari-nik?nik=xxx (kader / admin_kelurahan / super_admin)
+   * Minimal 3 digit NIK. Hasil maksimal 10, hanya yang punya NIK.
+   */
+  cariNik: (nik: string) => request<WargaCari[]>("/pengguna/cari-nik", { query: { nik } }),
 };
 /* ============================================================
  * §11 — Rujukan
