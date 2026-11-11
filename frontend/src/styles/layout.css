@@ -270,29 +270,28 @@
   from { background-position: 0 0, 0 0; }
   to   { background-position: 0 -240px, 36px -180px; }
 }
-.app-dash .dash-main::after {
-  content: ""; position: absolute; width: 150px; height: 150px;
-  right: 12%; top: 0; pointer-events: none; z-index: 0;
-  background: url(/bg-viora.png) center / contain no-repeat;
-  opacity: 0; animation: iconFloat 45s linear infinite;
+.app-dash .dash-main::after,
+.app-dash::before,
+.app-dash::after { content: none; }
+.viora-rain {
+  position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0;
 }
-.app-dash::before {
-  content: ""; position: absolute; width: 110px; height: 110px;
-  left: 8%; top: 0; pointer-events: none; z-index: 0;
+.viora-rain span {
+  position: absolute; top: -140px; display: block;
   background: url(/bg-viora.png) center / contain no-repeat;
-  opacity: 0; animation: iconFloat 60s linear infinite;
+  opacity: 0; animation: iconFloat linear infinite; will-change: transform;
 }
-.app-dash::after {
-  content: ""; position: absolute; width: 88px; height: 88px;
-  left: 45%; top: 0; pointer-events: none; z-index: 0;
-  background: url(/bg-viora.png) center / contain no-repeat;
-  opacity: 0; animation: iconFloat 75s linear infinite;
-}
+.viora-rain span:nth-child(1) { left: 8%;  width: 120px; height: 120px; animation-duration: 40s; animation-delay: 0s;   }
+.viora-rain span:nth-child(2) { left: 22%; width: 78px;  height: 78px;  animation-duration: 55s; animation-delay: -12s; }
+.viora-rain span:nth-child(3) { left: 38%; width: 140px; height: 140px; animation-duration: 48s; animation-delay: -30s; }
+.viora-rain span:nth-child(4) { left: 58%; width: 88px;  height: 88px;  animation-duration: 60s; animation-delay: -20s; }
+.viora-rain span:nth-child(5) { left: 74%; width: 110px; height: 110px; animation-duration: 44s; animation-delay: -36s; }
+.viora-rain span:nth-child(6) { left: 88%; width: 72px;  height: 72px;  animation-duration: 52s; animation-delay: -8s;  }
 @keyframes iconFloat {
-  0%   { transform: translateY(-26vh); opacity: 0; }
+  0%   { transform: translateY(-18vh); opacity: 0; }
   10%  { opacity: .32; }
   85%  { opacity: .32; }
-  100% { transform: translateY(112vh); opacity: 0; }
+  100% { transform: translateY(118vh); opacity: 0; }
 }
 .app-dash .app-body { position: relative; z-index: 1; }
 @keyframes bgDrift {
@@ -302,8 +301,7 @@
 @media (prefers-reduced-motion: reduce) {
   .app-dash .dash-main { animation: none; }
   .app-dash .dash-main::before { animation: none; }
-  .app-dash .dash-main::after { animation: none; opacity: .25; }
-  .app-dash::before, .app-dash::after { animation: none; opacity: .2; }
+  .viora-rain span { animation: none; opacity: .2; }
 }
 .app-dash .app-body { padding: 20px 22px 120px; display: flex; flex-direction: column; gap: 16px; }
 @media (max-width: 980px) {

@@ -172,6 +172,9 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
 
       {/* ============ KONTEN ============ */}
       <div className="dash-main">
+        <div className="viora-rain" aria-hidden="true">
+          <span /><span /><span /><span /><span /><span />
+        </div>
         <header className="app-top">
           <button
             type="button"
