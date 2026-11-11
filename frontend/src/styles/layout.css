@@ -250,6 +250,15 @@
     radial-gradient(900px 520px at -6% 22%, color-mix(in srgb, var(--primary-050) 80%, transparent), transparent 60%),
     radial-gradient(700px 380px at 60% 115%, color-mix(in srgb, var(--primary-100) 38%, transparent), transparent 65%),
     var(--bg);
+  background-size: 150% 130%, 130% 150%, 100% 100%, auto;
+  animation: bgDrift 28s ease-in-out infinite alternate;
+}
+@keyframes bgDrift {
+  0%   { background-position: 0% 0%, 100% 0%, 30% 85%; }
+  100% { background-position: 24% 12%, 74% 22%, 62% 55%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-dash .dash-main { animation: none; }
 }
 .app-dash .app-body { padding: 20px 22px 120px; display: flex; flex-direction: column; gap: 16px; }
 @media (max-width: 980px) {
