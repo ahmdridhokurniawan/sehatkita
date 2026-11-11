@@ -241,8 +241,13 @@
 /* ---- Shell aplikasi dengan sidebar ---- */
 .app-dash > .sidebar { display: flex; }
 .app-dash .app-top {
-  position: sticky; top: 0; z-index: 100; background: var(--surface); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 100;
   padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+}
+.app-dash .dash-main {
+  background:
+    radial-gradient(900px 380px at 18% -10%, color-mix(in srgb, var(--primary) 9%, transparent), transparent 62%),
+    var(--bg);
 }
 .app-dash .app-body { padding: 20px 22px 120px; display: flex; flex-direction: column; gap: 16px; }
 @media (max-width: 980px) {
@@ -270,16 +275,25 @@
 }
 
 .app-top {
-  position: sticky; top: 0; z-index: 100; background: var(--surface); border-bottom: 1px solid var(--border);
-  padding: 12px 16px; display: flex; align-items: center; gap: 12px;
+  position: sticky; top: 0; z-index: 100; height: var(--header-h);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--primary-050) 55%, var(--surface)), var(--surface) 72%);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 6px 18px -18px color-mix(in srgb, var(--primary) 45%, transparent);
+  padding: 8px 16px; display: flex; align-items: center; gap: 12px;
+}
+.app-top::before {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--primary-600), var(--primary));
+  pointer-events: none;
 }
 .app-top .avatar {
   width: 40px; height: 40px; border-radius: 50%; background: var(--primary-050); color: var(--primary);
   display: grid; place-items: center; font-weight: 700; font-size: .875rem; flex: none;
 }
-.app-top .who { line-height: 1.25; min-width: 0; flex: 1 1 auto; overflow: hidden; }
+.app-top .who { display: flex; flex-direction: column; justify-content: center; line-height: 1.25; min-width: 0; flex: 1 1 auto; overflow: hidden; }
 .app-top .who strong { display: block; font-size: .9375rem; }
-.app-top .who span { font-size: .75rem; color: var(--text-2); }
+.app-top .who span { display: inline-flex; align-items: center; gap: 4px; font-size: .75rem; color: var(--text-2); }
 .app-top .who strong, .app-top .who span {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
@@ -288,6 +302,8 @@
 @media (max-width: 980px) {
   .app-top .avatar.d-only-none { display: none; }
 }
+.app-top .btn-icon,
+.app-top .btn-icon.btn-sm { width: 40px; height: 40px; min-height: 40px; }
 .app-top .acts { margin-left: auto; display: flex; gap: 8px; }
 .app-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
 .app-body > * { animation: fadeUp .35s var(--ease) both; }
@@ -385,7 +401,9 @@
 .dash.collapsed { grid-template-columns: var(--sidebar-w-collapsed) 1fr; }
 
 .sidebar {
-  background: var(--surface); border-right: 1px solid var(--border);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--primary-050) 55%, var(--surface)), var(--surface) 72%);
+  border-right: 1px solid var(--border);
   display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow: hidden;
 }
 .sidebar-brand { display: flex; align-items: center; gap: 10px; padding: 16px 18px; height: var(--header-h); border-bottom: 1px solid var(--border); flex: none; }
