@@ -254,6 +254,8 @@
   background-size: 150% 130%, 130% 150%, 100% 100%, auto;
   animation: bgDrift 28s ease-in-out infinite alternate;
 }
+.app-dash { position: relative; }
+.app-dash > .sidebar { position: relative; z-index: 1; }
 .app-dash .dash-main::before {
   content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0;
   background-image:
@@ -269,16 +271,28 @@
   to   { background-position: 0 -240px, 36px -180px; }
 }
 .app-dash .dash-main::after {
-  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0;
-  background-image: url(/bg-viora.png);
-  background-size: 520px 520px;
-  background-repeat: repeat;
-  opacity: .22;
-  animation: iconShower 48s linear infinite;
+  content: ""; position: absolute; width: 150px; height: 150px;
+  right: 12%; top: 0; pointer-events: none; z-index: 0;
+  background: url(/bg-viora.png) center / contain no-repeat;
+  opacity: 0; animation: iconFloat 45s linear infinite;
 }
-@keyframes iconShower {
-  0%   { background-position: 0 0; }
-  100% { background-position: 0 -520px; }
+.app-dash::before {
+  content: ""; position: absolute; width: 110px; height: 110px;
+  left: 8%; top: 0; pointer-events: none; z-index: 0;
+  background: url(/bg-viora.png) center / contain no-repeat;
+  opacity: 0; animation: iconFloat 60s linear infinite;
+}
+.app-dash::after {
+  content: ""; position: absolute; width: 88px; height: 88px;
+  left: 45%; top: 0; pointer-events: none; z-index: 0;
+  background: url(/bg-viora.png) center / contain no-repeat;
+  opacity: 0; animation: iconFloat 75s linear infinite;
+}
+@keyframes iconFloat {
+  0%   { transform: translateY(-26vh); opacity: 0; }
+  10%  { opacity: .32; }
+  85%  { opacity: .32; }
+  100% { transform: translateY(112vh); opacity: 0; }
 }
 .app-dash .app-body { position: relative; z-index: 1; }
 @keyframes bgDrift {
@@ -289,6 +303,7 @@
   .app-dash .dash-main { animation: none; }
   .app-dash .dash-main::before { animation: none; }
   .app-dash .dash-main::after { animation: none; opacity: .25; }
+  .app-dash::before, .app-dash::after { animation: none; opacity: .2; }
 }
 .app-dash .app-body { padding: 20px 22px 120px; display: flex; flex-direction: column; gap: 16px; }
 @media (max-width: 980px) {
