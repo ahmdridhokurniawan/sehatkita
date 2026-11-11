@@ -7,46 +7,46 @@
 
 /* ---------- 1. TOKENS: LIGHT (default) ---------- */
 :root {
-  /* Brand */
-  --primary:        #0F766E;
-  --primary-600:    #0D655E;
-  --primary-700:    #0A4F49;
-  --primary-050:    #E6F4F2;
-  --primary-100:    #CCE9E6;
-  --green:          #10B981;
-  --green-050:      #E7F8F1;
+  /* Brand — Viora nature palette */
+  --primary:        #5C734F;
+  --primary-600:    #4E6242;
+  --primary-700:    #3E5035;
+  --primary-050:    #EEF1EA;
+  --primary-100:    #DCE4D2;
+  --green:          #778369;
+  --green-050:      #F0F2EC;
 
   /* Semantic */
-  --warning:        #B45309;
-  --warning-bg:     #FEF3C7;
-  --danger:         #B91C1C;
-  --danger-bg:      #FEE2E2;
-  --safe:           #047857;
-  --safe-bg:        #D1FAE5;
-  --info:           #1D4ED8;
-  --info-bg:        #DBEAFE;
+  --warning:        #9A7B2F;
+  --warning-bg:     #F7F0DC;
+  --danger:         #A85048;
+  --danger-bg:      #F8E7E4;
+  --safe:           #5A7555;
+  --safe-bg:        #E4EDE1;
+  --info:           #6A7E96;
+  --info-bg:        #E4EAF0;
 
   /* Surfaces */
-  --bg:             #F8FAFC;
+  --bg:             #F6F5F1;
   --surface:        #FFFFFF;
-  --surface-2:      #F1F5F9;
-  --surface-3:      #E2E8F0;
-  --border:         #E2E8F0;
-  --border-strong:  #CBD5E1;
+  --surface-2:      #F0F0EB;
+  --surface-3:      #E4E5DC;
+  --border:         #E3E4DC;
+  --border-strong:  #CDD0C4;
 
   /* Text */
-  --text:           #172B2A;
-  --text-2:         #64748B;
-  --text-3:         #94A3B8;
+  --text:           #090D09;
+  --text-2:         #646C5D;
+  --text-3:         #8D9486;
   --text-invert:    #FFFFFF;
 
   /* Chart palette */
-  --c-1: #0F766E;
-  --c-2: #10B981;
-  --c-3: #F59E0B;
-  --c-4: #3B82F6;
-  --c-5: #8B5CF6;
-  --c-6: #EC4899;
+  --c-1: #5C734F;
+  --c-2: #778369;
+  --c-3: #9EAF94;
+  --c-4: #A3B18A;
+  --c-5: #4E6242;
+  --c-6: #BCD0B0;
 
   /* Layout */
   --radius-sm: 8px;
@@ -71,41 +71,41 @@
 
 /* ---------- 2. TOKENS: DARK ---------- */
 :root[data-theme="dark"] {
-  --primary:        #2DD4BF;
-  --primary-600:    #5EEAD4;
-  --primary-700:    #99F6E4;
-  --primary-050:    #10312E;
-  --primary-100:    #14413C;
-  --green:          #34D399;
-  --green-050:      #0E2E25;
+  --primary:        #A8B79A;
+  --primary-600:    #BDC9B0;
+  --primary-700:    #D2DAC8;
+  --primary-050:    #1C2619;
+  --primary-100:    #243021;
+  --green:          #8FA27F;
+  --green-050:      #1A2418;
 
-  --warning:        #FBBF24;
-  --warning-bg:     #3A2E0C;
-  --danger:         #F87171;
-  --danger-bg:      #3A1616;
-  --safe:           #34D399;
-  --safe-bg:        #0E2E25;
-  --info:           #93C5FD;
-  --info-bg:        #14243F;
+  --warning:        #CEB26B;
+  --warning-bg:     #2E2815;
+  --danger:         #CE7E75;
+  --danger-bg:      #2E1E1C;
+  --safe:           #8FA386;
+  --safe-bg:        #1A2618;
+  --info:           #93A8C0;
+  --info-bg:        #1A242F;
 
-  --bg:             #0B1514;
-  --surface:        #111E1D;
-  --surface-2:      #172726;
-  --surface-3:      #1E3130;
-  --border:         #223634;
-  --border-strong:  #31504D;
+  --bg:             #0D110D;
+  --surface:        #141A13;
+  --surface-2:      #1D241B;
+  --surface-3:      #263028;
+  --border:         #2A3328;
+  --border-strong:  #39463A;
 
-  --text:           #E7F1F0;
-  --text-2:         #9FB3B1;
-  --text-3:         #6E8482;
-  --text-invert:    #06110F;
+  --text:           #EDF1EA;
+  --text-2:         #98A292;
+  --text-3:         #687363;
+  --text-invert:    #0A0F0A;
 
-  --c-1: #2DD4BF;
-  --c-2: #34D399;
-  --c-3: #FBBF24;
-  --c-4: #60A5FA;
-  --c-5: #A78BFA;
-  --c-6: #F472B6;
+  --c-1: #A8B79A;
+  --c-2: #8FA27F;
+  --c-3: #CEB26B;
+  --c-4: #93A8C0;
+  --c-5: #BDC9B0;
+  --c-6: #D2DAC8;
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, .4);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, .5);
@@ -180,7 +180,9 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 20px;
+  transition: transform .22s var(--ease), box-shadow .22s var(--ease), border-color .22s var(--ease);
 }
+.card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--border-strong); }
 .card-flat { box-shadow: none; }
 .card-raised { box-shadow: var(--shadow-sm); }
 .card-pad-lg { padding: 26px; }
