@@ -58,6 +58,17 @@ const PANDUAN = [
   },
 ];
 
+const ISTILAH = [
+  { istilah: "Sistol", definisi: "Tekanan di pembuluh darah saat jantung memompa darah ke tubuh — angka atas pada pengukuran (mis. 120 dari 120/80)." },
+  { istilah: "Diastol", definisi: "Tekanan di pembuluh darah saat jantung relaksasi/istirahat sejenak sebelum memompa lagi — angka bawah (mis. 80 dari 120/80)." },
+  { istilah: "Tekanan darah", definisi: "Kekuatan darah mendorong dinding pembuluh darah, ditulis sebagai sistol/diastol (mis. 120/80 mmHg)." },
+  { istilah: "IMT (Indeks Massa Tubuh)", definisi: "Angka perbandingan berat badan terhadap tinggi badan: berat (kg) dibagi tinggi kuadrat (m²). Normal orang Indonesia 18,5–22,9." },
+  { istilah: "Gula darah puasa", definisi: "Kadar gula darah yang diukur setelah berpuasa minimal 8 jam. Normal di bawah 100 mg/dL; diabetes bila 126 mg/dL ke atas." },
+  { istilah: "Kolesterol total", definisi: "Jumlah seluruh lemak (kolesterol) di dalam darah. Normal di bawah 200 mg/dL; lebih tinggi menambah risiko penyakit jantung." },
+  { istilah: "Asam urat", definisi: "Zat sisa metabolisme yang bila terlalu tinggi bisa mengendap di sendi dan menyebabkan nyeri. Normal pria di bawah 7 mg/dL, wanita di bawah 6 mg/dL." },
+  { istilah: "Lingkar perut", definisi: "Ukuran keliling pinggang. Berisiko bila 90 cm ke atas pada pria, atau 80 cm ke atas pada wanita (standar Asia)." },
+];
+
 export default function PanduanPage() {
   const [terbuka, setTerbuka] = useState<string | null>(PANDUAN[0].kode);
 
@@ -106,6 +117,21 @@ export default function PanduanPage() {
               </div>
             );
           })}
+        </div>
+
+        <div className="mt-16">
+          <div className="app-section-title">
+            <h2>Definisi Istilah</h2>
+            <span className="tiny">Pengertian istilah medis yang muncul di aplikasi</span>
+          </div>
+          <div className="mt-12" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+            {ISTILAH.map((i) => (
+              <div key={i.istilah} className="card" style={{ padding: "14px 16px" }}>
+                <strong className="text-sm" style={{ color: "var(--primary)" }}>{i.istilah}</strong>
+                <span className="tiny" style={{ display: "block", marginTop: 6 }}>{i.definisi}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
         <p className="tiny mt-16">
