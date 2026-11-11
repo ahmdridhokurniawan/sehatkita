@@ -270,16 +270,15 @@
 }
 .app-dash .dash-main::after {
   content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0;
-  background-image:
-    url(/bg-viora.png), url(/bg-viora.png);
-  background-size: 340px 340px, 230px 230px;
-  background-repeat: repeat, repeat;
-  opacity: .32;
-  animation: iconShower 40s linear infinite;
+  background-image: url(/bg-viora.png);
+  background-size: 520px 520px;
+  background-repeat: repeat;
+  opacity: .22;
+  animation: iconShower 48s linear infinite;
 }
 @keyframes iconShower {
-  0%   { background-position: 0 0, 120px 0; }
-  100% { background-position: 0 -340px, 120px -230px; }
+  0%   { background-position: 0 0; }
+  100% { background-position: 0 -520px; }
 }
 .app-dash .app-body { position: relative; z-index: 1; }
 @keyframes bgDrift {
