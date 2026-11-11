@@ -4,8 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
-import { program as programApi, ApiError } from "@/lib/api";
-import type { Peringkat } from "@/types";
+import { useUser } from "@/hooks/useUser";
+import { program as programApi, wilayah as wilayahApi, ApiError } from "@/lib/api";
+import type { Peringkat, Wilayah } from "@/types";
 
 /* ------------------------------------------------------------------
    Peringkat kelurahan — §12.5 GET /peringkat.
@@ -17,14 +18,45 @@ import type { Peringkat } from "@/types";
 const MEDALI = ["#D4AF37", "#A8A8A8", "#B87333"];
 
 export default function PeringkatPage() {
+  const { user, loading: loadingUser } = useUser();
   const [data, setData] = useState<Peringkat | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // super_admin tidak punya wilayah sendiri — wajib pilih kelurahan.
+  const perluPilihWilayah = user?.role === "super_admin";
+  const [wilayahList, setWilayahList] = useState<Wilayah[]>([]);
+  const [wilayahId, setWilayahId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!perluPilihWilayah) return;
+    let aktif = true;
+    wilayahApi
+      .list({ tipe: "kelurahan" })
+      .then((rows) => {
+        if (!aktif) return;
+        setWilayahList(rows);
+        if (rows.length) setWilayahId((kini) => kini ?? rows[0].id);
+      })
+      .catch(() => aktif && setWilayahList([]));
+    return () => {
+      aktif = false;
+    };
+  }, [perluPilihWilayah]);
+
   const muat = useCallback(async () => {
+    if (loadingUser) return;
+    if (perluPilihWilayah && !wilayahId) {
+      setLoading(false);
+      setData(null);
+      setError("");
+      return;
+    }
     setLoading(true);
     try {
-      const res = await programApi.peringkat();
+      const res = await programApi.peringkat(
+        perluPilihWilayah && wilayahId ? { wilayah_id: wilayahId } : undefined,
+      );
       setData(res);
       setError("");
     } catch (err) {
@@ -32,7 +64,7 @@ export default function PeringkatPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadingUser, perluPilihWilayah, wilayahId]);
 
   useEffect(() => {
     muat();
@@ -47,6 +79,22 @@ export default function PeringkatPage() {
             Diurutkan dari perolehan EXP tantangan. Bukan penilaian kondisi kesehatan.
           </p>
         </div>
+        {perluPilihWilayah ? (
+          <select
+            value={wilayahId ?? ""}
+            onChange={(e) => setWilayahId(Number(e.target.value) || null)}
+            className="input"
+            aria-label="Pilih kelurahan"
+            style={{ maxWidth: 220 }}
+          >
+            {wilayahList.length ? null : <option value="">Pilih kelurahan…</option>}
+            {wilayahList.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.nama}
+              </option>
+            ))}
+          </select>
+        ) : null}
       </div>
 
       {loading ? (

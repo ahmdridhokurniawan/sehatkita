@@ -430,6 +430,22 @@ export const rujukan = {
     request<Rujukan>(`/rujukan/${id}/status`, { method: "PATCH", body: payload }),
 };
 /* ============================================================
+ * §12.6 — Notifikasi Telegram
+ * ============================================================ */
+export interface TelegramStatus {
+  terhubung: boolean;
+  chat_id: string | null;
+  link_telegram: string;
+}
+
+export const telegram = {
+  /** GET /telegram/status — ambil status koneksi bot */
+  status: () => request<TelegramStatus>("/telegram/status"),
+  /** POST /telegram/putuskan — putus sambungan bot */
+  putuskan: () => request<{ ok: boolean }>("/telegram/putuskan", { method: "POST" }),
+};
+
+/* ============================================================
  * §12 / §25 — Program (Tantangan & Reward)
  * ============================================================ */
 export const program = {

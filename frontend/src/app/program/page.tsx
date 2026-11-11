@@ -77,6 +77,8 @@ export default function ProgramPage() {
   const [fTarget, setFTarget] = useState("50");
   const [fMulai, setFMulai] = useState("");
   const [fSelesai, setFSelesai] = useState("");
+  const [fExp, setFExp] = useState("0");
+  const [fBadge, setFBadge] = useState("");
   const [fErr, setFErr] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
@@ -147,6 +149,8 @@ export default function ProgramPage() {
         target_peserta: Number(fTarget) || 1,
         mulai: fMulai,
         selesai: fSelesai || undefined,
+        exp: Number(fExp) || 0,
+        badge: fBadge.trim() || undefined,
       });
       setBuatOpen(false);
       setFJudul("");
@@ -421,6 +425,25 @@ export default function ProgramPage() {
             value={fTarget}
             onChange={(e) => setFTarget(e.target.value)}
             error={fErr.target_peserta}
+            optional
+          />
+        </div>
+        <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
+          <Input
+            label="Reward EXP"
+            type="number"
+            min={0}
+            value={fExp}
+            onChange={(e) => setFExp(e.target.value)}
+            error={fErr.exp}
+            optional
+          />
+          <Input
+            label="Badge"
+            placeholder="cth: Juara Sehat"
+            value={fBadge}
+            onChange={(e) => setFBadge(e.target.value)}
+            error={fErr.badge}
             optional
           />
         </div>

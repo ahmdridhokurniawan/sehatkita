@@ -116,7 +116,7 @@ export default function DashboardSuperAdmin({ user }: { user: User }) {
           </Link>
           <Link href="/admin/indikator" className="li">
             <span className="li-ico" style={{ background: "var(--danger-bg)", color: "var(--danger)" }}>
-              <Icon name="sliders" size={18} />
+              <Icon name="settings" size={18} />
             </span>
             <div className="li-main">
               <strong>Indikator &amp; Ambang Kategori</strong>

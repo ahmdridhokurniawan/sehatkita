@@ -100,6 +100,7 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
     // Hanya dashboard + konten agregat.
     grup.push({ judul: "Menu", items: [NAV_UTAMA[0], NAV_UTAMA[2], NAV_UTAMA[4]] });
     grup.push({ judul: "Data & Laporan", items: [NAV_DATA[0], NAV_DATA[1], NAV_DATA[2]] });
+    grup.push({ judul: "Layanan", items: [{ href: "/admin/pengaduan", icon: "alert-circle", label: "Pengaduan" }] });
     grup.push({ judul: "Akun", items: NAV_AKUN });
   } else if (role === "kader") {
     grup.push({ judul: "Menu", items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[2]] });
@@ -114,7 +115,8 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
   const navBawah = grup[0].items.slice(0, 3).concat(grup[grup.length - 1].items[0]);
 
   const aktif = (href: string) =>
-    pathname === href || (href !== "/dashboard" && pathname.startsWith(href + "/"));
+    pathname === href ||
+    (href !== "/dashboard" && href !== "/insight" && pathname.startsWith(href + "/"));
 
   if (loading || !user || roleTidakCocok) {
     return (

@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
+import Modal from "@/components/ui/Modal";
 import { auth, clearToken } from "@/lib/api";
 import { clearUserCache } from "@/hooks/useUser";
 
@@ -24,6 +26,7 @@ const SETELAN_MENU = [
 
 export default function SetelanPage() {
   const router = useRouter();
+  const [konfirmasiKeluar, setKonfirmasiKeluar] = useState(false);
 
   async function handleLogout() {
     try {
@@ -94,7 +97,7 @@ export default function SetelanPage() {
           <button
             type="button"
             className="btn btn-sm btn-outline"
-            onClick={handleLogout}
+            onClick={() => setKonfirmasiKeluar(true)}
           >
             <Icon name="log-out" size={15} /> Logout
           </button>
@@ -104,6 +107,28 @@ export default function SetelanPage() {
       <p className="tiny center mt-16 mb-16">
         <Icon name="info" size={13} /> Pengaturan pengguna & keamanan disimpan di server.
       </p>
+
+      <Modal
+        open={konfirmasiKeluar}
+        onClose={() => setKonfirmasiKeluar(false)}
+        title="Keluar"
+        footer={
+          <>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setKonfirmasiKeluar(false)}
+            >
+              Batal
+            </button>
+            <button type="button" className="btn btn-danger" onClick={handleLogout}>
+              Ya, keluar
+            </button>
+          </>
+        }
+      >
+        <p className="tiny">Apakah kamu yakin ingin keluar dari akun ini?</p>
+      </Modal>
     </AppShell>
   );
 }

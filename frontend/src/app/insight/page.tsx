@@ -11,7 +11,6 @@ import { tanggal } from "@/lib/format";
 import { LABEL_INSIGHT } from "@/lib/labels";
 import PanelAmbang from "@/components/insight/PanelAmbang";
 import type { AmbangBaris, Insight } from "@/types";
-import type { LevelInsight } from "@/lib/enums";
 import "@/styles/insight.css";
 
 /* ------------------------------------------------------------------
@@ -62,7 +61,7 @@ export default function InsightPage() {
     setLoading(true);
     try {
       const [res, am] = await Promise.all([
-        insightApi.list(filter === "semua" ? undefined : { level: filter as LevelInsight }),
+        insightApi.list(),
         insightApi.ambang().catch(() => [] as AmbangBaris[]),
       ]);
       setSemua(res ?? []);
@@ -73,16 +72,16 @@ export default function InsightPage() {
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, []);
 
   useEffect(() => {
     muat();
   }, [muat]);
 
-  const daftar = useMemo(
-    () => [...semua].sort((a, b) => URUTAN.indexOf(a.level) - URUTAN.indexOf(b.level)),
-    [semua],
-  );
+  const daftar = useMemo(() => {
+    const sumber = filter === "semua" ? semua : semua.filter((i) => i.level === filter);
+    return [...sumber].sort((a, b) => URUTAN.indexOf(a.level) - URUTAN.indexOf(b.level));
+  }, [semua, filter]);
 
   const hitung = (t: string) => semua.filter((i) => i.level === t).length;
   const total = semua.length;

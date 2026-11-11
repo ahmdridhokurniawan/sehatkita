@@ -11,8 +11,8 @@ import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
 import { useUser } from "@/hooks/useUser";
 import PilihWarga from "@/components/warga/PilihWarga";
 import { angka, tanggal } from "@/lib/format";
-import { posbindu as posbinduApi, ApiError } from "@/lib/api";
-import type { KunjunganPosbindu, SesiPosbindu, SesiPosbinduDetail, WargaCari } from "@/types";
+import { posbindu as posbinduApi, wilayah as wilayahApi, ApiError } from "@/lib/api";
+import type { KunjunganPosbindu, SesiPosbindu, SesiPosbinduDetail, WargaCari, Wilayah } from "@/types";
 
 /* ------------------------------------------------------------------
    Posbindu — sesi pemeriksaan & kunjungan warga.
@@ -51,6 +51,11 @@ export default function PosbinduPage() {
   const [fErr, setFErr] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
+  // super_admin tidak punya wilayah sendiri — wajib pilih kelurahan saat buat sesi.
+  const perluPilihWilayah = user?.role === "super_admin";
+  const [wilayahList, setWilayahList] = useState<Wilayah[]>([]);
+  const [fWilayah, setFWilayah] = useState("");
+
   // --- detail sesi + peserta ---
   const [detailId, setDetailId] = useState<number | null>(null);
   const [detail, setDetail] = useState<SesiPosbinduDetail | null>(null);
@@ -88,6 +93,22 @@ export default function PosbinduPage() {
     if (!loadingUser && user) muat();
   }, [loadingUser, user, muat]);
 
+  useEffect(() => {
+    if (!perluPilihWilayah) return;
+    let aktif = true;
+    wilayahApi
+      .list({ tipe: "kelurahan" })
+      .then((rows) => {
+        if (!aktif) return;
+        setWilayahList(rows);
+        if (rows.length) setFWilayah((kini) => kini || String(rows[0].id));
+      })
+      .catch(() => aktif && setWilayahList([]));
+    return () => {
+      aktif = false;
+    };
+  }, [perluPilihWilayah]);
+
   async function bukaDetail(id: number) {
     setDetailId(id);
     setDetail(null);
@@ -108,13 +129,15 @@ export default function PosbinduPage() {
     const e: Record<string, string> = {};
     if (!fTanggal) e.tanggal = "Tanggal wajib diisi.";
     if (!fLokasi.trim()) e.lokasi = "Lokasi wajib diisi.";
+    if (perluPilihWilayah && !fWilayah) e.wilayah = "Kelurahan wajib diisi.";
     setFErr(e);
     if (Object.keys(e).length) return;
 
     setSaving(true);
     try {
       await posbinduApi.sesiBuat({
-        wilayah_id: user?.wilayah_id || 0,
+        wilayah_id:
+          user?.role === "super_admin" ? Number(fWilayah) || 0 : user?.wilayah_id || 0,
         tanggal: fTanggal,
         lokasi: fLokasi.trim(),
         catatan: fCatatan.trim() || undefined,
@@ -336,6 +359,24 @@ export default function PosbinduPage() {
           </div>
         }
       >
+        {perluPilihWilayah ? (
+          <div className="mt-12">
+            <label className="label">Kelurahan</label>
+            <select
+              className="select"
+              value={fWilayah}
+              onChange={(e) => setFWilayah(e.target.value)}
+            >
+              {wilayahList.length ? null : <option value="">Pilih kelurahan…</option>}
+              {wilayahList.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.nama}
+                </option>
+              ))}
+            </select>
+            {fErr.wilayah ? <span className="err-text">{fErr.wilayah}</span> : null}
+          </div>
+        ) : null}
         <Input
           label="Tanggal"
           type="date"

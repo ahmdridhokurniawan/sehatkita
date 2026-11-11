@@ -7,6 +7,7 @@ import Link from "next/link";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Checkbox from "@/components/ui/Checkbox";
@@ -14,7 +15,7 @@ import { JENIS_KELAMIN, TINGKAT_AKTIVITAS } from "@/lib/enums";
 import type { JenisKelamin, TingkatAktivitas } from "@/lib/enums";
 import { RIWAYAT_KELUARGA_OPTIONS } from "@/lib/session";
 import { LABEL_JENIS_KELAMIN, LABEL_TINGKAT_AKTIVITAS } from "@/lib/labels";
-import { profil as profilApi, auth as authApi, clearToken, ApiError } from "@/lib/api";
+import { profil as profilApi, auth as authApi, telegram as telegramApi, clearToken, ApiError, type TelegramStatus } from "@/lib/api";
 import { refreshUser, clearUserCache } from "@/hooks/useUser";
 import type { Profil } from "@/types";
 
@@ -87,8 +88,44 @@ export default function ProfilPage() {
   const [error, setError] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [sukses, setSukses] = useState(false);
+  const [konfirmasiKeluar, setKonfirmasiKeluar] = useState(false);
   const [modeUbah, setModeUbah] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
+
+  // --- Notifikasi Telegram ---
+  const [telegramStatus, setTelegramStatus] = useState<TelegramStatus | null>(null);
+  const [tgLoading, setTgLoading] = useState(true);
+  const [tgErr, setTgErr] = useState("");
+  const [tgPutus, setTgPutus] = useState(false);
+
+  useEffect(() => {
+    let aktif = true;
+    telegramApi
+      .status()
+      .then((s) => {
+        if (!aktif) return;
+        setTelegramStatus(s);
+        setTgErr("");
+      })
+      .catch(() => aktif && setTgErr("Gagal memuat status Telegram"))
+      .finally(() => aktif && setTgLoading(false));
+    return () => {
+      aktif = false;
+    };
+  }, []);
+
+  async function putuskanTelegram() {
+    setTgPutus(true);
+    setTgErr("");
+    try {
+      await telegramApi.putuskan();
+      setTelegramStatus(await telegramApi.status());
+    } catch {
+      setTgErr("Gagal memutuskan sambungan Telegram");
+    } finally {
+      setTgPutus(false);
+    }
+  }
 
   // Fetch profil on mount
   useEffect(() => {
@@ -412,21 +449,43 @@ export default function ProfilPage() {
             <Icon name="chevron-right" size={18} />
           </span>
         </Link>
+        <div className="card mt-12">
+          <div className="row-between mb-8">
+            <div>
+              <strong className="text-sm">Notifikasi Telegram</strong>
+              <div className="tiny">Pengingat & info program via bot</div>
+            </div>
+            <Icon name="send" size={18} />
+          </div>
+          {tgLoading ? (
+            <p className="tiny">Memuat status…</p>
+          ) : tgErr ? (
+            <span className="err-text">{tgErr}</span>
+          ) : telegramStatus?.terhubung ? (
+            <>
+              <p className="tiny mb-8">
+                Terhubung ke <strong>@{telegramStatus.chat_id}</strong>
+              </p>
+              <Button variant="secondary" onClick={putuskanTelegram} loading={tgPutus}>
+                Putuskan
+              </Button>
+            </>
+          ) : (
+            <a
+              href={telegramStatus?.link_telegram ?? "#"}
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-primary"
+            >
+              Hubungkan Telegram
+            </a>
+          )}
+        </div>
         <button
           type="button"
           className="li"
           style={{ border: "none", background: "none", cursor: "pointer", textAlign: "left", width: "100%" }}
-          onClick={async () => {
-            try {
-              await authApi.logout();
-            } catch {
-              /* token sudah mati */
-            } finally {
-              clearToken();
-              clearUserCache();
-              router.replace("/login");
-            }
-          }}
+          onClick={() => setKonfirmasiKeluar(true)}
         >
           <span className="li-ico">
             <Icon name="log-out" size={18} />
@@ -437,6 +496,37 @@ export default function ProfilPage() {
           </div>
         </button>
       </div>
+      <Modal
+        open={konfirmasiKeluar}
+        onClose={() => setKonfirmasiKeluar(false)}
+        title="Keluar dari akun"
+      >
+        <p className="text-sm">Yakin ingin mengakhiri sesi di perangkat ini?</p>
+        <div className="row-between mt-16">
+          <button
+            type="button"
+            className="btn btn-outline"
+            onClick={() => setKonfirmasiKeluar(false)}
+          >
+            Batal
+          </button>
+          <Button
+            onClick={async () => {
+              try {
+                await authApi.logout();
+              } catch {
+                /* token sudah mati */
+              } finally {
+                clearToken();
+                clearUserCache();
+                router.replace("/login");
+              }
+            }}
+          >
+            Keluar
+          </Button>
+        </div>
+      </Modal>
     </AppShell>
   );
 }
