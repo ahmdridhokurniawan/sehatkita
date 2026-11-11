@@ -246,7 +246,9 @@
 }
 .app-dash .dash-main {
   background:
-    radial-gradient(900px 380px at 18% -10%, color-mix(in srgb, var(--primary) 9%, transparent), transparent 62%),
+    radial-gradient(1100px 540px at 92% -8%, color-mix(in srgb, var(--primary-100) 55%, transparent), transparent 62%),
+    radial-gradient(900px 520px at -6% 22%, color-mix(in srgb, var(--primary-050) 80%, transparent), transparent 60%),
+    radial-gradient(700px 380px at 60% 115%, color-mix(in srgb, var(--primary-100) 38%, transparent), transparent 65%),
     var(--bg);
 }
 .app-dash .app-body { padding: 20px 22px 120px; display: flex; flex-direction: column; gap: 16px; }
@@ -281,11 +283,6 @@
   border-bottom: 1px solid var(--border);
   box-shadow: 0 6px 18px -18px color-mix(in srgb, var(--primary) 45%, transparent);
   padding: 8px 16px; display: flex; align-items: center; gap: 12px;
-}
-.app-top::before {
-  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px;
-  background: linear-gradient(90deg, var(--primary), var(--primary-600), var(--primary));
-  pointer-events: none;
 }
 .app-top .avatar {
   width: 40px; height: 40px; border-radius: 50%; background: var(--primary-050); color: var(--primary);
