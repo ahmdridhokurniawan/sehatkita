@@ -311,7 +311,21 @@ class AdminMasterController extends Controller
         ])
             ->where('user_id', $pengguna->id)
             ->latest('id')
-            ->get();
+            ->get()
+            ->map(function ($r) {
+                $item = $r->toArray();
+                $item['wilayahAsal'] = $r->wilayahAsal ? [
+                    'id'   => $r->wilayahAsal->id,
+                    'nama' => $r->wilayahAsal->nama,
+                    'tipe' => $r->wilayahAsal->tipe,
+                ] : null;
+                $item['wilayahTujuan'] = $r->wilayahTujuan ? [
+                    'id'   => $r->wilayahTujuan->id,
+                    'nama' => $r->wilayahTujuan->nama,
+                    'tipe' => $r->wilayahTujuan->tipe,
+                ] : null;
+                return $item;
+            });
 
         return response()->json([
             'success' => true,
