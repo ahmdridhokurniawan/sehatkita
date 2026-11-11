@@ -269,18 +269,17 @@
   to   { background-position: 0 -240px, 36px -180px; }
 }
 .app-dash .dash-main::after {
-  content: ""; position: absolute; pointer-events: none; z-index: 0;
-  width: 240px; height: 240px; right: 7%;
-  background: url(/bg-viora.png) center / contain no-repeat;
-  opacity: .38;
-  animation: iconFall 42s linear infinite;
-  will-change: transform;
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    url(/bg-viora.png), url(/bg-viora.png), url(/bg-viora.png);
+  background-size: 76px 76px, 54px 54px, 38px 38px;
+  background-repeat: repeat, repeat, repeat;
+  opacity: .45;
+  animation: iconShower 26s linear infinite;
 }
-@keyframes iconFall {
-  0%   { transform: translateY(-28vh); opacity: 0; }
-  8%   { opacity: .38; }
-  88%  { opacity: .38; }
-  100% { transform: translateY(112vh); opacity: 0; }
+@keyframes iconShower {
+  0%   { background-position: 0 0, 130px 0, 70px 0; }
+  100% { background-position: 0 -304px, 130px -216px, 70px -152px; }
 }
 .app-dash .app-body { position: relative; z-index: 1; }
 @keyframes bgDrift {
