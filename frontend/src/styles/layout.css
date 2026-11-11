@@ -695,3 +695,24 @@ fieldset.form-section legend .n {
 .user-chip:hover { border-color: var(--border); background: var(--surface-2); transform: translateY(-1px); }
 .health-hero { box-shadow: 0 18px 44px -20px color-mix(in srgb, var(--primary) 60%, transparent); }
 .page-head h1 { letter-spacing: -.02em; }
+
+/* ============ SQUISH SAAT DIPECET (animasi semut) ============ */
+.btn, .snav, .tab, .segment button, .link-btn, a.snav,
+.user-chip, .nav-main a, .bottom-nav a, .fab, .theme-toggle {
+  transition: transform .14s var(--ease), filter .14s var(--ease);
+}
+.btn:not(:disabled):active,
+.card:active,
+.snav:active,
+.tab:active,
+.segment button:active,
+.link-btn:active,
+a.snav:active,
+.user-chip:active,
+.nav-main a:active,
+.bottom-nav a:active,
+.fab:active,
+.theme-toggle:active {
+  transform: scale(.96, .84) !important;
+  filter: brightness(.96);
+}
