@@ -316,6 +316,12 @@ class CatatanKesehatanController extends Controller
 
         if ($data['sumber'] === 'puskesmas') {
             abort_unless($user->role === 'super_admin', 403, 'Hanya super_admin dapat mencatat sumber puskesmas');
+
+            if (isset($data['user_id'])) {
+                return Pengguna::findOrFail($data['user_id']);
+            }
+
+            return $user;
         }
 
         if ($data['sumber'] === 'kader') {
