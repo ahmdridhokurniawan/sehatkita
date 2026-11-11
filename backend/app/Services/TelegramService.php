@@ -25,7 +25,7 @@ class TelegramService
         }
 
         try {
-            $res = Http::timeout(10)->post("https://api.telegram.org/bot{$this->token}/sendMessage", [
+            $res = Http::withoutVerifying()->timeout(10)->post("https://api.telegram.org/bot{$this->token}/sendMessage", [
                 'chat_id'    => $chatId,
                 'text'       => $pesan,
                 'parse_mode' => $parseMode,
@@ -49,10 +49,12 @@ class TelegramService
         }
 
         try {
-            $res = Http::timeout($timeout + 5)->get("https://api.telegram.org/bot{$this->token}/getUpdates", [
-                'offset'  => $offset,
-                'timeout' => $timeout,
-            ]);
+            $query = ['timeout' => $timeout];
+            if ($offset > 0) {
+                $query['offset'] = $offset;
+            }
+
+            $res = Http::withoutVerifying()->timeout($timeout + 5)->get("https://api.telegram.org/bot{$this->token}/getUpdates", $query);
 
             if ($res->successful() && isset($res->json()['result'])) {
                 return $res->json()['result'];
