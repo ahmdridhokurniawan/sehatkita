@@ -18,6 +18,7 @@ const NAV_UTAMA: NavItem[] = [
   { href: "/program", icon: "award", label: "Tantangan" },
   { href: "/peringkat", icon: "trending-up", label: "Peringkat" },
   { href: "/insight", icon: "zap", label: "History" },
+  { href: "/insight/panduan", icon: "file-text", label: "Panduan" },
   { href: "/pengaduan", icon: "alert-circle", label: "Pengaduan" },
 ];
 
