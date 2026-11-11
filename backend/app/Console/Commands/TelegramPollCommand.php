@@ -19,7 +19,7 @@ class TelegramPollCommand extends Command
         $once   = $this->option('once');
 
         do {
-            $updates = $telegram->getUpdates($offset, 5);
+            $updates = $telegram->getUpdates($offset, 2);
 
             foreach ($updates as $update) {
                 $offset = $update['update_id'] + 1;
@@ -40,7 +40,7 @@ class TelegramPollCommand extends Command
                 break;
             }
 
-            usleep(500000); // 0.5 detik
+            usleep(100000); // 0.1 detik (super cepat)
         } while (true);
 
         return 0;

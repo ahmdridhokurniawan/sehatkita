@@ -71,7 +71,21 @@ class TelegramService
         $chatId = $message['chat']['id'] ?? null;
         $text   = trim($message['text'] ?? '');
 
-        if ($chatId && str_starts_with($text, '/start ')) {
+        if (! $chatId) {
+            return false;
+        }
+
+        // Cek apakah akun warga dengan chat_id ini sudah terhubung
+        $userTerkoneksi = \App\Models\Pengguna::where('telegram_chat_id', (string) $chatId)->first();
+
+        if ($userTerkoneksi) {
+            $pesan = "Halo *{$userTerkoneksi->name}*!\n\nAkun SehatKita Anda sudah aktif dan terhubung. Anda akan menerima notifikasi pengingat pemeriksaan bulanan dan rujukan kesehatan langsung di sini.";
+            $this->kirimPesan($chatId, $pesan);
+            return true;
+        }
+
+        // Jika belum terhubung dan mengirim /start <token>
+        if (str_starts_with($text, '/start ')) {
             $token = trim(substr($text, 7));
             $user  = \App\Models\Pengguna::where('telegram_connect_token', $token)->first();
 
@@ -88,7 +102,7 @@ class TelegramService
                 $this->kirimPesan($chatId, "Token penghubung tidak valid atau sudah kedaluwarsa. Silakan ambil tautan baru di web SehatKita.");
                 return false;
             }
-        } elseif ($chatId && $text === '/start') {
+        } elseif ($text === '/start') {
             $this->kirimPesan($chatId, "Selamat datang di Bot SehatKita! Silakan hubungkan bot ini melalui menu Profil di aplikasi SehatKita.");
             return true;
         }
