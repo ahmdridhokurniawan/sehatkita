@@ -148,6 +148,22 @@ export default function LandingPage() {
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
   const [navOpen, setNavOpen] = useState(false);
   const [legal, setLegal] = useState<string | null>(null);
+  const [navAktif, setNavAktif] = useState("beranda");
+  useEffect(() => {
+    const ids = ["beranda", "fitur", "cara-kerja", "tentang", "faq"];
+    const obs = new IntersectionObserver(
+      (es) =>
+        es.forEach((e) => {
+          if (e.isIntersecting) setNavAktif(e.target.id);
+        }),
+      { rootMargin: "-40% 0px -55% 0px" },
+    );
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) obs.observe(el);
+    });
+    return () => obs.disconnect();
+  }, []);
   useReveal();
 
   return (
@@ -164,11 +180,11 @@ export default function LandingPage() {
             </span>
           </a>
           <nav className={`nav-main ${navOpen ? "open" : ""}`} id="navMain">
-            <a href="#beranda" className="active">Beranda</a>
-            <a href="#fitur">Fitur</a>
-            <a href="#cara-kerja">Cara Kerja</a>
-            <a href="#tentang">Tentang</a>
-            <a href="#faq">FAQ</a>
+            <a href="#beranda" className={navAktif === "beranda" ? "active" : ""} onClick={() => setNavAktif("beranda")}>Beranda</a>
+            <a href="#fitur" className={navAktif === "fitur" ? "active" : ""} onClick={() => setNavAktif("fitur")}>Fitur</a>
+            <a href="#cara-kerja" className={navAktif === "cara-kerja" ? "active" : ""} onClick={() => setNavAktif("cara-kerja")}>Cara Kerja</a>
+            <a href="#tentang" className={navAktif === "tentang" ? "active" : ""} onClick={() => setNavAktif("tentang")}>Tentang</a>
+            <a href="#faq" className={navAktif === "faq" ? "active" : ""} onClick={() => setNavAktif("faq")}>FAQ</a>
             <Link href="/login" className="nav-auth">Masuk</Link>
             <Link href="/register" className="nav-auth">Daftar</Link>
           </nav>
