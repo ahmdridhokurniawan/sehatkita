@@ -214,7 +214,7 @@ export default function RekamMedisPage() {
             const items = [
               c.bb_kg !== null ? `${c.bb_kg} kg` : null,
               c.sistol !== null && c.diastol !== null ? `${c.sistol}/${c.diastol} mmHg` : null,
-              c.gula_darah !== null ? `GD ${c.gula_darah}` : null,
+              c.gula_darah !== null ? `Gula darah ${c.gula_darah}` : null,
             ].filter((x) => x !== null);
 
             return (

@@ -37,14 +37,14 @@ const KONSUMSI_MANIS = [
 ];
 
 const FIELD_ANGKA: { id: string; label: string; satuan: string; ph: string }[] = [
-  { id: "bb_kg", label: "Berat badan", satuan: "kg", ph: "mis. 78.5" },
-  { id: "sistol", label: "Sistol", satuan: "mmHg", ph: "mis. 120" },
-  { id: "diastol", label: "Diastol", satuan: "mmHg", ph: "mis. 80" },
-  { id: "lingkar_perut", label: "Lingkar perut", satuan: "cm", ph: "mis. 92" },
-  { id: "gula_darah", label: "Gula darah", satuan: "mg/dL", ph: "mis. 110" },
-  { id: "kolesterol", label: "Kolesterol", satuan: "mg/dL", ph: "mis. 180" },
-  { id: "asam_urat", label: "Asam urat", satuan: "mg/dL", ph: "mis. 6.5" },
-  { id: "tidur_jam", label: "Jam tidur per hari", satuan: "jam", ph: "mis. 7" },
+  { id: "bb_kg", label: "Berat badan", satuan: "kg", ph: "misalnya 78.5" },
+  { id: "sistol", label: "Sistol", satuan: "mmHg", ph: "misalnya 120" },
+  { id: "diastol", label: "Diastol", satuan: "mmHg", ph: "misalnya 80" },
+  { id: "lingkar_perut", label: "Lingkar perut", satuan: "cm", ph: "misalnya 92" },
+  { id: "gula_darah", label: "Gula darah", satuan: "mg/dL", ph: "misalnya 110" },
+  { id: "kolesterol", label: "Kolesterol", satuan: "mg/dL", ph: "misalnya 180" },
+  { id: "asam_urat", label: "Asam urat", satuan: "mg/dL", ph: "misalnya 6.5" },
+  { id: "tidur_jam", label: "Jam tidur per hari", satuan: "jam", ph: "misalnya 7" },
 ];
 
 function nowLocal(): string {
@@ -405,7 +405,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
             id="catatan"
             maxLength={500}
             value={catatan}
-            placeholder="mis. sedang minum obat tensi"
+            placeholder="misalnya sedang minum obat tensi"
             onChange={(e) => setCatatan(e.target.value)}
           />
           <div className="hint">{catatan.length}/500 karakter</div>

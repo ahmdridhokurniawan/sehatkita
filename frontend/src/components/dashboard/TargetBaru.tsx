@@ -309,7 +309,7 @@ function TargetForm({
         <input
           id="judul"
           className={"input" + (err.judul ? " is-error" : "")}
-          placeholder="mis. Berat badan ideal"
+          placeholder="misalnya Berat badan ideal"
           value={form.judul}
           onChange={(e) => ubah("judul", e.target.value)}
         />
@@ -338,7 +338,7 @@ function TargetForm({
             className={"input" + (err.nilai_target ? " is-error" : "")}
             type="number"
             inputMode="decimal"
-            placeholder="mis. 70"
+            placeholder="misalnya 70"
             value={form.nilai_target}
             onChange={(e) => ubah("nilai_target", e.target.value)}
           />
@@ -365,7 +365,7 @@ function TargetForm({
             className="input"
             type="number"
             inputMode="decimal"
-            placeholder="mis. 75"
+            placeholder="misalnya 75"
             value={form.nilai_awal}
             onChange={(e) => ubah("nilai_awal", e.target.value)}
           />
@@ -388,7 +388,7 @@ function TargetForm({
           id="catatan_motivasi"
           className="input"
           rows={2}
-          placeholder="mis. Terus semangat, kamu bisa!"
+          placeholder="misalnya Terus semangat, kamu bisa!"
           value={form.catatan_motivasi}
           onChange={(e) => ubah("catatan_motivasi", e.target.value)}
         />
