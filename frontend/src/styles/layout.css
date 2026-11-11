@@ -247,9 +247,9 @@
 .app-dash .dash-main {
   position: relative;
   background:
-    radial-gradient(1100px 540px at 92% -8%, color-mix(in srgb, var(--primary-100) 55%, transparent), transparent 62%),
-    radial-gradient(900px 520px at -6% 22%, color-mix(in srgb, var(--primary-050) 80%, transparent), transparent 60%),
-    radial-gradient(700px 380px at 60% 115%, color-mix(in srgb, var(--primary-100) 38%, transparent), transparent 65%),
+    radial-gradient(1100px 540px at 92% -8%, color-mix(in srgb, var(--primary-100) 26%, transparent), transparent 62%),
+    radial-gradient(900px 520px at -6% 22%, color-mix(in srgb, var(--primary-050) 38%, transparent), transparent 60%),
+    radial-gradient(700px 380px at 60% 115%, color-mix(in srgb, var(--primary-100) 18%, transparent), transparent 65%),
     var(--bg);
   background-size: 150% 130%, 130% 150%, 100% 100%, auto;
   animation: bgDrift 28s ease-in-out infinite alternate;
@@ -263,7 +263,7 @@
     radial-gradient(closest-side, color-mix(in srgb, var(--primary-050) 85%, transparent), transparent);
   background-size: 120px 120px, 90px 90px;
   background-repeat: repeat;
-  opacity: .75;
+  opacity: .3;
   animation: leafDrift 34s linear infinite;
 }
 @keyframes leafDrift {
