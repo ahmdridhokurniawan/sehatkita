@@ -71,6 +71,8 @@ class ProgramController extends Controller
                 'status'             => $this->statusProgram($p, $hariIni),
                 'exp_reward'         => (int) $p->exp_reward,
                 'badge_reward'       => $p->badge_reward,
+                'exp'                => (int) $p->exp_reward,
+                'badge'              => $p->badge_reward,
 
                 // Hanya bermakna untuk role user (kontrak 12.1).
                 'diikuti'            => $user->role === 'user' ? $ikut : false,
@@ -97,6 +99,14 @@ class ProgramController extends Controller
         // Normalisasi wilayah 0 menjadi null untuk super admin
         if ((int) $request->input('wilayah_id') === 0) {
             $request->merge(['wilayah_id' => null]);
+        }
+
+        // Dukungan alias exp & badge dari frontend
+        if (! $request->has('exp_reward') && $request->has('exp')) {
+            $request->merge(['exp_reward' => $request->input('exp')]);
+        }
+        if (! $request->has('badge_reward') && $request->has('badge')) {
+            $request->merge(['badge_reward' => $request->input('badge')]);
         }
 
         // Validasi wilayah_id fleksibel (null untuk cakupan kota)
@@ -168,6 +178,14 @@ class ProgramController extends Controller
 
         if ($request->has('wilayah_id') && (int) $request->input('wilayah_id') === 0) {
             $request->merge(['wilayah_id' => null]);
+        }
+
+        // Dukungan alias exp & badge dari frontend
+        if (! $request->has('exp_reward') && $request->has('exp')) {
+            $request->merge(['exp_reward' => $request->input('exp')]);
+        }
+        if (! $request->has('badge_reward') && $request->has('badge')) {
+            $request->merge(['badge_reward' => $request->input('badge')]);
         }
 
         $data = $request->validate([
@@ -391,6 +409,8 @@ class ProgramController extends Controller
             'status'             => $this->statusProgram($p, now()->toDateString()),
             'exp_reward'         => (int) $p->exp_reward,
             'badge_reward'       => $p->badge_reward,
+            'exp'                => (int) $p->exp_reward,
+            'badge'              => $p->badge_reward,
             'diikuti'            => $ikut,
             'status_saya'        => $statusSaya,
         ];

@@ -326,11 +326,12 @@ class DashboardController extends Controller
         }
 
         return [
-            'id'       => $r->id,
-            'faskes'   => $r->faskes?->nama,
-            'status'   => $r->status,
-            'alasan'   => $r->alasan,
-            'tanggal'  => $r->created_at->toDateString(),
+            'id'         => $r->id,
+            'faskes'     => $r->faskes ? ['id' => $r->faskes->id, 'nama' => $r->faskes->nama] : null,
+            'status'     => $r->status,
+            'alasan'     => $r->alasan,
+            'tanggal'    => $r->created_at->toDateString(),
+            'created_at' => $r->created_at->toIso8601String(),
         ];
     }
 }

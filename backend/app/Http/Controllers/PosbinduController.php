@@ -98,13 +98,18 @@ class PosbinduController extends Controller
             'success' => true,
             'message' => 'OK',
             'data'    => [
-                'id'      => $sesi->id,
-                'tanggal' => $sesi->tanggal?->toDateString(),
-                'lokasi'  => $sesi->lokasi,
-                'kader'   => $sesi->kader
+                'id'             => $sesi->id,
+                'wilayah_id'     => $sesi->wilayah_id,
+                'tanggal'        => $sesi->tanggal?->toDateString(),
+                'lokasi'         => $sesi->lokasi,
+                'catatan'        => $sesi->catatan,
+                'status'         => $sesi->status,
+                'jumlah_peserta' => $sesi->kunjungan->count(),
+                'hadir'          => $sesi->kunjungan->where('hadir', true)->count(),
+                'kader'          => $sesi->kader
                     ? ['id' => $sesi->kader->id, 'name' => $sesi->kader->name]
                     : null,
-                'peserta' => $sesi->kunjungan->map(fn ($k) => [
+                'peserta'        => $sesi->kunjungan->map(fn ($k) => [
                     'kunjungan_id' => $k->id,
                     'user_id'      => $k->user_id,
                     'name'         => $k->pengguna?->name,

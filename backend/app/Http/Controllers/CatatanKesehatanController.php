@@ -19,7 +19,7 @@ class CatatanKesehatanController extends Controller
     public function index(Request $request)
     {
         $user  = $request->user();
-        $query = CatatanKesehatan::with(['pengguna.profil', 'pencatat']);
+        $query = CatatanKesehatan::with(['pengguna.profil', 'pengguna.wilayah:id,nama', 'pencatat']);
 
         if ($user->role === 'user') {
             // Warga hanya dapat melihat catatannya sendiri
@@ -91,7 +91,7 @@ class CatatanKesehatanController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Daftar catatan kesehatan',
-            'data'    => $catatan->items(),
+            'data'    => collect($catatan->items())->map(fn ($c) => $this->bentukResponse($c))->values(),
             'meta'    => $this->metaPaginasi($catatan),
         ]);
     }
@@ -173,7 +173,7 @@ class CatatanKesehatanController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Catatan kesehatan berhasil disimpan',
-            'data'    => $this->bentukResponse($catatan->fresh(['pencatat'])),
+            'data'    => $this->bentukResponse($catatan->fresh(['pencatat', 'pengguna.profil', 'pengguna.wilayah:id,nama'])),
         ], 201);
     }
 
@@ -182,7 +182,7 @@ class CatatanKesehatanController extends Controller
     {
         $user = $request->user();
 
-        $catatan = CatatanKesehatan::with(['pengguna.profil', 'pencatat'])->find($id);
+        $catatan = CatatanKesehatan::with(['pengguna.profil', 'pengguna.wilayah:id,nama', 'pencatat'])->find($id);
         abort_unless($catatan, 404, 'Catatan tidak ditemukan');
 
         $boleh = match ($user->role) {
