@@ -158,10 +158,28 @@ class ProgramController extends Controller
                 ->value('status');
         }
 
+        $detail = $this->baris($program, $statusSaya);
+
+        if (in_array($user->role, ['kader', 'admin_kelurahan', 'super_admin'], true)) {
+            $detail['peserta'] = PesertaProgram::with('pengguna:id,name,email')
+                ->where('program_id', $program->id)
+                ->orderBy('id', 'desc')
+                ->get()
+                ->map(fn ($p) => [
+                    'id'             => $p->id,
+                    'user_id'        => $p->user_id,
+                    'name'           => $p->pengguna?->name,
+                    'email'          => $p->pengguna?->email,
+                    'status'         => $p->status,
+                    'terdaftar_pada' => $p->created_at?->toIso8601String(),
+                    'selesai_pada'   => $p->selesai_pada?->toIso8601String(),
+                ]);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Detail program',
-            'data'    => $this->baris($program, $statusSaya),
+            'data'    => $detail,
         ]);
     }
 
@@ -196,12 +214,21 @@ class ProgramController extends Controller
             'target_peserta'     => 'sometimes|nullable|integer|min:1',
             'mulai'              => 'sometimes|date',
             'selesai'            => 'sometimes|nullable|date|after_or_equal:mulai',
+            'status'             => ['sometimes', Rule::in(['akan_datang', 'berjalan', 'selesai'])],
             'exp_reward'         => 'sometimes|nullable|integer|min:0|max:10000',
             'badge_reward'       => 'sometimes|nullable|string|max:100',
         ]);
 
         if ($user->role === 'admin_kelurahan') {
             unset($data['wilayah_id']);
+        }
+
+        // Jika status diubah menjadi selesai tapi tanggal selesai tidak ditentukan
+        if (isset($data['status']) && $data['status'] === 'selesai' && ! isset($data['selesai'])) {
+            $hariIni = now()->toDateString();
+            $data['selesai'] = ($program->mulai && $program->mulai->toDateString() > $hariIni)
+                ? $program->mulai->toDateString()
+                : $hariIni;
         }
 
         $program->update($data);
@@ -230,6 +257,44 @@ class ProgramController extends Controller
             'success' => true,
             'message' => 'Program berhasil dihapus',
             'data'    => null,
+        ]);
+    }
+
+    // GET /program/{id}/peserta
+    public function peserta(Request $request, int $id)
+    {
+        $user    = $request->user();
+        $program = Program::findOrFail($id);
+
+        if ($user->role === 'admin_kelurahan' && $program->wilayah_id) {
+            abort_unless((int) $program->wilayah_id === (int) $user->wilayah_id, 403, 'Akses ditolak.');
+        }
+
+        $query = PesertaProgram::with('pengguna:id,name,email,wilayah_id')
+            ->where('program_id', $program->id);
+
+        if ($user->role === 'kader') {
+            $query->whereHas('pengguna', function ($q) use ($user) {
+                $q->where('wilayah_id', $user->wilayah_id);
+            });
+        }
+
+        $list = $query->orderBy('id', 'desc')->get();
+
+        $data = $list->map(fn ($p) => [
+            'id'             => $p->id,
+            'user_id'        => $p->user_id,
+            'name'           => $p->pengguna?->name,
+            'email'          => $p->pengguna?->email,
+            'status'         => $p->status,
+            'terdaftar_pada' => $p->created_at?->toIso8601String(),
+            'selesai_pada'   => $p->selesai_pada?->toIso8601String(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Daftar peserta program',
+            'data'    => $data,
         ]);
     }
 
@@ -416,9 +481,13 @@ class ProgramController extends Controller
         ];
     }
 
-    /** status dihitung dari tanggal (kontrak 12.1). */
+    /** status dihitung dari tanggal atau kolom status (kontrak 12.1). */
     private function statusProgram(Program $p, string $hariIni): string
     {
+        if ($p->status === 'selesai') {
+            return 'selesai';
+        }
+
         $mulai   = $p->mulai?->toDateString();
         $selesai = $p->selesai?->toDateString();
 
@@ -436,9 +505,10 @@ class ProgramController extends Controller
     private function saringStatus($query, string $status, string $hariIni): void
     {
         match ($status) {
-            'akan_datang' => $query->whereDate('mulai', '>', $hariIni),
-            'selesai'     => $query->whereNotNull('selesai')->whereDate('selesai', '<', $hariIni),
-            default       => $query->whereDate('mulai', '<=', $hariIni)
+            'akan_datang' => $query->where('status', '!=', 'selesai')->whereDate('mulai', '>', $hariIni),
+            'selesai'     => $query->where(fn ($q) => $q->where('status', 'selesai')->orWhere(fn ($sub) => $sub->whereNotNull('selesai')->whereDate('selesai', '<', $hariIni))),
+            default       => $query->where('status', '!=', 'selesai')
+                                    ->whereDate('mulai', '<=', $hariIni)
                                     ->where(fn ($q) => $q->whereNull('selesai')->orWhereDate('selesai', '>=', $hariIni)),
         };
     }

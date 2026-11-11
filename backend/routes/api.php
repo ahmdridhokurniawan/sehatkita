@@ -86,8 +86,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/program', [ProgramController::class, 'index']);
         Route::post('/program', [ProgramController::class, 'store']);
         Route::get('/program/{id}', [ProgramController::class, 'show']);
-        Route::put('/program/{id}', [ProgramController::class, 'update']);
+        Route::match(['put', 'patch'], '/program/{id}', [ProgramController::class, 'update']);
         Route::delete('/program/{id}', [ProgramController::class, 'destroy']);
+        Route::get('/program/{id}/peserta', [ProgramController::class, 'peserta']);
         Route::post('/program/{id}/peserta', [ProgramController::class, 'ikut']);
         Route::patch('/program/{id}/peserta', [ProgramController::class, 'ubahStatusPeserta']);
         Route::get('/peringkat', [PeringkatController::class, 'index']);

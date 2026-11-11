@@ -21,11 +21,35 @@ class Program extends Model
         'mulai',           // tanggal mulai
         'selesai',         // tanggal selesai (opsional)
         'status',          // akan_datang | berjalan | selesai
-        'badge',           // gamifikasi: nama badge setelah lulus
-        'exp',             // gamifikasi: poin pengalaman yang diberikan
+        'badge',           // alias frontend
+        'exp',             // alias frontend
+        'badge_reward',    // kolom resmi kontrak v1.5
+        'exp_reward',      // kolom resmi kontrak v1.5
         'level',           // gamifikasi: tingkat kesulitan (1-3)
         'rank_kelurahan',  // gamifikasi: peringkat kelurahan
     ];
+
+    // Accessor / Mutator alias exp <-> exp_reward
+    public function getExpAttribute(): int
+    {
+        return (int) ($this->attributes['exp_reward'] ?? 0);
+    }
+
+    public function setExpAttribute($value): void
+    {
+        $this->attributes['exp_reward'] = (int) $value;
+    }
+
+    // Accessor / Mutator alias badge <-> badge_reward
+    public function getBadgeAttribute(): ?string
+    {
+        return $this->attributes['badge_reward'] ?? null;
+    }
+
+    public function setBadgeAttribute($value): void
+    {
+        $this->attributes['badge_reward'] = $value;
+    }
 
     // Cast tipe kolom.
     protected function casts(): array
