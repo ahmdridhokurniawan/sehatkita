@@ -41,4 +41,56 @@ class TelegramService
     {
         return "https://t.me/{$this->username}?start={$connectToken}";
     }
+
+    public function getUpdates(int $offset = 0, int $timeout = 10): array
+    {
+        if (! $this->token) {
+            return [];
+        }
+
+        try {
+            $res = Http::timeout($timeout + 5)->get("https://api.telegram.org/bot{$this->token}/getUpdates", [
+                'offset'  => $offset,
+                'timeout' => $timeout,
+            ]);
+
+            if ($res->successful() && isset($res->json()['result'])) {
+                return $res->json()['result'];
+            }
+        } catch (\Throwable $e) {
+            Log::error('Gagal ambil updates Telegram: ' . $e->getMessage());
+        }
+
+        return [];
+    }
+
+    public function prosesPesan(array $message): bool
+    {
+        $chatId = $message['chat']['id'] ?? null;
+        $text   = trim($message['text'] ?? '');
+
+        if ($chatId && str_starts_with($text, '/start ')) {
+            $token = trim(substr($text, 7));
+            $user  = \App\Models\Pengguna::where('telegram_connect_token', $token)->first();
+
+            if ($user) {
+                $user->update([
+                    'telegram_chat_id'       => (string) $chatId,
+                    'telegram_connect_token' => null,
+                ]);
+
+                $pesan = "Halo *{$user->name}*!\n\nAkun SehatKita Anda berhasil terhubung dengan Bot Telegram resmi Dinas Kesehatan Kota Banjarbaru.\n\nAnda akan menerima notifikasi pengingat pemeriksaan bulanan dan rujukan kesehatan langsung di sini.";
+                $this->kirimPesan($chatId, $pesan);
+                return true;
+            } else {
+                $this->kirimPesan($chatId, "Token penghubung tidak valid atau sudah kedaluwarsa. Silakan ambil tautan baru di web SehatKita.");
+                return false;
+            }
+        } elseif ($chatId && $text === '/start') {
+            $this->kirimPesan($chatId, "Selamat datang di Bot SehatKita! Silakan hubungkan bot ini melalui menu Profil di aplikasi SehatKita.");
+            return true;
+        }
+
+        return false;
+    }
 }

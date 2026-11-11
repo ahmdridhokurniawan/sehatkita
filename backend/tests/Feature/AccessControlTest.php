@@ -194,8 +194,13 @@ class AccessControlTest extends TestCase
         $this->asUser($admin)->getJson('/api/v1/telegram/status')->assertStatus(403);
         $this->asUser($admin)->postJson('/api/v1/telegram/putuskan')->assertStatus(403);
 
-        $this->asUser($user)->getJson('/api/v1/telegram/status')->assertOk();
-        $this->asUser($user)->postJson('/api/v1/telegram/putuskan')->assertOk();
+        $res = $this->asUser($user)->getJson('/api/v1/telegram/status')->assertOk();
+        $res->assertJsonPath('success', true)
+            ->assertJsonPath('data.terhubung', false)
+            ->assertJsonStructure(['data' => ['terhubung', 'chat_id', 'link_telegram']]);
+
+        $resPutus = $this->asUser($user)->postJson('/api/v1/telegram/putuskan')->assertOk();
+        $resPutus->assertJsonPath('success', true);
     }
 
     public function test_riwayat_mutasi_wilayah_warga(): void

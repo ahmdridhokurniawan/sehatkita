@@ -21,12 +21,18 @@ class TelegramController extends Controller
             $user->update(['telegram_connect_token' => Str::random(16)]);
         }
 
-        return response()->json([
-            'success'       => true,
+        $link = $this->telegram->linkHubungkan($user->telegram_connect_token);
+        $payload = [
             'terhubung'     => ! empty($user->telegram_chat_id),
             'chat_id'       => $user->telegram_chat_id,
-            'link_telegram' => $this->telegram->linkHubungkan($user->telegram_connect_token),
-        ]);
+            'link_telegram' => $link,
+        ];
+
+        return response()->json(array_merge([
+            'success' => true,
+            'message' => 'Status Telegram',
+            'data'    => $payload,
+        ], $payload));
     }
 
     public function putuskan(Request $request)
@@ -42,6 +48,8 @@ class TelegramController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Integrasi Telegram berhasil diputuskan',
+            'ok'      => true,
+            'data'    => ['ok' => true],
         ]);
     }
 
@@ -52,27 +60,7 @@ class TelegramController extends Controller
             return response()->json(['ok' => true]);
         }
 
-        $chatId = $message['chat']['id'] ?? null;
-        $text   = trim($message['text'] ?? '');
-
-        if ($chatId && str_starts_with($text, '/start ')) {
-            $token = trim(substr($text, 7));
-            $user  = Pengguna::where('telegram_connect_token', $token)->first();
-
-            if ($user) {
-                $user->update([
-                    'telegram_chat_id'       => (string) $chatId,
-                    'telegram_connect_token' => null,
-                ]);
-
-                $pesan = "Halo *{$user->name}*!\n\nAkun SehatKita Anda berhasil terhubung dengan Bot Telegram resmi Dinas Kesehatan Kota Banjarbaru.\n\nAnda akan menerima notifikasi pengingat pemeriksaan bulanan dan rujukan kesehatan langsung di sini.";
-                $this->telegram->kirimPesan($chatId, $pesan);
-            } else {
-                $this->telegram->kirimPesan($chatId, "Token penghubung tidak valid atau sudah kedaluwarsa. Silakan ambil tautan baru di web SehatKita.");
-            }
-        } elseif ($chatId && $text === '/start') {
-            $this->telegram->kirimPesan($chatId, "Selamat datang di Bot SehatKita! Silakan hubungkan bot ini melalui menu Profil di aplikasi SehatKita.");
-        }
+        $this->telegram->prosesPesan($message);
 
         return response()->json(['ok' => true]);
     }
