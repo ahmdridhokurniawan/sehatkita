@@ -5,8 +5,7 @@
    ============================================================ */
 
 /* ---------- Sidebar: varian baru ---------- */
-.sidebar-brand .brand-mark { display: grid; place-items: center; background: var(--primary); color: #fff; }
-:root[data-theme="dark"] .sidebar-brand .brand-mark { color: #06201D; }
+.sidebar-brand .brand-mark { display: grid; place-items: center; background: transparent; }
 .snav .snav-tag { margin-left: auto; font-size: .625rem; font-weight: 700; color: var(--text-3); border: 1px dashed var(--border-strong); padding: 1px 6px; border-radius: 99px; }
 .dash.collapsed .snav .snav-tag { display: none; }
 /* Tombol buka-drawer hanya untuk layar kecil; tombol ciutkan hanya desktop */

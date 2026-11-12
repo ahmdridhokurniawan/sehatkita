@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
+import { BrandLockup } from "@/components/ui/BrandLogo";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import Modal from "@/components/ui/Modal";
 import { useUser, clearUserCache } from "@/hooks/useUser";
@@ -132,9 +133,7 @@ export default function AppShell({ children, noFab, onFab, roles }: Props) {
       {/* ============ SIDEBAR ============ */}
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <span className="brand-mark">
-            <Icon name="heart-pulse" size={18} />
-          </span>
+          <BrandLockup variant="sm" />
           <div className="txt">
             SehatKita<small>Monitoring PTM</small>
           </div>

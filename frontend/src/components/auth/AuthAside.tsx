@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
+import { BrandLockup } from "@/components/ui/BrandLogo";
 
 type Props = {
   /** Judul besar di panel kiri */
@@ -22,9 +23,7 @@ export default function AuthAside({ judul, teks, fitur, catatan }: Props) {
   return (
     <aside className="auth-aside">
       <Link href="/" className="brand" style={{ color: "#fff" }}>
-        <span className="brand-mark" style={{ background: "rgba(255,255,255,.18)", color: "#fff" }}>
-          <Icon name="heart-pulse" size={20} />
-        </span>
+        <BrandLockup variant="lg" />
         <span>
           SehatKita
           <small style={{ color: "rgba(255,255,255,.7)" }}>Kota Banjarbaru</small>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
+import { BrandLockup } from "@/components/ui/BrandLogo";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import PreviewPanel, { TAB_LABELS, type TabPreview } from "@/components/landing/PreviewPanel";
 import Modal from "@/components/ui/Modal";
@@ -172,9 +173,7 @@ export default function LandingPage() {
       <header className="site-header">
         <div className="container">
           <a href="#beranda" className="brand">
-            <span className="brand-mark">
-              <Icon name="heart-pulse" size={20} />
-            </span>
+            <BrandLockup variant="md" />
             <span>
               SehatKita<small>Kota Banjarbaru</small>
             </span>
@@ -461,9 +460,7 @@ export default function LandingPage() {
           <div className="footer-grid">
             <div className="footer-col">
               <a href="#beranda" className="brand mb-12">
-                <span className="brand-mark">
-                  <Icon name="heart-pulse" size={20} />
-                </span>
+                <BrandLockup variant="md" />
                 <span>SehatKita</span>
               </a>
               <p className="tiny" style={{ maxWidth: 300 }}>
