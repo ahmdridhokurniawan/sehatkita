@@ -37,21 +37,20 @@ export default function PeringkatPage() {
         if (!aktif) return;
         setWilayahList(rows);
         if (rows.length) setWilayahId((kini) => kini ?? rows[0].id);
+        else setLoading(false);
       })
-      .catch(() => aktif && setWilayahList([]));
+      .catch(() => {
+        if (!aktif) return;
+        setWilayahList([]);
+        setLoading(false);
+      });
     return () => {
       aktif = false;
     };
   }, [perluPilihWilayah]);
 
   const muat = useCallback(async () => {
-    if (loadingUser) return;
-    if (perluPilihWilayah && !wilayahId) {
-      setLoading(false);
-      setData(null);
-      setError("");
-      return;
-    }
+    if (loadingUser || (perluPilihWilayah && !wilayahId)) return;
     setLoading(true);
     try {
       const res = await programApi.peringkat(
@@ -67,8 +66,25 @@ export default function PeringkatPage() {
   }, [loadingUser, perluPilihWilayah, wilayahId]);
 
   useEffect(() => {
-    muat();
-  }, [muat]);
+    if (loadingUser || (perluPilihWilayah && !wilayahId)) return;
+    let aktif = true;
+    programApi
+      .peringkat(perluPilihWilayah && wilayahId ? { wilayah_id: wilayahId } : undefined)
+      .then((res) => {
+        if (!aktif) return;
+        setData(res);
+        setError("");
+      })
+      .catch((err) => {
+        if (aktif) setError(err instanceof ApiError ? err.message : "Gagal memuat peringkat");
+      })
+      .finally(() => {
+        if (aktif) setLoading(false);
+      });
+    return () => {
+      aktif = false;
+    };
+  }, [loadingUser, perluPilihWilayah, wilayahId]);
 
   return (
     <AppShell noFab>
@@ -82,7 +98,10 @@ export default function PeringkatPage() {
         {perluPilihWilayah ? (
           <select
             value={wilayahId ?? ""}
-            onChange={(e) => setWilayahId(Number(e.target.value) || null)}
+            onChange={(e) => {
+              setLoading(true);
+              setWilayahId(Number(e.target.value) || null);
+            }}
             className="input"
             aria-label="Pilih kelurahan"
             style={{ maxWidth: 220 }}

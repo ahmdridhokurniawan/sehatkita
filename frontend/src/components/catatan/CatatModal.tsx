@@ -69,7 +69,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
   const [warga, setWarga] = useState<WargaCari | null>(null);
   const [sesiId, setSesiId] = useState("");
   const [daftarSesi, setDaftarSesi] = useState<SesiPosbindu[]>([]);
-  const [muatSesi, setMuatSesi] = useState(false);
+  const [sesiSelesai, setSesiSelesai] = useState(false);
   const [angka, setAngka] = useState<Record<string, string>>({});
   const [jenisGula, setJenisGula] = useState("");
   const [konsumsiManis, setKonsumsiManis] = useState("");
@@ -91,18 +91,16 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
   /* Kader hanya boleh mencatat warga wilayah kerjanya (backend `dalamBinaan`) */
   const batasWilayah = user?.role === "kader" ? user.wilayah_id : null;
 
-  /* Warga & admin kelurahan hanya punya satu pilihan sumber; langsung pilih. */
-  useEffect(() => {
-    if (open && !petugas && sumber === "") setSumber("mandiri");
-  }, [open, petugas, sumber]);
+  /* Warga & admin kelurahan hanya punya satu pilihan sumber; otomatis "mandiri". */
+  const efektifSumber = !petugas && sumber === "" ? "mandiri" : sumber;
 
   /* Dropdown sesi hanya relevan bila sumber = kader */
-  const butuhSesi = sumber === "kader";
+  const butuhSesi = efektifSumber === "kader";
+  const muatSesi = open && butuhSesi && !sesiSelesai;
 
   useEffect(() => {
-    if (!open || !butuhSesi || daftarSesi.length > 0) return;
+    if (!open || !butuhSesi || sesiSelesai) return;
     let aktif = true;
-    setMuatSesi(true);
     posbinduApi
       .sesiList()
       .then((data) => {
@@ -112,12 +110,12 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
         if (aktif) setDaftarSesi([]);
       })
       .finally(() => {
-        if (aktif) setMuatSesi(false);
+        if (aktif) setSesiSelesai(true);
       });
     return () => {
       aktif = false;
     };
-  }, [open, butuhSesi, daftarSesi.length]);
+  }, [open, butuhSesi, sesiSelesai]);
 
   function reset() {
     setWaktu(nowLocal());
@@ -145,12 +143,12 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
     const e: Record<string, string> = {};
     const vWaktu = validTglPemeriksaan(waktu);
     if (!vWaktu.ok) e.dicatat_pada = vWaktu.msg || "Waktu wajib diisi.";
-    if (!sumber) e.sumber = "Sumber wajib dipilih.";
+    if (!efektifSumber) e.sumber = "Sumber wajib dipilih.";
 
-    const payload: Record<string, unknown> = { dicatat_pada: waktu, sumber };
+    const payload: Record<string, unknown> = { dicatat_pada: waktu, sumber: efektifSumber };
 
     // Sumber kader wajib menyertakan warga + sesi posbindu (aturan backend)
-    if (sumber === "kader") {
+    if (efektifSumber === "kader") {
       if (!warga) e.user_id = "Pilih warga binaan terlebih dahulu.";
       else payload.user_id = warga.id;
       if (!sesiId) e.sesi_posbindu_id = "Pilih sesi posbindu.";
@@ -251,7 +249,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
           <select
             className={"select" + (err.sumber ? " is-error" : "")}
             id="sumber"
-            value={sumber}
+            value={efektifSumber}
             onChange={(e) => {
               setSumber(e.target.value);
               setErr((p) => ({ ...p, sumber: "" }));
@@ -267,7 +265,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
           {err.sumber ? <div className="err-msg show">{err.sumber}</div> : null}
         </div>
 
-        {sumber === "kader" ? (
+        {efektifSumber === "kader" ? (
           <>
             <PilihWarga
               value={warga}

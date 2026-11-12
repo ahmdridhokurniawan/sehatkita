@@ -24,7 +24,7 @@ const LABEL_JENIS_FASKES: Record<string, string> = {
   rumah_sakit: "Rumah Sakit",
   klinik: "Klinik",
 };
-const JENIS_BADGE: Record<string, string> = {
+const JENIS_BADGE: Record<string, "info" | "danger" | "warning"> = {
   puskesmas: "info",
   rumah_sakit: "danger",
   klinik: "warning",
@@ -72,8 +72,24 @@ export default function AdminFaskesPage() {
   }, []);
 
   useEffect(() => {
-    muat();
-  }, [muat]);
+    let aktif = true;
+    adminApi.faskes
+      .list()
+      .then((res) => {
+        if (!aktif) return;
+        setDaftar(res || []);
+        setError("");
+      })
+      .catch((err) => {
+        if (aktif) setError(err instanceof ApiError ? err.message : "Gagal muat faskes");
+      })
+      .finally(() => {
+        if (aktif) setLoading(false);
+      });
+    return () => {
+      aktif = false;
+    };
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -247,7 +263,7 @@ export default function AdminFaskesPage() {
                     <div className="flex-1">
                       <div className="row-between">
                         <strong className="text-sm">{f.nama}</strong>
-                        <Badge tone={(JENIS_BADGE[f.jenis] as any) || "muted"}>
+                        <Badge tone={JENIS_BADGE[f.jenis] || "default"}>
                           {LABEL_JENIS_FASKES[f.jenis] || f.jenis}
                         </Badge>
                       </div>

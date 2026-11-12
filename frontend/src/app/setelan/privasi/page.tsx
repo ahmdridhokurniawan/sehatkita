@@ -5,6 +5,7 @@ import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Checkbox from "@/components/ui/Checkbox";
 import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
 import { profil as profilApi, persetujuan as consentApi, ApiError } from "@/lib/api";
 import { useUser, refreshUser } from "@/hooks/useUser";
 import type { Profil } from "@/types";
@@ -22,6 +23,8 @@ export default function SetelanPrivasiPage() {
   const [tampil, setTampil] = useState(false);
   const [loading, setLoading] = useState(true);
   const [simpan, setSimpan] = useState(false);
+  const [konfirmasiTarik, setKonfirmasiTarik] = useState(false);
+  const [menarik, setMenarik] = useState(false);
   const [pesan, setPesan] = useState<{ tone: "ok" | "err"; teks: string } | null>(null);
 
   useEffect(() => {
@@ -73,15 +76,16 @@ export default function SetelanPrivasiPage() {
   }
 
   async function tarikIzin() {
-    if (!window.confirm("Tarik persetujuan? Kamu tidak bisa mencatat kesehatan baru sampai memberi izin lagi.")) {
-      return;
-    }
+    setMenarik(true);
     try {
       await consentApi.tarik();
       await refreshUser();
+      setKonfirmasiTarik(false);
       setPesan({ tone: "ok", teks: "Persetujuan dicabut. Data lama tetap tersimpan untuk audit." });
     } catch (err) {
       setPesan({ tone: "err", teks: (err as ApiError).message });
+    } finally {
+      setMenarik(false);
     }
   }
 
@@ -158,7 +162,7 @@ export default function SetelanPrivasiPage() {
 
         <div className="row gap-8">
           {consentAktif ? (
-            <Button type="button" variant="danger" icon="x" onClick={tarikIzin}>
+            <Button type="button" variant="danger" icon="x" onClick={() => setKonfirmasiTarik(true)}>
               Tarik Persetujuan
             </Button>
           ) : (
@@ -173,6 +177,27 @@ export default function SetelanPrivasiPage() {
         <Icon name="lock" size={13} /> Data kesehatan hanya bisa dibuka pemilik akun, kader pembina, dan super admin
         (dengan log audit).
       </p>
+
+      <Modal
+        open={konfirmasiTarik}
+        onClose={() => setKonfirmasiTarik(false)}
+        title="Tarik Persetujuan Data?"
+        footer={
+          <>
+            <button type="button" className="btn btn-ghost" onClick={() => setKonfirmasiTarik(false)}>
+              Batal
+            </button>
+            <button type="button" className="btn btn-danger" onClick={tarikIzin} disabled={menarik}>
+              {menarik ? "Memproses…" : "Ya, Tarik Persetujuan"}
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm">
+          Setelah persetujuan dicabut, kamu tidak bisa mencatat data kesehatan baru sampai memberikan izin lagi. Data
+          lama tetap tersimpan aman untuk kebutuhan audit.
+        </p>
+      </Modal>
     </AppShell>
   );
 }

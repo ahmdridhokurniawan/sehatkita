@@ -81,14 +81,47 @@ export default function ProgramDetailPage() {
   }
 
   useEffect(() => {
-    if (!loadingUser && user) muat();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (loadingUser || !user || !id) return;
+    let aktif = true;
+    programApi
+      .list()
+      .then((list) => {
+        if (!aktif) return;
+        const found = list.find((p) => p.id === id) || null;
+        setProgram(found);
+        setError(found ? "" : "Program tidak ditemukan.");
+      })
+      .catch((err) => {
+        if (aktif) setError(err instanceof ApiError ? err.message : "Gagal memuat program");
+      })
+      .finally(() => {
+        if (aktif) setLoading(false);
+      });
+    return () => {
+      aktif = false;
+    };
   }, [loadingUser, user, id]);
 
   useEffect(() => {
-    if (!loadingUser && user) muatPeserta();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadingUser, user, id]);
+    if (loadingUser || !user || !id || !bolehKelolaPeserta) return;
+    let aktif = true;
+    programApi
+      .peserta(id)
+      .then((res) => {
+        if (aktif) setPeserta(res || []);
+      })
+      .catch((err) => {
+        if (aktif && err instanceof ApiError && err.status !== 403 && err.status !== 404) {
+          setAksiErr(err.message || "Gagal memuat daftar peserta");
+        }
+      })
+      .finally(() => {
+        if (aktif) setPesertaLoading(false);
+      });
+    return () => {
+      aktif = false;
+    };
+  }, [loadingUser, user, id, bolehKelolaPeserta]);
 
   async function toggle() {
     if (!program) return;

@@ -80,10 +80,10 @@ export default function RekamMedisPage() {
       setGrafik(gData);
 
       setError(null);
-    } catch (err: any) {
-      const apiErr = err as ApiError;
-      console.error("Rekam medis fetch error:", apiErr);
-      setError(apiErr.message || "Gagal memuat data");
+    } catch (err: unknown) {
+      const apiErr = err instanceof ApiError ? err : null;
+      console.error("Rekam medis fetch error:", err);
+      setError(apiErr?.message || "Gagal memuat data");
     } finally {
       setLoading(false);
     }
@@ -343,9 +343,9 @@ export default function RekamMedisPage() {
                   setCatatan(catatan.filter((x) => x.id !== hapusItem.id));
                   toast.success("Catatan berhasil dihapus.");
                   setHapusItem(null);
-                } catch (err: any) {
-                  const apiErr = err as ApiError;
-                  toast.warning(apiErr.message || "Gagal menghapus catatan.");
+                } catch (err: unknown) {
+                  const apiErr = err instanceof ApiError ? err : null;
+                  toast.warning(apiErr?.message || "Gagal menghapus catatan.");
                 } finally {
                   setSedangHapus(false);
                 }

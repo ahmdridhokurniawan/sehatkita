@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/Empty";
 import { LABEL_STATUS_RUJUKAN } from "@/lib/labels";
 import { tanggal } from "@/lib/format";
 import { rujukan as rujukanApi, ApiError } from "@/lib/api";
+import type { Rujukan } from "@/types";
 import type { StatusRujukan } from "@/lib/enums";
 
 /* ------------------------------------------------------------------
@@ -35,7 +36,7 @@ const FILTER = [
 export default function RujukanPage() {
   const [filter, setFilter] = useState<string>("semua");
   const [cari, setCari] = useState("");
-  const [daftarRujukan, setDaftarRujukan] = useState<any[]>([]);
+  const [daftarRujukan, setDaftarRujukan] = useState<Rujukan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
 
@@ -43,7 +44,6 @@ export default function RujukanPage() {
   useEffect(() => {
     (async () => {
       try {
-        setLoading(true);
         const res = await rujukanApi.list();
         setDaftarRujukan(res);
         setError("");
@@ -59,7 +59,7 @@ export default function RujukanPage() {
 
   const daftar = useMemo(() => {
     const q = cari.trim().toLowerCase();
-    return daftarRujukan.filter((r: any) => {
+    return daftarRujukan.filter((r) => {
       const cocokStatus = filter === "semua" || r.status === filter;
       const cocokCari =
         q === "" ||
@@ -69,7 +69,7 @@ export default function RujukanPage() {
     });
   }, [filter, cari, daftarRujukan]);
 
-  const hitung = (s: StatusRujukan) => daftarRujukan.filter((r: any) => r.status === s).length;
+  const hitung = (s: StatusRujukan) => daftarRujukan.filter((r) => r.status === s).length;
 
   return (
     <AppShell noFab>
@@ -125,7 +125,7 @@ export default function RujukanPage() {
                 <EmptyState title="Tidak ada rujukan" desc="Tidak ada rujukan dengan status ini." />
               </div>
             ) : (
-              daftar.map((r: any) => (
+              daftar.map((r) => (
                 <div className="card card-flat" key={r.id}>
                   <div className="row items-start gap-10">
                     <span className="li-ico">
@@ -133,8 +133,8 @@ export default function RujukanPage() {
                     </span>
                     <div className="flex-1">
                       <div className="row-between">
-                        <strong className="text-sm">{r.faskes?.nama || r.faskes}</strong>
-                        <Badge tone={TONE_STATUS[r.status as StatusRujukan]}>{LABEL_STATUS_RUJUKAN[r.status as StatusRujukan]}</Badge>
+                        <strong className="text-sm">{r.faskes?.nama || "Fasilitas Kesehatan"}</strong>
+                        <Badge tone={TONE_STATUS[r.status]}>{LABEL_STATUS_RUJUKAN[r.status]}</Badge>
                       </div>
                       <p className="tiny mt-4">{r.alasan}</p>
                       <p className="tiny mt-4">

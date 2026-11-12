@@ -56,8 +56,24 @@ export default function TargetKesehatanPage() {
   }, []);
 
   useEffect(() => {
-    muat();
-  }, [muat]);
+    let aktif = true;
+    targetKesehatan
+      .list()
+      .then((res) => {
+        if (!aktif) return;
+        setDaftar(res || []);
+        setError("");
+      })
+      .catch((err) => {
+        if (aktif) setError(err instanceof ApiError ? err.message : "Gagal memuat target");
+      })
+      .finally(() => {
+        if (aktif) setLoading(false);
+      });
+    return () => {
+      aktif = false;
+    };
+  }, []);
 
   const tercapai = useMemo(() => daftar.filter((t) => t.tercapai).length, [daftar]);
   const berjalan = useMemo(() => daftar.filter((t) => !t.tercapai).length, [daftar]);

@@ -64,8 +64,25 @@ export default function AdminVerifikasiPage() {
   }, [page]);
 
   useEffect(() => {
-    muat();
-  }, [muat]);
+    let aktif = true;
+    adminApi.verifikasi
+      .list({ page, per_page: 20 })
+      .then((res) => {
+        if (!aktif) return;
+        setDaftar(res.data as Baris[]);
+        setMeta(res.meta ? { total: res.meta.total, last_page: res.meta.last_page } : null);
+        setError("");
+      })
+      .catch((err) => {
+        if (aktif) setError(err instanceof ApiError ? err.message : "Gagal memuat data.");
+      })
+      .finally(() => {
+        if (aktif) setLoading(false);
+      });
+    return () => {
+      aktif = false;
+    };
+  }, [page]);
 
   async function putuskan(id: number, setuju: boolean) {
     setProses(id);
@@ -183,7 +200,10 @@ export default function AdminVerifikasiPage() {
           <button
             className="btn btn-ghost btn-sm"
             disabled={page <= 1 || loading}
-            onClick={() => setPage((p) => p - 1)}
+            onClick={() => {
+              setLoading(true);
+              setPage((p) => p - 1);
+            }}
           >
             Sebelumnya
           </button>
@@ -193,7 +213,10 @@ export default function AdminVerifikasiPage() {
           <button
             className="btn btn-ghost btn-sm"
             disabled={page >= meta.last_page || loading}
-            onClick={() => setPage((p) => p + 1)}
+            onClick={() => {
+              setLoading(true);
+              setPage((p) => p + 1);
+            }}
           >
             Berikutnya
           </button>

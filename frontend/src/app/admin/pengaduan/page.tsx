@@ -56,8 +56,24 @@ export default function HalamanAdminPengaduan() {
   }, [filter]);
 
   useEffect(() => {
-    muat();
-  }, [muat]);
+    let aktif = true;
+    pengaduanApi
+      .list(filter ? { status: filter } : undefined)
+      .then((d) => {
+        if (!aktif) return;
+        setList(d);
+        setError(null);
+      })
+      .catch((e) => {
+        if (aktif) setError(e instanceof ApiError ? e.message : "Gagal memuat pengaduan.");
+      })
+      .finally(() => {
+        if (aktif) setLoading(false);
+      });
+    return () => {
+      aktif = false;
+    };
+  }, [filter]);
 
   const buka = (p: Pengaduan) => {
     setAktif(p);
@@ -95,7 +111,10 @@ export default function HalamanAdminPengaduan() {
             key={s || "semua"}
             type="button"
             className={`btn ${filter === s ? "btn-primary" : "btn-outline"}`}
-            onClick={() => setFilter(s)}
+            onClick={() => {
+              setLoading(true);
+              setFilter(s);
+            }}
           >
             {s === "" ? "Semua" : STATUS_LABEL[s as StatusPengaduan]}
           </button>

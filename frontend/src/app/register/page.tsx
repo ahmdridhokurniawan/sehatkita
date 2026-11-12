@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
+import { BrandLockup } from "@/components/ui/BrandLogo";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import Modal from "@/components/ui/Modal";
 import AuthAside from "@/components/auth/AuthAside";
@@ -20,6 +21,8 @@ export default function RegisterPage() {
   const [wilayahId, setWilayahId] = useState("");
   const [password, setPassword] = useState("");
   const [konfirmasi, setKonfirmasi] = useState("");
+  const [lihatPw, setLihatPw] = useState(false);
+  const [lihatKonf, setLihatKonf] = useState(false);
   const [setuju, setSetuju] = useState(false);
   const [errors, setErrors] = useState<Err>({});
   const [alert, setAlert] = useState("");
@@ -81,12 +84,10 @@ export default function RegisterPage() {
         email,
         password,
         password_confirmation: konfirmasi,
-        wilayah_id: parseInt(wilayahId),
+        wilayah_id: parseInt(wilayahId, 10),
       });
 
-      // Simpan token ke localStorage
-      setToken(res.token);
-
+      setToken(res.token, true);
       clearUserCache();
 
       // User baru (consent_at null) → redirect ke onboarding (kontrak §26)
@@ -95,9 +96,9 @@ export default function RegisterPage() {
       } else {
         router.push("/dashboard");
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setLoading(false);
-      const apiErr = err as ApiError;
+      const apiErr = err instanceof ApiError ? err : new ApiError("Registrasi gagal. Coba lagi.", 0);
       if (apiErr.status === 422 && apiErr.errors) {
         const errMap: Err = {};
         for (const [key, msgs] of Object.entries(apiErr.errors)) {
@@ -114,35 +115,43 @@ export default function RegisterPage() {
   return (
     <div className="auth-wrap">
       <AuthAside
-        judul="Mulai perjalanan hidup lebih sehat hari ini."
-        teks="Daftar gratis dan hubungkan akun Anda dengan kelurahan di Kota Banjarbaru."
+        judul="Pantau Kesehatan Anda dan Keluarga Mulai Hari Ini."
+        teks="Gratis untuk seluruh warga. Catatan tersimpan rapi, mudah dibagikan saat ke posbindu atau puskesmas."
         fitur={[
-          ["check-circle", "Catat hasil pemeriksaan kapan saja"],
-          ["check-circle", "Pantau perkembangan indikator"],
-          ["check-circle", "Ikuti kegiatan Posbindu wilayah"],
+          ["check-circle", "Pendaftaran cepat dalam 1 menit"],
+          ["map-pin", "Terhubung dengan program kelurahan setempat"],
+          ["lock", "Privasi & hak kontrol data di tangan Anda"],
         ]}
-        catatan="© 2026 SehatKita. Hak cipta dilindungi."
       />
 
       <main className="auth-main">
         <div className="auth-card">
-          <div className="row-between mb-24">
-            <div>
-              <h1 className="h2">Buat akun baru</h1>
-              <p className="tiny mt-4">
-                Registrasi publik membuat akun dengan peran <b>Masyarakat</b>.
-              </p>
-            </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <Link href="/" className="btn btn-sm btn-outline" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div className="auth-topbar">
+            <Link href="/" className="auth-mobile-brand" aria-label="Beranda SehatKita">
+              <BrandLockup variant="sm" />
+              <div className="txt">
+                SehatKita
+                <small>Kota Banjarbaru</small>
+              </div>
+            </Link>
+            <div className="auth-actions">
+              <Link href="/" className="btn btn-sm btn-outline">
                 <Icon name="arrow-left" size={16} /> Kembali
               </Link>
               <ThemeToggle />
             </div>
           </div>
 
+          <div className="auth-head">
+            <span className="auth-aside-badge">
+              <Icon name="user-plus" size={13} /> Pendaftaran Warga
+            </span>
+            <h1 className="h2">Buat akun baru</h1>
+            <p className="tiny mt-4">Langkah 1 dari 2: data akun &amp; wilayah tempat tinggal.</p>
+          </div>
+
           {alert ? (
-            <div className="alert alert-danger mb-16">
+            <div className="alert alert-danger mb-16" role="alert">
               <Icon name="alert-circle" />
               <div>{alert}</div>
             </div>
@@ -153,15 +162,18 @@ export default function RegisterPage() {
               <label className="label" htmlFor="name">
                 Nama lengkap <span className="req">*</span>
               </label>
-              <input
-                className={`input ${errors.name ? "is-error" : ""}`}
-                type="text"
-                id="name"
-                name="name"
-                placeholder="Nama sesuai identitas"
-                value={nama}
-                onChange={(e) => setNama(e.target.value)}
-              />
+              <div className="input-icon">
+                <Icon name="user" size={18} />
+                <input
+                  className={`input ${errors.name ? "is-error" : ""}`}
+                  type="text"
+                  id="name"
+                  name="name"
+                  placeholder="Nama sesuai identitas"
+                  value={nama}
+                  onChange={(e) => setNama(e.target.value)}
+                />
+              </div>
               <div className={`err-msg ${errors.name ? "show" : ""}`}>{errors.name}</div>
             </div>
 
@@ -219,31 +231,57 @@ export default function RegisterPage() {
               <label className="label" htmlFor="password">
                 Password <span className="req">*</span>
               </label>
-              <input
-                className={`input ${errors.password ? "is-error" : ""}`}
-                type="password"
-                id="password"
-                name="password"
-                placeholder="Min. 8 karakter"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <div className="input-icon has-end">
+                <Icon name="lock" size={18} />
+                <input
+                  className={`input ${errors.password ? "is-error" : ""}`}
+                  type={lihatPw ? "text" : "password"}
+                  id="password"
+                  name="password"
+                  autoComplete="new-password"
+                  placeholder="Min. 8 karakter"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="input-end-btn"
+                  aria-label={lihatPw ? "Sembunyikan password" : "Tampilkan password"}
+                  aria-pressed={lihatPw}
+                  onClick={() => setLihatPw((v) => !v)}
+                >
+                  <Icon name={lihatPw ? "eye-off" : "eye"} size={18} />
+                </button>
+              </div>
               <div className={`err-msg ${errors.password ? "show" : ""}`}>{errors.password}</div>
             </div>
 
             <div className="field">
               <label className="label" htmlFor="password_confirmation">
-                Konfirmasi <span className="req">*</span>
+                Konfirmasi Password <span className="req">*</span>
               </label>
-              <input
-                className={`input ${errors.password_confirmation ? "is-error" : ""}`}
-                type="password"
-                id="password_confirmation"
-                name="password_confirmation"
-                placeholder="Ulangi password"
-                value={konfirmasi}
-                onChange={(e) => setKonfirmasi(e.target.value)}
-              />
+              <div className="input-icon has-end">
+                <Icon name="lock" size={18} />
+                <input
+                  className={`input ${errors.password_confirmation ? "is-error" : ""}`}
+                  type={lihatKonf ? "text" : "password"}
+                  id="password_confirmation"
+                  name="password_confirmation"
+                  autoComplete="new-password"
+                  placeholder="Ulangi password"
+                  value={konfirmasi}
+                  onChange={(e) => setKonfirmasi(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="input-end-btn"
+                  aria-label={lihatKonf ? "Sembunyikan konfirmasi password" : "Tampilkan konfirmasi password"}
+                  aria-pressed={lihatKonf}
+                  onClick={() => setLihatKonf((v) => !v)}
+                >
+                  <Icon name={lihatKonf ? "eye-off" : "eye"} size={18} />
+                </button>
+              </div>
               <div className={`err-msg ${errors.password_confirmation ? "show" : ""}`}>
                 {errors.password_confirmation}
               </div>
@@ -253,16 +291,14 @@ export default function RegisterPage() {
               <input type="checkbox" checked={setuju} onChange={(e) => setSetuju(e.target.checked)} />
               <span className="tiny">
                 Saya menyetujui{" "}
-                <a
-                  href="#"
-                  className="text-primary fw-600"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setKebijakan(true);
-                  }}
+                <button
+                  type="button"
+                  className="link-btn text-primary fw-600"
+                  style={{ display: "inline", padding: 0, fontSize: "inherit" }}
+                  onClick={() => setKebijakan(true)}
                 >
                   Kebijakan Penggunaan Data
-                </a>{" "}
+                </button>{" "}
                 SehatKita.
               </span>
             </label>
@@ -282,19 +318,23 @@ export default function RegisterPage() {
         </div>
       </main>
 
-      <Modal open={kebijakan} onClose={() => setKebijakan(false)} title="Kebijakan Penggunaan Data">
-        <p className="tiny mt-12">
+      <Modal
+        open={kebijakan}
+        onClose={() => setKebijakan(false)}
+        title="Kebijakan Penggunaan Data"
+        footer={
+          <button className="btn btn-primary" onClick={() => setKebijakan(false)} type="button">
+            Mengerti
+          </button>
+        }
+      >
+        <p className="tiny">
           SehatKita mengumpulkan data kesehatan yang Anda catat untuk menampilkan riwayat, insight, dan program
           kesehatan wilayah. Data individual hanya dapat diakses oleh Anda dan petugas berwenang. Data agregat yang
           ditampilkan kepada admin kelurahan tidak memuat identitas pribadi, dan kelompok dengan jumlah kurang dari 5
           orang disembunyikan.
         </p>
         <p className="tiny mt-8">Anda dapat membatalkan persetujuan kapan saja melalui pengaturan akun.</p>
-        <div className="modal-foot mt-20">
-          <button className="btn btn-primary" onClick={() => setKebijakan(false)} type="button">
-            Mengerti
-          </button>
-        </div>
       </Modal>
     </div>
   );

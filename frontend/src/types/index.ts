@@ -425,7 +425,7 @@ export interface ProgramQuery extends ListQuery {
   wilayah_id?: number;
 }
 export interface ProgramInput {
-  wilayah_id: number;
+  wilayah_id?: number | null;
   judul: string;
   jenis: JenisProgram;
   target_peserta?: number;

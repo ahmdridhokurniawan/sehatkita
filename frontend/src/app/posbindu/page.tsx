@@ -90,8 +90,31 @@ export default function PosbinduPage() {
   }, [bolehKelola]);
 
   useEffect(() => {
-    if (!loadingUser && user) muat();
-  }, [loadingUser, user, muat]);
+    if (loadingUser || !user) return;
+    let aktif = true;
+    const req = bolehKelola
+      ? posbinduApi.sesiList().then((res) => {
+          if (aktif) setSesi(res);
+        })
+      : posbinduApi.kunjungan().then((res) => {
+          if (aktif) setKunjungan(res);
+        });
+    req
+      .then(() => {
+        if (aktif) setError("");
+      })
+      .catch((err) => {
+        if (!aktif) return;
+        const e = err as ApiError;
+        setError(e.message || "Gagal memuat data Posbindu");
+      })
+      .finally(() => {
+        if (aktif) setLoading(false);
+      });
+    return () => {
+      aktif = false;
+    };
+  }, [loadingUser, user, bolehKelola]);
 
   useEffect(() => {
     if (!perluPilihWilayah) return;

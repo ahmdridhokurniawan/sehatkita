@@ -75,8 +75,27 @@ export default function InsightPage() {
   }, []);
 
   useEffect(() => {
-    muat();
-  }, [muat]);
+    let aktif = true;
+    Promise.all([
+      insightApi.list(),
+      insightApi.ambang().catch(() => [] as AmbangBaris[]),
+    ])
+      .then(([res, am]) => {
+        if (!aktif) return;
+        setSemua(res ?? []);
+        setAmbang(am ?? []);
+        setError("");
+      })
+      .catch((err) => {
+        if (aktif) setError(err instanceof ApiError ? err.message : "Gagal memuat insight");
+      })
+      .finally(() => {
+        if (aktif) setLoading(false);
+      });
+    return () => {
+      aktif = false;
+    };
+  }, []);
 
   const daftar = useMemo(() => {
     const sumber = filter === "semua" ? semua : semua.filter((i) => i.level === filter);

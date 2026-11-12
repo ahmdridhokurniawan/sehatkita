@@ -53,8 +53,24 @@ export default function RujukanKelurahanPage() {
   }, []);
 
   useEffect(() => {
-    muat();
-  }, [muat]);
+    let aktif = true;
+    rujukanApi
+      .list()
+      .then((data) => {
+        if (!aktif) return;
+        setDaftar(data);
+        setError("");
+      })
+      .catch((err) => {
+        if (aktif) setError(err instanceof ApiError ? err.message : "Gagal memuat rujukan");
+      })
+      .finally(() => {
+        if (aktif) setLoading(false);
+      });
+    return () => {
+      aktif = false;
+    };
+  }, []);
 
   const jumlahPerStatus = useMemo(() => {
     const hasil: Record<string, number> = { baru: 0, dihubungi: 0, tertangani: 0, ditolak: 0 };

@@ -95,8 +95,25 @@ export default function ProgramPage() {
   }, []);
 
   useEffect(() => {
-    if (!loadingUser && user) muat();
-  }, [loadingUser, user, muat]);
+    if (loadingUser || !user) return;
+    let aktif = true;
+    programApi
+      .list()
+      .then((res) => {
+        if (!aktif) return;
+        setProgram(res);
+        setError("");
+      })
+      .catch((err) => {
+        if (aktif) setError(err instanceof ApiError ? err.message : "Gagal memuat program");
+      })
+      .finally(() => {
+        if (aktif) setLoading(false);
+      });
+    return () => {
+      aktif = false;
+    };
+  }, [loadingUser, user]);
 
   useEffect(() => {
     if (!loadingUser && role === "super_admin") {
@@ -147,7 +164,7 @@ export default function ProgramPage() {
         : (user?.wilayah_id || null);
 
       await programApi.create({
-        wilayah_id: wId as any,
+        wilayah_id: wId,
         judul: fJudul.trim(),
         jenis: fJenis,
         target_peserta: Number(fTarget) || 1,

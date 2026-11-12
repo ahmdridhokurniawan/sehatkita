@@ -63,7 +63,6 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
   const [error, setError] = useState("");
 
   const muat = useCallback(async () => {
-    setLoading(true);
     try {
       const [dash, ruj] = await Promise.all([
         dashboardApi.kelurahan(),
@@ -82,8 +81,30 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
   }, []);
 
   useEffect(() => {
-    muat();
-  }, [muat]);
+    let aktif = true;
+    Promise.all([
+      dashboardApi.kelurahan(),
+      rujukanApi.list().catch(() => [] as Rujukan[]),
+    ])
+      .then(async ([dash, ruj]) => {
+        if (!aktif) return;
+        setD(dash);
+        setRujukan(ruj);
+        const kun = await posbinduApi.kunjungan().catch(() => [] as KunjunganPosbindu[]);
+        if (!aktif) return;
+        setKunjungan(kun.slice(0, 3));
+        setError("");
+      })
+      .catch((err) => {
+        if (aktif) setError(err instanceof ApiError ? err.message : "Gagal memuat dashboard");
+      })
+      .finally(() => {
+        if (aktif) setLoading(false);
+      });
+    return () => {
+      aktif = false;
+    };
+  }, []);
 
   if (loading) {
     return (

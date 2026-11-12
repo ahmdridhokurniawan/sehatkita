@@ -1,11 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import { admin as adminApi, ApiError } from "@/lib/api";
+import type { AdminStatistik } from "@/types";
 
-const BAR_GROUPS = [
+const BAR_GROUPS: {
+  label: string;
+  key: keyof Pick<
+    AdminStatistik,
+    "total_users" | "total_program" | "total_program_participants" | "total_rujukan" | "total_catatan"
+  >;
+  color: string;
+}[] = [
   { label: "Pengguna", key: "total_users", color: "var(--primary)" },
   { label: "Program", key: "total_program", color: "var(--accent)" },
   { label: "Peserta", key: "total_program_participants", color: "var(--safe)" },
@@ -14,7 +21,7 @@ const BAR_GROUPS = [
 ];
 
 export default function GrafikRingkas() {
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<AdminStatistik | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
   const [mengunduh, setMengunduh] = useState("");

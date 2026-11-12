@@ -1,59 +1,94 @@
 "use client";
 
+import { useState } from "react";
 import { angka } from "@/lib/format";
 
 export type Segmen = { label: string; value: number; color?: string };
 
 type Props = { segments: Segmen[]; centerLabel?: string; centerValue?: string | number };
 
-function varCss(nama: string, fallback = "#888"): string {
-  if (typeof document === "undefined") return fallback;
-  return getComputedStyle(document.documentElement).getPropertyValue(nama).trim() || fallback;
-}
-const PALET = () => [1, 2, 3, 4, 5, 6].map((i) => varCss(`--c-${i}`));
+const PALET = ["var(--c-1)", "var(--c-2)", "var(--c-3)", "var(--c-4)", "var(--c-5)", "var(--c-6)"];
 
-/** Diagram donat — diporting dari prototype `charts.js`. */
+/** Diagram donat — aman SSR & interaktif saat hover segmen/legenda. */
 export default function Donut({ segments, centerLabel = "", centerValue = "" }: Props) {
-  const pal = PALET();
+  const [aktif, setAktif] = useState<number | null>(null);
   const total = segments.reduce((a, s) => a + s.value, 0) || 1;
-  const size = 190, r = 70, cx = size / 2, cy = size / 2, stroke = 22;
+  const size = 190;
+  const r = 70;
+  const cx = size / 2;
+  const cy = size / 2;
+  const stroke = 22;
   const C = 2 * Math.PI * r;
 
-  let offset = 0;
-  const busur = segments.map((s, i) => {
-    const frac = s.value / total;
+  const busurData = segments.reduce<
+    Array<{
+      seg: Segmen;
+      frac: number;
+      len: number;
+      offset: number;
+      warna: string;
+    }>
+  >((acc, seg, i) => {
+    const prev = acc[acc.length - 1];
+    const offset = prev ? prev.offset + prev.len : 0;
+    const frac = seg.value / total;
     const len = frac * C;
-    const warna = s.color || pal[i % pal.length];
-    const el = (
-      <circle key={i} cx={cx} cy={cy} r={r} fill="none" stroke={warna} strokeWidth={stroke}
-        strokeDasharray={`${len.toFixed(2)} ${(C - len).toFixed(2)}`} strokeDashoffset={(-offset).toFixed(2)}
-        transform={`rotate(-90 ${cx} ${cy})`} strokeLinecap="butt">
-        <title>{`${s.label}: ${angka(s.value)} (${Math.round(frac * 100)}%)`}</title>
-      </circle>
-    );
-    offset += len;
-    return el;
-  });
+    const warna = seg.color || PALET[i % PALET.length];
+    acc.push({ seg, frac, len, offset, warna });
+    return acc;
+  }, []);
+
+  const fokus = aktif !== null && busurData[aktif] ? busurData[aktif] : null;
+  const tampilValue = fokus ? `${Math.round(fokus.frac * 100)}%` : centerValue;
+  const tampilLabel = fokus ? fokus.seg.label : centerLabel;
 
   return (
-    <div className="donut-wrap">
+    <div className="donut-wrap" onMouseLeave={() => setAktif(null)}>
       <div className="donut-svg">
         <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} role="img" aria-label="Diagram donat">
-          <circle cx={cx} cy={cy} r={r} fill="none" stroke={varCss("--border")} strokeWidth={stroke} />
-          {busur}
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--border)" strokeWidth={stroke} />
+          {busurData.map((b, i) => {
+            const disorot = aktif === i;
+            return (
+              <circle
+                key={i}
+                cx={cx}
+                cy={cy}
+                r={r}
+                fill="none"
+                stroke={b.warna}
+                strokeWidth={disorot ? stroke + 4 : stroke}
+                opacity={aktif !== null && !disorot ? 0.52 : 1}
+                strokeDasharray={`${b.len.toFixed(2)} ${(C - b.len).toFixed(2)}`}
+                strokeDashoffset={(-b.offset).toFixed(2)}
+                transform={`rotate(-90 ${cx} ${cy})`}
+                strokeLinecap="butt"
+                style={{ cursor: "pointer", transition: "stroke-width .15s ease, opacity .15s ease" }}
+                onMouseEnter={() => setAktif(i)}
+                onClick={() => setAktif((prev) => (prev === i ? null : i))}
+              >
+                <title>{`${b.seg.label}: ${angka(b.seg.value)} (${Math.round(b.frac * 100)}%)`}</title>
+              </circle>
+            );
+          })}
         </svg>
         <div className="donut-center">
-          <strong>{centerValue}</strong>
-          <span>{centerLabel}</span>
+          <strong>{tampilValue}</strong>
+          <span>{tampilLabel}</span>
         </div>
       </div>
       <ul className="donut-legend">
-        {segments.map((s, i) => (
-          <li key={i}>
-            <i style={{ background: s.color || pal[i % pal.length] }} />
-            <span className="dl-label">{s.label}</span>
+        {busurData.map((b, i) => (
+          <li
+            key={i}
+            style={{ cursor: "pointer", opacity: aktif !== null && aktif !== i ? 0.55 : 1 }}
+            onMouseEnter={() => setAktif(i)}
+            onClick={() => setAktif((prev) => (prev === i ? null : i))}
+          >
+            <i style={{ background: b.warna }} />
+            <span className="dl-label">{b.seg.label}</span>
             <span className="dl-val">
-              {angka(s.value)} <em>{Math.round((s.value / total) * 100)}%</em>
+              {angka(b.seg.value)} <em>{Math.round(b.frac * 100)}%</em>
             </span>
           </li>
         ))}

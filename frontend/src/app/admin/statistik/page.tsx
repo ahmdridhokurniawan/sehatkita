@@ -5,9 +5,15 @@ import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
 import { admin as adminApi, ApiError } from "@/lib/api";
+import type { AdminStatistik } from "@/types";
+
+type AdminStatistikEkstra = AdminStatistik & {
+  new_catatan_7d?: number;
+  total_audit_logs_7d?: number;
+};
 
 export default function AdminStatistikPage() {
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<AdminStatistikEkstra | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
 
@@ -15,7 +21,6 @@ export default function AdminStatistikPage() {
   useEffect(() => {
     (async () => {
       try {
-        setLoading(true);
         const res = await adminApi.statistik();
         setStats(res);
         setError("");

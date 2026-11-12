@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
+import { BrandLockup } from "@/components/ui/BrandLogo";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import Modal from "@/components/ui/Modal";
 import AuthAside from "@/components/auth/AuthAside";
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const [alert, setAlert] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [lupa, setLupa] = useState(false);
+  const [tersalin, setTersalin] = useState(false);
 
   function validasi(): boolean {
     const err: Err = {};
@@ -44,14 +46,14 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const res = await auth.login({ email, password, device_name: "web-app" });
-      
-      // Simpan token ke localStorage, lalu langsung ke menu utama
-      setToken(res.token);
+
+      // Simpan token di localStorage (ingat saya) atau sessionStorage (hanya sesi browser ini)
+      setToken(res.token, ingat);
       clearUserCache();
       router.push("/dashboard");
-    } catch (err: any) {
+    } catch (err: unknown) {
       setLoading(false);
-      const apiErr = err as ApiError;
+      const apiErr = err instanceof ApiError ? err : new ApiError("Terjadi kesalahan. Coba lagi.", 0);
       if (apiErr.status === 422 || apiErr.status === 401) {
         const pesan = apiErr.message || "Email atau password salah.";
         setAlert(pesan);
@@ -59,6 +61,17 @@ export default function LoginPage() {
       } else {
         setAlert(apiErr.message || "Terjadi kesalahan. Coba lagi.");
       }
+    }
+  }
+
+  async function salinFormatReset() {
+    const teks = `Permohonan Reset Akun SehatKita\nEmail terdaftar: ${email || "[isi email akun]"}\nKelurahan: [isi kelurahan]`;
+    try {
+      await navigator.clipboard?.writeText(teks);
+      setTersalin(true);
+      setTimeout(() => setTersalin(false), 2500);
+    } catch {
+      setTersalin(false);
     }
   }
 
@@ -77,21 +90,32 @@ export default function LoginPage() {
 
       <main className="auth-main">
         <div className="auth-card">
-          <div className="row-between mb-24">
-            <div>
-              <h1 className="h2">Masuk ke akun Anda</h1>
-              <p className="tiny mt-4">Gunakan email dan password yang terdaftar.</p>
-            </div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-              <Link href="/" className="btn btn-sm btn-outline" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div className="auth-topbar">
+            <Link href="/" className="auth-mobile-brand" aria-label="Beranda SehatKita">
+              <BrandLockup variant="sm" />
+              <div className="txt">
+                SehatKita
+                <small>Kota Banjarbaru</small>
+              </div>
+            </Link>
+            <div className="auth-actions">
+              <Link href="/" className="btn btn-sm btn-outline">
                 <Icon name="arrow-left" size={16} /> Kembali
               </Link>
               <ThemeToggle />
             </div>
           </div>
 
+          <div className="auth-head">
+            <span className="auth-aside-badge">
+              <Icon name="shield-check" size={13} /> Portal Kesehatan Warga
+            </span>
+            <h1 className="h2">Masuk ke akun Anda</h1>
+            <p className="tiny mt-4">Gunakan email dan password yang terdaftar.</p>
+          </div>
+
           {alert ? (
-            <div className="alert alert-danger mb-16">
+            <div className="alert alert-danger mb-16" role="alert">
               <Icon name="alert-circle" />
               <div>{alert}</div>
             </div>
@@ -123,7 +147,7 @@ export default function LoginPage() {
               <label className="label" htmlFor="password">
                 Password <span className="req">*</span>
               </label>
-              <div className="input-icon" style={{ position: "relative" }}>
+              <div className="input-icon has-end">
                 <Icon name="lock" size={18} />
                 <input
                   className={`input ${errors.password ? "is-error" : ""}`}
@@ -132,18 +156,17 @@ export default function LoginPage() {
                   name="password"
                   autoComplete="current-password"
                   placeholder="Masukkan password"
-                  style={{ paddingRight: 44 }}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
                 <button
                   type="button"
-                  className="btn-icon btn-sm btn-ghost"
-                  style={{ position: "absolute", right: 5, top: "50%", transform: "translateY(-50%)" }}
-                  aria-label="Tampilkan password"
+                  className="input-end-btn"
+                  aria-label={lihatPw ? "Sembunyikan password" : "Tampilkan password"}
+                  aria-pressed={lihatPw}
                   onClick={() => setLihatPw((v) => !v)}
                 >
-                  <Icon name="eye" size={18} />
+                  <Icon name={lihatPw ? "eye-off" : "eye"} size={18} />
                 </button>
               </div>
               <div className={`err-msg ${errors.password ? "show" : ""}`}>{errors.password}</div>
@@ -152,18 +175,18 @@ export default function LoginPage() {
             <div className="row-between mt-16">
               <label className="check">
                 <input type="checkbox" checked={ingat} onChange={(e) => setIngat(e.target.checked)} />
-                <span className="tiny">Ingat saya</span>
+                <span className="tiny">Ingat saya di perangkat ini</span>
               </label>
-              <a
-                href="#"
-                className="tiny text-primary fw-600"
-                onClick={(e) => {
-                  e.preventDefault();
+              <button
+                type="button"
+                className="link-btn tiny fw-600"
+                onClick={() => {
+                  setTersalin(false);
                   setLupa(true);
                 }}
               >
                 Lupa password?
-              </a>
+              </button>
             </div>
 
             <button type="submit" className="btn btn-primary btn-lg btn-block mt-20" disabled={loading}>
@@ -180,15 +203,32 @@ export default function LoginPage() {
         </div>
       </main>
 
-      <Modal open={lupa} onClose={() => setLupa(false)} title="Lupa password?">
-        <p className="tiny">
-          Fitur reset password belum tersedia pada kontrak API saat ini. Hubungi petugas kelurahan atau admin untuk
-          bantuan pengaturan ulang akun.
+      <Modal
+        open={lupa}
+        onClose={() => setLupa(false)}
+        title="Bantuan Lupa Password"
+        footer={
+          <>
+            <button type="button" className="btn btn-outline" onClick={salinFormatReset}>
+              <Icon name={tersalin ? "check" : "copy"} size={16} />
+              {tersalin ? "Format Tersalin" : "Salin Format Pesan"}
+            </button>
+            <button className="btn btn-primary" onClick={() => setLupa(false)} type="button">
+              Mengerti
+            </button>
+          </>
+        }
+      >
+        <p className="text-sm">
+          Reset password mandiri lewat email belum tersedia pada API saat ini. Untuk keamanan akun warga, pemulihan
+          dilakukan oleh petugas kelurahan atau super admin.
         </p>
-        <div className="modal-foot mt-20">
-          <button className="btn btn-primary" onClick={() => setLupa(false)} type="button">
-            Mengerti
-          </button>
+        <div className="alert alert-info mt-12">
+          <Icon name="info" size={18} />
+          <div>
+            <strong>Langkah cepat:</strong> salin format pesan di bawah lalu kirim ke petugas/kader kelurahan Anda
+            untuk verifikasi identitas.
+          </div>
         </div>
       </Modal>
     </div>

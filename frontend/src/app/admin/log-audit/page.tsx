@@ -7,8 +7,9 @@ import Badge from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/Empty";
 import { tanggal } from "@/lib/format";
 import { admin as adminApi, ApiError } from "@/lib/api";
+import type { LogAudit } from "@/types";
 
-const AKSI_BADGE: Record<string, string> = {
+const AKSI_BADGE: Record<string, "safe" | "info" | "warning" | "danger"> = {
   create: "safe",
   read: "info",
   update: "warning",
@@ -16,7 +17,7 @@ const AKSI_BADGE: Record<string, string> = {
 };
 
 export default function AdminLogAuditPage() {
-  const [daftar, setDaftar] = useState<any[]>([]);
+  const [daftar, setDaftar] = useState<LogAudit[]>([]);
   const [filter, setFilter] = useState<string>("semua");
   const [cari, setCari] = useState("");
   const [loading, setLoading] = useState(true);
@@ -26,7 +27,6 @@ export default function AdminLogAuditPage() {
   useEffect(() => {
     (async () => {
       try {
-        setLoading(true);
         const res = await adminApi.logAudit.list();
         setDaftar(res);
         setError("");
@@ -42,7 +42,7 @@ export default function AdminLogAuditPage() {
 
   const filtered = useMemo(() => {
     const q = cari.trim().toLowerCase();
-    return daftar.filter((log: any) => {
+    return daftar.filter((log) => {
       if (filter !== "semua" && log.aksi !== filter) return false;
       if (!q) return true;
       const teks = [
@@ -59,7 +59,7 @@ export default function AdminLogAuditPage() {
     });
   }, [filter, daftar, cari]);
 
-  const hitungAksi = (aksi: string) => daftar.filter((l: any) => l.aksi === aksi).length;
+  const hitungAksi = (aksi: string) => daftar.filter((l) => l.aksi === aksi).length;
 
   return (
     <AppShell noFab roles={["super_admin"]}>
@@ -150,7 +150,7 @@ export default function AdminLogAuditPage() {
                 <EmptyState title="Tidak ada log" desc="Tidak ada aktivitas dengan filter ini." />
               </div>
             ) : (
-              filtered.map((log: any) => (
+              filtered.map((log) => (
                 <div className="card card-flat" key={log.id}>
                   <div className="row items-start gap-10">
                     <span className="li-ico">
@@ -159,7 +159,7 @@ export default function AdminLogAuditPage() {
                     <div className="flex-1">
                       <div className="row-between">
                         <strong className="text-sm">{log.model}</strong>
-                        <Badge tone={AKSI_BADGE[log.aksi] as any || "muted"}>{log.aksi}</Badge>
+                        <Badge tone={AKSI_BADGE[log.aksi] || "default"}>{log.aksi}</Badge>
                       </div>
                       <p className="tiny mt-4">User: {log.pengguna?.name || log.user_id}</p>
                       <p className="tiny mt-2">Model ID: {log.model_id}</p>

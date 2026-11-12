@@ -46,14 +46,11 @@ export default function PilihWarga({
 
     const bersih = nik.replace(/\D/g, "");
     if (bersih.length < 3) {
-      setHasil([]);
-      setPesan("");
-      setMencari(false);
       return;
     }
 
-    setMencari(true);
     timer.current = setTimeout(async () => {
+      setMencari(true);
       try {
         const data = await penggunaApi.cariNik(bersih);
         const tersaring = wilayahId
@@ -122,8 +119,14 @@ export default function PilihWarga({
           placeholder="Ketik minimal 3 digit NIK…"
           value={nik}
           onChange={(e) => {
-            setNik(e.target.value.replace(/\D/g, ""));
+            const next = e.target.value.replace(/\D/g, "");
+            setNik(next);
             setTerbuka(true);
+            if (next.length < 3) {
+              setHasil([]);
+              setPesan("");
+              setMencari(false);
+            }
           }}
           onFocus={() => setTerbuka(true)}
         />

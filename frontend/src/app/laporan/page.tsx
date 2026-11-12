@@ -51,25 +51,20 @@ export default function LaporanKelurahanPage() {
         if (!aktif) return;
         setWilayahList(rows);
         if (rows.length) setWilayahId((kini) => kini ?? rows[0].id);
+        else setLoading(false);
       })
-      .catch(() => aktif && setWilayahList([]));
+      .catch(() => {
+        if (!aktif) return;
+        setWilayahList([]);
+        setLoading(false);
+      });
     return () => {
       aktif = false;
     };
   }, [perluPilihWilayah]);
 
   const muat = useCallback(async () => {
-    /* Role baru diketahui setelah /auth/me selesai. Jangan memanggil API
-       selagi role belum pasti — kalau tidak, super_admin terlanjur memanggil
-       tanpa `wilayah_id` dan backend membalas 422 "Validasi gagal". */
-    if (loadingUser) return;
-    // Tunggu pilihan kelurahan; jangan memanggil API yang pasti 422.
-    if (perluPilihWilayah && !wilayahId) {
-      setLoading(false);
-      setD(null);
-      setError("");
-      return;
-    }
+    if (loadingUser || (perluPilihWilayah && !wilayahId)) return;
     setLoading(true);
     try {
       const data = await laporanApi.kelurahan({
@@ -86,8 +81,28 @@ export default function LaporanKelurahanPage() {
   }, [periode, perluPilihWilayah, wilayahId, loadingUser]);
 
   useEffect(() => {
-    muat();
-  }, [muat]);
+    if (loadingUser || (perluPilihWilayah && !wilayahId)) return;
+    let aktif = true;
+    laporanApi
+      .kelurahan({
+        periode,
+        ...(perluPilihWilayah && wilayahId ? { wilayah_id: wilayahId } : {}),
+      })
+      .then((data) => {
+        if (!aktif) return;
+        setD(data);
+        setError("");
+      })
+      .catch((err) => {
+        if (aktif) setError(err instanceof ApiError ? err.message : "Gagal memuat laporan");
+      })
+      .finally(() => {
+        if (aktif) setLoading(false);
+      });
+    return () => {
+      aktif = false;
+    };
+  }, [periode, perluPilihWilayah, wilayahId, loadingUser]);
 
   return (
     <AppShell greet="Laporan Kelurahan" roles={["admin_kelurahan", "super_admin"]}>
@@ -98,7 +113,10 @@ export default function LaporanKelurahanPage() {
             {perluPilihWilayah ? (
               <select
                 value={wilayahId ?? ""}
-                onChange={(e) => setWilayahId(Number(e.target.value) || null)}
+                onChange={(e) => {
+                  setLoading(true);
+                  setWilayahId(Number(e.target.value) || null);
+                }}
                 className="input"
                 aria-label="Pilih kelurahan"
                 style={{ maxWidth: 200 }}
@@ -113,7 +131,10 @@ export default function LaporanKelurahanPage() {
             ) : null}
             <select
               value={periode}
-              onChange={(e) => setPeriode(e.target.value as Periode)}
+              onChange={(e) => {
+                setLoading(true);
+                setPeriode(e.target.value as Periode);
+              }}
               className="input"
               aria-label="Pilih periode laporan"
               style={{ maxWidth: 140 }}

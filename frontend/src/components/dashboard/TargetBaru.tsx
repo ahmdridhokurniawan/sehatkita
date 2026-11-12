@@ -33,7 +33,6 @@ export default function TargetBaru() {
   const [hapusId, setHapusId] = useState<number | null>(null);
 
   const muat = useCallback(async () => {
-    setLoading(true);
     try {
       const data = await targetKesehatan.list();
       setDaftar(data);
@@ -46,8 +45,24 @@ export default function TargetBaru() {
   }, []);
 
   useEffect(() => {
-    muat();
-  }, [muat]);
+    let aktif = true;
+    targetKesehatan
+      .list()
+      .then((data) => {
+        if (!aktif) return;
+        setDaftar(data);
+        setError("");
+      })
+      .catch((e) => {
+        if (aktif) setError(e instanceof ApiError ? e.message : "Gagal memuat target");
+      })
+      .finally(() => {
+        if (aktif) setLoading(false);
+      });
+    return () => {
+      aktif = false;
+    };
+  }, []);
 
   const bukaTambah = () => {
     setSunting(null);
@@ -150,7 +165,7 @@ export default function TargetBaru() {
                   </span>
                   {t.catatan_motivasi ? (
                     <span className="tiny" style={{ display: "block", marginTop: 4, fontStyle: "italic" }}>
-                      "{t.catatan_motivasi}"
+                      &ldquo;{t.catatan_motivasi}&rdquo;
                     </span>
                   ) : null}
                   {t.tercapai ? (

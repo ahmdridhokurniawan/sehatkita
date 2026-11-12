@@ -55,8 +55,24 @@ export default function CatatanKesehatanPage() {
   }, []);
 
   useEffect(() => {
-    muat();
-  }, [muat]);
+    let aktif = true;
+    catatanApi
+      .list({ per_page: 50 })
+      .then((res) => {
+        if (!aktif) return;
+        setDaftar(res ?? []);
+        setError("");
+      })
+      .catch((err) => {
+        if (aktif) setError(err instanceof ApiError ? err.message : "Gagal memuat catatan");
+      })
+      .finally(() => {
+        if (aktif) setLoading(false);
+      });
+    return () => {
+      aktif = false;
+    };
+  }, []);
 
   return (
     <AppShell onFab={() => setFormTerbuka(true)}>

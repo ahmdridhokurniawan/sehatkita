@@ -21,8 +21,8 @@ const FILTER = [
   { value: "super_admin", label: "Super Admin" },
 ];
 
-const ROLE_BADGE: Record<Role, string> = {
-  user: "muted",
+const ROLE_BADGE: Record<Role, "default" | "info" | "warning" | "danger"> = {
+  user: "default",
   kader: "info",
   admin_kelurahan: "warning",
   super_admin: "danger",
@@ -116,8 +116,24 @@ export default function AdminPenggunaPage() {
   }, []);
 
   useEffect(() => {
-    muat();
-  }, [muat]);
+    let aktif = true;
+    adminApi.pengguna
+      .list()
+      .then((res) => {
+        if (!aktif) return;
+        setDaftar(res || []);
+        setError("");
+      })
+      .catch((err) => {
+        if (aktif) setError(err instanceof ApiError ? err.message : "Gagal muat pengguna");
+      })
+      .finally(() => {
+        if (aktif) setLoading(false);
+      });
+    return () => {
+      aktif = false;
+    };
+  }, []);
 
   // Dropdown wilayah. Gagal memuat wilayah tidak boleh memblokir halaman.
   useEffect(() => {
@@ -344,7 +360,7 @@ export default function AdminPenggunaPage() {
                             </span>
                           ) : null}
                         </strong>
-                        <Badge tone={ROLE_BADGE[p.role] as any}>{ROLE_LABEL[p.role]}</Badge>
+                        <Badge tone={ROLE_BADGE[p.role]}>{ROLE_LABEL[p.role]}</Badge>
                       </div>
                       <p className="tiny mt-4">{p.email}</p>
                       <p className="tiny mt-2">Wilayah: {p.wilayah?.nama || "—"}</p>

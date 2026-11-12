@@ -44,6 +44,7 @@
   --text-2:         #63695C;
   --text-3:         #8B9283;
   --text-invert:    #FFFFFF;
+  --on-primary:     #FFFFFF;
 
   /* Chart palette */
   --c-1: #5B6E2C;
@@ -113,6 +114,7 @@
   --text-2:         #9AA494;
   --text-3:         #6C7568;
   --text-invert:    #0A0F0A;
+  --on-primary:     #14190E;
 
   --c-1: #B7C47E;
   --c-2: #9BAE69;
@@ -327,7 +329,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 }
 :root[data-theme="dark"] .btn-primary {
   background: var(--primary);
-  color: #06201D;
+  color: var(--on-primary);
 }
 .btn-primary:hover:not(:disabled) {
   background: var(--primary-600);
@@ -422,11 +424,41 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 }
 .input-group .input { padding-right: 52px; }
 .input-icon { position: relative; }
-.input-icon svg {
+.input-icon > svg {
   position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
   width: 18px; height: 18px; color: var(--text-3); pointer-events: none;
 }
 .input-icon .input { padding-left: 40px; }
+.input-icon.has-end .input { padding-right: 46px; }
+.input-end-btn {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 6px;
+  margin-block: auto;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background .15s var(--ease), color .15s var(--ease);
+}
+.input-end-btn:hover { background: var(--surface-2); color: var(--text); }
+.input-end-btn:focus-visible { box-shadow: var(--ring); outline: none; }
+.input-end-btn svg {
+  width: 18px;
+  height: 18px;
+  position: static;
+  transform: none;
+  pointer-events: none;
+  color: currentColor;
+}
 
 .input.is-error, .select.is-error { border-color: var(--danger); }
 .input.is-error:focus { box-shadow: 0 0 0 3px var(--danger-bg); }
@@ -594,7 +626,7 @@ table.tbl tbody tr:hover { background: var(--surface-2); }
 
 /* ---------- 15. MODAL ---------- */
 .modal-backdrop {
-  position: fixed; inset: 0; background: rgba(6, 20, 19, .55);
+  position: fixed; inset: 0; background: rgba(16, 21, 13, .55);
   backdrop-filter: blur(3px); z-index: 2000;
   display: flex; align-items: center; justify-content: center; padding: 18px;
   animation: fadeIn .2s var(--ease);

@@ -58,8 +58,24 @@ export default function HalamanPengaduan() {
   }, []);
 
   useEffect(() => {
-    muat();
-  }, [muat]);
+    let aktif = true;
+    pengaduanApi
+      .list()
+      .then((d) => {
+        if (!aktif) return;
+        setList(d);
+        setError(null);
+      })
+      .catch((e) => {
+        if (aktif) setError(e instanceof ApiError ? e.message : "Gagal memuat pengaduan.");
+      })
+      .finally(() => {
+        if (aktif) setLoading(false);
+      });
+    return () => {
+      aktif = false;
+    };
+  }, []);
 
   const kirim = async (e: React.FormEvent) => {
     e.preventDefault();

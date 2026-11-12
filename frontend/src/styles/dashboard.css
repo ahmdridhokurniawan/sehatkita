@@ -23,7 +23,7 @@
   border-radius: 0 0 var(--radius) 0; font-weight: 600; font-size: .875rem;
 }
 .skip-link:focus { left: 0; outline: 2px solid var(--text-invert); outline-offset: 2px; }
-:root[data-theme="dark"] .skip-link { color: #06201D; }
+:root[data-theme="dark"] .skip-link { color: var(--on-primary); }
 .user-chip { background: none; border: none; width: 100%; text-align: left; }
 .sidebar-foot .btn-block { width: 100%; }
 
@@ -144,6 +144,40 @@
 /* ---------- Tabel tanpa min-width besar (daftar ringkas) ---------- */
 .tbl.compact { min-width: 0; }
 .tbl.compact th, .tbl.compact td { padding: 10px 12px; }
+
+/* ---------- Skeleton Loading Shell ---------- */
+.dash-skel-sidebar {
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.dash-skel-main {
+  padding: 28px 28px 60px;
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.dash-skel-kpis {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+.dash-skel-charts {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 1.6fr 1fr;
+}
+@media (max-width: 980px) {
+  .dash-skel-sidebar { display: none; }
+  .dash-skel-main { padding: 18px 16px 88px; }
+  .dash-skel-charts { grid-template-columns: 1fr; }
+}
 
 /* ---------- Cetak laporan ---------- */
 @media print {

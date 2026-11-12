@@ -6,11 +6,12 @@ import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/Empty";
 import { admin as adminApi, ApiError } from "@/lib/api";
-
 import { LABEL_STATUS_KESEHATAN } from "@/lib/labels";
+import type { AmbangKategori, Indikator } from "@/types";
+
 export default function AdminIndikatorPage() {
-  const [indikator, setIndikator] = useState<any[]>([]);
-  const [ambang, setAmbang] = useState<any[]>([]);
+  const [indikator, setIndikator] = useState<Indikator[]>([]);
+  const [ambang, setAmbang] = useState<AmbangKategori[]>([]);
   const [tab, setTab] = useState<"indikator" | "ambang">("indikator");
   const [cari, setCari] = useState("");
   const [loading, setLoading] = useState(true);
@@ -20,7 +21,6 @@ export default function AdminIndikatorPage() {
   useEffect(() => {
     (async () => {
       try {
-        setLoading(true);
         const [indRes, ambRes] = await Promise.all([
           adminApi.indikator.list(),
           adminApi.ambangKategori.list(),
@@ -41,18 +41,18 @@ export default function AdminIndikatorPage() {
   const q = cari.trim().toLowerCase();
   const indikatorTersaring = q
     ? indikator.filter(
-        (i: any) =>
+        (i) =>
           String(i.nama ?? "").toLowerCase().includes(q) ||
           String(i.kode ?? "").toLowerCase().includes(q),
       )
     : indikator;
   const ambangTersaring = q
-    ? ambang.filter((a: any) => {
-        const kode = a.indikator?.kode ?? a.kode ?? "";
+    ? ambang.filter((a) => {
+        const kode = a.indikator?.kode ?? "";
         return (
           String(kode).toLowerCase().includes(q) ||
           String(a.kategori ?? "").toLowerCase().includes(q) ||
-          String(a.indikator?.nama ?? a.nama ?? "").toLowerCase().includes(q)
+          String(a.indikator?.nama ?? "").toLowerCase().includes(q)
         );
       })
     : ambang;
@@ -119,7 +119,7 @@ export default function AdminIndikatorPage() {
                   />
                 </div>
               ) : (
-                indikatorTersaring.map((ind: any) => (
+                indikatorTersaring.map((ind) => (
                   <div className="card card-flat" key={ind.id}>
                     <div className="row items-start gap-10">
                       <span className="li-ico">
@@ -147,7 +147,7 @@ export default function AdminIndikatorPage() {
                   />
                 </div>
               ) : (
-                ambangTersaring.map((amb: any) => (
+                ambangTersaring.map((amb) => (
                   <div className="card card-flat" key={amb.id}>
                     <div className="row items-start gap-10">
                       <span className="li-ico">

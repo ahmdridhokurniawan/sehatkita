@@ -9,14 +9,18 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "SehatKita — Monitoring Kesehatan Masyarakat",
+  title: {
+    default: "SehatKita — Monitoring Kesehatan Masyarakat",
+    template: "%s — SehatKita",
+  },
+  applicationName: "SehatKita",
   description:
     "Platform monitoring kesehatan PTM untuk kelurahan: catat indikator kesehatan, dapatkan insight, dan ikuti program kesehatan wilayah.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="id" data-theme="light" suppressHydrationWarning>
+    <html lang="id" data-theme="light" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         {/* Terapkan tema sebelum render agar tidak berkedip */}
         <script dangerouslySetInnerHTML={{ __html: SKRIP_TEMA }} />

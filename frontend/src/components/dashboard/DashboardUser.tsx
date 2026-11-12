@@ -43,10 +43,10 @@ export default function DashboardUser({ user }: { user: User }) {
         const res = await dashboard.pribadi();
         setData(res);
         setError(null);
-      } catch (err: any) {
-        const apiErr = err as ApiError;
-        console.error("Dashboard fetch error:", apiErr);
-        setError(apiErr.message || "Gagal memuat dashboard");
+      } catch (err: unknown) {
+        const apiErr = err instanceof ApiError ? err : null;
+        console.error("Dashboard fetch error:", err);
+        setError(apiErr?.message || "Gagal memuat dashboard");
       } finally {
         setLoading(false);
       }

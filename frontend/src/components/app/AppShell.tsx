@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
@@ -12,6 +12,31 @@ import { auth as authApi, clearToken } from "@/lib/api";
 import { inisial } from "@/lib/format";
 
 type NavItem = { href: string; icon: string; label: string };
+
+const SIDEBAR_KEY = "sehatkita_sidebar_collapsed";
+const SIDEBAR_EVENT = "sehatkita-sidebar-toggle";
+
+function bacaSidebarCiut(): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(SIDEBAR_KEY) === "1";
+}
+
+function simpanSidebarCiut(next: boolean): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(SIDEBAR_KEY, next ? "1" : "0");
+  window.dispatchEvent(new Event(SIDEBAR_EVENT));
+}
+
+function langgananSidebar(cb: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  const handler = () => cb();
+  window.addEventListener(SIDEBAR_EVENT, handler);
+  window.addEventListener("storage", handler);
+  return () => {
+    window.removeEventListener(SIDEBAR_EVENT, handler);
+    window.removeEventListener("storage", handler);
+  };
+}
 
 const NAV_UTAMA: NavItem[] = [
   { href: "/dashboard", icon: "home", label: "Beranda" },
@@ -56,8 +81,9 @@ export default function AppShell({ children, noFab, onFab, roles }: Props) {
   const { user, loading } = useUser();
   const [keluar, setKeluar] = useState(false);
   const [konfirmasiKeluar, setKonfirmasiKeluar] = useState(false);
-  const [drawer, setDrawer] = useState(false);
-  const [ciut, setCiut] = useState(false);
+  const [drawerPath, setDrawerPath] = useState<string | null>(null);
+  const drawer = drawerPath === pathname;
+  const ciut = useSyncExternalStore(langgananSidebar, bacaSidebarCiut, () => false);
 
   async function handleLogout() {
     setKeluar(true);
@@ -74,11 +100,6 @@ export default function AppShell({ children, noFab, onFab, roles }: Props) {
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
-
-  // Tutup drawer setiap pindah halaman
-  useEffect(() => {
-    setDrawer(false);
-  }, [pathname]);
 
   const roleTidakCocok = Boolean(roles && user && !roles.includes(user.role));
 
@@ -122,14 +143,39 @@ export default function AppShell({ children, noFab, onFab, roles }: Props) {
 
   if (loading || !user || roleTidakCocok) {
     return (
-      <main className="center" style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
-        <p className="tiny">Memuat…</p>
-      </main>
+      <div className="dash app-dash" aria-busy="true" aria-label="Memuat halaman">
+        <aside className="dash-skel-sidebar" aria-hidden="true">
+          <div className="skeleton" style={{ height: 42, width: "80%" }} />
+          <div className="skeleton mt-12" style={{ height: 34, width: "100%" }} />
+          <div className="skeleton" style={{ height: 34, width: "92%" }} />
+          <div className="skeleton" style={{ height: 34, width: "88%" }} />
+          <div className="skeleton" style={{ height: 34, width: "95%" }} />
+          <div className="skeleton" style={{ height: 34, width: "84%" }} />
+          <div className="skeleton" style={{ height: 52, width: "100%", marginTop: "auto" }} />
+        </aside>
+        <main className="dash-skel-main">
+          <div className="skeleton" style={{ height: 112, borderRadius: 20 }} />
+          <div className="dash-skel-kpis">
+            <div className="skeleton" style={{ height: 96, borderRadius: 16 }} />
+            <div className="skeleton" style={{ height: 96, borderRadius: 16 }} />
+            <div className="skeleton" style={{ height: 96, borderRadius: 16 }} />
+            <div className="skeleton" style={{ height: 96, borderRadius: 16 }} />
+          </div>
+          <div className="dash-skel-charts">
+            <div className="skeleton" style={{ height: 240, borderRadius: 18 }} />
+            <div className="skeleton" style={{ height: 240, borderRadius: 18 }} />
+          </div>
+        </main>
+      </div>
     );
   }
 
   return (
     <div className={`dash app-dash ${ciut ? "collapsed" : ""} ${drawer ? "drawer-open" : ""}`}>
+      <a href="#appBody" className="skip-link">
+        Lewati ke konten utama
+      </a>
+
       {/* ============ SIDEBAR ============ */}
       <aside className="sidebar">
         <div className="sidebar-brand">
@@ -142,7 +188,7 @@ export default function AppShell({ children, noFab, onFab, roles }: Props) {
             className="btn btn-icon btn-sm btn-ghost sidebar-collapse-btn"
             aria-label={ciut ? "Perluas sidebar" : "Ciutkan sidebar"}
             title={ciut ? "Perluas sidebar" : "Ciutkan sidebar"}
-            onClick={() => setCiut((v) => !v)}
+            onClick={() => simpanSidebarCiut(!ciut)}
           >
             <Icon name="panel-left" size={17} />
           </button>
@@ -150,7 +196,7 @@ export default function AppShell({ children, noFab, onFab, roles }: Props) {
             type="button"
             className="btn btn-icon btn-sm btn-ghost sidebar-close-btn"
             aria-label="Tutup menu"
-            onClick={() => setDrawer(false)}
+            onClick={() => setDrawerPath(null)}
           >
             <Icon name="x" size={18} />
           </button>
@@ -195,7 +241,7 @@ export default function AppShell({ children, noFab, onFab, roles }: Props) {
           </div>
         </div>
       </aside>
-      <div className="dash-scrim" onClick={() => setDrawer(false)} />
+      <div className="dash-scrim" onClick={() => setDrawerPath(null)} />
 
       {/* ============ KONTEN ============ */}
       <div className="dash-main">
@@ -227,7 +273,7 @@ export default function AppShell({ children, noFab, onFab, roles }: Props) {
         <button
           type="button"
           className={drawer ? "active" : ""}
-          onClick={() => setDrawer(true)}
+          onClick={() => setDrawerPath(pathname)}
           aria-label="Buka menu sidebar"
         >
           <Icon name="list" size={22} />
