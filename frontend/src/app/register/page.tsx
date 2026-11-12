@@ -32,6 +32,8 @@ export default function RegisterPage() {
   // §6.1 — daftar wilayah dari backend (publik)
   const [wilayahList, setWilayahList] = useState<Wilayah[]>([]);
   const [wilayahGagal, setWilayahGagal] = useState(false);
+  const [filterKec, setFilterKec] = useState("");
+  const [cariKel, setCariKel] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -50,14 +52,42 @@ export default function RegisterPage() {
     })();
   }, []);
 
+  const kecamatanList = useMemo(() => {
+    const set = new Set<string>();
+    for (const w of wilayahList) {
+      set.add((w as Wilayah & { parent_nama?: string }).parent_nama || "Lainnya");
+    }
+    return Array.from(set).sort();
+  }, [wilayahList]);
+
+  const wilayahTersaring = useMemo(() => {
+    const q = cariKel.trim().toLowerCase();
+    return wilayahList.filter((w) => {
+      const kec = (w as Wilayah & { parent_nama?: string }).parent_nama || "Lainnya";
+      if (filterKec && kec !== filterKec) return false;
+      if (q && !w.nama.toLowerCase().includes(q) && !kec.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [wilayahList, filterKec, cariKel]);
+
   // Kelompokkan wilayah per kecamatan untuk <optgroup>
   const perKecamatan = useMemo(() => {
-    return wilayahList.reduce<Record<string, Wilayah[]>>((acc, w) => {
+    return wilayahTersaring.reduce<Record<string, Wilayah[]>>((acc, w) => {
       const kec = (w as Wilayah & { parent_nama?: string }).parent_nama || "Lainnya";
       (acc[kec] = acc[kec] || []).push(w);
       return acc;
     }, {});
-  }, [wilayahList]);
+  }, [wilayahTersaring]);
+
+  const aturanPassword = useMemo(
+    () => [
+      { ok: password.length >= 8, label: "Min. 8 karakter" },
+      { ok: /[A-Z]/.test(password), label: "1 Huruf Kapital (A-Z)" },
+      { ok: /[0-9]/.test(password), label: "1 Angka (0-9)" },
+      { ok: /[^a-zA-Z0-9\s]/.test(password), label: "1 Simbol (!@#...)" },
+    ],
+    [password],
+  );
 
   function validasi(): boolean {
     const err: Err = {};
@@ -65,7 +95,11 @@ export default function RegisterPage() {
     if (!email) err.email = "Email wajib diisi.";
     else if (!/^\S+@\S+\.\S+$/.test(email)) err.email = "Format email tidak valid.";
     if (!wilayahId) err.wilayah_id = "Pilih kelurahan Anda.";
-    if (!password || password.length < 8) err.password = "Password minimal 8 karakter.";
+    if (!password || password.length < 8) {
+      err.password = "Password minimal 8 karakter.";
+    } else if (!aturanPassword.every((a) => a.ok)) {
+      err.password = "Password harus mengandung minimal 1 huruf kapital, 1 angka, dan 1 simbol.";
+    }
     if (password !== konfirmasi) err.password_confirmation = "Konfirmasi tidak sama.";
     if (!setuju) err.setuju = "Anda harus menyetujui kebijakan penggunaan data.";
     setErrors(err);
@@ -198,9 +232,43 @@ export default function RegisterPage() {
             </div>
 
             <div className="field">
-              <label className="label" htmlFor="wilayah_id">
-                Kelurahan <span className="req">*</span>
-              </label>
+              <div className="row-between mb-4">
+                <label className="label" htmlFor="wilayah_id" style={{ marginBottom: 0 }}>
+                  Kelurahan <span className="req">*</span>
+                </label>
+                <span className="tiny text-2">
+                  {wilayahTersaring.length} dari {wilayahList.length} kelurahan
+                </span>
+              </div>
+              <div className="grid grid-2 mb-8" style={{ gap: 8 }}>
+                <select
+                  className="select"
+                  aria-label="Filter kecamatan"
+                  value={filterKec}
+                  onChange={(e) => {
+                    setFilterKec(e.target.value);
+                    setWilayahId("");
+                  }}
+                >
+                  <option value="">Semua Kecamatan</option>
+                  {kecamatanList.map((k) => (
+                    <option key={k} value={k}>
+                      {k}
+                    </option>
+                  ))}
+                </select>
+                <div className="input-icon">
+                  <Icon name="search" size={16} />
+                  <input
+                    className="input"
+                    type="search"
+                    aria-label="Cari nama kelurahan"
+                    placeholder="Cari kelurahan…"
+                    value={cariKel}
+                    onChange={(e) => setCariKel(e.target.value)}
+                  />
+                </div>
+              </div>
               <select
                 className={`select ${errors.wilayah_id ? "is-error" : ""}`}
                 id="wilayah_id"
@@ -208,7 +276,9 @@ export default function RegisterPage() {
                 value={wilayahId}
                 onChange={(e) => setWilayahId(e.target.value)}
               >
-                <option value="">Pilih kelurahan…</option>
+                <option value="">
+                  {wilayahTersaring.length === 0 ? "Tidak ada kelurahan yang cocok" : "Pilih kelurahan…"}
+                </option>
                 {Object.keys(perKecamatan).map((kec) => (
                   <optgroup label={kec} key={kec}>
                     {perKecamatan[kec].map((w) => (
@@ -222,7 +292,7 @@ export default function RegisterPage() {
               <div className="hint">
                 {wilayahGagal
                   ? "Gagal memuat wilayah. Muat ulang halaman."
-                  : "Pilih kelurahan tempat Anda tinggal."}
+                  : "Filter kecamatan atau ketik nama kelurahan tempat Anda tinggal."}
               </div>
               <div className={`err-msg ${errors.wilayah_id ? "show" : ""}`}>{errors.wilayah_id}</div>
             </div>
@@ -239,7 +309,7 @@ export default function RegisterPage() {
                   id="password"
                   name="password"
                   autoComplete="new-password"
-                  placeholder="Min. 8 karakter"
+                  placeholder="Min. 8 karakter (Kapital, Angka, Simbol)"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
@@ -252,6 +322,17 @@ export default function RegisterPage() {
                 >
                   <Icon name={lihatPw ? "eye-off" : "eye"} size={18} />
                 </button>
+              </div>
+              <div className="row wrap gap-6 mt-8" aria-label="Syarat keamanan password">
+                {aturanPassword.map((a) => (
+                  <span
+                    key={a.label}
+                    className={`badge ${a.ok ? "badge-safe" : ""}`}
+                    style={{ fontSize: ".72rem" }}
+                  >
+                    <Icon name={a.ok ? "check" : "circle-dot"} size={12} /> {a.label}
+                  </span>
+                ))}
               </div>
               <div className={`err-msg ${errors.password ? "show" : ""}`}>{errors.password}</div>
             </div>

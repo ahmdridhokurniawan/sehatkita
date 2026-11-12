@@ -43,6 +43,12 @@ const ADMIN_MENU = [
     desc: "Setujui / tolak catatan ber-flag",
   },
   {
+    href: "/peringkat",
+    icon: "trophy",
+    label: "Peringkat Kelurahan",
+    desc: "Pantau klasemen EXP tantangan & juara warga",
+  },
+  {
     href: "/admin/log-audit",
     icon: "file-text",
     label: "Log Audit",

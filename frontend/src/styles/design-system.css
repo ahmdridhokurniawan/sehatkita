@@ -80,6 +80,7 @@
 
 /* ---------- 2. TOKENS: DARK ---------- */
 :root[data-theme="dark"] {
+  color-scheme: dark;
   /* Brand — dark turunan palette Colorhunt */
   --primary:        #B7C47E;
   --primary-600:    #C2CD94;
@@ -560,13 +561,24 @@ table.tbl tbody tr:hover { background: var(--surface-2); }
 .alert strong { font-weight: 700; }
 
 /* ---------- Kalender jadwal skrining ---------- */
+.kalender-nav-btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.kalender-nav-btn:hover {
+  background: var(--primary-050);
+  border-color: var(--primary);
+  color: var(--primary);
+}
 .kalender-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  gap: 5px;
 }
 .kalender-hari-head {
   font-size: 11px;
+  font-weight: 600;
   color: var(--text-2);
   text-align: center;
   padding: 4px 0;
@@ -574,18 +586,67 @@ table.tbl tbody tr:hover { background: var(--surface-2); }
 .kalender-hari {
   min-height: 40px;
   border-radius: var(--radius);
-  padding: 3px;
+  padding: 4px;
   text-align: center;
   font-size: 12px;
   color: var(--text);
+  border: 1px solid transparent;
   position: relative;
 }
 .kalender-hari.aktif {
-  background: var(--accent-soft, rgba(79, 70, 229, 0.12));
+  background: var(--primary-050);
+  border-color: var(--primary);
+  color: var(--primary-700);
   font-weight: 700;
 }
-.kalender-hari.ada { background: var(--card-2, rgba(0,0,0,0.03)); }
+.kalender-hari.ada {
+  background: var(--surface-2);
+  border-color: var(--border);
+}
 .kalender-tgl { display: block; }
+:root[data-theme="dark"] .kalender-nav-btn {
+  background: var(--surface-3);
+  border-color: var(--border-strong);
+  color: var(--primary-700);
+}
+:root[data-theme="dark"] .kalender-nav-btn:hover {
+  background: var(--primary-100);
+  border-color: var(--primary);
+  color: #FFFFFF;
+}
+:root[data-theme="dark"] .kalender-hari-head {
+  color: #C7D1BD;
+}
+:root[data-theme="dark"] .kalender-hari {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(183, 196, 126, 0.16);
+  color: #EEF2E9;
+}
+:root[data-theme="dark"] .kalender-hari.ada {
+  background: rgba(183, 196, 126, 0.15);
+  border-color: rgba(183, 196, 126, 0.36);
+}
+:root[data-theme="dark"] .kalender-hari.aktif {
+  background: rgba(183, 196, 126, 0.28);
+  border-color: var(--primary-600);
+  color: #FFFFFF;
+}
+:root[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+:root[data-theme="dark"] input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+:root[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: brightness(0) invert(0.95);
+  background-color: rgba(183, 196, 126, 0.28);
+  border: 1px solid rgba(183, 196, 126, 0.55);
+  border-radius: 6px;
+  padding: 5px;
+  cursor: pointer;
+  opacity: 1;
+}
+:root[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator:hover,
+:root[data-theme="dark"] input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover,
+:root[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  background-color: rgba(183, 196, 126, 0.45);
+}
 .kalender-dot {
   display: flex;
   justify-content: center;

@@ -96,10 +96,10 @@ export default function SetelanPage() {
         <div className="mt-12">
           <button
             type="button"
-            className="btn btn-sm btn-outline"
+            className="btn btn-sm btn-danger"
             onClick={() => setKonfirmasiKeluar(true)}
           >
-            <Icon name="log-out" size={15} /> Logout
+            <Icon name="log-out" size={15} /> Keluar
           </button>
         </div>
       </div>

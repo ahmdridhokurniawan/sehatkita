@@ -157,6 +157,38 @@ class AuthTest extends TestCase
         $this->assertNotSame('Rahasia123!', $baru->password);
     }
 
+    public function test_register_password_harus_punya_kapital_angka_dan_simbol(): void
+    {
+        $wilayah = $this->wilayah();
+
+        // Tanpa huruf kapital
+        $this->postJson('/api/v1/auth/register', [
+            'name'                  => 'Uji Lemah 1',
+            'email'                 => 'lemah1@sehatkita.test',
+            'password'              => 'rahasia!123',
+            'password_confirmation' => 'rahasia!123',
+            'wilayah_id'            => $wilayah->id,
+        ])->assertStatus(422)->assertJsonValidationErrors('password');
+
+        // Tanpa angka
+        $this->postJson('/api/v1/auth/register', [
+            'name'                  => 'Uji Lemah 2',
+            'email'                 => 'lemah2@sehatkita.test',
+            'password'              => 'Rahasia!abc',
+            'password_confirmation' => 'Rahasia!abc',
+            'wilayah_id'            => $wilayah->id,
+        ])->assertStatus(422)->assertJsonValidationErrors('password');
+
+        // Tanpa simbol
+        $this->postJson('/api/v1/auth/register', [
+            'name'                  => 'Uji Lemah 3',
+            'email'                 => 'lemah3@sehatkita.test',
+            'password'              => 'Rahasia123',
+            'password_confirmation' => 'Rahasia123',
+            'wilayah_id'            => $wilayah->id,
+        ])->assertStatus(422)->assertJsonValidationErrors('password');
+    }
+
     public function test_register_email_ganda_ditolak(): void
     {
         $user    = $this->pengguna();

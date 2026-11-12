@@ -91,6 +91,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/program/{id}/peserta', [ProgramController::class, 'peserta']);
         Route::post('/program/{id}/peserta', [ProgramController::class, 'ikut']);
         Route::patch('/program/{id}/peserta', [ProgramController::class, 'ubahStatusPeserta']);
+        Route::post('/program/{id}/bukti', [ProgramController::class, 'kirimBukti']);
+        Route::get('/program/{id}/bukti/{pesertaId}', [ProgramController::class, 'lihatBukti']);
         Route::get('/peringkat', [PeringkatController::class, 'index']);
 
         // Target & refleksi

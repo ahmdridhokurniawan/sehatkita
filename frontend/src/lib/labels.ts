@@ -111,7 +111,9 @@ export const LABEL_STATUS_PROGRAM: Record<StatusProgram, string> = {
 /** Tulisan untuk status keikutsertaan peserta program (§12.4) */
 export const LABEL_STATUS_PESERTA: Record<StatusPeserta, string> = {
   terdaftar: "Terdaftar",
+  menunggu_verifikasi: "Menunggu Verifikasi",
   selesai: "Selesai",
+  ditolak: "Perlu Perbaikan",
   berhenti: "Berhenti",
 };
 

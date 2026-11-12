@@ -232,9 +232,11 @@ class AdminMasterController extends Controller
             'name'       => 'required|string|max:100',
             'nik'        => 'nullable|string|size:16|regex:/^[0-9]+$/|unique:pengguna,nik',
             'email'      => 'required|email|max:150|unique:pengguna,email',
-            'password'   => ['required', Password::min(8)],
+            'password'   => ['required', 'string', Password::min(8), 'regex:/[A-Z]/', 'regex:/[0-9]/', 'regex:/[^a-zA-Z0-9\s]/'],
             'role'       => ['required', Rule::in(['super_admin', 'admin_kelurahan', 'kader', 'user'])],
             'wilayah_id' => 'nullable|exists:wilayah,id',
+        ], [
+            'password.regex' => 'Password harus mengandung minimal 1 huruf kapital, 1 angka, dan 1 simbol.',
         ]);
 
         $pengguna = Pengguna::create($data);
@@ -260,10 +262,12 @@ class AdminMasterController extends Controller
             'name'       => 'sometimes|string|max:100',
             'nik'        => ['sometimes', 'nullable', 'string', 'size:16', 'regex:/^[0-9]+$/', Rule::unique('pengguna', 'nik')->ignore($id)],
             'email'      => ['sometimes', 'email', 'max:150', Rule::unique('pengguna', 'email')->ignore($id)],
-            'password'   => ['sometimes', Password::min(8)],
+            'password'   => ['sometimes', 'string', Password::min(8), 'regex:/[A-Z]/', 'regex:/[0-9]/', 'regex:/[^a-zA-Z0-9\s]/'],
             'role'       => ['sometimes', Rule::in(['super_admin', 'admin_kelurahan', 'kader', 'user'])],
             'wilayah_id' => 'sometimes|nullable|exists:wilayah,id',
             'aktif'      => 'sometimes|boolean',
+        ], [
+            'password.regex' => 'Password harus mengandung minimal 1 huruf kapital, 1 angka, dan 1 simbol.',
         ]);
 
         // Catat riwayat perpindahan wilayah dan lepas kader lama bila warga mutasi kelurahan (U12)

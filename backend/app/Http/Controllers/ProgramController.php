@@ -7,6 +7,7 @@ use App\Models\PesertaProgram;
 use App\Models\Program;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -53,15 +54,19 @@ class ProgramController extends Controller
 
         $milikSaya = PesertaProgram::whereIn('program_id', $list->pluck('id'))
             ->where('user_id', $user->id)
-            ->pluck('status', 'program_id');
+            ->get()
+            ->keyBy('program_id');
 
         $data = collect($list->items())->map(function (Program $p) use ($milikSaya, $user, $hariIni) {
-            $statusSaya = $milikSaya[$p->id] ?? null;
+            $pSaya = $milikSaya->get($p->id);
+            $statusSaya = $pSaya?->status;
             $ikut = $statusSaya !== null && $statusSaya !== 'berhenti';
 
             return [
                 'id'                 => $p->id,
                 'judul'              => $p->judul,
+                'deskripsi'          => $p->deskripsi,
+                'kriteria_misi'      => $p->kriteria_misi,
                 'jenis'              => $p->jenis,
                 'kategori_aktivitas' => $p->kategori_aktivitas,
                 'target_peserta'     => $p->target_peserta,
@@ -77,6 +82,7 @@ class ProgramController extends Controller
                 // Hanya bermakna untuk role user (kontrak 12.1).
                 'diikuti'            => $user->role === 'user' ? $ikut : false,
                 'status_saya'        => $user->role === 'user' ? $statusSaya : null,
+                'peserta_saya'       => $user->role === 'user' ? $this->ringkasanPesertaSaya($pSaya, $p->id) : null,
             ];
         })->all();
 
@@ -113,6 +119,8 @@ class ProgramController extends Controller
         $data = $request->validate([
             'wilayah_id'         => 'nullable|exists:wilayah,id',
             'judul'              => 'required|string|max:150',
+            'deskripsi'          => 'nullable|string|max:2000',
+            'kriteria_misi'      => 'nullable|string|max:500',
             'jenis'              => ['required', Rule::in(['olahraga', 'edukasi', 'pemeriksaan', 'lainnya'])],
             'kategori_aktivitas' => 'nullable|string|max:50',
             'target_peserta'     => 'nullable|integer|min:1',
@@ -151,29 +159,31 @@ class ProgramController extends Controller
         $user = $request->user();
         $program = Program::findOrFail($id);
 
-        $statusSaya = null;
+        $pesertaSaya = null;
         if ($user->role === 'user') {
-            $statusSaya = PesertaProgram::where('program_id', $program->id)
+            $pesertaSaya = PesertaProgram::where('program_id', $program->id)
                 ->where('user_id', $user->id)
-                ->value('status');
+                ->first();
         }
 
-        $detail = $this->baris($program, $statusSaya);
+        $detail = $this->baris($program, $pesertaSaya?->status);
+        $detail['peserta_saya'] = $user->role === 'user'
+            ? $this->ringkasanPesertaSaya($pesertaSaya, $program->id)
+            : null;
 
         if (in_array($user->role, ['kader', 'admin_kelurahan', 'super_admin'], true)) {
-            $detail['peserta'] = PesertaProgram::with('pengguna:id,name,email')
-                ->where('program_id', $program->id)
+            $queryPeserta = PesertaProgram::with('pengguna:id,name,email,wilayah_id')
+                ->where('program_id', $program->id);
+
+            if ($user->role === 'kader') {
+                $queryPeserta->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $user->wilayah_id));
+            }
+
+            $detail['peserta'] = $queryPeserta
+                ->orderByRaw("CASE status WHEN 'menunggu_verifikasi' THEN 0 WHEN 'terdaftar' THEN 1 WHEN 'ditolak' THEN 2 WHEN 'selesai' THEN 3 ELSE 4 END")
                 ->orderBy('id', 'desc')
                 ->get()
-                ->map(fn ($p) => [
-                    'id'             => $p->id,
-                    'user_id'        => $p->user_id,
-                    'name'           => $p->pengguna?->name,
-                    'email'          => $p->pengguna?->email,
-                    'status'         => $p->status,
-                    'terdaftar_pada' => $p->created_at?->toIso8601String(),
-                    'selesai_pada'   => $p->selesai_pada?->toIso8601String(),
-                ]);
+                ->map(fn ($p) => $this->barisPeserta($p, $program->id));
         }
 
         return response()->json([
@@ -209,6 +219,8 @@ class ProgramController extends Controller
         $data = $request->validate([
             'wilayah_id'         => 'sometimes|nullable|exists:wilayah,id',
             'judul'              => 'sometimes|string|max:150',
+            'deskripsi'          => 'sometimes|nullable|string|max:2000',
+            'kriteria_misi'      => 'sometimes|nullable|string|max:500',
             'jenis'              => ['sometimes', Rule::in(['olahraga', 'edukasi', 'pemeriksaan', 'lainnya'])],
             'kategori_aktivitas' => 'sometimes|nullable|string|max:50',
             'target_peserta'     => 'sometimes|nullable|integer|min:1',
@@ -279,17 +291,12 @@ class ProgramController extends Controller
             });
         }
 
-        $list = $query->orderBy('id', 'desc')->get();
+        $list = $query
+            ->orderByRaw("CASE status WHEN 'menunggu_verifikasi' THEN 0 WHEN 'terdaftar' THEN 1 WHEN 'ditolak' THEN 2 WHEN 'selesai' THEN 3 ELSE 4 END")
+            ->orderBy('id', 'desc')
+            ->get();
 
-        $data = $list->map(fn ($p) => [
-            'id'             => $p->id,
-            'user_id'        => $p->user_id,
-            'name'           => $p->pengguna?->name,
-            'email'          => $p->pengguna?->email,
-            'status'         => $p->status,
-            'terdaftar_pada' => $p->created_at?->toIso8601String(),
-            'selesai_pada'   => $p->selesai_pada?->toIso8601String(),
-        ]);
+        $data = $list->map(fn ($p) => $this->barisPeserta($p, $program->id));
 
         return response()->json([
             'success' => true,
@@ -325,8 +332,16 @@ class ProgramController extends Controller
         }
 
         if ($sudah) {
-            // Berhenti lalu ikut lagi → aktifkan kembali.
-            $sudah->update(['status' => 'terdaftar', 'selesai_pada' => null]);
+            // Berhenti lalu ikut lagi → aktifkan kembali & bersihkan riwayat lama.
+            $sudah->update([
+                'status'             => 'terdaftar',
+                'selesai_pada'       => null,
+                'catatan_bukti'      => null,
+                'dikirim_pada'       => null,
+                'catatan_verifikasi' => null,
+                'diverifikasi_oleh'  => null,
+                'diverifikasi_pada'  => null,
+            ]);
         } else {
             PesertaProgram::create([
                 'program_id' => $program->id,
@@ -342,28 +357,101 @@ class ProgramController extends Controller
         ], 201);
     }
 
-    // PATCH /program/{id}/peserta — kontrak 12.4
+    // POST /program/{id}/bukti — unggah foto dokumentasi penyelesaian misi
+    public function kirimBukti(Request $request, int $id)
+    {
+        $user = $request->user();
+        abort_unless($user->role === 'user', 403, 'Hanya warga peserta yang dapat mengirim bukti tantangan.');
+
+        $program = Program::findOrFail($id);
+
+        $peserta = PesertaProgram::where('program_id', $program->id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        abort_unless($peserta && $peserta->status !== 'berhenti', 404, 'Anda belum terdaftar pada tantangan ini.');
+
+        if ($peserta->status === 'selesai') {
+            throw ValidationException::withMessages([
+                'program' => ['Tantangan ini sudah terverifikasi selesai.'],
+            ]);
+        }
+
+        $validated = $request->validate([
+            'foto'          => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'catatan_bukti' => 'nullable|string|max:500',
+        ], [
+            'foto.required' => 'Foto dokumentasi penyelesaian tantangan wajib diunggah.',
+            'foto.image'    => 'File dokumentasi harus berupa gambar (JPG, PNG, atau WebP).',
+            'foto.max'      => 'Ukuran foto maksimal 5 MB.',
+        ]);
+
+        if ($peserta->bukti_foto && Storage::disk('public')->exists($peserta->bukti_foto)) {
+            Storage::disk('public')->delete($peserta->bukti_foto);
+        }
+
+        $path = $request->file('foto')->store("program-bukti/{$program->id}", 'public');
+
+        $peserta->update([
+            'bukti_foto'         => $path,
+            'catatan_bukti'      => $validated['catatan_bukti'] ?? null,
+            'dikirim_pada'       => now(),
+            'status'             => 'menunggu_verifikasi',
+            'catatan_verifikasi' => null,
+            'diverifikasi_oleh'  => null,
+            'diverifikasi_pada'  => null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Dokumentasi berhasil dikirim dan menunggu verifikasi kader/admin.',
+            'data'    => $this->ringkasanPesertaSaya($peserta->fresh(), $program->id),
+        ]);
+    }
+
+    // GET /program/{id}/bukti/{pesertaId} — tampilkan foto dokumentasi bukti
+    public function lihatBukti(Request $request, int $id, int $pesertaId)
+    {
+        $user = $request->user();
+        $program = Program::findOrFail($id);
+        $peserta = PesertaProgram::where('program_id', $program->id)
+            ->where('id', $pesertaId)
+            ->firstOrFail();
+
+        $boleh = (int) $peserta->user_id === (int) $user->id
+            || $user->role === 'super_admin'
+            || ($user->role === 'admin_kelurahan' && (! $program->wilayah_id || (int) $program->wilayah_id === (int) $user->wilayah_id))
+            || ($user->role === 'kader' && (! $peserta->pengguna?->wilayah_id || (int) $peserta->pengguna?->wilayah_id === (int) $user->wilayah_id));
+
+        abort_unless($boleh, 403, 'Anda tidak memiliki akses melihat dokumentasi ini.');
+        abort_unless($peserta->bukti_foto && Storage::disk('public')->exists($peserta->bukti_foto), 404, 'Foto bukti tidak ditemukan.');
+
+        return Storage::disk('public')->response($peserta->bukti_foto);
+    }
+
+    // PATCH /program/{id}/peserta — kontrak 12.4 + verifikasi bukti (selesai/ditolak)
     public function ubahStatusPeserta(Request $request, int $id)
     {
         $user    = $request->user();
         $program = Program::findOrFail($id);
 
         $data = $request->validate([
-            'status'  => ['required', Rule::in(['selesai', 'berhenti'])],
-            'user_id' => 'nullable|integer|exists:pengguna,id',
+            'status'             => ['required', Rule::in(['selesai', 'ditolak', 'berhenti'])],
+            'user_id'            => 'nullable|integer|exists:pengguna,id',
+            'catatan_verifikasi' => 'nullable|string|max:500',
         ]);
 
         $targetId = $user->id;
 
         // Aturan hak (kontrak 12.4).
-        if ($data['status'] === 'selesai') {
+        if (in_array($data['status'], ['selesai', 'ditolak'], true)) {
             abort_unless(
                 in_array($user->role, ['kader', 'admin_kelurahan', 'super_admin'], true),
                 403,
-                'Hanya kader/admin yang dapat menandai program selesai.'
+                'Hanya kader/admin yang dapat memverifikasi penyelesaian tantangan.'
             );
 
-            if ($user->role === 'admin_kelurahan') {
+            if ($user->role === 'admin_kelurahan' && $program->wilayah_id) {
                 abort_unless((int) $program->wilayah_id === (int) $user->wilayah_id, 403,
                     'Program ini bukan wilayah Anda.');
             }
@@ -395,6 +483,16 @@ class ProgramController extends Controller
         $peserta->status = $data['status'];
         if ($data['status'] === 'selesai') {
             $peserta->selesai_pada = $peserta->selesai_pada ?? now();
+            $peserta->diverifikasi_oleh = $user->id;
+            $peserta->diverifikasi_pada = now();
+            if ($request->filled('catatan_verifikasi')) {
+                $peserta->catatan_verifikasi = $data['catatan_verifikasi'];
+            }
+        } elseif ($data['status'] === 'ditolak') {
+            $peserta->selesai_pada = null;
+            $peserta->diverifikasi_oleh = $user->id;
+            $peserta->diverifikasi_pada = now();
+            $peserta->catatan_verifikasi = $data['catatan_verifikasi'] ?: 'Foto bukti belum sesuai kriteria misi. Silakan kirim ulang.';
         }
         $peserta->save();
 
@@ -465,6 +563,8 @@ class ProgramController extends Controller
         return [
             'id'                 => $p->id,
             'judul'              => $p->judul,
+            'deskripsi'          => $p->deskripsi,
+            'kriteria_misi'      => $p->kriteria_misi,
             'jenis'              => $p->jenis,
             'kategori_aktivitas' => $p->kategori_aktivitas,
             'target_peserta'     => $p->target_peserta,
@@ -478,6 +578,42 @@ class ProgramController extends Controller
             'badge'              => $p->badge_reward,
             'diikuti'            => $ikut,
             'status_saya'        => $statusSaya,
+        ];
+    }
+
+    private function barisPeserta(PesertaProgram $p, int $programId): array
+    {
+        return [
+            'id'                 => $p->id,
+            'user_id'            => $p->user_id,
+            'name'               => $p->pengguna?->name,
+            'email'              => $p->pengguna?->email,
+            'status'             => $p->status,
+            'bukti_foto_url'     => $p->bukti_foto ? "/api/v1/program/{$programId}/bukti/{$p->id}" : null,
+            'catatan_bukti'      => $p->catatan_bukti,
+            'dikirim_pada'       => $p->dikirim_pada?->toIso8601String(),
+            'catatan_verifikasi' => $p->catatan_verifikasi,
+            'diverifikasi_pada'  => $p->diverifikasi_pada?->toIso8601String(),
+            'terdaftar_pada'     => $p->created_at?->toIso8601String(),
+            'selesai_pada'       => $p->selesai_pada?->toIso8601String(),
+        ];
+    }
+
+    private function ringkasanPesertaSaya(?PesertaProgram $p, int $programId): ?array
+    {
+        if (! $p) {
+            return null;
+        }
+
+        return [
+            'id'                 => $p->id,
+            'status'             => $p->status,
+            'bukti_foto_url'     => $p->bukti_foto ? "/api/v1/program/{$programId}/bukti/{$p->id}" : null,
+            'catatan_bukti'      => $p->catatan_bukti,
+            'dikirim_pada'       => $p->dikirim_pada?->toIso8601String(),
+            'catatan_verifikasi' => $p->catatan_verifikasi,
+            'diverifikasi_pada'  => $p->diverifikasi_pada?->toIso8601String(),
+            'selesai_pada'       => $p->selesai_pada?->toIso8601String(),
         ];
     }
 

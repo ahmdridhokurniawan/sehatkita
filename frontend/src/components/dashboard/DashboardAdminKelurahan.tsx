@@ -128,6 +128,9 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
       <section>
         <div className="app-section-title">
           <h2>Ringkasan Kelurahan</h2>
+          <Link href="/peringkat" className="row gap-6">
+            <Icon name="trophy" size={15} /> Peringkat
+          </Link>
         </div>
         <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
           <div className="metric">

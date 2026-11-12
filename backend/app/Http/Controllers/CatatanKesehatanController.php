@@ -101,9 +101,10 @@ class CatatanKesehatanController extends Controller
     {
         $user = $request->user();
 
-        // Validasi input
+        // Validasi input — izinkan timestamp pada hari ini hingga 23:59:59 waktu server
+        $batasHariIni = now()->endOfDay()->format('Y-m-d H:i:s');
         $data = $request->validate([
-            'dicatat_pada'     => ['required', 'date', 'before_or_equal:' . now()->addMinutes(10)->toDateTimeString()],
+            'dicatat_pada'     => ['required', 'date', 'before_or_equal:' . $batasHariIni],
             'sumber'           => 'required|in:mandiri,kader,puskesmas',
             'bb_kg'            => 'nullable|numeric|gt:0|max:500',
             'tinggi_cm'        => 'nullable|numeric|min:50|max:250',
@@ -120,10 +121,15 @@ class CatatanKesehatanController extends Controller
             'catatan'          => 'nullable|string',
             'user_id'          => 'sometimes|integer|exists:pengguna,id',
             'sesi_posbindu_id' => 'sometimes|integer|exists:sesi_posbindu,id',
+        ], [
+            'dicatat_pada.before_or_equal' => 'Tanggal pencatatan tidak boleh melebihi hari ini.',
         ]);
 
         // Cek kelengkapan indikator
         $this->validasiKelengkapan($data);
+        if (($data['gula_darah'] ?? null) === null) {
+            $data['jenis_gula_darah'] = null;
+        }
 
         // Validasi persetujuan pengguna
         $pemilik = $this->tentukanPemilik($user, $data);

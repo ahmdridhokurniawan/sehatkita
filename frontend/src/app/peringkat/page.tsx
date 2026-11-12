@@ -15,7 +15,11 @@ import type { Peringkat, Wilayah } from "@/types";
    Bila peserta < 5 → daftar kosong (suppression §12.5).
    ------------------------------------------------------------------ */
 
-const MEDALI = ["#D4AF37", "#A8A8A8", "#B87333"];
+const MEDALI = [
+  { warna: "#D4AF37", bg: "rgba(212, 175, 55, 0.14)", label: "Juara 1 · Emas", ikon: "🏆" },
+  { warna: "#94A3B8", bg: "rgba(148, 163, 184, 0.16)", label: "Juara 2 · Perak", ikon: "🥈" },
+  { warna: "#B87333", bg: "rgba(184, 115, 51, 0.15)", label: "Juara 3 · Perunggu", ikon: "🥉" },
+];
 
 export default function PeringkatPage() {
   const { user, loading: loadingUser } = useUser();
@@ -124,8 +128,8 @@ export default function PeringkatPage() {
         <>
           <div className="card card-flat">
             <div className="row items-center gap-10">
-              <span className="li-ico">
-                <Icon name="trending-up" size={19} />
+              <span className="li-ico" style={{ background: "rgba(212, 175, 55, 0.16)", color: "#D4AF37" }}>
+                <Icon name="trophy" size={19} />
               </span>
               <div className="flex-1">
                 <strong className="text-sm">{data.wilayah.nama}</strong>
@@ -166,28 +170,55 @@ export default function PeringkatPage() {
                 desc={`Butuh minimal 5 peserta di ${data.wilayah.nama}. Saat ini ${data.peserta_peringkat} peserta.`}
               />
             ) : (
-              data.daftar.map((b, i) => (
-                <div className="li" key={b.rank}>
-                  <span
-                    className="li-ico"
-                    style={
-                      i < 3
-                        ? { background: MEDALI[i], color: "#fff", fontWeight: 800 }
-                        : { fontWeight: 800 }
-                    }
+              data.daftar.map((b, i) => {
+                const juara = i < 3 ? MEDALI[i] : null;
+                return (
+                  <div
+                    className="li"
+                    key={b.rank}
+                    style={juara ? { background: juara.bg, borderRadius: 10, paddingInline: 10 } : undefined}
                   >
-                    {b.rank}
-                  </span>
-                  <div className="li-main">
-                    <strong className="text-sm">{b.nama}</strong>
-                    <span className="tiny">Level {b.level_gamifikasi}</span>
+                    <span
+                      className="li-ico"
+                      style={
+                        juara
+                          ? { background: juara.warna, color: "#fff", fontWeight: 800 }
+                          : { fontWeight: 800 }
+                      }
+                      title={juara ? juara.label : `Peringkat ${b.rank}`}
+                    >
+                      {juara ? <Icon name="trophy" size={17} /> : b.rank}
+                    </span>
+                    <div className="li-main">
+                      <div className="row wrap items-center gap-6">
+                        <strong className="text-sm">
+                          {juara ? `${juara.ikon} ` : ""}
+                          {b.nama}
+                        </strong>
+                        {juara ? (
+                          <span
+                            className="tiny fw-600"
+                            style={{
+                              padding: "1px 8px",
+                              borderRadius: 999,
+                              background: "var(--surface)",
+                              border: `1px solid ${juara.warna}`,
+                              color: juara.warna,
+                            }}
+                          >
+                            {juara.label}
+                          </span>
+                        ) : null}
+                      </div>
+                      <span className="tiny">Level {b.level_gamifikasi}</span>
+                    </div>
+                    <div className="li-side">
+                      <strong className="text-sm">{b.exp_total}</strong>
+                      <span className="tiny">EXP</span>
+                    </div>
                   </div>
-                  <div className="li-side">
-                    <strong className="text-sm">{b.exp_total}</strong>
-                    <span className="tiny">EXP</span>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 

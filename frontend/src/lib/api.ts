@@ -40,6 +40,7 @@ import type {
   PersetujuanData,
   PesertaProgramInput,
   PesertaProgram,
+  PesertaSaya,
   Peringkat,
   Profil,
   Program,
@@ -175,11 +176,12 @@ async function kirim(url: string, init: RequestInit): Promise<Response> {
 /** Fungsi inti: kirim request ke backend & tangani envelope response */
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = "GET", body, query, auth = true } = options;
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
   // §1.1 — header wajib
   const headers: Record<string, string> = {
     Accept: "application/json",
   };
-  if (body !== undefined) {
+  if (body !== undefined && !isFormData) {
     headers["Content-Type"] = "application/json";
   }
   if (auth) {
@@ -189,7 +191,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const response = await kirim(buildUrl(path, query), {
     method,
     headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body === undefined ? undefined : isFormData ? (body as FormData) : JSON.stringify(body),
   });
   // 204 / body kosong
   if (response.status === 204) {
@@ -459,20 +461,41 @@ export const telegram = {
 export const program = {
   /** §12.1 GET */
   list: (query?: ProgramQuery) => request<Program[]>("/program", { query }),
+  /** Detail satu program/tantangan */
+  detail: (id: number) => request<Program>(`/program/${id}`),
   /** §12.2 POST (admin_kelurahan / super_admin) */
   create: (payload: ProgramInput) => request<Program>("/program", { method: "POST", body: payload }),
   /** §12.3 POST peserta (user ikut program) */
   ikut: (id: number) =>
     request<{ status: string }>(`/program/${id}/peserta`, { method: "POST" }),
-  /** §12.4 PATCH peserta (ubah status keikutsertaan) */
+  /** §12.4 PATCH peserta (ubah status keikutsertaan / verifikasi bukti) */
   ubahPeserta: (id: number, payload: PesertaProgramInput) =>
     request<{ status: string }>(`/program/${id}/peserta`, { method: "PATCH", body: payload }),
+  /** Unggah foto dokumentasi penyelesaian misi tantangan */
+  kirimBukti: (id: number, payload: FormData) =>
+    request<PesertaSaya>(`/program/${id}/bukti`, { method: "POST", body: payload }),
   /** §12.6 GET daftar peserta  */
   peserta: (id: number) =>
     request<PesertaProgram[]>(`/program/${id}/peserta`),
   /** §12.5 GET /peringkat — peringkat EXP satu kelurahan */
   peringkat: (query?: { wilayah_id?: number }) => request<Peringkat>("/peringkat", { query }),
 };
+
+/** Ambil media terautentikasi (mis. foto dokumentasi tantangan) sebagai object URL. */
+export async function fetchMediaBlobUrl(pathOrUrl: string): Promise<string> {
+  const path = pathOrUrl.startsWith(API_BASE_URL)
+    ? pathOrUrl
+    : pathOrUrl.startsWith("/api/v1")
+      ? `${API_BASE_URL}${pathOrUrl.slice("/api/v1".length)}`
+      : `${API_BASE_URL}${pathOrUrl}`;
+  const headers: Record<string, string> = {};
+  const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(path, { headers });
+  if (!res.ok) throw new ApiError("Gagal memuat dokumentasi", res.status);
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
+}
 /* ============================================================
  * §13 — Target & Refleksi
  * ============================================================ */

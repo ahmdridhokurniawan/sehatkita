@@ -260,4 +260,28 @@ class CatatanKesehatanTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'data');
     }
+
+    public function test_catatan_dengan_jam_hari_ini_dan_gula_puasa_diterima(): void
+    {
+        $user = $this->pengguna();
+        $this->denganProfil($user);
+
+        // Waktu hari ini beserta jam (format datetime-local dari UI) tidak boleh gagal before_or_equal
+        $this->asUser($user)
+            ->postJson('/api/v1/catatan-kesehatan', [
+                'dicatat_pada'     => now()->format('Y-m-d\TH:i'),
+                'sumber'           => 'mandiri',
+                'gula_darah'       => 98,
+                'jenis_gula_darah' => 'puasa',
+            ])->assertStatus(201)
+              ->assertJsonPath('data.jenis_gula_darah', 'puasa');
+
+        // Tanggal besok tetap harus ditolak 422
+        $this->asUser($user)
+            ->postJson('/api/v1/catatan-kesehatan', [
+                'dicatat_pada' => now()->addDay()->toDateString(),
+                'sumber'       => 'mandiri',
+                'bb_kg'        => 68,
+            ])->assertStatus(422)->assertJsonValidationErrors('dicatat_pada');
+    }
 }

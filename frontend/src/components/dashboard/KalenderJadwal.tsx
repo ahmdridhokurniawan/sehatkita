@@ -49,13 +49,13 @@ export default function KalenderJadwal({ jadwal }: { jadwal: JadwalSkrining[] })
   return (
     <div className="card mt-12">
       <div className="row-between mb-8">
-        <button type="button" className="btn btn-icon btn-sm btn-ghost" onClick={() => setBulan(tambahBulan(bulan, -1))} aria-label="Sebelumnya">
+        <button type="button" className="btn btn-icon btn-sm btn-ghost kalender-nav-btn" onClick={() => setBulan(tambahBulan(bulan, -1))} aria-label="Sebelumnya">
           <Icon name="chevron-left" size={16} />
         </button>
         <strong className="text-sm">
           {NAMA_BULAN[start.getMonth()]} {start.getFullYear()}
         </strong>
-        <button type="button" className="btn btn-icon btn-sm btn-ghost" onClick={() => setBulan(tambahBulan(bulan, 1))} aria-label="Berikutnya">
+        <button type="button" className="btn btn-icon btn-sm btn-ghost kalender-nav-btn" onClick={() => setBulan(tambahBulan(bulan, 1))} aria-label="Berikutnya">
           <Icon name="chevron-right" size={16} />
         </button>
       </div>

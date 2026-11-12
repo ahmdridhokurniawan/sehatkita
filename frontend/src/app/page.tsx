@@ -25,23 +25,88 @@ const LEGAL: Record<string, React.ReactNode> = {
   syarat: (
     <>
       <h3 className="h4">Syarat dan Ketentuan</h3>
-      <p className="tiny mt-12">
-        SehatKita bukan alat diagnosis medis dan tidak menggantikan pemeriksaan tenaga kesehatan. Pengguna
-        bertanggung jawab atas kebenaran data yang dicatat. Penyalahgunaan akun dapat mengakibatkan penangguhan.
+      <ol className="tiny mt-12" style={{ paddingLeft: 18, display: "grid", gap: 8 }}>
+        <li>
+          <strong>Sifat Informasi (Bukan Diagnosis Medis):</strong> SehatKita berfungsi sebagai alat bantu pemantauan,
+          edukasi, dan pencatatan kesehatan berbasis masyarakat. Hasil perhitungan maupun kategori indikator bukan
+          merupakan diagnosis medis resmi dan tidak menggantikan pemeriksaan dokter atau tenaga kesehatan.
+        </li>
+        <li>
+          <strong>Kelayakan &amp; Keamanan Akun:</strong> Pengguna wajib memberikan identitas wilayah yang sesuai serta
+          menjaga kerahasiaan kredensial akun (kata sandi minimal 8 karakter yang memuat huruf kapital, angka, dan
+          simbol). Aktivitas mencurigakan atau penyalahgunaan akses dapat berakibat pembatasan akun.
+        </li>
+        <li>
+          <strong>Kebenaran Data &amp; Persetujuan:</strong> Pengguna bertanggung jawab atas keakuratan data kesehatan
+          yang dicatat secara mandiri maupun melalui kader Posbindu. Penggunaan data tunduk pada persetujuan
+          pengguna yang dapat diatur kapan saja di halaman profil.
+        </li>
+        <li>
+          <strong>Tantangan &amp; Verifikasi Dokumentasi:</strong> Peserta yang mengikuti tantangan kesehatan dan mengunggah
+          foto dokumentasi penyelesaian misi wajib memastikan foto berasal dari aktivitas nyata yang relevan.
+          Kader atau admin berhak meninjau, menyetujui, atau menolak bukti yang tidak sesuai sebelum poin EXP diberikan.
+        </li>
+        <li>
+          <strong>Keamanan Data Medis &amp; Privasi k-Anonymity:</strong> Rekam kesehatan dan riwayat pemeriksaan
+          terenkripsi serta dibatasi per peran dan wilayah kelurahan. Publikasi papan peringkat maupun laporan agregat
+          Posbindu menerapkan ambang anonimitas (minimal 5 peserta per kelompok wilayah) sehingga identitas individu
+          tetap terlindungi.
+        </li>
+        <li>
+          <strong>Integrasi Sesi Posbindu:</strong> Pencatatan yang dilakukan oleh kader pada sesi Posbindu resmi di
+          Kota Banjarbaru terhubung ke riwayat akun warga terkait setelah melalui validasi wilayah dan persetujuan.
+        </li>
+        <li>
+          <strong>Batasan Tanggung Jawab:</strong> Pengelola terus berupaya menjaga keandalan layanan, namun kondisi
+          gawat darurat medis harus segera ditangani di fasilitas layanan kesehatan terdekat tanpa menunggu hasil dari
+          aplikasi.
+        </li>
+      </ol>
+    </>
+  ),
+  bantuan: (
+    <>
+      <h3 className="h4">Pusat Bantuan SehatKita</h3>
+      <p className="tiny mt-10">
+        Panduan cepat apabila Anda mengalami kendala saat mendaftar, mencatat pemeriksaan, atau mengikuti tantangan:
       </p>
+      <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+        <div className="card card-flat" style={{ padding: 12 }}>
+          <strong className="text-sm">1. Pendaftaran &amp; Password</strong>
+          <p className="tiny mt-4">
+            Gunakan filter Kecamatan atau pencarian nama Kelurahan di halaman Daftar Sekarang. Pastikan password
+            mengandung huruf kapital, angka, dan simbol.
+          </p>
+        </div>
+        <div className="card card-flat" style={{ padding: 12 }}>
+          <strong className="text-sm">2. Catatan Kesehatan &amp; Rujukan</strong>
+          <p className="tiny mt-4">
+            Anda dapat mencatat tekanan darah, berat badan, dan gula darah (Puasa / 2 Jam PP) untuk hari ini. Jika ada
+            indikator berisiko, sistem menyarankan rujukan ke Puskesmas terdekat.
+          </p>
+        </div>
+        <div className="card card-flat" style={{ padding: 12 }}>
+          <strong className="text-sm">3. Dukungan Kader &amp; Kontak Resmi</strong>
+          <p className="tiny mt-4">
+            Untuk pembaruan data NIK/kelurahan atau kendala teknis, hubungi Kader Posbindu kelurahan Anda atau{" "}
+            <a href="mailto:halo@sehatkita.id" className="text-primary fw-600">halo@sehatkita.id</a> (Dinas Kesehatan
+            Kota Banjarbaru).
+          </p>
+        </div>
+      </div>
     </>
   ),
   kontak: (
     <>
       <h3 className="h4">Kontak Resmi</h3>
       <p className="tiny mt-12">
-        Email: halo@sehatkita.id
+        Email: <a href="mailto:halo@sehatkita.id" className="text-primary fw-600">halo@sehatkita.id</a>
         <br />
         Dinas Kesehatan Kota Banjarbaru
         <br />
         Kalimantan Selatan
       </p>
-      <p className="tiny mt-8">Placeholder kontak — akan diperbarui oleh pengelola.</p>
+      <p className="tiny mt-8">Hubungi email resmi di atas untuk pertanyaan layanan, kerja sama wilayah, maupun bantuan akun.</p>
     </>
   ),
 };
@@ -148,7 +213,7 @@ export default function LandingPage() {
   const [tabBig, setTabBig] = useState<TabPreview>("rekam");
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
   const [navOpen, setNavOpen] = useState(false);
-  const [legal, setLegal] = useState<string | null>(null);
+  const [legal, setLegal] = useState<"privasi" | "syarat" | "bantuan" | "kontak" | null>(null);
   const [navAktif, setNavAktif] = useState("beranda");
   useEffect(() => {
     const ids = ["beranda", "fitur", "cara-kerja", "tentang", "faq"];
@@ -266,56 +331,70 @@ export default function LandingPage() {
               Fitur dirancang agar masyarakat umum mudah mencatat, memahami, dan menindaklanjuti kondisi kesehatan.
             </p>
           </div>
-          <div className="grid grid-3">
+          <div className="grid grid-4">
             <div className="feat" data-reveal>
               <span className="feat-ico"><Icon name="file-text" /></span>
               <h3>Rekam Medis</h3>
-              <p>Simpan riwayat berat badan, tekanan darah, gula darah, kolesterol, dan lainnya dalam satu tempat.</p>
+              <p>Simpan riwayat berat badan, tensi, gula darah (puasa/2JPP), dan kolesterol dalam satu tempat.</p>
               <Link href="/rekam-medis" className="feat-link">
                 Lihat riwayat <Icon name="arrow-right" size={15} />
               </Link>
             </div>
             <div className="feat" data-reveal>
-              <span className="feat-ico"><Icon name="sparkles" /></span>
+              <span className="feat-ico tone-safe"><Icon name="calculator" /></span>
+              <h3>Kalkulator Kesehatan</h3>
+              <p>Hitung IMT, berat badan ideal, kebutuhan kalori harian, dan asupan air minum dengan cepat.</p>
+              <Link href="/kalkulator" className="feat-link">
+                Coba kalkulator <Icon name="arrow-right" size={15} />
+              </Link>
+            </div>
+            <div className="feat" data-reveal>
+              <span className="feat-ico tone-warning"><Icon name="sparkles" /></span>
               <h3>Insight Kesehatan</h3>
-              <p>Analisis otomatis dari data yang Anda catat, dengan penjelasan sederhana dan rekomendasi tindak lanjut.</p>
+              <p>Analisis otomatis dari data Anda disertai rekomendasi praktis dan pencegahan dini.</p>
               <Link href="/insight" className="feat-link">
                 Pelajari insight <Icon name="arrow-right" size={15} />
               </Link>
             </div>
             <div className="feat" data-reveal>
-              <span className="feat-ico"><Icon name="send" /></span>
+              <span className="feat-ico tone-orange"><Icon name="send" /></span>
               <h3>Rujukan &amp; Notifikasi</h3>
-              <p>Terhubung ke fasilitas kesehatan dan dapatkan pemberitahuan saat tindak lanjut diperlukan.</p>
+              <p>Terhubung ke Puskesmas terdekat dan dapatkan pengingat saat tindak lanjut dibutuhkan.</p>
               <Link href="/rujukan" className="feat-link">
                 Info rujukan <Icon name="arrow-right" size={15} />
               </Link>
             </div>
             <div className="feat" data-reveal>
-              <span className="feat-ico"><Icon name="target" /></span>
+              <span className="feat-ico tone-safe"><Icon name="target" /></span>
               <h3>Target Kesehatan</h3>
-              <p>Tetapkan target berat badan, aktivitas, dan asupan air, lalu pantau perkembangannya.</p>
+              <p>Tetapkan target berat badan, aktivitas mingguan, dan cairan tubuh lalu pantau progresnya.</p>
               <Link href="/target-kesehatan" className="feat-link">
                 Atur target <Icon name="arrow-right" size={15} />
               </Link>
             </div>
-            <div className="feat feat-wide feat-accent" data-reveal>
-              <span className="feat-ico"><Icon name="award" /></span>
+            <div className="feat feat-accent" data-reveal>
+              <span className="feat-ico"><Icon name="trophy" /></span>
               <h3>Tantangan &amp; Reward</h3>
-              <p>Ikuti tantangan kesehatan bersama warga, kumpulkan badge, dan naik level sesuai partisipasi nyata.</p>
+              <p>Selesaikan misi sehat, unggah foto dokumentasi, raih verifikasi kader, kumpulkan EXP &amp; badge.</p>
               <Link href="/program" className="feat-link" style={{ color: "#fff" }}>
                 Jelajahi tantangan <Icon name="arrow-right" size={15} />
               </Link>
             </div>
             <div className="feat" data-reveal>
-              <span className="feat-ico"><Icon name="building" /></span>
-              <h3>Program Kesehatan Kelurahan</h3>
-              <p>Ikuti kegiatan Posbindu, penyuluhan, dan pemeriksaan kesehatan di wilayah Anda.</p>
+              <span className="feat-ico tone-warning"><Icon name="building" /></span>
+              <h3>Program Posbindu</h3>
+              <p>Ikuti jadwal skrining kelurahan, penyuluhan, dan pemeriksaan kesehatan rutin di wilayah Anda.</p>
+              <Link href="/posbindu" className="feat-link">
+                Lihat jadwal <Icon name="arrow-right" size={15} />
+              </Link>
             </div>
             <div className="feat" data-reveal>
-              <span className="feat-ico"><Icon name="bar-chart" /></span>
-              <h3>Dashboard Pemantauan Wilayah</h3>
-              <p>Admin kelurahan memantau kondisi agregat masyarakat tanpa membuka data pribadi individu.</p>
+              <span className="feat-ico tone-info"><Icon name="bar-chart" /></span>
+              <h3>Pemantauan Wilayah</h3>
+              <p>Admin kelurahan memantau kondisi agregat dan tren kesehatan warga secara anonim.</p>
+              <Link href="/peringkat" className="feat-link">
+                Lihat peringkat <Icon name="arrow-right" size={15} />
+              </Link>
             </div>
           </div>
         </div>
@@ -433,6 +512,15 @@ export default function LandingPage() {
               <FaqItem key={i} q={q} a={a} open={faqOpen === i} onToggle={() => setFaqOpen(faqOpen === i ? null : i)} />
             ))}
           </div>
+          <div className="card mt-20" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }} data-reveal>
+            <div>
+              <strong className="text-sm">Masih butuh bantuan atau panduan langkah?</strong>
+              <p className="tiny mt-4">Buka Pusat Bantuan SehatKita untuk panduan akun, pencatatan, dan kontak resmi.</p>
+            </div>
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => setLegal("bantuan")}>
+              <Icon name="help-circle" size={16} /> Pusat Bantuan
+            </button>
+          </div>
         </div>
       </section>
 
@@ -479,7 +567,8 @@ export default function LandingPage() {
             </div>
             <div className="footer-col">
               <h4>Bantuan</h4>
-              <a href="#faq">Pusat Bantuan</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); setLegal("bantuan"); }}>Pusat Bantuan</a>
+              <Link href="/kalkulator">Kalkulator Kesehatan</Link>
               <Link href="/login">Masuk</Link>
               <Link href="/register">Daftar</Link>
             </div>
@@ -488,7 +577,6 @@ export default function LandingPage() {
               <a href="#" onClick={(e) => { e.preventDefault(); setLegal("privasi"); }}>Kebijakan Privasi</a>
               <a href="#" onClick={(e) => { e.preventDefault(); setLegal("syarat"); }}>Syarat dan Ketentuan</a>
               <a href="#" onClick={(e) => { e.preventDefault(); setLegal("kontak"); }}>Kontak Resmi</a>
-              <a href="#" onClick={(e) => { e.preventDefault(); setLegal("kontak"); }}>Email: halo@sehatkita.id</a>
             </div>
           </div>
           <div className="footer-bottom">

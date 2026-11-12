@@ -104,54 +104,64 @@ export default function CatatanKesehatanPage() {
               />
             </div>
           ) : (
-            daftar.map((c) => (
-              <div className="card card-flat" key={c.id}>
-                <div className="row-between mb-12">
-                  <strong className="text-sm">{fmtTanggal(c.dicatat_pada, "day")}</strong>
-                  <div className="row gap-6">
-                    {c.status_kesehatan ? (
-                      <span className="badge badge-primary">{c.status_kesehatan}</span>
-                    ) : null}
-                    <span className="badge">
-                      <Icon name="clipboard" size={12} /> {LABEL_SUMBER[c.sumber] ?? c.sumber}
-                    </span>
+            <div className="grid grid-2" style={{ gap: 12 }}>
+              {daftar.map((c) => {
+                const gulaLabel =
+                  c.jenis_gula_darah === "puasa"
+                    ? " (Puasa)"
+                    : c.jenis_gula_darah === "2jam_pp"
+                      ? " (2 Jam PP)"
+                      : "";
+                const items: { label: string; value: string }[] = [];
+                if (c.bb_kg != null) items.push({ label: "Berat badan", value: `${angka(c.bb_kg, 1)} kg` });
+                if (c.sistol != null && c.diastol != null)
+                  items.push({ label: "Tekanan darah", value: `${c.sistol}/${c.diastol} mmHg` });
+                if (c.gula_darah != null)
+                  items.push({ label: `Gula darah${gulaLabel}`, value: `${angka(c.gula_darah, 0)} mg/dL` });
+                if (c.kolesterol != null) items.push({ label: "Kolesterol", value: `${angka(c.kolesterol, 0)} mg/dL` });
+                if (c.asam_urat != null) items.push({ label: "Asam urat", value: `${angka(c.asam_urat, 1)} mg/dL` });
+                if (c.lingkar_perut != null) items.push({ label: "Lingkar perut", value: `${angka(c.lingkar_perut, 1)} cm` });
+                if (c.imt != null)
+                  items.push({
+                    label: "IMT",
+                    value: `${angka(c.imt, 1)}${
+                      c.kategori_imt ? ` (${LABEL_KATEGORI_IMT[c.kategori_imt] ?? c.kategori_imt})` : ""
+                    }`,
+                  });
+                if (c.tidur_jam != null) items.push({ label: "Jam tidur", value: `${angka(c.tidur_jam, 1)} jam` });
+                if (c.merokok != null) items.push({ label: "Merokok", value: c.merokok ? "Ya" : "Tidak" });
+
+                return (
+                  <div className="card card-flat" key={c.id}>
+                    <div className="row-between wrap gap-6 mb-12">
+                      <strong className="text-sm">{fmtTanggal(c.dicatat_pada, "day")}</strong>
+                      <div className="row gap-6 wrap">
+                        {c.status_kesehatan ? (
+                          <span className="badge badge-primary">{c.status_kesehatan}</span>
+                        ) : null}
+                        <span className="badge">
+                          <Icon name="clipboard" size={12} /> {LABEL_SUMBER[c.sumber] ?? c.sumber}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fill, minmax(135px, 1fr))",
+                        gap: 10,
+                      }}
+                    >
+                      {items.map((it) => (
+                        <Baris key={it.label} label={it.label} value={it.value} />
+                      ))}
+                    </div>
+
+                    {c.catatan ? <p className="tiny mt-10 border-t" style={{ paddingTop: 8 }}>{c.catatan}</p> : null}
                   </div>
-                </div>
-
-                <div className="grid grid-3" style={{ gap: 12 }}>
-                  <Baris label="Berat badan" value={tampil(c.bb_kg, " kg")} />
-                  <Baris
-                    label="Tekanan darah"
-                    value={
-                      c.sistol != null && c.diastol != null
-                        ? `${c.sistol}/${c.diastol} mmHg`
-                        : "—"
-                    }
-                  />
-                  <Baris label="Gula darah" value={tampil(c.gula_darah, " mg/dL")} />
-                  <Baris label="Kolesterol" value={tampil(c.kolesterol, " mg/dL")} />
-                  <Baris label="Asam urat" value={tampil(c.asam_urat, " mg/dL")} />
-                  <Baris label="Lingkar perut" value={tampil(c.lingkar_perut, " cm")} />
-                  <Baris
-                    label="IMT"
-                    value={
-                      c.imt == null
-                        ? "—"
-                        : `${angka(c.imt, 1)}${
-                            c.kategori_imt ? ` (${LABEL_KATEGORI_IMT[c.kategori_imt] ?? c.kategori_imt})` : ""
-                          }`
-                    }
-                  />
-                  <Baris label="Jam tidur" value={tampil(c.tidur_jam, " jam")} />
-                  <Baris
-                    label="Merokok"
-                    value={c.merokok == null ? "—" : c.merokok ? "Ya" : "Tidak"}
-                  />
-                </div>
-
-                {c.catatan ? <p className="tiny mt-8">{c.catatan}</p> : null}
-              </div>
-            ))
+                );
+              })}
+            </div>
           )}
         </div>
       )}

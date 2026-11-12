@@ -12,17 +12,25 @@ class PesertaProgram extends Model
 
     // Kolom yang boleh diisi massal (user mendaftar program).
     protected $fillable = [
-        'program_id',   // program yang diikuti
-        'user_id',      // user yang mendaftar
-        'status',       // terdaftar | selesai | berhenti
-        'selesai_pada', // kapan selesai (opsional)
+        'program_id',        // program yang diikuti
+        'user_id',           // user yang mendaftar
+        'status',            // terdaftar | menunggu_verifikasi | selesai | ditolak | berhenti
+        'bukti_foto',        // path foto dokumentasi bukti penyelesaian misi
+        'catatan_bukti',     // catatan singkat peserta saat unggah bukti
+        'dikirim_pada',      // waktu peserta mengirim bukti
+        'catatan_verifikasi',// catatan kader/admin saat menyetujui/menolak
+        'diverifikasi_oleh', // id kader/admin pemverifikasi
+        'diverifikasi_pada', // kapan diverifikasi
+        'selesai_pada',      // kapan selesai (opsional)
     ];
 
     // Cast tipe kolom timestamp.
     protected function casts(): array
     {
         return [
-            'selesai_pada' => 'datetime',
+            'dikirim_pada'      => 'datetime',
+            'diverifikasi_pada' => 'datetime',
+            'selesai_pada'      => 'datetime',
         ];
     }
 

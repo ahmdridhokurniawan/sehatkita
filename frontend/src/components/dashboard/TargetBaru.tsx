@@ -338,72 +338,74 @@ function TargetForm({
         </div>
       }
     >
-      <div className="field">
-        <label className="label" htmlFor="judul">Judul target</label>
-        <input
-          id="judul"
-          className={"input" + (err.judul ? " is-error" : "")}
-          placeholder="misalnya Berat badan ideal"
-          value={form.judul}
-          onChange={(e) => ubah("judul", e.target.value)}
-        />
-        {err.judul ? <div className="err-msg show">{err.judul}</div> : null}
-      </div>
-
-      <div className="field">
-        <label className="label" htmlFor="jenis_target">Jenis target</label>
-        <select
-          id="jenis_target"
-          className="input"
-          value={form.jenis_target}
-          onChange={(e) => ubah("jenis_target", e.target.value)}
-        >
-          {JENIS.map((j) => (
-            <option key={j.kode} value={j.kode}>{j.label}</option>
-          ))}
-        </select>
-      </div>
-
-      <div className="grid grid-2" style={{ gap: 10 }}>
+      <div style={{ display: "grid", gap: 14 }}>
         <div className="field">
-          <label className="label" htmlFor="nilai_target">Nilai target</label>
+          <label className="label" htmlFor="judul">Judul target</label>
           <input
-            id="nilai_target"
-            className={"input" + (err.nilai_target ? " is-error" : "")}
-            type="number"
-            inputMode="decimal"
-            placeholder="misalnya 70"
-            value={form.nilai_target}
-            onChange={(e) => ubah("nilai_target", e.target.value)}
+            id="judul"
+            className={"input" + (err.judul ? " is-error" : "")}
+            placeholder="misalnya Berat badan ideal"
+            value={form.judul}
+            onChange={(e) => ubah("judul", e.target.value)}
           />
-          {err.nilai_target ? <div className="err-msg show">{err.nilai_target}</div> : null}
+          {err.judul ? <div className="err-msg show">{err.judul}</div> : null}
         </div>
-        <div className="field">
-          <label className="label" htmlFor="satuan">Satuan</label>
-          <input
-            id="satuan"
-            className={"input" + (err.satuan ? " is-error" : "")}
-            placeholder="kg, cm, ml, kali…"
-            value={form.satuan}
-            onChange={(e) => ubah("satuan", e.target.value)}
-          />
-          {err.satuan ? <div className="err-msg show">{err.satuan}</div> : null}
-        </div>
-      </div>
 
-      <div className="grid grid-2" style={{ gap: 10 }}>
-        <div className="field">
-          <label className="label" htmlFor="nilai_awal">Nilai awal (opsional)</label>
-          <input
-            id="nilai_awal"
-            className="input"
-            type="number"
-            inputMode="decimal"
-            placeholder="misalnya 75"
-            value={form.nilai_awal}
-            onChange={(e) => ubah("nilai_awal", e.target.value)}
-          />
+        <div className="grid grid-2" style={{ gap: 12 }}>
+          <div className="field">
+            <label className="label" htmlFor="jenis_target">Jenis target</label>
+            <select
+              id="jenis_target"
+              className="select"
+              value={form.jenis_target}
+              onChange={(e) => ubah("jenis_target", e.target.value)}
+            >
+              {JENIS.map((j) => (
+                <option key={j.kode} value={j.kode}>{j.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="satuan">Satuan</label>
+            <input
+              id="satuan"
+              className={"input" + (err.satuan ? " is-error" : "")}
+              placeholder="kg, cm, ml, kali…"
+              value={form.satuan}
+              onChange={(e) => ubah("satuan", e.target.value)}
+            />
+            {err.satuan ? <div className="err-msg show">{err.satuan}</div> : null}
+          </div>
         </div>
+
+        <div className="grid grid-2" style={{ gap: 12 }}>
+          <div className="field">
+            <label className="label" htmlFor="nilai_awal">Nilai awal (opsional)</label>
+            <input
+              id="nilai_awal"
+              className="input"
+              type="number"
+              inputMode="decimal"
+              placeholder="misalnya 75"
+              value={form.nilai_awal}
+              onChange={(e) => ubah("nilai_awal", e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="nilai_target">Nilai target</label>
+            <input
+              id="nilai_target"
+              className={"input" + (err.nilai_target ? " is-error" : "")}
+              type="number"
+              inputMode="decimal"
+              placeholder="misalnya 70"
+              value={form.nilai_target}
+              onChange={(e) => ubah("nilai_target", e.target.value)}
+            />
+            {err.nilai_target ? <div className="err-msg show">{err.nilai_target}</div> : null}
+          </div>
+        </div>
+
         <div className="field">
           <label className="label" htmlFor="tenggat_waktu">Tenggat (opsional)</label>
           <input
@@ -414,18 +416,18 @@ function TargetForm({
             onChange={(e) => ubah("tenggat_waktu", e.target.value)}
           />
         </div>
-      </div>
 
-      <div className="field">
-        <label className="label" htmlFor="catatan_motivasi">Catatan motivasi (opsional)</label>
-        <textarea
-          id="catatan_motivasi"
-          className="input"
-          rows={2}
-          placeholder="misalnya Terus semangat, kamu bisa!"
-          value={form.catatan_motivasi}
-          onChange={(e) => ubah("catatan_motivasi", e.target.value)}
-        />
+        <div className="field">
+          <label className="label" htmlFor="catatan_motivasi">Catatan motivasi (opsional)</label>
+          <textarea
+            id="catatan_motivasi"
+            className="textarea"
+            rows={2}
+            placeholder="misalnya Terus semangat, kamu bisa!"
+            value={form.catatan_motivasi}
+            onChange={(e) => ubah("catatan_motivasi", e.target.value)}
+          />
+        </div>
       </div>
     </Modal>
   );

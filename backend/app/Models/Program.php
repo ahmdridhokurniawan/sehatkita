@@ -16,6 +16,8 @@ class Program extends Model
     protected $fillable = [
         'wilayah_id',      // program ini dibuat oleh kelurahan mana
         'judul',           // nama program, mis. "Program 21 Hari Hidup Sehat"
+        'deskripsi',       // deskripsi singkat program / tantangan
+        'kriteria_misi',   // syarat bukti penyelesaian misi tantangan
         'jenis',           // olahraga | edukasi | pemeriksaan | lainnya
         'target_peserta',  // target jumlah peserta, mis. 100
         'mulai',           // tanggal mulai

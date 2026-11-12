@@ -402,9 +402,21 @@ export interface RujukanQuery extends ListQuery {
 /* ============================================================
  * §12 / §25 / §30 — Program (Tantangan & Reward)
  * ============================================================ */
+export interface PesertaSaya {
+  id: number;
+  status: StatusPeserta;
+  bukti_foto_url?: string | null;
+  catatan_bukti?: string | null;
+  dikirim_pada?: string | null;
+  catatan_verifikasi?: string | null;
+  diverifikasi_pada?: string | null;
+  selesai_pada?: string | null;
+}
 export interface Program {
   id: number;
   judul: string;
+  deskripsi?: string | null;
+  kriteria_misi?: string | null;
   jenis: JenisProgram;
   target_peserta: number;
   jumlah_peserta: number;
@@ -412,6 +424,9 @@ export interface Program {
   selesai: string | null;
   status: StatusProgram | null;
   diikuti: boolean;
+  status_saya?: StatusPeserta | null;
+  peserta_saya?: PesertaSaya | null;
+  peserta?: PesertaProgram[];
   /** Gamifikasi program (kolom `program.badge/exp/level/rank_kelurahan`) */
   badge: string | null;
   exp: number;
@@ -427,6 +442,8 @@ export interface ProgramQuery extends ListQuery {
 export interface ProgramInput {
   wilayah_id?: number | null;
   judul: string;
+  deskripsi?: string | null;
+  kriteria_misi?: string | null;
   jenis: JenisProgram;
   target_peserta?: number;
   mulai: string;
@@ -439,6 +456,7 @@ export interface PesertaProgramInput {
   status: StatusPeserta;
   /** Wajib bila yang mengubah kader/admin/super_admin */
   user_id?: number;
+  catatan_verifikasi?: string;
 }
 /** §12.6 — peserta program (GET /program/{id}/peserta) */
 export interface PesertaProgram {
@@ -447,6 +465,11 @@ export interface PesertaProgram {
   name: string;
   email?: string;
   status: StatusPeserta;
+  bukti_foto_url?: string | null;
+  catatan_bukti?: string | null;
+  dikirim_pada?: string | null;
+  catatan_verifikasi?: string | null;
+  diverifikasi_pada?: string | null;
   terdaftar_pada?: string;
   selesai_pada?: string | null;
 }

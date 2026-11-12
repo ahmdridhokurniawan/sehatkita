@@ -24,6 +24,10 @@ class AuthController extends Controller
                 Password::min(8)->letters()->mixedCase()->numbers()->symbols(),
             ],
             'wilayah_id' => 'required|exists:wilayah,id',
+        ], [
+            'password.min'       => 'Password minimal 8 karakter.',
+            'password.regex'     => 'Password harus mengandung minimal 1 huruf kapital, 1 angka, dan 1 simbol.',
+            'password.confirmed' => 'Konfirmasi password tidak cocok.',
         ]);
 
         $user = Pengguna::create([

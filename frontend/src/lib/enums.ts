@@ -85,7 +85,9 @@ export type StatusProgram = (typeof STATUS_PROGRAM)[keyof typeof STATUS_PROGRAM]
 // §1.7 — status_peserta
 export const STATUS_PESERTA = {
   TERDAFTAR: "terdaftar",
+  MENUNGGU_VERIFIKASI: "menunggu_verifikasi",
   SELESAI: "selesai",
+  DITOLAK: "ditolak",
   BERHENTI: "berhenti",
 } as const;
 export type StatusPeserta = (typeof STATUS_PESERTA)[keyof typeof STATUS_PESERTA];

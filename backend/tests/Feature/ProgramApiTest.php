@@ -7,6 +7,8 @@ use App\Models\PesertaProgram;
 use App\Models\Program;
 use App\Models\Wilayah;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ProgramApiTest extends TestCase
@@ -103,5 +105,71 @@ class ProgramApiTest extends TestCase
 
         $resPatchProg->assertOk()
             ->assertJsonPath('data.status', 'selesai');
+    }
+
+    public function test_warga_unggah_foto_bukti_dan_admin_verifikasi_misi(): void
+    {
+        Storage::fake('public');
+
+        $admin = $this->pengguna('admin_kelurahan');
+        $warga = $this->pengguna('user');
+
+        $program = Program::create([
+            'wilayah_id'    => $admin->wilayah_id,
+            'judul'         => 'Misi Lari 5K',
+            'deskripsi'     => 'Lari santai keliling lapangan.',
+            'kriteria_misi' => 'Unggah foto stopwatch atau selfie di garis akhir.',
+            'jenis'         => 'olahraga',
+            'mulai'         => now()->toDateString(),
+            'selesai'       => now()->addDays(7)->toDateString(),
+            'exp_reward'    => 120,
+            'status'        => 'berjalan',
+        ]);
+
+        PesertaProgram::create([
+            'program_id' => $program->id,
+            'user_id'    => $warga->id,
+            'status'     => 'terdaftar',
+        ]);
+
+        // 1. Warga unggah dokumentasi -> menunggu_verifikasi
+        $file = UploadedFile::fake()->image('dokumentasi.jpg', 320, 240);
+        $resUpload = $this->asUser($warga)->post("/api/v1/program/{$program->id}/bukti", [
+            'foto'          => $file,
+            'catatan_bukti' => 'Sudah lari 5 km pagi ini',
+        ], ['Accept' => 'application/json']);
+
+        $resUpload->assertOk()
+            ->assertJsonPath('data.status', 'menunggu_verifikasi')
+            ->assertJsonPath('data.catatan_bukti', 'Sudah lari 5 km pagi ini');
+
+        $peserta = PesertaProgram::where('program_id', $program->id)->where('user_id', $warga->id)->firstOrFail();
+        $this->assertNotNull($peserta->bukti_foto);
+        Storage::disk('public')->assertExists($peserta->bukti_foto);
+
+        // 2. Admin bisa mengakses gambar bukti
+        $this->asUser($admin)
+            ->get("/api/v1/program/{$program->id}/bukti/{$peserta->id}")
+            ->assertOk();
+
+        // 3. Admin menolak terlebih dahulu dengan alasan
+        $this->asUser($admin)
+            ->patchJson("/api/v1/program/{$program->id}/peserta", [
+                'user_id'            => $warga->id,
+                'status'             => 'ditolak',
+                'catatan_verifikasi' => 'Foto buram, mohon unggah ulang.',
+            ])->assertOk()
+              ->assertJsonPath('data.status', 'ditolak');
+        $this->assertEquals(0, $warga->fresh()->exp_total);
+
+        // 4. Admin menyetujui selesai -> EXP bertambah
+        $this->asUser($admin)
+            ->patchJson("/api/v1/program/{$program->id}/peserta", [
+                'user_id' => $warga->id,
+                'status'  => 'selesai',
+            ])->assertOk()
+              ->assertJsonPath('data.status', 'selesai')
+              ->assertJsonPath('data.exp_didapat', 120);
+        $this->assertEquals(120, $warga->fresh()->exp_total);
     }
 }

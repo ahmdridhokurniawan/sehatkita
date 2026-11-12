@@ -137,6 +137,10 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
     if (bagian.length > 2) bersih = bagian[0] + "." + bagian.slice(1).join("");
     setAngka((prev) => ({ ...prev, [id]: bersih }));
     setErr((prev) => ({ ...prev, [id]: "" }));
+    if (id === "gula_darah" && bersih.trim() !== "" && !jenisGula) {
+      setJenisGula("puasa");
+      setErr((prev) => ({ ...prev, jenis_gula_darah: "" }));
+    }
   }
 
   async function kirim() {
@@ -155,17 +159,35 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
       else payload.sesi_posbindu_id = Number(sesiId);
     }
 
+    let adaAngka = false;
     for (const f of FIELD_ANGKA) {
       const t = (angka[f.id] || "").trim();
       if (t === "") continue;
       const v = validAngka(f.id, t);
       if (!v.ok) e[f.id] = v.msg || "Nilai tidak valid.";
-      else payload[f.id] = v.value;
+      else {
+        payload[f.id] = v.value;
+        adaAngka = true;
+      }
     }
-    if (jenisGula) payload.jenis_gula_darah = jenisGula;
+
+    if ((payload.sistol != null) !== (payload.diastol != null)) {
+      if (payload.sistol == null) e.sistol = "Isi Sistol berpasangan dengan Diastol.";
+      if (payload.diastol == null) e.diastol = "Isi Diastol berpasangan dengan Sistol.";
+    }
+
+    if (payload.gula_darah != null) {
+      if (!jenisGula) e.jenis_gula_darah = "Pilih Puasa atau 2 Jam Setelah Makan.";
+      else payload.jenis_gula_darah = jenisGula;
+    }
+
     if (konsumsiManis) payload.konsumsi_manis = konsumsiManis;
     if (merokok !== "") payload.merokok = merokok === "true";
     if (catatan.trim()) payload.catatan = catatan.trim();
+
+    if (!adaAngka && !konsumsiManis && merokok === "") {
+      e.bb_kg = "Isi minimal satu pengukuran atau kebiasaan.";
+    }
 
     setErr(e);
     if (Object.keys(e).length > 0) {
@@ -228,41 +250,46 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
         <legend>
           <span className="n">1</span> Waktu &amp; Sumber
         </legend>
-        <div className="field">
-          <label className="label" htmlFor="dicatat_pada">
-            Waktu pemeriksaan <span className="req">*</span>
-          </label>
-          <input
-            className={"input" + (err.dicatat_pada ? " is-error" : "")}
-            type="datetime-local"
-            id="dicatat_pada"
-            max={nowLocal()}
-            value={waktu}
-            onChange={(e) => setWaktu(e.target.value)}
-          />
-          {err.dicatat_pada ? <div className="err-msg show">{err.dicatat_pada}</div> : null}
-        </div>
-        <div className="field">
-          <label className="label" htmlFor="sumber">
-            Sumber data <span className="req">*</span>
-          </label>
-          <select
-            className={"select" + (err.sumber ? " is-error" : "")}
-            id="sumber"
-            value={efektifSumber}
-            onChange={(e) => {
-              setSumber(e.target.value);
-              setErr((p) => ({ ...p, sumber: "" }));
-            }}
-          >
-            <option value="">Pilih sumber…</option>
-            {sumberTersedia.map((s) => (
-              <option key={s.v} value={s.v}>
-                {s.l}
-              </option>
-            ))}
-          </select>
-          {err.sumber ? <div className="err-msg show">{err.sumber}</div> : null}
+        <div className="grid grid-2" style={{ gap: 12 }}>
+          <div className="field">
+            <label className="label" htmlFor="dicatat_pada">
+              Waktu pemeriksaan <span className="req">*</span>
+            </label>
+            <input
+              className={"input" + (err.dicatat_pada ? " is-error" : "")}
+              type="datetime-local"
+              id="dicatat_pada"
+              max={`${nowLocal().slice(0, 10)}T23:59`}
+              value={waktu}
+              onChange={(e) => {
+                setWaktu(e.target.value);
+                setErr((p) => ({ ...p, dicatat_pada: "" }));
+              }}
+            />
+            {err.dicatat_pada ? <div className="err-msg show">{err.dicatat_pada}</div> : null}
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="sumber">
+              Sumber data <span className="req">*</span>
+            </label>
+            <select
+              className={"select" + (err.sumber ? " is-error" : "")}
+              id="sumber"
+              value={efektifSumber}
+              onChange={(e) => {
+                setSumber(e.target.value);
+                setErr((p) => ({ ...p, sumber: "" }));
+              }}
+            >
+              <option value="">Pilih sumber…</option>
+              {sumberTersedia.map((s) => (
+                <option key={s.v} value={s.v}>
+                  {s.l}
+                </option>
+              ))}
+            </select>
+            {err.sumber ? <div className="err-msg show">{err.sumber}</div> : null}
+          </div>
         </div>
 
         {efektifSumber === "kader" ? (
@@ -310,62 +337,77 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
 
       <fieldset className="form-section">
         <legend>
-          <span className="n">2</span> Pengukuran Tubuh
+          <span className="n">2</span> Pengukuran Tubuh &amp; Tensi
         </legend>
-        {FIELD_ANGKA.slice(0, 4).map((f) => (
-          <AngkaField key={f.id} f={f} value={angka[f.id] || ""} err={err[f.id]} onChange={ubahAngka} />
-        ))}
+        <div className="grid grid-2" style={{ gap: 12 }}>
+          <AngkaField f={FIELD_ANGKA[0]} value={angka[FIELD_ANGKA[0].id] || ""} err={err[FIELD_ANGKA[0].id]} onChange={ubahAngka} />
+          <AngkaField f={FIELD_ANGKA[3]} value={angka[FIELD_ANGKA[3].id] || ""} err={err[FIELD_ANGKA[3].id]} onChange={ubahAngka} />
+        </div>
+        <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
+          <AngkaField f={FIELD_ANGKA[1]} value={angka[FIELD_ANGKA[1].id] || ""} err={err[FIELD_ANGKA[1].id]} onChange={ubahAngka} />
+          <AngkaField f={FIELD_ANGKA[2]} value={angka[FIELD_ANGKA[2].id] || ""} err={err[FIELD_ANGKA[2].id]} onChange={ubahAngka} />
+        </div>
       </fieldset>
 
       <fieldset className="form-section">
         <legend>
           <span className="n">3</span> Pemeriksaan Laboratorium
         </legend>
-        <div className="field">
-          <label className="label" htmlFor="jenis_gula_darah">
-            Jenis gula darah <span className="opt">(opsional)</span>
-          </label>
-          <select
-            className="select"
-            id="jenis_gula_darah"
-            value={jenisGula}
-            onChange={(e) => setJenisGula(e.target.value)}
-          >
-            <option value="">Pilih jenis…</option>
-            {JENIS_GULA.map((j) => (
-              <option key={j.v} value={j.v}>
-                {j.l}
-              </option>
-            ))}
-          </select>
+        <div className="grid grid-2" style={{ gap: 12 }}>
+          <AngkaField f={FIELD_ANGKA[4]} value={angka[FIELD_ANGKA[4].id] || ""} err={err[FIELD_ANGKA[4].id]} onChange={ubahAngka} />
+          <div className="field">
+            <label className="label" htmlFor="jenis_gula_darah">
+              Jenis gula darah{" "}
+              {angka.gula_darah ? <span className="req">*</span> : <span className="opt">(wajib jika gula diisi)</span>}
+            </label>
+            <div className="segment" role="group" aria-label="Pilih jenis gula darah">
+              {JENIS_GULA.map((j) => (
+                <button
+                  key={j.v}
+                  type="button"
+                  className={jenisGula === j.v ? "active" : ""}
+                  onClick={() => {
+                    setJenisGula(jenisGula === j.v && !angka.gula_darah ? "" : j.v);
+                    setErr((p) => ({ ...p, jenis_gula_darah: "" }));
+                  }}
+                >
+                  {j.l}
+                </button>
+              ))}
+            </div>
+            {err.jenis_gula_darah ? <div className="err-msg show">{err.jenis_gula_darah}</div> : null}
+          </div>
         </div>
-        {FIELD_ANGKA.slice(4, 7).map((f) => (
-          <AngkaField key={f.id} f={f} value={angka[f.id] || ""} err={err[f.id]} onChange={ubahAngka} />
-        ))}
+        <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
+          <AngkaField f={FIELD_ANGKA[5]} value={angka[FIELD_ANGKA[5].id] || ""} err={err[FIELD_ANGKA[5].id]} onChange={ubahAngka} />
+          <AngkaField f={FIELD_ANGKA[6]} value={angka[FIELD_ANGKA[6].id] || ""} err={err[FIELD_ANGKA[6].id]} onChange={ubahAngka} />
+        </div>
       </fieldset>
 
       <fieldset className="form-section">
         <legend>
           <span className="n">4</span> Kebiasaan Sehari-hari
         </legend>
-        <AngkaField f={FIELD_ANGKA[7]} value={angka[FIELD_ANGKA[7].id] || ""} err={err[FIELD_ANGKA[7].id]} onChange={ubahAngka} />
-        <div className="field">
-          <label className="label" htmlFor="konsumsi_manis">
-            Konsumsi makanan/minuman manis <span className="opt">(opsional)</span>
-          </label>
-          <select
-            className="select"
-            id="konsumsi_manis"
-            value={konsumsiManis}
-            onChange={(e) => setKonsumsiManis(e.target.value)}
-          >
-            <option value="">Pilih…</option>
-            {KONSUMSI_MANIS.map((k) => (
-              <option key={k.v} value={k.v}>
-                {k.l}
-              </option>
-            ))}
-          </select>
+        <div className="grid grid-2" style={{ gap: 12 }}>
+          <AngkaField f={FIELD_ANGKA[7]} value={angka[FIELD_ANGKA[7].id] || ""} err={err[FIELD_ANGKA[7].id]} onChange={ubahAngka} />
+          <div className="field">
+            <label className="label" htmlFor="konsumsi_manis">
+              Konsumsi makanan/minuman manis <span className="opt">(opsional)</span>
+            </label>
+            <select
+              className="select"
+              id="konsumsi_manis"
+              value={konsumsiManis}
+              onChange={(e) => setKonsumsiManis(e.target.value)}
+            >
+              <option value="">Pilih…</option>
+              {KONSUMSI_MANIS.map((k) => (
+                <option key={k.v} value={k.v}>
+                  {k.l}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
         <div className="field">
           <label className="label">

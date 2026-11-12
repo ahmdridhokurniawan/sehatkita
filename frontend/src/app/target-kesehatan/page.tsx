@@ -228,7 +228,7 @@ export default function TargetKesehatanPage() {
           <EmptyState icon="target" title="Belum ada target" desc="Buat target kesehatan pertamamu." />
         </div>
       ) : (
-        <div style={{ display: "grid", gap: 12 }}>
+        <div className="grid grid-2" style={{ gap: 12 }}>
           {daftar.map((t) => (
             <div className="card card-flat" key={t.id}>
               <div className="row-between" style={{ alignItems: "flex-start", gap: 12 }}>
@@ -295,71 +295,71 @@ export default function TargetKesehatanPage() {
           </div>
         }
       >
-        <Input
-          label="Judul target"
-          placeholder="Turunkan berat badan ke 70 kg"
-          value={form.judul}
-          onChange={(e) => ubah("judul", e.target.value)}
-          error={errForm.judul}
-          required
-        />
-        <div className="mt-12">
-          <label className="label">Jenis</label>
-          <select
-            className="select"
-            value={form.jenis_target}
-            onChange={(e) => ubah("jenis_target", e.target.value as JenisTarget)}
-          >
-            {JENIS_OPTIONS.map((j) => (
-              <option key={j} value={j}>
-                {LABEL_JENIS_TARGET[j]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
+        <div style={{ display: "grid", gap: 14 }}>
           <Input
-            label="Nilai awal (opsional)"
-            type="number"
-            placeholder="75"
-            value={form.nilai_awal == null ? "" : String(form.nilai_awal)}
-            onChange={(e) => ubah("nilai_awal", e.target.value === "" ? null : Number(e.target.value))}
-          />
-          <Input
-            label="Nilai target"
-            type="number"
-            placeholder="70"
-            value={form.nilai_target === 0 ? "" : String(form.nilai_target)}
-            onChange={(e) => ubah("nilai_target", Number(e.target.value))}
-            error={errForm.nilai_target}
+            label="Judul target"
+            placeholder="Turunkan berat badan ke 70 kg"
+            value={form.judul}
+            onChange={(e) => ubah("judul", e.target.value)}
+            error={errForm.judul}
             required
           />
-        </div>
-        <div className="mt-12">
-          <Input
-            label="Satuan"
-            placeholder="kg"
-            value={form.satuan}
-            onChange={(e) => ubah("satuan", e.target.value)}
-            error={errForm.satuan}
-            required
-          />
-        </div>
-        <div className="mt-12">
-          <Input
-            label="Tenggat waktu (opsional)"
-            type="date"
-            value={form.tenggat_waktu ?? ""}
-            onChange={(e) => ubah("tenggat_waktu", e.target.value || null)}
-          />
-        </div>
-        <div className="mt-12">
-          <Input
-            label="Catatan motivasi (opsional)"
-            placeholder="Semangat, pasti bisa!"
-            value={form.catatan_motivasi ?? ""}
-            onChange={(e) => ubah("catatan_motivasi", e.target.value)}
-          />
+          <div className="grid grid-2" style={{ gap: 12 }}>
+            <div className="field">
+              <label className="label">Jenis target</label>
+              <select
+                className="select"
+                value={form.jenis_target}
+                onChange={(e) => ubah("jenis_target", e.target.value as JenisTarget)}
+              >
+                {JENIS_OPTIONS.map((j) => (
+                  <option key={j} value={j}>
+                    {LABEL_JENIS_TARGET[j]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <Input
+              label="Satuan"
+              placeholder="kg, ml, kali…"
+              value={form.satuan}
+              onChange={(e) => ubah("satuan", e.target.value)}
+              error={errForm.satuan}
+              required
+            />
+          </div>
+          <div className="grid grid-2" style={{ gap: 12 }}>
+            <Input
+              label="Nilai awal (opsional)"
+              type="number"
+              placeholder="75"
+              value={form.nilai_awal == null ? "" : String(form.nilai_awal)}
+              onChange={(e) => ubah("nilai_awal", e.target.value === "" ? null : Number(e.target.value))}
+            />
+            <Input
+              label="Nilai target"
+              type="number"
+              placeholder="70"
+              value={form.nilai_target === 0 ? "" : String(form.nilai_target)}
+              onChange={(e) => ubah("nilai_target", Number(e.target.value))}
+              error={errForm.nilai_target}
+              required
+            />
+          </div>
+          <div className="grid grid-2" style={{ gap: 12 }}>
+            <Input
+              label="Tenggat waktu (opsional)"
+              type="date"
+              value={form.tenggat_waktu ?? ""}
+              onChange={(e) => ubah("tenggat_waktu", e.target.value || null)}
+            />
+            <Input
+              label="Catatan motivasi (opsional)"
+              placeholder="Semangat, pasti bisa!"
+              value={form.catatan_motivasi ?? ""}
+              onChange={(e) => ubah("catatan_motivasi", e.target.value)}
+            />
+          </div>
         </div>
       </Modal>
 

@@ -124,6 +124,16 @@ export default function DashboardSuperAdmin({ user }: { user: User }) {
             </div>
             <Icon name="chevron-right" size={18} />
           </Link>
+          <Link href="/peringkat" className="li">
+            <span className="li-ico" style={{ background: "rgba(212, 175, 55, 0.16)", color: "#D4AF37" }}>
+              <Icon name="trophy" size={18} />
+            </span>
+            <div className="li-main">
+              <strong>Peringkat Kelurahan</strong>
+              <span className="tiny">Klasemen EXP warga &amp; pencapaian tantangan</span>
+            </div>
+            <Icon name="chevron-right" size={18} />
+          </Link>
           <Link href="/admin/log-audit" className="li">
             <span className="li-ico" style={{ background: "var(--muted-bg)", color: "var(--muted)" }}>
               <Icon name="shield" size={18} />
