@@ -449,38 +449,6 @@ export default function ProfilPage() {
             <Icon name="chevron-right" size={18} />
           </span>
         </Link>
-        <div className="card mt-12">
-          <div className="row-between mb-8">
-            <div>
-              <strong className="text-sm">Notifikasi Telegram</strong>
-              <div className="tiny">Pengingat & info program via bot</div>
-            </div>
-            <Icon name="send" size={18} />
-          </div>
-          {tgLoading ? (
-            <p className="tiny">Memuat status…</p>
-          ) : tgErr ? (
-            <span className="err-text">{tgErr}</span>
-          ) : telegramStatus?.terhubung ? (
-            <>
-              <p className="tiny mb-8">
-                Terhubung ke <strong>@{telegramStatus.chat_id}</strong>
-              </p>
-              <Button variant="secondary" onClick={putuskanTelegram} loading={tgPutus}>
-                Putuskan
-              </Button>
-            </>
-          ) : (
-            <a
-              href={telegramStatus?.link_telegram ?? "#"}
-              target="_blank"
-              rel="noreferrer"
-              className="btn btn-primary"
-            >
-              Hubungkan Telegram
-            </a>
-          )}
-        </div>
         <button
           type="button"
           className="li"
@@ -496,6 +464,40 @@ export default function ProfilPage() {
           </div>
         </button>
       </div>
+
+      <div className="card mt-12">
+        <div className="row-between mb-8">
+          <div>
+            <strong className="text-sm">Notifikasi Telegram</strong>
+            <div className="tiny">Pengingat & info program via bot</div>
+          </div>
+          <Icon name="send" size={18} />
+        </div>
+        {tgLoading ? (
+          <p className="tiny">Memuat status…</p>
+        ) : tgErr ? (
+          <span className="err-text">{tgErr}</span>
+        ) : telegramStatus?.terhubung ? (
+          <>
+            <p className="tiny mb-8">
+              Terhubung ke <strong>{telegramStatus.chat_id}</strong>
+            </p>
+            <Button variant="secondary" onClick={putuskanTelegram} loading={tgPutus}>
+              Putuskan
+            </Button>
+          </>
+        ) : (
+          <a
+            href={telegramStatus?.link_telegram ?? "#"}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-primary"
+          >
+            Hubungkan Telegram
+          </a>
+        )}
+      </div>
+
       <Modal
         open={konfirmasiKeluar}
         onClose={() => setKonfirmasiKeluar(false)}

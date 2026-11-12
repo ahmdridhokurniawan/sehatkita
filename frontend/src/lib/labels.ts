@@ -138,3 +138,14 @@ export const LABEL_INSIGHT: Record<string, string> = {
   BELUM_SKRINING_GULA: "Belum skrining gula darah",
   BELUM_CATAT_5HARI: "Belum mencatat 5 hari terakhir",
 };
+
+/** Tulisan untuk jenis target kesehatan (§13.4) */
+export const LABEL_JENIS_TARGET: Record<string, string> = {
+  berat_badan: "Berat badan",
+  tinggi_badan: "Tinggi badan",
+  massa_otot: "Massa otot",
+  lingkar_perut: "Lingkar perut",
+  air_minum: "Air minum",
+  aktivitas: "Aktivitas",
+  lainnya: "Lainnya",
+};

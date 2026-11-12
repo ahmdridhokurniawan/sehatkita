@@ -45,6 +45,7 @@ function toneKategori(k = ""): "safe" | "warning" | "danger" {
 export default function RekamMedisPage() {
   const { user } = useUser();
   const petugas = user?.role === "kader" || user?.role === "admin_kelurahan" || user?.role === "super_admin";
+  const bisaHapus = user?.role === "kader" || user?.role === "super_admin";
   const [periode, setPeriode] = useState<"1m" | "3m" | "6m" | "1y">("3m");
   const [indikator, setIndikator] = useState<string>("bb_kg");
   const [cari, setCari] = useState("");
@@ -59,28 +60,30 @@ export default function RekamMedisPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        setLoading(true);
-        // Fetch list
-        const cList = await catatanKesehatan.list();
-        setCatatan(cList);
-
-        // Fetch grafik
-        const gData = await rekamMedis.get({ indikator, periode });
-        setGrafik(gData);
-
-        setError(null);
-      } catch (err: any) {
-        const apiErr = err as ApiError;
-        console.error("Rekam medis fetch error:", apiErr);
-        setError(apiErr.message || "Gagal memuat data");
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchData();
+    muat();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [indikator, periode]);
+
+  async function muat() {
+    try {
+      setLoading(true);
+      // Fetch list
+      const cList = await catatanKesehatan.list();
+      setCatatan(cList);
+
+      // Fetch grafik
+      const gData = await rekamMedis.get({ indikator, periode });
+      setGrafik(gData);
+
+      setError(null);
+    } catch (err: any) {
+      const apiErr = err as ApiError;
+      console.error("Rekam medis fetch error:", apiErr);
+      setError(apiErr.message || "Gagal memuat data");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const ind = INDIKATOR.find((i) => i.k === indikator) || INDIKATOR[0];
 
@@ -226,7 +229,7 @@ export default function RekamMedisPage() {
                     </span>
                     <div>
                       <strong className="text-sm">{tanggal(c.dicatat_pada, "day")}</strong>
-                      <div className="tiny">{c.sumber === "mandiri" ? "Catatan mandiri" : "Posbindu / Kader"}</div>
+                      <div className="tiny">{LABEL_SUMBER[c.sumber] || c.sumber}</div>
                       {petugas && c.pengguna ? (
                         <div className="tiny" style={{ marginTop: 2 }}>
                           <Icon name="user" size={12} /> {c.pengguna.name}
@@ -253,23 +256,25 @@ export default function RekamMedisPage() {
                   <button className="btn btn-sm btn-outline" onClick={() => setDetail(c)}>
                     <Icon name="eye" size={15} /> Detail
                   </button>
-                  <button
-                    className="btn btn-sm btn-ghost"
-                    style={{ color: "var(--danger)" }}
-                    onClick={async () => {
-                      if (confirm("Hapus catatan ini?")) {
-                        try {
-                          await catatanKesehatan.hapus(c.id);
-                          setCatatan(catatan.filter((x) => x.id !== c.id));
-                        } catch (err) {
-                          console.error("Hapus error:", err);
-                          alert("Gagal menghapus");
+                  {bisaHapus ? (
+                    <button
+                      className="btn btn-sm btn-ghost"
+                      style={{ color: "var(--danger)" }}
+                      onClick={async () => {
+                        if (confirm("Hapus catatan ini?")) {
+                          try {
+                            await catatanKesehatan.hapus(c.id);
+                            setCatatan(catatan.filter((x) => x.id !== c.id));
+                          } catch (err) {
+                            console.error("Hapus error:", err);
+                            alert("Gagal menghapus");
+                          }
                         }
-                      }
-                    }}
-                  >
-                    <Icon name="trash" size={15} /> Hapus
-                  </button>
+                      }}
+                    >
+                      <Icon name="trash" size={15} /> Hapus
+                    </button>
+                  ) : null}
                 </div>
               </div>
             );
@@ -321,7 +326,7 @@ export default function RekamMedisPage() {
           </>
         ) : null}
       </Modal>
-      <CatatModal open={catatTerbuka} onClose={() => setCatatTerbuka(false)} />
+      <CatatModal open={catatTerbuka} onClose={() => setCatatTerbuka(false)} onSaved={() => muat()} />
     </AppShell>
   );
 }

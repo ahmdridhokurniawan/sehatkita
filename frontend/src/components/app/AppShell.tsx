@@ -15,6 +15,7 @@ type NavItem = { href: string; icon: string; label: string };
 const NAV_UTAMA: NavItem[] = [
   { href: "/dashboard", icon: "home", label: "Beranda" },
   { href: "/rekam-medis", icon: "clipboard", label: "Rekam Medis" },
+  { href: "/target-kesehatan", icon: "target", label: "Target Kesehatan" },
   { href: "/program", icon: "award", label: "Tantangan" },
   { href: "/peringkat", icon: "trending-up", label: "Peringkat" },
   { href: "/insight", icon: "zap", label: "History" },
@@ -91,19 +92,19 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
   // Susun menu sesuai peran
   const grup: { judul: string; items: NavItem[] }[] = [];
   if (role === "super_admin") {
-    grup.push({ judul: "Menu", items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[2], NAV_UTAMA[4]] });
+    grup.push({ judul: "Menu", items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[2], NAV_UTAMA[3], NAV_UTAMA[4]] });
     grup.push({ judul: "Data & Laporan", items: [NAV_DATA[0], NAV_DATA[1], NAV_DATA[2]] });
     grup.push({ judul: "Administrasi", items: NAV_ADMIN });
     grup.push({ judul: "Akun", items: NAV_AKUN });
   } else if (role === "admin_kelurahan") {
     // Admin kelurahan tidak boleh lihat rekam medis individual (privasi, backend 403).
     // Hanya dashboard + konten agregat.
-    grup.push({ judul: "Menu", items: [NAV_UTAMA[0], NAV_UTAMA[2], NAV_UTAMA[4]] });
+    grup.push({ judul: "Menu", items: [NAV_UTAMA[0], NAV_UTAMA[2], NAV_UTAMA[3], NAV_UTAMA[4]] });
     grup.push({ judul: "Data & Laporan", items: [NAV_DATA[0], NAV_DATA[1], NAV_DATA[2]] });
     grup.push({ judul: "Layanan", items: [{ href: "/admin/pengaduan", icon: "alert-circle", label: "Pengaduan" }] });
     grup.push({ judul: "Akun", items: NAV_AKUN });
   } else if (role === "kader") {
-    grup.push({ judul: "Menu", items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[2]] });
+    grup.push({ judul: "Menu", items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[2], NAV_UTAMA[3]] });
     grup.push({ judul: "Data & Laporan", items: [NAV_DATA[1], NAV_DATA[2]] });
     grup.push({ judul: "Akun", items: NAV_AKUN });
   } else {

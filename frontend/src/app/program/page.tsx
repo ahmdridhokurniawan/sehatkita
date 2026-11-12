@@ -158,6 +158,8 @@ export default function ProgramPage() {
       setFTarget("50");
       setFMulai("");
       setFSelesai("");
+      setFExp("0");
+      setFBadge("");
       await muat();
     } catch (err) {
       const apiErr = err as ApiError;
