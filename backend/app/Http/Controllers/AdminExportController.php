@@ -11,15 +11,17 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 // Controller ekspor data rekapitulasi kesehatan ke format CSV untuk super admin
 class AdminExportController extends Controller
 {
+    // Streaming unduhan CSV sesuai tipe data pilihan (catatan, posbindu, atau rujukan)
     public function export(Request $request): StreamedResponse
     {
-        abort_unless($request->user()->role === 'super_admin', 403, 'Hanya super admin.');
+        $this->wajibPeran($request->user(), ['super_admin'], 'Hanya super admin.');
 
-        $tipe = $request->query('tipe', 'catatan');
+        $tipe     = $request->query('tipe', 'catatan');
         $namaFile = 'sehatkita_export_' . $tipe . '_' . date('Ymd_His') . '.csv';
 
         return response()->stream(function () use ($tipe, $request) {
             $handle = fopen('php://output', 'w');
+            // Sisipkan UTF-8 BOM agar karakter terbaca rapi saat dibuka di Microsoft Excel
             fputs($handle, "\xEF\xBB\xBF");
 
             if ($tipe === 'posbindu') {
@@ -38,6 +40,7 @@ class AdminExportController extends Controller
         ]);
     }
 
+    // Ekspor seluruh catatan kesehatan terverifikasi beserta ringkasan risiko ke CSV
     private function exportCatatanKesehatan($handle, Request $request): void
     {
         fputcsv($handle, [
@@ -46,10 +49,12 @@ class AdminExportController extends Controller
             'Sistol (mmHg)', 'Diastol (mmHg)', 'Kategori Tensi',
             'Gula Darah (mg/dL)', 'Jenis Gula',
             'Kolesterol (mg/dL)', 'Asam Urat (mg/dL)',
-            'Status Kesehatan', 'Skor Risiko', 'Sumber'
+            'Status Kesehatan', 'Skor Risiko', 'Sumber',
         ]);
 
-        $query = CatatanKesehatan::with(['pengguna.profil', 'pengguna.wilayah'])->latest('dicatat_pada');
+        $query = CatatanKesehatan::with(['pengguna.profil', 'pengguna.wilayah'])
+            ->where('perlu_verifikasi', false)
+            ->latest('dicatat_pada');
 
         if ($request->filled('wilayah_id')) {
             $wId = (int) $request->wilayah_id;

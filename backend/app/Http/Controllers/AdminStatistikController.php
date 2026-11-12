@@ -84,19 +84,22 @@ class AdminStatistikController extends Controller
     | Bantu: IMT rata-rata = bb_kg / (tinggi_m)^2.
     | Tinggi diambil dari tabel profil (bukan disimpan di catatan).
     */
+    // Hitung rata-rata IMT hanya dari catatan terverifikasi dan belum dihapus
     private function rataRataImt(): ?float
     {
         $imt = DB::table('catatan_kesehatan as c')
-            ->join('profil as p', 'p.user_id', '=', 'c.user_id')
+            ->leftJoin('profil as p', 'p.user_id', '=', 'c.user_id')
+            ->whereNull('c.deleted_at')
+            ->where('c.perlu_verifikasi', false)
             ->whereNotNull('c.bb_kg')
-            ->where('p.tinggi_cm', '>', 0)
-            ->selectRaw('AVG(c.bb_kg / ((p.tinggi_cm / 100) * (p.tinggi_cm / 100))) as imt')
+            ->whereRaw('COALESCE(c.tinggi_cm, p.tinggi_cm) > 0')
+            ->selectRaw('AVG(c.bb_kg / POW(COALESCE(c.tinggi_cm, p.tinggi_cm) / 100, 2)) as imt')
             ->value('imt');
 
         return $imt === null ? null : round((float) $imt, 2);
     }
 
-    // Bantu: bulatkan 1 desimal, kembalikan null kalau kosong.
+    // Bulatkan angka satu desimal dan kembalikan null jika datanya kosong
     private function bulatSatu($nilai): ?float
     {
         return $nilai === null ? null : round((float) $nilai, 1);

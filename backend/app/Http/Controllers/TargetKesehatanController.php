@@ -49,10 +49,10 @@ class TargetKesehatanController extends Controller
         ], 201);
     }
 
+    // Perbarui detail target kesehatan milik warga yang sedang login
     public function update(Request $request, int $id)
     {
-        $target = TargetKesehatan::where('user_id', $request->user()->id)->find($id);
-        abort_unless($target, 404, 'Target tidak ditemukan.');
+        $target = $this->cariTargetMilik($request, $id);
 
         $data = $request->validate([
             'judul'            => 'sometimes|string|max:100',
@@ -73,10 +73,10 @@ class TargetKesehatanController extends Controller
         ]);
     }
 
+    // Ubah status ketercapaian target sekaligus kirimkan pesan motivasi
     public function capai(Request $request, int $id)
     {
-        $target = TargetKesehatan::where('user_id', $request->user()->id)->find($id);
-        abort_unless($target, 404, 'Target tidak ditemukan.');
+        $target = $this->cariTargetMilik($request, $id);
 
         $tercapai = $request->has('tercapai') ? $request->boolean('tercapai') : ! $target->tercapai;
 
@@ -97,11 +97,10 @@ class TargetKesehatanController extends Controller
         ]);
     }
 
+    // Hapus target kesehatan milik warga
     public function destroy(Request $request, int $id)
     {
-        $target = TargetKesehatan::where('user_id', $request->user()->id)->find($id);
-        abort_unless($target, 404, 'Target tidak ditemukan.');
-
+        $target = $this->cariTargetMilik($request, $id);
         $target->delete();
 
         return response()->json([
@@ -109,5 +108,14 @@ class TargetKesehatanController extends Controller
             'message' => 'Target berhasil dihapus',
             'data'    => null,
         ]);
+    }
+
+    // Cari target kesehatan berdasarkan ID atau gagalkan dengan 404 jika bukan miliknya
+    private function cariTargetMilik(Request $request, int $id): TargetKesehatan
+    {
+        $target = TargetKesehatan::where('user_id', $request->user()->id)->find($id);
+        abort_unless($target, 404, 'Target tidak ditemukan.');
+
+        return $target;
     }
 }

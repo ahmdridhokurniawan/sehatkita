@@ -22,14 +22,13 @@ class DashboardController extends Controller
         'asam_urat', 'lingkar_perut', 'tidur_jam',
     ];
 
-    // Data dashboard kesehatan pribadi
+    // Tampilkan ringkasan indikator kesehatan pribadi terbaru untuk dashboard warga
     public function pribadi(Request $request)
     {
         $user   = $request->user();
         $profil = $user->profil;
 
-        $periode  = $this->periodeSah($request->query('periode'));
-        $tglMulai = now()->subMonths($this->bulanPeriode($periode));
+        [, $tglMulai] = $this->parsePeriode($request->query('periode'));
 
         // Ambil catatan terverifikasi milik pengguna
         $semua = CatatanKesehatan::where('user_id', $user->id)
@@ -104,22 +103,21 @@ class DashboardController extends Controller
                     && $profil->tgl_lahir !== null
                     && $profil->jenis_kelamin !== null,
                 'indikator_terkini'  => $indikatorTerkini,
-                'perbandingan'       => $this->perbandingan($semua),
+                'perbandingan'       => $this->perbandingan($semua, $tinggiEfektif),
                 'target'             => $target,
                 'gamifikasi'         => $this->blokGamifikasi($user),
-                'jadwal_skrining_berikutnya' => $this->jadwalSkrining($semua, $tinggiEfektif),
+                'jadwal_skrining_berikutnya' => $this->jadwalSkrining($semua),
                 'rujukan_aktif'      => $this->rujukanAktif($user),
             ],
         ]);
     }
 
-    // Laporan ringkasan kesehatan pribadi
+    // Susun laporan ringkasan riwayat kesehatan dan rujukan pribadi berdasarkan periode
     public function laporanPribadi(Request $request)
     {
         $user    = $request->user();
         $profil  = $user->profil;
-        $periode = $this->periodeSah($request->query('periode'));
-        $tglMulai = now()->subMonths($this->bulanPeriode($periode));
+        [$periode, $tglMulai] = $this->parsePeriode($request->query('periode'));
 
         $catatan = CatatanKesehatan::where('user_id', $user->id)
             ->where('dicatat_pada', '>=', $tglMulai)
@@ -199,27 +197,13 @@ class DashboardController extends Controller
     |------------------------------------------------------------------
     */
 
-    private function periodeSah(?string $periode): string
-    {
-        return in_array($periode, ['1m', '3m', '6m', '1y'], true) ? $periode : '3m';
-    }
-
-    private function bulanPeriode(string $periode): int
-    {
-        return match ($periode) {
-            '1m' => 1,
-            '6m' => 6,
-            '1y' => 12,
-            default => 3,
-        };
-    }
-
+    // Ubah nilai database menjadi angka float jika tersedia
     private function nilaiNumerik($nilai): ?float
     {
         return $nilai === null ? null : (float) $nilai;
     }
 
-    // Cek apakah ada minimal satu pengukuran
+    // Cek apakah baris catatan berisi minimal satu pengukuran kesehatan
     private function punyaUkuran(CatatanKesehatan $c): bool
     {
         foreach (self::KOLOM_INDIKATOR as $kolom) {
@@ -231,8 +215,8 @@ class DashboardController extends Controller
         return false;
     }
 
-    // Hitung perbandingan indikator bulan ini terhadap bulan lalu
-    private function perbandingan($semua): array
+    // Hitung selisih nilai indikator bulan berjalan dibandingkan bulan sebelumnya
+    private function perbandingan($semua, ?float $tinggiEfektif): array
     {
         $sekarang = now();
         $ini      = $semua->first(fn ($c) => $c->dicatat_pada->isSameMonth($sekarang));
@@ -242,14 +226,14 @@ class DashboardController extends Controller
             ? round((float) $ini->{$kolom} - (float) $lalu->{$kolom}, $desimal)
             : null;
 
-        $imtIni  = $ini ? $this->kalkulator->hitungImt($ini->bb_kg, $ini->tinggi_cm) : null;
-        $imtLalu = $lalu ? $this->kalkulator->hitungImt($lalu->bb_kg, $lalu->tinggi_cm) : null;
+        $imtIni  = $ini ? $this->kalkulator->hitungImt($ini->bb_kg, $ini->tinggi_cm ?? $tinggiEfektif) : null;
+        $imtLalu = $lalu ? $this->kalkulator->hitungImt($lalu->bb_kg, $lalu->tinggi_cm ?? $tinggiEfektif) : null;
 
         return [
-            'periode_ini'   => $ini?->dicatat_pada->format('Y-m'),
-            'periode_lalu'  => $lalu?->dicatat_pada->format('Y-m'),
-            'bb_selisih_kg' => $selisih('bb_kg'),
-            'imt_selisih'   => ($imtIni !== null && $imtLalu !== null) ? round($imtIni - $imtLalu, 2) : null,
+            'periode_ini'    => $ini?->dicatat_pada->format('Y-m'),
+            'periode_lalu'   => $lalu?->dicatat_pada->format('Y-m'),
+            'bb_selisih_kg'  => $selisih('bb_kg'),
+            'imt_selisih'    => ($imtIni !== null && $imtLalu !== null) ? round($imtIni - $imtLalu, 2) : null,
             'sistol_selisih' => $selisih('sistol', 0),
         ];
     }
@@ -284,8 +268,8 @@ class DashboardController extends Controller
         ];
     }
 
-    // Hitung jadwal skrining berkala berikutnya
-    private function jadwalSkrining($semua, ?float $tinggiEfektif): array
+    // Hitung jadwal skrining berkala berikutnya berdasarkan interval tiap indikator
+    private function jadwalSkrining($semua): array
     {
         $interval = \App\Models\Indikator::pluck('interval_skrining_hari', 'kode');
         $hasil    = [];

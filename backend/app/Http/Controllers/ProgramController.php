@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\BadgePengguna;
+use App\Models\Pengguna;
 use App\Models\PesertaProgram;
 use App\Models\Program;
 use Illuminate\Http\Request;
@@ -11,16 +12,10 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
-/**
- * Modul Program Kesehatan — kontrak 12.
- * 12.1 GET    /program              -> daftar program
- * 12.2 POST   /program              -> buat program (admin_kelurahan, super_admin)
- * 12.3 POST   /program/{id}/peserta -> ikut program (user)
- * 12.4 PATCH  /program/{id}/peserta -> ubah status keikutsertaan
- */
+// Controller pengelolaan program kesehatan dan keikutsertaan warga
 class ProgramController extends Controller
 {
-    // GET /program — kontrak 12.1
+    // Tampilkan daftar program kesehatan sesuai peran dan status berjalan
     public function index(Request $request)
     {
         $user = $request->user();
@@ -29,15 +24,14 @@ class ProgramController extends Controller
             'peserta as jumlah_peserta' => fn ($q) => $q->where('status', '!=', 'berhenti'),
         ]);
 
-        // `status` dihitung dari mulai/selesai (kontrak 12.1), bukan kolom DB.
         $statusFilter = $request->query('status');
-        $hariIni = now()->toDateString();
+        $hariIni      = now()->toDateString();
 
         if (in_array($statusFilter, ['akan_datang', 'berjalan', 'selesai'], true)) {
             $this->saringStatus($query, $statusFilter, $hariIni);
         }
 
-        // User & admin kelurahan melihat program kota dan kelurahannya
+        // Warga dan admin kelurahan hanya melihat program kelurahannya dan tingkat kota
         if ($user->role !== 'super_admin' && $user->wilayah_id) {
             $query->where(fn ($q) => $q->whereNull('wilayah_id')->orWhere('wilayah_id', $user->wilayah_id));
         } elseif ($request->filled('wilayah_id')) {
@@ -57,32 +51,12 @@ class ProgramController extends Controller
             ->get()
             ->keyBy('program_id');
 
-        $data = collect($list->items())->map(function (Program $p) use ($milikSaya, $user, $hariIni) {
-            $pSaya = $milikSaya->get($p->id);
-            $statusSaya = $pSaya?->status;
-            $ikut = $statusSaya !== null && $statusSaya !== 'berhenti';
+        $isWarga = $user->role === 'user';
+        $data    = collect($list->items())->map(function (Program $p) use ($milikSaya, $isWarga, $hariIni) {
+            $pSaya = $isWarga ? $milikSaya->get($p->id) : null;
 
-            return [
-                'id'                 => $p->id,
-                'judul'              => $p->judul,
-                'deskripsi'          => $p->deskripsi,
-                'kriteria_misi'      => $p->kriteria_misi,
-                'jenis'              => $p->jenis,
-                'kategori_aktivitas' => $p->kategori_aktivitas,
-                'target_peserta'     => $p->target_peserta,
-                'jumlah_peserta'     => (int) $p->jumlah_peserta,
-                'mulai'              => $p->mulai?->toDateString(),
-                'selesai'            => $p->selesai?->toDateString(),
-                'status'             => $this->statusProgram($p, $hariIni),
-                'exp_reward'         => (int) $p->exp_reward,
-                'badge_reward'       => $p->badge_reward,
-                'exp'                => (int) $p->exp_reward,
-                'badge'              => $p->badge_reward,
-
-                // Hanya bermakna untuk role user (kontrak 12.1).
-                'diikuti'            => $user->role === 'user' ? $ikut : false,
-                'status_saya'        => $user->role === 'user' ? $statusSaya : null,
-                'peserta_saya'       => $user->role === 'user' ? $this->ringkasanPesertaSaya($pSaya, $p->id) : null,
+            return $this->baris($p, $pSaya?->status, $hariIni) + [
+                'peserta_saya' => $isWarga ? $this->ringkasanPesertaSaya($pSaya, $p->id) : null,
             ];
         })->all();
 
@@ -94,28 +68,14 @@ class ProgramController extends Controller
         ]);
     }
 
-    // POST /program — kontrak 12.2
+    // Buat program kesehatan baru oleh admin kelurahan atau super admin
     public function store(Request $request)
     {
         $user = $request->user();
+        $this->wajibPeran($user, ['admin_kelurahan', 'super_admin'], 'Hanya admin kelurahan atau super admin yang boleh membuat program.');
 
-        abort_unless(in_array($user->role, ['admin_kelurahan', 'super_admin'], true),
-            403, 'Hanya admin kelurahan atau super admin yang boleh membuat program.');
+        $this->normalisasiAlias($request);
 
-        // Normalisasi wilayah 0 menjadi null untuk super admin
-        if ((int) $request->input('wilayah_id') === 0) {
-            $request->merge(['wilayah_id' => null]);
-        }
-
-        // Dukungan alias exp & badge dari frontend
-        if (! $request->has('exp_reward') && $request->has('exp')) {
-            $request->merge(['exp_reward' => $request->input('exp')]);
-        }
-        if (! $request->has('badge_reward') && $request->has('badge')) {
-            $request->merge(['badge_reward' => $request->input('badge')]);
-        }
-
-        // Validasi wilayah_id fleksibel (null untuk cakupan kota)
         $data = $request->validate([
             'wilayah_id'         => 'nullable|exists:wilayah,id',
             'judul'              => 'required|string|max:150',
@@ -133,15 +93,15 @@ class ProgramController extends Controller
             'mulai.required' => 'Tanggal mulai wajib diisi.',
         ]);
 
-        // Admin kelurahan terkunci ke wilayahnya, super admin null (se-kota) jika kosong/0
+        // Kunci program admin kelurahan ke wilayahnya sendiri dan se-kota bila kosong
         if ($user->role === 'admin_kelurahan') {
+            abort_unless($user->wilayah_id, 422, 'Akun admin kelurahan belum memiliki wilayah penugasan.');
             $data['wilayah_id'] = $user->wilayah_id;
         } else {
             $wId = $request->input('wilayah_id');
             $data['wilayah_id'] = ($wId && (int) $wId > 0) ? (int) $wId : null;
         }
 
-        // Kontrak: exp_reward default 50; status TIDAK diterima dari body.
         $data['exp_reward'] = $data['exp_reward'] ?? 50;
         unset($data['status']);
 
@@ -154,9 +114,10 @@ class ProgramController extends Controller
         ], 201);
     }
 
+    // Ambil detail program beserta daftar peserta sesuai hak akses petugas
     public function show(Request $request, int $id)
     {
-        $user = $request->user();
+        $user    = $request->user();
         $program = Program::findOrFail($id);
 
         $pesertaSaya = null;
@@ -172,18 +133,11 @@ class ProgramController extends Controller
             : null;
 
         if (in_array($user->role, ['kader', 'admin_kelurahan', 'super_admin'], true)) {
-            $queryPeserta = PesertaProgram::with('pengguna:id,name,email,wilayah_id')
-                ->where('program_id', $program->id);
+            $bolehLihat = $user->role !== 'admin_kelurahan'
+                || ! $program->wilayah_id
+                || (int) $program->wilayah_id === (int) $user->wilayah_id;
 
-            if ($user->role === 'kader') {
-                $queryPeserta->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $user->wilayah_id));
-            }
-
-            $detail['peserta'] = $queryPeserta
-                ->orderByRaw("CASE status WHEN 'menunggu_verifikasi' THEN 0 WHEN 'terdaftar' THEN 1 WHEN 'ditolak' THEN 2 WHEN 'selesai' THEN 3 ELSE 4 END")
-                ->orderBy('id', 'desc')
-                ->get()
-                ->map(fn ($p) => $this->barisPeserta($p, $program->id));
+            $detail['peserta'] = $bolehLihat ? $this->ambilDaftarPeserta($program, $user) : [];
         }
 
         return response()->json([
@@ -193,10 +147,11 @@ class ProgramController extends Controller
         ]);
     }
 
+    // Perbarui informasi atau status program oleh pengelola wilayah
     public function update(Request $request, int $id)
     {
         $user = $request->user();
-        abort_unless(in_array($user->role, ['admin_kelurahan', 'super_admin'], true), 403, 'Akses ditolak.');
+        $this->wajibPeran($user, ['admin_kelurahan', 'super_admin']);
 
         $program = Program::findOrFail($id);
 
@@ -204,17 +159,7 @@ class ProgramController extends Controller
             abort_unless((int) $program->wilayah_id === (int) $user->wilayah_id, 403, 'Anda hanya dapat mengedit program kelurahan Anda.');
         }
 
-        if ($request->has('wilayah_id') && (int) $request->input('wilayah_id') === 0) {
-            $request->merge(['wilayah_id' => null]);
-        }
-
-        // Dukungan alias exp & badge dari frontend
-        if (! $request->has('exp_reward') && $request->has('exp')) {
-            $request->merge(['exp_reward' => $request->input('exp')]);
-        }
-        if (! $request->has('badge_reward') && $request->has('badge')) {
-            $request->merge(['badge_reward' => $request->input('badge')]);
-        }
+        $this->normalisasiAlias($request);
 
         $data = $request->validate([
             'wilayah_id'         => 'sometimes|nullable|exists:wilayah,id',
@@ -252,10 +197,11 @@ class ProgramController extends Controller
         ]);
     }
 
+    // Hapus program kesehatan oleh pengelola wilayah yang berwenang
     public function destroy(Request $request, int $id)
     {
         $user = $request->user();
-        abort_unless(in_array($user->role, ['admin_kelurahan', 'super_admin'], true), 403, 'Akses ditolak.');
+        $this->wajibPeran($user, ['admin_kelurahan', 'super_admin']);
 
         $program = Program::findOrFail($id);
 
@@ -272,7 +218,7 @@ class ProgramController extends Controller
         ]);
     }
 
-    // GET /program/{id}/peserta
+    // Tampilkan daftar peserta program sesuai cakupan wilayah petugas
     public function peserta(Request $request, int $id)
     {
         $user    = $request->user();
@@ -282,26 +228,10 @@ class ProgramController extends Controller
             abort_unless((int) $program->wilayah_id === (int) $user->wilayah_id, 403, 'Akses ditolak.');
         }
 
-        $query = PesertaProgram::with('pengguna:id,name,email,wilayah_id')
-            ->where('program_id', $program->id);
-
-        if ($user->role === 'kader') {
-            $query->whereHas('pengguna', function ($q) use ($user) {
-                $q->where('wilayah_id', $user->wilayah_id);
-            });
-        }
-
-        $list = $query
-            ->orderByRaw("CASE status WHEN 'menunggu_verifikasi' THEN 0 WHEN 'terdaftar' THEN 1 WHEN 'ditolak' THEN 2 WHEN 'selesai' THEN 3 ELSE 4 END")
-            ->orderBy('id', 'desc')
-            ->get();
-
-        $data = $list->map(fn ($p) => $this->barisPeserta($p, $program->id));
-
         return response()->json([
             'success' => true,
             'message' => 'Daftar peserta program',
-            'data'    => $data,
+            'data'    => $this->ambilDaftarPeserta($program, $user),
         ]);
     }
 
@@ -549,14 +479,41 @@ class ProgramController extends Controller
         ]);
     }
 
-    /*
-    |------------------------------------------------------------------
-    | Helper
-    |------------------------------------------------------------------
-    */
+    // ================= HELPER =================
 
-    /** Satu baris program sesuai bentuk kontrak 12.1. */
-    private function baris(Program $p, ?string $statusSaya): array
+    // Samakan alias exp/badge dan nilai wilayah 0 menjadi format resmi backend
+    private function normalisasiAlias(Request $request): void
+    {
+        if ($request->has('wilayah_id') && (int) $request->input('wilayah_id') === 0) {
+            $request->merge(['wilayah_id' => null]);
+        }
+        if (! $request->has('exp_reward') && $request->has('exp')) {
+            $request->merge(['exp_reward' => $request->input('exp')]);
+        }
+        if (! $request->has('badge_reward') && $request->has('badge')) {
+            $request->merge(['badge_reward' => $request->input('badge')]);
+        }
+    }
+
+    // Ambil dan format daftar peserta program sesuai prioritas verifikasi dan wilayah petugas
+    private function ambilDaftarPeserta(Program $program, Pengguna $user)
+    {
+        $query = PesertaProgram::with('pengguna:id,name,email,wilayah_id')
+            ->where('program_id', $program->id);
+
+        if ($user->role === 'kader') {
+            $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $user->wilayah_id));
+        }
+
+        return $query
+            ->orderByRaw("CASE status WHEN 'menunggu_verifikasi' THEN 0 WHEN 'terdaftar' THEN 1 WHEN 'ditolak' THEN 2 WHEN 'selesai' THEN 3 ELSE 4 END")
+            ->orderBy('id', 'desc')
+            ->get()
+            ->map(fn ($p) => $this->barisPeserta($p, $program->id));
+    }
+
+    // Format satu baris program beserta status berjalan dan keikutsertaan pengguna
+    private function baris(Program $p, ?string $statusSaya, ?string $hariIni = null): array
     {
         $ikut = $statusSaya !== null && $statusSaya !== 'berhenti';
 
@@ -571,7 +528,7 @@ class ProgramController extends Controller
             'jumlah_peserta'     => (int) ($p->jumlah_peserta ?? $p->peserta()->where('status', '!=', 'berhenti')->count()),
             'mulai'              => $p->mulai?->toDateString(),
             'selesai'            => $p->selesai?->toDateString(),
-            'status'             => $this->statusProgram($p, now()->toDateString()),
+            'status'             => $this->statusProgram($p, $hariIni ?? now()->toDateString()),
             'exp_reward'         => (int) $p->exp_reward,
             'badge_reward'       => $p->badge_reward,
             'exp'                => (int) $p->exp_reward,
@@ -581,6 +538,7 @@ class ProgramController extends Controller
         ];
     }
 
+    // Format baris data peserta beserta tautan foto bukti dan catatan verifikasi
     private function barisPeserta(PesertaProgram $p, int $programId): array
     {
         return [
@@ -599,6 +557,7 @@ class ProgramController extends Controller
         ];
     }
 
+    // Format ringkasan keikutsertaan dan status bukti milik pengguna sendiri
     private function ringkasanPesertaSaya(?PesertaProgram $p, int $programId): ?array
     {
         if (! $p) {
@@ -617,7 +576,7 @@ class ProgramController extends Controller
         ];
     }
 
-    /** status dihitung dari tanggal atau kolom status (kontrak 12.1). */
+    // Hitung status program secara dinamis berdasarkan rentang tanggal pelaksanaan
     private function statusProgram(Program $p, string $hariIni): string
     {
         if ($p->status === 'selesai') {
@@ -638,18 +597,17 @@ class ProgramController extends Controller
         return 'berjalan';
     }
 
+    // Terapkan filter status program langsung pada query SQL
     private function saringStatus($query, string $status, string $hariIni): void
     {
         match ($status) {
             'akan_datang' => $query->where('status', '!=', 'selesai')->whereDate('mulai', '>', $hariIni),
             'selesai'     => $query->where(fn ($q) => $q->where('status', 'selesai')->orWhere(fn ($sub) => $sub->whereNotNull('selesai')->whereDate('selesai', '<', $hariIni))),
-            default       => $query->where('status', '!=', 'selesai')
-                                    ->whereDate('mulai', '<=', $hariIni)
-                                    ->where(fn ($q) => $q->whereNull('selesai')->orWhereDate('selesai', '>=', $hariIni)),
+            default       => $query->sedangBerjalan($hariIni),
         };
     }
 
-    /** Level gamifikasi dari total EXP (kontrak 12.4; ambang 100 per level). */
+    // Hitung level gamifikasi dengan kenaikan tiap kelipatan 100 EXP
     private function levelDariExp(int $exp): int
     {
         return max(1, (int) floor($exp / 100) + 1);

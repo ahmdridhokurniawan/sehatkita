@@ -235,4 +235,57 @@ class AccessControlTest extends TestCase
         // Non super admin ditolak
         $this->asUser($user)->getJson("/api/v1/admin/pengguna/{$user->id}/riwayat-wilayah")->assertStatus(403);
     }
+
+    public function test_admin_kelurahan_bisa_lihat_detail_wilayahnya_sendiri_saja(): void
+    {
+        $admin = $this->pengguna('admin_kelurahan');
+        $lain  = Wilayah::firstOrCreate(
+            ['kode' => '63.72.05.1003'],
+            ['nama' => 'Sungai Besar', 'tipe' => 'kelurahan']
+        );
+
+        $this->asUser($admin)->getJson("/api/v1/wilayah/{$admin->wilayah_id}")
+            ->assertOk()
+            ->assertJsonPath('data.id', $admin->wilayah_id);
+
+        $this->asUser($admin)->getJson("/api/v1/wilayah/{$lain->id}")->assertStatus(403);
+    }
+
+    public function test_filter_tanggal_log_audit_bersifat_inklusif(): void
+    {
+        $superAdmin = $this->pengguna('super_admin');
+        $warga      = $this->pengguna('user');
+
+        // Akses profil warga oleh super_admin memicu pembuatan LogAudit pada hari ini
+        $this->asUser($superAdmin)->getJson("/api/v1/profil?user_id={$warga->id}")->assertOk();
+
+        $hariIni = now()->toDateString();
+        $res = $this->asUser($superAdmin)
+            ->getJson("/api/v1/admin/log-audit?dari={$hariIni}&sampai={$hariIni}")
+            ->assertOk();
+
+        $this->assertNotEmpty($res->json('data'));
+    }
+
+    public function test_rujukan_otomatis_menyimpan_flag_dan_indikator_dengan_benar(): void
+    {
+        $warga  = $this->pengguna('user');
+        $faskes = \App\Models\Faskes::create([
+            'wilayah_id' => $warga->wilayah_id,
+            'nama'       => 'Puskesmas Guntung Paikat',
+            'jenis'      => 'puskesmas',
+        ]);
+
+        $rujukan = \App\Models\Rujukan::create([
+            'user_id'   => $warga->id,
+            'faskes_id' => $faskes->id,
+            'alasan'    => 'Rujukan otomatis uji',
+            'status'    => 'baru',
+            'otomatis'  => true,
+            'indikator' => 'tensi',
+        ]);
+
+        $this->assertTrue($rujukan->fresh()->otomatis);
+        $this->assertSame('tensi', $rujukan->fresh()->indikator);
+    }
 }

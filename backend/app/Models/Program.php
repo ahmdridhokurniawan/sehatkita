@@ -11,24 +11,24 @@ class Program extends Model
     // Tanpa ini Eloquent menebak tabel "programs".
     protected $table = 'program';
 
-    // Kolom yang boleh diisi massal.
-    // 4 kolom terakhir = gamifikasi (kontrak v1.2 25).
+    // Kolom yang boleh diisi massal termasuk deskripsi, syarat misi, dan hadiah gamifikasi
     protected $fillable = [
-        'wilayah_id',      // program ini dibuat oleh kelurahan mana
-        'judul',           // nama program, mis. "Program 21 Hari Hidup Sehat"
-        'deskripsi',       // deskripsi singkat program / tantangan
-        'kriteria_misi',   // syarat bukti penyelesaian misi tantangan
-        'jenis',           // olahraga | edukasi | pemeriksaan | lainnya
-        'target_peserta',  // target jumlah peserta, mis. 100
-        'mulai',           // tanggal mulai
-        'selesai',         // tanggal selesai (opsional)
-        'status',          // akan_datang | berjalan | selesai
-        'badge',           // alias frontend
-        'exp',             // alias frontend
-        'badge_reward',    // kolom resmi kontrak v1.5
-        'exp_reward',      // kolom resmi kontrak v1.5
-        'level',           // gamifikasi: tingkat kesulitan (1-3)
-        'rank_kelurahan',  // gamifikasi: peringkat kelurahan
+        'wilayah_id',
+        'judul',
+        'deskripsi',
+        'kriteria_misi',
+        'jenis',
+        'kategori_aktivitas',
+        'target_peserta',
+        'mulai',
+        'selesai',
+        'status',
+        'badge',
+        'exp',
+        'badge_reward',
+        'exp_reward',
+        'level',
+        'rank_kelurahan',
     ];
 
     // Accessor / Mutator alias exp <-> exp_reward
@@ -53,15 +53,26 @@ class Program extends Model
         $this->attributes['badge_reward'] = $value;
     }
 
-    // Cast tipe kolom.
+    // Konversi tipe kolom tanggal dan angka program
     protected function casts(): array
     {
         return [
-            'mulai'   => 'date',
-            'selesai' => 'date',
-            'exp'     => 'integer',
-            'level'   => 'integer',
+            'mulai'          => 'date',
+            'selesai'        => 'date',
+            'target_peserta' => 'integer',
+            'exp_reward'     => 'integer',
+            'level'          => 'integer',
         ];
+    }
+
+    // Scope untuk menyaring program yang sedang berjalan berdasarkan tanggal
+    public function scopeSedangBerjalan($query, ?string $hariIni = null)
+    {
+        $hariIni ??= now()->toDateString();
+
+        return $query->where('status', '!=', 'selesai')
+            ->whereDate('mulai', '<=', $hariIni)
+            ->where(fn ($q) => $q->whereNull('selesai')->orWhereDate('selesai', '>=', $hariIni));
     }
 
     // Label level dalam bahasa Indonesia, dipakai saat menampilkan ke user.

@@ -12,10 +12,11 @@ class TelegramController extends Controller
 {
     public function __construct(private TelegramService $telegram) {}
 
+    // Ambil status koneksi Telegram dan buat tautan pairing baru jika belum tersedia
     public function status(Request $request)
     {
         $user = $request->user();
-        abort_unless($user->role === 'user', 403, 'Fitur integrasi Bot Telegram hanya untuk pengguna warga.');
+        $this->wajibPeran($user, ['user'], 'Fitur integrasi Bot Telegram hanya untuk pengguna warga.');
 
         if (! $user->telegram_connect_token) {
             $user->update(['telegram_connect_token' => Str::random(16)]);
@@ -35,10 +36,11 @@ class TelegramController extends Controller
         ], $payload));
     }
 
+    // Putuskan tautan bot Telegram dari akun warga dan buat ulang token koneksi
     public function putuskan(Request $request)
     {
         $user = $request->user();
-        abort_unless($user->role === 'user', 403, 'Fitur integrasi Bot Telegram hanya untuk pengguna warga.');
+        $this->wajibPeran($user, ['user'], 'Fitur integrasi Bot Telegram hanya untuk pengguna warga.');
 
         $user->update([
             'telegram_chat_id'       => null,
@@ -53,6 +55,7 @@ class TelegramController extends Controller
         ]);
     }
 
+    // Terima pembaruan pesan masuk dari webhook resmi Telegram
     public function webhook(Request $request)
     {
         $message = $request->input('message');

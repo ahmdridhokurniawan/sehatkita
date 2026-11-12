@@ -89,6 +89,19 @@ class CatatanKesehatan extends Model
     |------------------------------------------------------------------
     */
 
+    // Ambil berat badan terverifikasi paling akhir sebagai nilai awal target
+    public static function beratTerakhir(int $userId): ?float
+    {
+        $bb = static::where('user_id', $userId)
+            ->where('perlu_verifikasi', false)
+            ->whereNotNull('bb_kg')
+            ->orderByDesc('dicatat_pada')
+            ->orderByDesc('id')
+            ->value('bb_kg');
+
+        return $bb !== null ? (float) $bb : null;
+    }
+
     /**
      * IMT dari bb_kg + tinggi_cm SNAPSHOT.
      * Sengaja tidak membaca profil supaya riwayat tidak berubah saat

@@ -25,23 +25,16 @@ class RekamMedisController extends Controller
         'lingkar_perut' => 'cm',
     ];
 
-    private const PERIODE = [
-        '1m' => 1,
-        '3m' => 3,
-        '6m' => 6,
-        '1y' => 12,
-    ];
-
     public function __construct(
         private HealthCalculatorService $kalkulator
     ) {}
 
-    /** GET /tren?indikator=imt,bb_kg&periode=3m[&user_id=] */
+    // Ambil rangkaian data grafik tren indikator berdasarkan periode yang dipilih
     public function index(Request $request)
     {
         $user = $request->user();
 
-        // §8.2 — kader boleh lihat warga binaannya lewat ?user_id=
+        // Kader dan super admin boleh melihat grafik tren warga binaan melalui user_id
         $target = $user;
         if ($request->filled('user_id') && (int) $request->user_id !== (int) $user->id) {
             if (! in_array($user->role, ['kader', 'super_admin'], true)) {
@@ -50,7 +43,7 @@ class RekamMedisController extends Controller
 
             $target = Pengguna::findOrFail((int) $request->user_id);
 
-            if ($user->role === 'kader' && (int) $target->kader_id !== (int) $user->id) {
+            if ($user->role === 'kader' && ! $this->dalamBinaan($user, $target)) {
                 abort(404);
             }
         }
@@ -62,12 +55,8 @@ class RekamMedisController extends Controller
             $diminta = ['bb_kg'];
         }
 
-        $periode = $request->query('periode', '3m');
-        if (! isset(self::PERIODE[$periode])) {
-            $periode = '3m';
-        }
-
-        $sejak = now()->subMonths(self::PERIODE[$periode])->startOfDay();
+        [$periode, $tglMulai] = $this->parsePeriode($request->query('periode'));
+        $sejak = $tglMulai->startOfDay();
 
         // §8.2 — log `perlu_verifikasi` dilewati; with('pengguna.profil') hindari N+1.
         $catatan = CatatanKesehatan::query()

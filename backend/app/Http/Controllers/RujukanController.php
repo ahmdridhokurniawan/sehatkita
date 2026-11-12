@@ -55,7 +55,7 @@ class RujukanController extends Controller
         ], 201);
     }
 
-    // Daftar rujukan faskes
+    // Daftar rujukan faskes dengan penyaringan wilayah dan rentang tanggal
     public function index(Request $request)
     {
         $user = $request->user();
@@ -64,24 +64,16 @@ class RujukanController extends Controller
 
         if (! in_array($user->role, self::ROLE_PETUGAS, true)) {
             $query->where('user_id', $user->id);
-        } else {
-            if ($user->role !== 'super_admin') {
-                $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $user->wilayah_id));
-            }
-            if ($request->filled('wilayah_id')) {
-                $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $request->wilayah_id));
-            }
+        } elseif ($user->role !== 'super_admin') {
+            $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $user->wilayah_id));
+        } elseif ($request->filled('wilayah_id')) {
+            $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $request->wilayah_id));
         }
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
-        if ($request->filled('dari')) {
-            $query->whereDate('created_at', '>=', $request->dari);
-        }
-        if ($request->filled('sampai')) {
-            $query->whereDate('created_at', '<=', $request->sampai);
-        }
+        $this->saringRentangTanggal($query, $request);
 
         $this->saringCari($query, ['alasan', 'catatan'], $request);
 
@@ -169,12 +161,9 @@ class RujukanController extends Controller
         ];
     }
 
+    // Batasi pengelolaan rujukan hanya untuk petugas berwenang
     private function hanyaPetugas(Pengguna $user): void
     {
-        abort_unless(
-            in_array($user->role, self::ROLE_PETUGAS, true),
-            403,
-            'Hanya kader atau admin kelurahan yang boleh membuat rujukan.'
-        );
+        $this->wajibPeran($user, self::ROLE_PETUGAS, 'Hanya kader atau admin kelurahan yang boleh membuat rujukan.');
     }
 }

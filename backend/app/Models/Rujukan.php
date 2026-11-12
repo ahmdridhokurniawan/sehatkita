@@ -10,16 +10,26 @@ class Rujukan extends Model
     // Tanpa ini Eloquent menebak tabel "rujukans".
     protected $table = 'rujukan';
 
-    // Kolom yang boleh diisi massal (kader/admin merujuk warga ke faskes).
+    // Kolom yang boleh diisi massal untuk rujukan manual maupun otomatis sistem
     protected $fillable = [
-        'user_id',        // warga yang dirujuk
-        'faskes_id',      // tujuan rujukan
-        'alasan',         // alasan rujukan, mis. "tensi tinggi 2x pengukuran terakhir"
-        'dibuat_oleh',    // siapa yang membuat rujukan (kader/admin)
-        'status',         // baru | dihubungi | tertangani | ditolak
-        'ditangani_oleh', // siapa yang menangani tindak lanjut
-        'catatan',        // catatan tindak lanjut (opsional)
+        'user_id',
+        'faskes_id',
+        'alasan',
+        'dibuat_oleh',
+        'otomatis',
+        'indikator',
+        'status',
+        'ditangani_oleh',
+        'catatan',
     ];
+
+    // Konversi tipe kolom agar nilai boolean tetap konsisten
+    protected function casts(): array
+    {
+        return [
+            'otomatis' => 'boolean',
+        ];
+    }
 
     // Relasi: rujukan ini untuk warga mana.
     public function pengguna(): BelongsTo

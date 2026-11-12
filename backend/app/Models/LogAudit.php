@@ -10,19 +10,27 @@ class LogAudit extends Model
     // Tanpa ini Eloquent menebak tabel "log_audits".
     protected $table = 'log_audit';
 
-    // Kolom yang boleh diisi massal (sistem mencatat aktivitas pengguna/admin).
+    // Kolom yang boleh diisi massal untuk pencatatan log audit
     protected $fillable = [
-        'user_id',     // siapa yang melakukan aksi (NULL = tamu)
-        'aksi',        // nama aksi, mis. "login", "lihat_catatan"
-        'model',       // entitas yang disentuh, mis. "App\Models\CatatanKesehatan"
-        'model_id',    // id baris yang disentuh
-        'ip',          // alamat IP pelaku
-        'user_agent',  // browser/device yang dipakai
+        'user_id',
+        'aksi',
+        'model',
+        'model_id',
+        'ip',
+        'user_agent',
+        'created_at',
     ];
 
-    // Tabel ini hanya punya created_at (tidak ada updated_at),
-    // jadi NONAKTIFKAN fitur update timestamp otomatis.
+    // Tabel log hanya menyimpan created_at tanpa updated_at
     public $timestamps = false;
+
+    // Isi created_at otomatis saat log baru dibuat
+    protected static function booted(): void
+    {
+        static::creating(function (LogAudit $log) {
+            $log->created_at ??= now();
+        });
+    }
 
     // Cast tipe kolom.
     protected function casts(): array

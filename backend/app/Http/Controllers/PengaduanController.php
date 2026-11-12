@@ -9,10 +9,11 @@ use Illuminate\Validation\Rule;
 // Controller modul pengaduan warga untuk admin kelurahan dan dinas kesehatan
 class PengaduanController extends Controller
 {
+    // Tampilkan daftar pengaduan warga sesuai wilayah tugas admin atau milik sendiri
     public function index(Request $request)
     {
         $user = $request->user();
-        abort_unless(in_array($user->role, ['user', 'admin_kelurahan', 'super_admin'], true), 403, 'Akses ditolak.');
+        $this->wajibPeran($user, ['user', 'admin_kelurahan', 'super_admin']);
 
         $query = Pengaduan::with(['pengguna:id,name,email', 'wilayah:id,nama', 'penanggap:id,name,role']);
 
@@ -44,10 +45,11 @@ class PengaduanController extends Controller
         ]);
     }
 
+    // Simpan laporan pengaduan baru yang dikirimkan warga
     public function store(Request $request)
     {
         $user = $request->user();
-        abort_unless($user->role === 'user', 403, 'Hanya user yang dapat mengirim pengaduan.');
+        $this->wajibPeran($user, ['user'], 'Hanya user yang dapat mengirim pengaduan.');
 
         $data = $request->validate([
             'judul'      => 'required|string|max:150',
@@ -75,10 +77,11 @@ class PengaduanController extends Controller
         ], 201);
     }
 
+    // Ambil detail pengaduan warga beserta tanggapannya jika ada
     public function show(Request $request, int $id)
     {
         $user = $request->user();
-        abort_unless(in_array($user->role, ['user', 'admin_kelurahan', 'super_admin'], true), 403, 'Akses ditolak.');
+        $this->wajibPeran($user, ['user', 'admin_kelurahan', 'super_admin']);
 
         $pengaduan = Pengaduan::with(['pengguna:id,name,email', 'wilayah:id,nama', 'penanggap:id,name,role'])->find($id);
 
@@ -100,10 +103,11 @@ class PengaduanController extends Controller
         ]);
     }
 
+    // Kirim tanggapan dan perbarui status tindak lanjut pengaduan oleh admin
     public function tanggapi(Request $request, int $id)
     {
         $user = $request->user();
-        abort_unless(in_array($user->role, ['admin_kelurahan', 'super_admin'], true), 403, 'Hanya admin yang boleh menanggapi.');
+        $this->wajibPeran($user, ['admin_kelurahan', 'super_admin'], 'Hanya admin yang boleh menanggapi.');
 
         $pengaduan = Pengaduan::find($id);
         abort_unless($pengaduan, 404, 'Pengaduan tidak ditemukan.');

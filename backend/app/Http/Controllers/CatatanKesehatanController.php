@@ -3,17 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Models\CatatanKesehatan;
-use App\Models\Faskes;
 use App\Models\Pengguna;
-use App\Models\Rujukan;
 use App\Services\HealthCalculatorService;
+use App\Services\RujukanOtomatisService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
+// Controller pencatatan, riwayat, dan verifikasi data kesehatan warga
 class CatatanKesehatanController extends Controller
 {
-    public function __construct(private HealthCalculatorService $kalkulator) {}
+    public function __construct(
+        private HealthCalculatorService $kalkulator,
+        private RujukanOtomatisService $rujukanOtomatis
+    ) {}
 
     // Daftar catatan kesehatan
     public function index(Request $request)
@@ -168,9 +171,9 @@ class CatatanKesehatanController extends Controller
             $baris->skor_risiko      = $this->kalkulator->skorRisiko($baris);
             $baris->save();
 
-            // Rujukan otomatis untuk data wajar
+            // Buat rujukan faskes otomatis jika nilai berada di rentang wajar namun kritis
             if (! $baris->perlu_verifikasi) {
-                $this->buatRujukanOtomatis($baris, $pemilik);
+                $this->rujukanOtomatis->buatDariCatatan($baris, $pemilik);
             }
 
             return $baris;
@@ -230,10 +233,10 @@ class CatatanKesehatanController extends Controller
         return response()->json(['success' => true, 'message' => 'Catatan berhasil dihapus', 'data' => null]);
     }
 
-    // Daftar catatan yang membutuhkan verifikasi super admin
+    // Tampilkan daftar catatan anomali yang menunggu verifikasi admin
     public function perluVerifikasiList(Request $request)
     {
-        abort_unless($request->user()->role === 'super_admin', 403, 'Hanya super admin.');
+        $this->wajibPeran($request->user(), ['super_admin'], 'Hanya super admin.');
 
         $query = CatatanKesehatan::with(['pengguna:id,name,email,wilayah_id', 'pengguna.wilayah:id,nama'])
             ->where('perlu_verifikasi', true);
@@ -243,26 +246,23 @@ class CatatanKesehatanController extends Controller
             $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $wilayahId));
         }
 
+        // Gunakan perHalaman agar batas max 100 item tetap terjaga
         $list = $query->orderByDesc('dicatat_pada')
-            ->paginate((int) $request->query('per_page', 20));
+            ->orderByDesc('id')
+            ->paginate($this->perHalaman($request, 20));
 
         return response()->json([
             'success' => true,
             'message' => 'OK',
             'data'    => collect($list->items())->map(fn ($c) => $this->bentukResponse($c))->values(),
-            'meta'    => [
-                'current_page' => $list->currentPage(),
-                'last_page'    => $list->lastPage(),
-                'per_page'     => $list->perPage(),
-                'total'        => $list->total(),
-            ],
+            'meta'    => $this->metaPaginasi($list),
         ]);
     }
 
-    // Tindak lanjut verifikasi catatan kesehatan oleh super admin
+    // Setujui atau tolak catatan anomali agar masuk perhitungan statistik atau dihapus
     public function verifikasi(Request $request, $id)
     {
-        abort_unless($request->user()->role === 'super_admin', 403, 'Hanya super admin.');
+        $this->wajibPeran($request->user(), ['super_admin'], 'Hanya super admin.');
 
         $data = $request->validate(['setuju' => 'required|boolean']);
 
@@ -357,93 +357,7 @@ class CatatanKesehatanController extends Controller
         return $user;
     }
 
-    /** Scope kader: binaan langsung (kader_id) atau satu wilayah kerja. */
-    private function scopeBinaan($query, Pengguna $kader)
-    {
-        return $query->where('role', 'user')
-            ->where(function ($q) use ($kader) {
-                $q->where('kader_id', $kader->id)
-                  ->orWhereNull('kader_id');   // belum ditetapkan → wilayah kerja
-            })
-            ->where('wilayah_id', $kader->wilayah_id);
-    }
-
-    private function dalamBinaan(Pengguna $kader, Pengguna $warga): bool
-    {
-        if ($warga->kader_id !== null) {
-            return (int) $warga->kader_id === (int) $kader->id;
-        }
-
-        return (int) $warga->wilayah_id === (int) $kader->wilayah_id;
-    }
-
-    // Buat rujukan otomatis jika indikator memenuhi ambang batas rujukan
-    private function buatRujukanOtomatis(CatatanKesehatan $catatan, Pengguna $pemilik): void
-    {
-        $pemicu = $this->kalkulator->indikatorMemicuRujukan($catatan);
-
-        if ($pemicu === []) {
-            return;
-        }
-
-        $faskesId = $this->cariPuskesmas($pemilik);
-
-        if (! $faskesId) {
-            return;
-        }
-
-        foreach ($pemicu as $indikator) {
-            $nama = in_array($indikator, ['sistol', 'diastol'], true) ? 'tensi' : $indikator;
-
-            $sudahAda = Rujukan::where('user_id', $pemilik->id)
-                ->where('indikator', $nama)
-                ->whereIn('status', ['baru', 'dihubungi'])
-                ->exists();
-
-            if ($sudahAda) {
-                continue;
-            }
-
-            Rujukan::create([
-                'user_id'     => $pemilik->id,
-                'faskes_id'   => $faskesId,
-                'alasan'      => 'Rujukan ini saran sistem, bukan diagnosis medis.',
-                'dibuat_oleh' => null,
-                'status'      => 'baru',
-                'otomatis'    => true,
-                'indikator'   => $nama,
-            ]);
-        }
-    }
-
-    // Cari puskesmas di wilayah pengguna atau wilayah induk kecamatan
-    private function cariPuskesmas(Pengguna $pemilik): ?int
-    {
-        if (! $pemilik->wilayah_id) {
-            return null;
-        }
-
-        $puskesmas = Faskes::where('wilayah_id', $pemilik->wilayah_id)
-            ->where('jenis', 'puskesmas')
-            ->orderBy('id')
-            ->value('id');
-
-        if ($puskesmas) {
-            return (int) $puskesmas;
-        }
-
-        $induk = DB::table('wilayah')->where('id', $pemilik->wilayah_id)->value('parent_id');
-
-        if (! $induk) {
-            return null;
-        }
-
-        $id = Faskes::where('wilayah_id', $induk)->where('jenis', 'puskesmas')->orderBy('id')->value('id');
-
-        return $id ? (int) $id : null;
-    }
-
-    // Format response catatan kesehatan
+    // Format baris catatan kesehatan beserta hasil kalkulasi dan nama pencatat
     private function bentukResponse(CatatanKesehatan $c): array
     {
         return array_merge(

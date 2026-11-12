@@ -454,7 +454,7 @@ class AdminMasterController extends Controller
 
     // ================= LOG AUDIT =================
 
-    // Riwayat log audit aktivitas sistem
+    // Tampilkan daftar log audit dengan filter pengguna, model, dan rentang tanggal inklusif
     public function indexLogAudit(Request $request)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -470,12 +470,7 @@ class AdminMasterController extends Controller
         if ($request->filled('model')) {
             $query->where('model', $request->model);
         }
-        if ($request->filled('dari')) {
-            $query->where('created_at', '>=', $request->dari);
-        }
-        if ($request->filled('sampai')) {
-            $query->where('created_at', '<=', $request->sampai);
-        }
+        $this->saringRentangTanggal($query, $request);
 
         $list = $query->latest('created_at')->paginate($this->perHalaman($request));
 
@@ -489,17 +484,16 @@ class AdminMasterController extends Controller
 
     // ================= HELPER =================
 
+    // Batasi akses endpoint hanya untuk peran super admin
     private function hanyaSuperAdmin($user): void
     {
-        abort_unless($user->role === 'super_admin', 403, 'Endpoint ini hanya untuk super admin.');
+        $this->wajibPeran($user, ['super_admin'], 'Endpoint ini hanya untuk super admin.');
     }
 
+    // Kembalikan response JSON 404 saat data master tidak ditemukan
     private function tidakDitemukan(string $pesan)
     {
-        return response()->json([
-            'success' => false,
-            'message' => $pesan,
-        ], 404);
+        return $this->responTidakDitemukan($pesan);
     }
 
     private function bentukAmbang(AmbangKategori $a): array

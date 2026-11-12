@@ -10,9 +10,14 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    // POST /api/v1/auth/register
+    // Daftarkan akun warga baru dengan validasi kata sandi kuat
     public function register(Request $request)
     {
+        // Samakan format email ke huruf kecil agar tidak memicu duplikat huruf besar
+        if ($request->filled('email')) {
+            $request->merge(['email' => strtolower(trim((string) $request->input('email')))]);
+        }
+
         $validated = $request->validate([
             'name'       => 'required|string|max:255',
             'nik'        => 'nullable|string|size:16|regex:/^[0-9]+$/|unique:pengguna,nik',
@@ -48,7 +53,7 @@ class AuthController extends Controller
         ], 201);
     }
 
-    // POST /api/v1/auth/login (rate‑limit via route middleware)
+    // Autentikasi pengguna dan terbitkan token akses baru
     public function login(Request $request)
     {
         $validated = $request->validate([
@@ -56,7 +61,8 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $user = Pengguna::where('email', $validated['email'])->first();
+        $email = strtolower(trim($validated['email']));
+        $user  = Pengguna::where('email', $email)->first();
 
         if ($user && ! $user->aktif) {
             return response()->json(['success' => false, 'message' => 'Akun dinonaktifkan'], 403);
@@ -66,7 +72,8 @@ class AuthController extends Controller
             throw ValidationException::withMessages(['email' => ['Email atau password salah']]);
         }
 
-        $user->tokens()->delete();               // hapus token lama
+        // Hapus token lama agar hanya sesi login terbaru yang aktif
+        $user->tokens()->delete();
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return response()->json([
@@ -76,21 +83,21 @@ class AuthController extends Controller
         ]);
     }
 
-    // POST /api/v1/auth/logout
+    // Cabut seluruh token akses milik pengguna saat keluar
     public function logout(Request $request)
     {
         $request->user()->tokens()->delete();
         return response()->json(['success' => true, 'message' => 'Logout berhasil', 'data' => null]);
     }
 
-    // GET /api/v1/auth/me
+    // Ambil data profil dan wilayah pengguna yang sedang login
     public function me(Request $request)
     {
         $user = $request->user()->load('profil', 'wilayah');
         return response()->json(['success' => true, 'message' => 'OK', 'data' => $user]);
     }
 
-    // POST /api/v1/auth/persetujuan
+    // Catat waktu persetujuan kebijakan privasi oleh pengguna
     public function consent(Request $request)
     {
         $validated = $request->validate([
@@ -106,7 +113,7 @@ class AuthController extends Controller
         return response()->json(['success' => true, 'message' => 'Persetujuan dicatat', 'data' => $request->user()]);
     }
 
-    // DELETE /api/v1/persetujuan
+    // Hapus data persetujuan privasi yang tersimpan
     public function revokeConsent(Request $request)
     {
         $user = $request->user();

@@ -10,13 +10,22 @@ class Indikator extends Model
     // Tanpa ini Eloquent menebak tabel "indikators".
     protected $table = 'indikator';
 
-    // Kolom yang boleh diisi massal (menu admin: kelola indikator).
+    // Kolom yang boleh diisi massal pada pengelolaan indikator kesehatan
     protected $fillable = [
-        'kode',       // identifier untuk kode program, mis. "imt"
-        'nama',       // label tampilan, mis. "Indeks Massa Tubuh"
-        'satuan',     // "kg/m2", "mmHg", "mg/dL"
-        'kelompok',   // antropometri | pemeriksaan fisik | biokimia
+        'kode',
+        'nama',
+        'satuan',
+        'kelompok',
+        'interval_skrining_hari',
     ];
+
+    // Konversi tipe kolom numerik untuk jadwal skrining
+    protected function casts(): array
+    {
+        return [
+            'interval_skrining_hari' => 'integer',
+        ];
+    }
 
     // Relasi: indikator ini punya banyak ambang kategori (1:N).
     public function ambangKategori(): HasMany

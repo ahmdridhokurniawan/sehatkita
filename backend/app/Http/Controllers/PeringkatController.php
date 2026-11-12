@@ -14,11 +14,12 @@ class PeringkatController extends Controller
 {
     public function __construct(private PeringkatService $peringkat) {}
 
+    // Ambil papan peringkat EXP warga dalam satu kelurahan dengan pembatasan akses
     public function index(Request $request)
     {
         $user = $request->user();
 
-        // Wilayah: user → wilayahnya sendiri; staf → parameternya.
+        // Tentukan kelurahan target dari parameter atau wilayah pengguna sendiri
         $wilayahId = $request->query('wilayah_id') ?? $user->wilayah_id;
 
         abort_unless($wilayahId, 422, 'wilayah_id wajib diisi.');
@@ -26,13 +27,8 @@ class PeringkatController extends Controller
         $wilayah = Wilayah::find($wilayahId);
         abort_unless($wilayah, 404, 'Wilayah tidak ditemukan');
 
-        // admin_kelurahan hanya boleh melihat kelurahannya sendiri.
-        if ($user->role === 'admin_kelurahan') {
-            abort_unless((int) $user->wilayah_id === (int) $wilayah->id, 403, 'Akses ditolak');
-        }
-
-        // kader & user hanya boleh wilayahnya sendiri.
-        if (in_array($user->role, ['kader', 'user'], true)) {
+        // Selain super admin hanya boleh melihat papan peringkat kelurahannya sendiri
+        if ($user->role !== 'super_admin') {
             abort_unless((int) $user->wilayah_id === (int) $wilayah->id, 403, 'Akses ditolak');
         }
 

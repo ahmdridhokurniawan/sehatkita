@@ -3,24 +3,27 @@
 namespace App\Http\Controllers;
 
 use App\Models\CatatanKesehatan;
-use App\Models\Faskes;
 use App\Models\KunjunganPosbindu;
 use App\Models\Pengguna;
-use App\Models\Rujukan;
 use App\Models\SesiPosbindu;
 use App\Services\HealthCalculatorService;
+use App\Services\RujukanOtomatisService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
+// Controller pengelolaan sesi dan pencatatan kunjungan Posbindu
 class PosbinduController extends Controller
 {
-    public function __construct(private HealthCalculatorService $kalkulator) {}
+    public function __construct(
+        private HealthCalculatorService $kalkulator,
+        private RujukanOtomatisService $rujukanOtomatis
+    ) {}
 
     private const ROLE_ADMIN = ['admin_kelurahan', 'super_admin'];
     private const ROLE_PETUGAS = ['kader', 'admin_kelurahan', 'super_admin'];
 
-    // Daftar sesi Posbindu
+    // Ambil daftar sesi Posbindu sesuai wilayah tugas petugas
     public function indexSesi(Request $request)
     {
         $user = $request->user();
@@ -33,15 +36,15 @@ class PosbinduController extends Controller
                 'kunjungan as hadir' => fn ($q) => $q->where('hadir', true),
             ]);
 
-        // Filter wilayah kerja
+        // Petugas non-super admin terkunci pada wilayah kerjanya
         if ($user->role !== 'super_admin') {
             $query->where('wilayah_id', $user->wilayah_id);
-        }
-        if ($request->filled('wilayah_id')) {
+        } elseif ($request->filled('wilayah_id')) {
             $query->where('wilayah_id', $request->wilayah_id);
         }
+
         if ($request->filled('dari')) {
-            $query->where('tanggal', '>=', $request->dari);
+            $query->whereDate('tanggal', '>=', $request->dari);
         }
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -57,10 +60,16 @@ class PosbinduController extends Controller
         ]);
     }
 
-    // Buat sesi Posbindu baru
+    // Buat jadwal sesi Posbindu baru sesuai wilayah admin
     public function storeSesi(Request $request)
     {
-        $this->hanyaAdmin($request->user());
+        $user = $request->user();
+        $this->hanyaAdmin($user);
+
+        // Admin kelurahan otomatis dikunci ke kelurahannya sendiri
+        if ($user->role === 'admin_kelurahan') {
+            $request->merge(['wilayah_id' => $user->wilayah_id]);
+        }
 
         $data = $request->validate([
             'wilayah_id' => 'required|exists:wilayah,id',
@@ -79,19 +88,15 @@ class PosbinduController extends Controller
         ], 201);
     }
 
-    // Detail sesi Posbindu
+    // Tampilkan detail sesi beserta daftar hadir peserta Posbindu
     public function showSesi(Request $request, int $id)
     {
-        // Kontrak 10.3 cukup login; tidak dibatasi role.
         $sesi = SesiPosbindu::with('kader:id,name')
             ->with(['kunjungan' => fn ($q) => $q->with('pengguna:id,name')])
             ->find($id);
 
         if (! $sesi) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Sesi Posbindu tidak ditemukan',
-            ], 404);
+            return $this->responTidakDitemukan('Sesi Posbindu tidak ditemukan');
         }
 
         return response()->json([
@@ -120,17 +125,19 @@ class PosbinduController extends Controller
         ]);
     }
 
-    // Ubah data sesi Posbindu
+    // Perbarui jadwal atau status sesi Posbindu di wilayah admin
     public function updateSesi(Request $request, int $id)
     {
-        $this->hanyaAdmin($request->user());
+        $user = $request->user();
+        $this->hanyaAdmin($user);
 
         $sesi = SesiPosbindu::find($id);
         if (! $sesi) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Sesi Posbindu tidak ditemukan',
-            ], 404);
+            return $this->responTidakDitemukan('Sesi Posbindu tidak ditemukan');
+        }
+
+        if ($user->role === 'admin_kelurahan') {
+            abort_unless((int) $sesi->wilayah_id === (int) $user->wilayah_id, 403, 'Sesi ini bukan wilayah Anda.');
         }
 
         $data = $request->validate([
@@ -150,7 +157,7 @@ class PosbinduController extends Controller
         ]);
     }
 
-    // Catat kehadiran dan data kesehatan peserta Posbindu
+    // Catat kehadiran dan hasil pemeriksaan peserta Posbindu
     public function storePeserta(Request $request, int $id)
     {
         $user = $request->user();
@@ -158,10 +165,7 @@ class PosbinduController extends Controller
 
         $sesi = SesiPosbindu::find($id);
         if (! $sesi) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Sesi Posbindu tidak ditemukan',
-            ], 404);
+            return $this->responTidakDitemukan('Sesi Posbindu tidak ditemukan');
         }
 
         $data = $request->validate([
@@ -218,9 +222,9 @@ class PosbinduController extends Controller
                 $ck->skor_risiko      = $this->kalkulator->skorRisiko($ck);
                 $ck->save();
 
-                // Rujukan otomatis untuk data wajar
+                // Buat rujukan faskes otomatis jika nilai terverifikasi wajar namun berisiko kritis
                 if (! $ck->perlu_verifikasi) {
-                    $this->buatRujukanOtomatis($ck, $warga);
+                    $this->rujukanOtomatis->buatDariCatatan($ck, $warga);
                 }
 
                 $catatanKesehatanId = $ck->id;
@@ -248,18 +252,23 @@ class PosbinduController extends Controller
         ], 201);
     }
 
-    // Riwayat kunjungan Posbindu
+    // Tampilkan riwayat kunjungan Posbindu sesuai peran dan wilayah pengguna
     public function indexKunjungan(Request $request)
     {
         $user = $request->user();
 
         $query = KunjunganPosbindu::query()
-            ->with(['sesi:id,tanggal,lokasi', 'pengguna:id,name']);
+            ->with(['sesi:id,tanggal,lokasi,wilayah_id', 'pengguna:id,name']);
 
         if ($user->role === 'user') {
             $query->where('user_id', $user->id);
-        } elseif ($request->filled('user_id')) {
-            $query->where('user_id', $request->user_id);
+        } else {
+            if ($user->role !== 'super_admin') {
+                $query->whereHas('sesi', fn ($q) => $q->where('wilayah_id', $user->wilayah_id));
+            }
+            if ($request->filled('user_id')) {
+                $query->where('user_id', $request->user_id);
+            }
         }
 
         if ($request->filled('sesi_id')) {
@@ -283,17 +292,14 @@ class PosbinduController extends Controller
         ]);
     }
 
-    // Hapus sesi Posbindu
+    // Hapus jadwal sesi Posbindu jika berada di wilayah tugas admin
     public function destroySesi(Request $request, int $id)
     {
         $this->hanyaAdmin($request->user());
 
         $sesi = SesiPosbindu::find($id);
         if (! $sesi) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Sesi Posbindu tidak ditemukan',
-            ], 404);
+            return $this->responTidakDitemukan('Sesi Posbindu tidak ditemukan');
         }
 
         if ($request->user()->role === 'admin_kelurahan') {
@@ -313,7 +319,7 @@ class PosbinduController extends Controller
         ]);
     }
 
-    // Format data sesi Posbindu
+    // Format ringkasan satu sesi Posbindu untuk daftar maupun detail
     private function bentukSesi(SesiPosbindu $s): array
     {
         return [
@@ -321,6 +327,7 @@ class PosbinduController extends Controller
             'wilayah_id'     => $s->wilayah_id,
             'tanggal'        => $s->tanggal?->toDateString(),
             'lokasi'         => $s->lokasi,
+            'status'         => $s->status ?? 'akan_datang',
             'kader'          => $s->kader
                 ? ['id' => $s->kader->id, 'name' => $s->kader->name]
                 : null,
@@ -330,28 +337,19 @@ class PosbinduController extends Controller
         ];
     }
 
+    // Batasi pengelolaan jadwal sesi hanya untuk admin kelurahan atau super admin
     private function hanyaAdmin($user): void
     {
-        abort_unless(
-            in_array($user->role, self::ROLE_ADMIN, true),
-            403,
-            'Hanya admin kelurahan atau super admin yang boleh mengelola sesi Posbindu.'
-        );
+        $this->wajibPeran($user, self::ROLE_ADMIN, 'Hanya admin kelurahan atau super admin yang boleh mengelola sesi Posbindu.');
     }
 
+    // Batasi akses Posbindu hanya untuk kader atau admin
     private function hanyaPetugas($user): void
     {
-        abort_unless(
-            in_array($user->role, self::ROLE_PETUGAS, true),
-            403,
-            'Hanya kader atau admin kelurahan yang berhak mengelola Posbindu.'
-        );
+        $this->wajibPeran($user, self::ROLE_PETUGAS, 'Hanya kader atau admin kelurahan yang berhak mengelola Posbindu.');
     }
 
-    /**
-     * Cari warga/pengguna berdasarkan awalan NIK untuk dropdown autocomplete.
-     * Hanya dapat diakses oleh kader, admin kelurahan, dan super admin.
-     */
+    // Cari warga aktif berdasarkan awalan NIK minimal 3 digit untuk autocomplete
     public function cariNik(Request $request)
     {
         $this->hanyaPetugas($request->user());
@@ -389,71 +387,5 @@ class PosbinduController extends Controller
             'message' => 'OK',
             'data'    => $hasil,
         ]);
-    }
-
-    // Buat rujukan otomatis jika indikator memenuhi ambang batas rujukan
-    private function buatRujukanOtomatis(CatatanKesehatan $catatan, Pengguna $pemilik): void
-    {
-        $pemicu = $this->kalkulator->indikatorMemicuRujukan($catatan);
-
-        if ($pemicu === []) {
-            return;
-        }
-
-        $faskesId = $this->cariPuskesmas($pemilik);
-
-        if (! $faskesId) {
-            return;
-        }
-
-        foreach ($pemicu as $indikator) {
-            $nama = in_array($indikator, ['sistol', 'diastol'], true) ? 'tensi' : $indikator;
-
-            $sudahAda = Rujukan::where('user_id', $pemilik->id)
-                ->where('indikator', $nama)
-                ->whereIn('status', ['baru', 'dihubungi'])
-                ->exists();
-
-            if ($sudahAda) {
-                continue;
-            }
-
-            Rujukan::create([
-                'user_id'     => $pemilik->id,
-                'faskes_id'   => $faskesId,
-                'alasan'      => 'Rujukan ini saran sistem, bukan diagnosis medis.',
-                'dibuat_oleh' => null,
-                'status'      => 'baru',
-                'otomatis'    => true,
-                'indikator'   => $nama,
-            ]);
-        }
-    }
-
-    // Cari puskesmas di wilayah pengguna atau wilayah induk kecamatan
-    private function cariPuskesmas(Pengguna $pemilik): ?int
-    {
-        if (! $pemilik->wilayah_id) {
-            return null;
-        }
-
-        $puskesmas = Faskes::where('wilayah_id', $pemilik->wilayah_id)
-            ->where('jenis', 'puskesmas')
-            ->orderBy('id')
-            ->value('id');
-
-        if ($puskesmas) {
-            return (int) $puskesmas;
-        }
-
-        $induk = DB::table('wilayah')->where('id', $pemilik->wilayah_id)->value('parent_id');
-
-        if (! $induk) {
-            return null;
-        }
-
-        $id = Faskes::where('wilayah_id', $induk)->where('jenis', 'puskesmas')->orderBy('id')->value('id');
-
-        return $id ? (int) $id : null;
     }
 }

@@ -6,12 +6,17 @@ use App\Models\CatatanKesehatan;
 use App\Models\Pengguna;
 use App\Models\Rujukan;
 use App\Models\Wilayah;
+use App\Services\HealthCalculatorService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
+// Controller analitik dan laporan agregat kesehatan tingkat kelurahan
 class DashboardWilayahController extends Controller
 {
-    // Batas minimum sel untuk privasi data agregat
+    public function __construct(private HealthCalculatorService $kalkulator) {}
+
+    // Batas minimum sel agar identitas warga tetap anonim dalam agregat
     private const MIN_SEL = 5;
 
     // Data agregat statistik dashboard kelurahan
@@ -37,13 +42,13 @@ class DashboardWilayahController extends Controller
         return app(DashboardController::class)->laporanPribadi($request);
     }
 
-    // Kalkulasi agregat data anonim per wilayah
+    // Kalkulasi agregat anonim indikator kesehatan per wilayah kelurahan
     private function agregat(Request $request): array
     {
         $user = $request->user();
-        abort_unless(in_array($user->role, ['admin_kelurahan', 'super_admin']), 403, 'Akses ditolak');
+        $this->wajibPeran($user, ['admin_kelurahan', 'super_admin'], 'Akses ditolak');
 
-        // Batasi wilayah sesuai peran pengguna
+        // Kunci cakupan wilayah bagi admin kelurahan atau ambil parameter super admin
         if ($user->role === 'admin_kelurahan') {
             $wilayahId = $user->wilayah_id;
         } else {
@@ -59,13 +64,7 @@ class DashboardWilayahController extends Controller
         $wilayah = Wilayah::find($wilayahId);
         abort_unless($wilayah, 404, 'Wilayah tidak ditemukan');
 
-        $periode = in_array($request->query('periode'), ['1m', '3m', '6m', '1y'], true)
-            ? $request->query('periode')
-            : '3m';
-
-        $tglMulai = now()->subMonths(match ($periode) {
-            '1m' => 1, '6m' => 6, '1y' => 12, default => 3,
-        });
+        [$periode, $tglMulai] = $this->parsePeriode($request->query('periode'));
 
         // Hitung total peserta yang telah menyetujui kebijakan
         $populasi = Pengguna::where('wilayah_id', $wilayahId)
@@ -126,13 +125,15 @@ class DashboardWilayahController extends Controller
         ];
     }
 
-    // Hitung distribusi kategori IMT per pengguna dari log terbaru
+    // Hitung sebaran kategori IMT dari catatan terakhir setiap warga yang menyetujui privasi
     private function distribusiImt(int $wilayahId, $tglMulai): array
     {
         $terakhir = DB::table('catatan_kesehatan as ck')
             ->join('pengguna as p', 'ck.user_id', '=', 'p.id')
             ->where('p.wilayah_id', $wilayahId)
             ->where('p.role', 'user')
+            ->where('p.aktif', true)
+            ->whereNotNull('p.consent_at')
             ->where('ck.dicatat_pada', '>=', $tglMulai)
             ->where('ck.perlu_verifikasi', false)
             ->whereNull('ck.deleted_at')
@@ -154,7 +155,10 @@ class DashboardWilayahController extends Controller
         $mentah = ['kurus' => 0, 'normal' => 0, 'gemuk' => 0, 'obesitas' => 0];
 
         foreach ($terakhir as $row) {
-            $imt = (float) $row->bb_kg / (((float) $row->tinggi_cm / 100) ** 2);
+            $imt = $this->kalkulator->hitungImt((float) $row->bb_kg, (float) $row->tinggi_cm);
+            if ($imt === null) {
+                continue;
+            }
 
             $kategori = match (true) {
                 $imt < 18.5 => 'kurus',
@@ -217,7 +221,7 @@ class DashboardWilayahController extends Controller
         $hitung = [];
 
         foreach ($lahir as $tgl) {
-            $umur = (int) \Illuminate\Support\Carbon::parse($tgl)->diffInYears($hariIni);
+            $umur  = (int) Carbon::parse($tgl)->diffInYears($hariIni);
             $dasar = intdiv($umur, 5) * 5;
             $kunci = $dasar . '-' . ($dasar + 4);
             $hitung[$kunci] = ($hitung[$kunci] ?? 0) + 1;
@@ -228,7 +232,7 @@ class DashboardWilayahController extends Controller
         return $hitung;
     }
 
-    // Tren jumlah pencatatan kesehatan per bulan
+    // Hitung tren jumlah pencatatan kesehatan bulanan di wilayah kelurahan
     private function tren(int $wilayahId, $tglMulai)
     {
         return DB::table('catatan_kesehatan as ck')
@@ -241,7 +245,7 @@ class DashboardWilayahController extends Controller
             ->whereNull('ck.deleted_at')
             ->orderBy('ck.dicatat_pada')
             ->pluck('ck.dicatat_pada')
-            ->map(fn ($tgl) => \Illuminate\Support\Carbon::parse($tgl)->format('Y-m'))
+            ->map(fn ($tgl) => Carbon::parse($tgl)->format('Y-m'))
             ->countBy()
             ->map(fn ($jumlah, $periode) => [
                 'periode'          => $periode,

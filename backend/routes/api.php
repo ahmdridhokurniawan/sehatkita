@@ -49,7 +49,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/telegram/status', [TelegramController::class, 'status']);
         Route::post('/telegram/putuskan', [TelegramController::class, 'putuskan']);
 
-        // Faskes
+        // Faskes & detail wilayah terotorisasi
+        Route::get('/wilayah/{id}', [WilayahController::class, 'show']);
         Route::get('/faskes', [FaskesController::class, 'index']);
 
         // Catatan kesehatan

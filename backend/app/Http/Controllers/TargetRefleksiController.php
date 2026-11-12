@@ -30,12 +30,12 @@ class TargetRefleksiController extends Controller
         ]);
     }
 
-    // PUT /target - kontrak 13.2
+    // Simpan perubahan target kesehatan pribadi warga
     public function simpanTarget(Request $request)
     {
-        abort_unless($request->user()->role === 'user', 403, 'Hanya user biasa yang memakai fitur target ini.');
+        $this->wajibPeran($request->user(), ['user'], 'Hanya user biasa yang memakai fitur target ini.');
 
-        // Semua kolom nullable: PATCH-like, hanya yang dikirim yang berubah.
+        // Semua kolom nullable agar pengguna bisa memperbarui sebagian target saja
         $data = $request->validate([
             'bb_target_kg'                => 'nullable|numeric|min:1|max:300',
             'target_aktivitas_per_minggu' => 'nullable|integer|min:0|max:30',
@@ -45,20 +45,14 @@ class TargetRefleksiController extends Controller
             'target_air_ml.integer' => 'Target air harus berupa angka bulat.',
         ]);
 
-        // Profil bisa belum ada (user baru daftar belum isi profil) -> buat dulu.
+        // Buat baris profil kosong bila warga baru belum mengisi onboarding
         $profil = Profil::firstOrCreate(['user_id' => $request->user()->id]);
 
-        // bb_awal_kg read-only: diisi server saat bb_target_kg PERTAMA diset.
+        // Isi berat awal otomatis dari catatan valid terakhir saat target pertama diset
         if (array_key_exists('bb_target_kg', $data)
             && $data['bb_target_kg'] !== null
             && $profil->bb_awal_kg === null) {
-            $bbTerakhir = CatatanKesehatan::where('user_id', $request->user()->id)
-                ->whereNotNull('bb_kg')
-                ->orderBy('dicatat_pada', 'desc')
-                ->orderBy('id', 'desc')
-                ->value('bb_kg');
-
-            $profil->bb_awal_kg = $bbTerakhir === null ? null : (float) $bbTerakhir;
+            $profil->bb_awal_kg = CatatanKesehatan::beratTerakhir($request->user()->id);
         }
 
         foreach ($data as $kolom => $nilai) {
@@ -73,10 +67,10 @@ class TargetRefleksiController extends Controller
         ]);
     }
 
-    // POST /refleksi - kontrak 13.3
+    // Simpan catatan refleksi mingguan warga (maksimal satu per minggu ISO)
     public function simpanRefleksi(Request $request)
     {
-        abort_unless($request->user()->role === 'user', 403, 'Hanya user biasa yang memakai fitur refleksi ini.');
+        $this->wajibPeran($request->user(), ['user'], 'Hanya user biasa yang memakai fitur refleksi ini.');
 
         $data = $request->validate([
             'minggu'  => ['required', 'string', 'max:10', 'regex:/^\d{4}-W\d{2}$/'],
@@ -110,10 +104,10 @@ class TargetRefleksiController extends Controller
         ], 201);
     }
 
-    // GET /refleksi - kontrak 13.4
+    // Ambil daftar refleksi mingguan milik warga dengan paginasi terbaru
     public function refleksi(Request $request)
     {
-        abort_unless($request->user()->role === 'user', 403, 'Hanya user biasa yang memakai fitur refleksi ini.');
+        $this->wajibPeran($request->user(), ['user'], 'Hanya user biasa yang memakai fitur refleksi ini.');
 
         $list = Refleksi::where('user_id', $request->user()->id)
             ->orderByDesc('minggu')
@@ -128,16 +122,10 @@ class TargetRefleksiController extends Controller
         ]);
     }
 
-    /*
-    |------------------------------------------------------------------
-    | Helper
-    |------------------------------------------------------------------
-    */
-
-    /** Modul ini khusus role user (kontrak 16). */
+    // Ambil profil milik warga setelah memverifikasi peran user
     private function profilUser(Request $request): ?Profil
     {
-        abort_unless($request->user()->role === 'user', 403, 'Hanya user biasa yang memakai fitur target ini.');
+        $this->wajibPeran($request->user(), ['user'], 'Hanya user biasa yang memakai fitur target ini.');
 
         return Profil::where('user_id', $request->user()->id)->first();
     }

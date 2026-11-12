@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CatatanKesehatan;
 use App\Models\LogAudit;
 use App\Models\Pengguna;
 use App\Models\Profil;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 /**
@@ -82,10 +84,10 @@ class ProfilController extends Controller
         $validated['riwayat_keluarga']    = $riwayat;
         $validated['tampil_di_peringkat'] = $request->boolean('tampil_di_peringkat');
 
-        // bb_awal_kg diisi server saat target pertama diset (§17)
+        // Simpan berat awal dari catatan terverifikasi terbaru saat target pertama kali dibuat
         $lama = $user->profil;
         if (! empty($validated['bb_target_kg']) && empty($lama?->bb_awal_kg)) {
-            $validated['bb_awal_kg'] = $this->beratTerakhir($user) ?? $validated['bb_target_kg'];
+            $validated['bb_awal_kg'] = CatatanKesehatan::beratTerakhir($user->id) ?? $validated['bb_target_kg'];
         }
 
         $user->profil()->updateOrCreate(['user_id' => $user->id], $validated);
@@ -131,7 +133,7 @@ class ProfilController extends Controller
             && $p->merokok !== null;
     }
 
-    /** §5.1 — kader hanya warga binaannya, super_admin semua. */
+    // Cek izin baca profil berdasarkan peran dan pembinaan wilayah
     private function bolehBaca(Pengguna $pemanggil, Pengguna $target): bool
     {
         if ($pemanggil->id === $target->id) {
@@ -146,16 +148,7 @@ class ProfilController extends Controller
         };
     }
 
-    private function beratTerakhir(Pengguna $user): ?float
-    {
-        $bb = $user->catatanKesehatan()
-            ->whereNotNull('bb_kg')
-            ->orderByDesc('dicatat_pada')
-            ->value('bb_kg');
-
-        return $bb !== null ? (float) $bb : null;
-    }
-
+    // Catat log audit akses profil warga oleh super admin tanpa mengganggu pembacaan
     private function catatAudit(Pengguna $pemanggil, Pengguna $target): void
     {
         try {
@@ -168,15 +161,13 @@ class ProfilController extends Controller
                 'user_agent' => substr((string) request()->userAgent(), 0, 255),
             ]);
         } catch (\Throwable $e) {
-            // audit tidak boleh menggagalkan pembacaan
+            Log::warning('Gagal mencatat log audit profil: ' . $e->getMessage());
         }
     }
 
+    // Kembalikan response 404 standar saat profil tidak ditemukan
     private function tidakDitemukan()
     {
-        return response()->json([
-            'success' => false,
-            'message' => 'Data tidak ditemukan.',
-        ], 404);
+        return $this->responTidakDitemukan();
     }
 }

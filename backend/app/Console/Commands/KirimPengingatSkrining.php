@@ -14,9 +14,10 @@ class KirimPengingatSkrining extends Command
     protected $signature = 'reminder:skrining-ptm';
     protected $description = 'Kirim notifikasi pengingat skrining berkala PTM via Bot Telegram';
 
+    // Kirim pengingat pemeriksaan bulanan ke warga yang belum memeriksa lebih dari 30 hari
     public function handle(TelegramService $telegram): int
     {
-        $batasHari = Carbon::now()->subDays(30)->toDateString();
+        $batasTanggal = Carbon::now()->subDays(30)->startOfDay();
         $wargaList = Pengguna::where('role', 'user')
             ->where('aktif', true)
             ->whereNotNull('telegram_chat_id')
@@ -26,13 +27,15 @@ class KirimPengingatSkrining extends Command
         foreach ($wargaList as $warga) {
             $catatanTerakhir = CatatanKesehatan::where('user_id', $warga->id)
                 ->orderByDesc('dicatat_pada')
+                ->orderByDesc('id')
                 ->first();
 
-            $perluPengingat = ! $catatanTerakhir || $catatanTerakhir->dicatat_pada < $batasHari;
+            // Bandingkan instance Carbon langsung agar terhindar dari perbedaan tipe tanggal
+            $perluPengingat = ! $catatanTerakhir || $catatanTerakhir->dicatat_pada->lt($batasTanggal);
 
             if ($perluPengingat) {
                 $selisih = $catatanTerakhir
-                    ? Carbon::parse($catatanTerakhir->dicatat_pada)->diffInDays(now()) . ' hari yang lalu'
+                    ? $catatanTerakhir->dicatat_pada->diffInDays(now()) . ' hari yang lalu'
                     : 'belum pernah periksa';
 
                 $pesan = "Halo *{$warga->name}*!\n\n"
