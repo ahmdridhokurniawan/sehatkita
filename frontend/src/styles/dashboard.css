@@ -58,14 +58,22 @@
 
 /* ---------- Kartu KPI mini ---------- */
 .kpi-mini { display: flex; align-items: baseline; gap: 8px; }
-.kpi-mini b { font-size: 1.35rem; font-variant-numeric: tabular-nums; }
+.kpi-mini b { font-family: var(--font-display); font-size: 1.4rem; font-variant-numeric: tabular-nums; }
 .kpi-mini span { font-size: .75rem; color: var(--text-2); }
 
 /* ---------- Papan status (rujukan / sesi) ---------- */
 .status-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 @media (max-width: 760px) { .status-board { grid-template-columns: 1fr 1fr; } }
-.status-cell { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; background: var(--surface-2); }
-.status-cell b { display: block; font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.status-cell {
+  border: 1px solid color-mix(in srgb, var(--border) 78%, var(--primary) 22%);
+  border-radius: 15px; padding: 14px 15px;
+  background: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--surface-2) 65%, var(--surface)) 100%);
+  box-shadow: var(--shadow-xs);
+}
+:root[data-theme="dark"] .status-cell {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-2) 60%, var(--surface)) 0%, var(--surface) 100%);
+}
+.status-cell b { display: block; font-family: var(--font-display); font-size: 1.55rem; font-variant-numeric: tabular-nums; }
 .status-cell span { font-size: .75rem; color: var(--text-2); }
 .status-cell.info b { color: var(--info); }
 .status-cell.warning b { color: var(--warning); }
@@ -95,8 +103,8 @@
 
 /* ---------- Kartu dengan tinggi grafik tetap ---------- */
 .card .chart { min-height: 180px; }
-.card-title { font-weight: 700; font-size: .9375rem; }
-.card-sub { font-size: .75rem; color: var(--text-2); margin-top: 2px; }
+.card-title { font-family: var(--font-display); font-weight: 700; font-size: 1.025rem; letter-spacing: -.015em; }
+.card-sub { font-size: .78rem; color: var(--text-2); margin-top: 2px; }
 
 /* ---------- Daftar definisi ringkas dalam modal ---------- */
 .modal .dl { grid-template-columns: 1fr; gap: 10px; }
@@ -115,11 +123,19 @@
 
 /* ---------- Kartu sorotan (hero ringkas dashboard) ---------- */
 .spotlight {
-  border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px;
-  background: linear-gradient(180deg, var(--primary-050), var(--surface) 62%);
+  border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
+  border-radius: 20px; padding: 22px;
+  background:
+    radial-gradient(240px 110px at 96% 0%, color-mix(in srgb, var(--primary-100) 55%, transparent), transparent 72%),
+    linear-gradient(155deg, var(--primary-050), var(--surface) 64%);
+  box-shadow: var(--shadow-sm);
 }
-:root[data-theme="dark"] .spotlight { background: linear-gradient(180deg, var(--primary-050), var(--surface) 62%); }
-.spotlight h2 { font-size: 1.125rem; }
+:root[data-theme="dark"] .spotlight {
+  background:
+    radial-gradient(240px 110px at 96% 0%, color-mix(in srgb, var(--primary-100) 40%, transparent), transparent 72%),
+    linear-gradient(155deg, var(--primary-050), var(--surface) 64%);
+}
+.spotlight h2 { font-family: var(--font-display); font-size: 1.2rem; }
 .spotlight p { color: var(--text-2); font-size: .875rem; margin-top: 5px; }
 
 /* ---------- Peringatan privasi agregat ---------- */
@@ -132,7 +148,7 @@
 
 /* ---------- Cetak laporan ---------- */
 @media print {
-  .sidebar, .dash-top, .dash-scrim, .no-print { display: none !important; }
+  .sidebar, .dash-scrim, .no-print { display: none !important; }
   .dash { grid-template-columns: 1fr; }
   .dash-content { padding: 0; }
   .card { break-inside: avoid; }

@@ -49,7 +49,7 @@ type Props = {
  * Shell aplikasi — sidebar (desktop), drawer + bottom nav (mobile).
  * Navigasi dikelompokkan supaya tombol tidak menumpuk.
  */
-export default function AppShell({ children, greet, noFab, onFab, roles }: Props) {
+export default function AppShell({ children, noFab, onFab, roles }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const { user, loading } = useUser();
@@ -138,6 +138,23 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
           <div className="txt">
             SehatKita<small>Monitoring PTM</small>
           </div>
+          <button
+            type="button"
+            className="btn btn-icon btn-sm btn-ghost sidebar-collapse-btn"
+            aria-label={ciut ? "Perluas sidebar" : "Ciutkan sidebar"}
+            title={ciut ? "Perluas sidebar" : "Ciutkan sidebar"}
+            onClick={() => setCiut((v) => !v)}
+          >
+            <Icon name="panel-left" size={17} />
+          </button>
+          <button
+            type="button"
+            className="btn btn-icon btn-sm btn-ghost sidebar-close-btn"
+            aria-label="Tutup menu"
+            onClick={() => setDrawer(false)}
+          >
+            <Icon name="x" size={18} />
+          </button>
         </div>
 
         <nav className="sidebar-nav">
@@ -161,15 +178,22 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
               <strong>{nama}</strong>
               <span>{wilayah || role}</span>
             </div>
+            {role !== "user" ? (
+              <span className="sidebar-role-pill">{role.replace("_", " ")}</span>
+            ) : null}
           </Link>
-          <button
-            type="button"
-            className="btn btn-sm btn-outline w-full mt-8"
-            onClick={() => setKonfirmasiKeluar(true)}
-            disabled={keluar}
-          >
-            <Icon name="log-out" size={16} /> <span>{keluar ? "Keluar…" : "Keluar"}</span>
-          </button>
+          <div className="sidebar-foot-acts mt-8">
+            <button
+              type="button"
+              className="btn btn-sm btn-outline sidebar-logout-btn"
+              onClick={() => setKonfirmasiKeluar(true)}
+              disabled={keluar}
+              title="Keluar"
+            >
+              <Icon name="log-out" size={16} /> <span>{keluar ? "Keluar…" : "Keluar"}</span>
+            </button>
+            <ThemeToggle className="sidebar-theme-btn" />
+          </div>
         </div>
       </aside>
       <div className="dash-scrim" onClick={() => setDrawer(false)} />
@@ -179,50 +203,6 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
         <div className="viora-rain" aria-hidden="true">
           <span /><span /><span /><span /><span /><span />
         </div>
-        <header className="app-top">
-          <button
-            type="button"
-            className="btn btn-icon btn-sm btn-ghost sidebar-toggle"
-            aria-label="Buka menu"
-            onClick={() => setDrawer(true)}
-          >
-            <Icon name="list" size={20} />
-          </button>
-          <button
-            type="button"
-            className="btn btn-icon btn-sm btn-ghost collapse-toggle"
-            aria-label="Ciutkan sidebar"
-            title="Ciutkan sidebar"
-            onClick={() => setCiut((v) => !v)}
-          >
-            <Icon name="panel-left" size={18} />
-          </button>
-
-          {/* Brand tengah header */}
-          <div className="app-top-brand">
-            <span className="brand-mark" style={{ width: 28, height: 28, borderRadius: 8, fontSize: ".75rem" }}>
-              <Icon name="heart-pulse" size={15} />
-            </span>
-            <span className="app-top-title">SehatKita</span>
-          </div>
-
-          <div className="acts">
-            {role === "user" ? null : (
-              <span className={`badge badge-primary role-badge role-${role}`}>{role.replace("_", " ")}</span>
-            )}
-            <ThemeToggle />
-            <button
-              type="button"
-              className="btn btn-icon btn-sm btn-ghost top-logout"
-              aria-label="Keluar"
-              title="Keluar"
-              onClick={() => setKonfirmasiKeluar(true)}
-              disabled={keluar}
-            >
-              <Icon name="log-out" size={17} />
-            </button>
-          </div>
-        </header>
 
         <main className="app-body" id="appBody">
           {children}
@@ -245,6 +225,15 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
             <span>{n.label}</span>
           </Link>
         ))}
+        <button
+          type="button"
+          className={drawer ? "active" : ""}
+          onClick={() => setDrawer(true)}
+          aria-label="Buka menu sidebar"
+        >
+          <Icon name="list" size={22} />
+          <span>Menu</span>
+        </button>
       </nav>
 
       <Modal
