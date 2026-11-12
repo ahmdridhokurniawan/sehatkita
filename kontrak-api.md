@@ -1,6 +1,6 @@
 # Kontrak API — Sistem Monitoring Kesehatan PTM (Skala Kecamatan)
 
-**Versi 1.6.0** · 2026-11-05 · Base URL `http://sehatkita.test/api/v1` · Laravel + Sanctum (token) · FE: SPA/desktop
+**Versi 1.7.0** · 2026-11-12 · Base URL `http://sehatkita.test/api/v1` · Laravel + Sanctum (token) · FE: SPA/desktop
 
 > **Aturan pakai dokumen ini:**
 >
@@ -34,6 +34,8 @@
 | 16  | Modul `target_kesehatan`: Warga dapat membuat target dinamis multi-metrik (BB, TB, massa otot, tensi, air minum) dengan pesan motivasi capaian | Motivasi personal warga & gamifikasi            |
 | 17  | Ekspor data master/rekapitulasi oleh `super_admin` via `GET /admin/export` format **CSV (UTF-8 BOM)** | Rekapitulasi pelaporan Dinkes ke Excel/SPSS     |
 | 18  | Mutasi warga: Bila `wilayah_id` warga diubah, `kader_id` otomatis di-reset ke `null` | Mencegah kebocoran data warga ke kader lama     |
+| 19  | Titik rumah warga **tidak disimpan/ditampilkan di peta** demi perlindungan privasi medis (UU PDP No. 27/2022) & k-anonymity; peta diarahkan untuk lokasi Faskes/Posbindu resmi Kota Banjarbaru dan heatmap agregat wilayah | Perlindungan data pribadi dan pencegahan doxxing/stigma medis |
+| 20  | Keamanan Registrasi: Password akun baru wajib minimal 8 karakter dengan minimal 1 huruf kapital, 1 angka, dan 1 simbol khusus | Keamanan akun warga dan integritas data |
 
 ---
 
@@ -183,8 +185,8 @@ Mendaftarkan warga (`role` otomatis `user`). Rate limit: **10 percobaan/menit pe
   "name": "Budi Santoso",
   "nik": "6372041234560001",
   "email": "budi@mail.com",
-  "password": "rahasia123",
-  "password_confirmation": "rahasia123",
+  "password": "Rahasia123!",
+  "password_confirmation": "Rahasia123!",
   "wilayah_id": 3
 }
 ```
@@ -207,7 +209,7 @@ Mendaftarkan warga (`role` otomatis `user`). Rate limit: **10 percobaan/menit pe
 }
 ```
 
-**Validasi:** `nik` opsional (bila diisi wajib 16 digit angka dan unik); `password` min 8 karakter & sama dengan konfirmasi; `email` unik (case-insensitive, disimpan lowercase) → 422 bila sudah ada; `wilayah_id` harus bertipe `kelurahan`. Setelah register, FE menampilkan prompt persetujuan (§5.3).
+**Validasi:** `nik` opsional (bila diisi wajib 16 digit angka dan unik); `password` minimal 8 karakter, wajib memuat minimal 1 huruf kapital, 1 angka, 1 simbol/karakter khusus, dan sama dengan konfirmasi; `email` unik (case-insensitive, disimpan lowercase) → 422 bila sudah ada; `wilayah_id` harus bertipe `kelurahan`. Setelah register, FE menampilkan prompt persetujuan (§5.3).
 
 ### 4.2 POST `/auth/login` (publik)
 
@@ -358,15 +360,19 @@ Query: `?tipe=kecamatan|kelurahan&parent_id=1&search=`
 
 Query: `?wilayah_id=3&search=`
 
+Endpoint ini mengembalikan daftar fasilitas kesehatan resmi se-Kota Banjarbaru lengkap dengan koordinat `lat`/`lng` untuk visualisasi peta interaktif warga & kader.
+
 ```json
 [
   {
     "id": 1,
-    "nama": "Puskesmas Landasan Ulin",
+    "nama": "Puskesmas Banjarbaru Selatan",
     "jenis": "puskesmas",
-    "alamat": "Jl. ...",
-    "telepon": "0511xxxx",
-    "wilayah_id": 1
+    "alamat": "Jl. Rambai No. 1, Loktabat Selatan",
+    "telepon": "(0511) 4772134",
+    "wilayah_id": 1,
+    "lat": -3.4475120,
+    "lng": 114.8392110
   }
 ]
 ```
@@ -381,7 +387,7 @@ Query: `?wilayah_id=3&search=`
 - **Read-only** (dihitung server, jangan dikirim; bila dikirim → **422**): `imt`, `tinggi_cm`, semua `kategori_*`, `skor_*`, `status_kesehatan`, `perlu_verifikasi`, `dicatat_oleh`, `created_at`.
 - **Snapshot:** `tinggi_cm`, semua `kategori_*`, dan **`skor_*` per indikator** dihitung saat insert dan **disimpan di baris log** (bukan dihitung ulang dari `ambang_kategori` saat baca).
 - **Profil belum ada / `tinggi_cm` null:** log tetap tersimpan, `imt` dan `kategori_imt` = `null` (bukan 422).
-- **Kelengkapan:** selain `dicatat_pada` dan `sumber`, **minimal satu** pengukuran harus terisi (`bb_kg`, `sistol`+`diastol`, `gula_darah`, `kolesterol`, `asam_urat`, `lingkar_perut`, `tidur_jam`). `sistol` dan `diastol` harus berpasangan. `gula_darah` wajib disertai `jenis_gula_darah`. Pelanggaran → 422.
+- **Kelengkapan:** selain `dicatat_pada` dan `sumber`, **minimal satu** pengukuran harus terisi (`bb_kg`, `sistol`+`diastol`, `gula_darah`, `kolesterol`, `asam_urat`, `lingkar_perut`, `tidur_jam`). `sistol` dan `diastol` harus berpasangan. `gula_darah` wajib disertai `jenis_gula_darah` (`puasa` / `2jam_pp`). `dicatat_pada` divalidasi tidak boleh di masa depan (`before_or_equal:now + 10m buffer`), pencatatan waktu hari ini sah dan diterima. Pelanggaran → 422.
 - **Consent:** `consent_at = null` atau ditarik → **422** `{"errors":{"consent":["Persetujuan data belum diberikan."]}}` (berlaku untuk `mandiri` dan `kader`).
 
 ### 7.2 POST `/catatan-kesehatan`
@@ -1350,3 +1356,4 @@ Bagian ini bukan kontrak API.
 | 1.5   | 2026-10-24 | **(1)** Ambang & kategori lengkap tanpa celah di §8.3 (`ambang_kategori`, kolom `memicu_rujukan`, kategori `krisis`/`tinggi`); pemetaan skor→status→level §1.5; rumus `skor_risiko` baru (36) dan `progress_persen`. **(2)** Rujukan otomatis dipicu saat simpan; kolom `rujukan.otomatis`, `rujukan.indikator`; anti-duplikat; fallback faskes. **(3)** Validasi: dua lapis rentang (mustahil 422 / wajar flag), `tidur_jam` wajar 0–24 → 3–12, minimal satu pengukuran, pasangan sistol-diastol, consent → 422, `jenis_gula_darah` wajib. **(4)** `catatan_kesehatan` append-only + snapshot `kategori_*`. **(5)** Privasi: §10.3, §10.5 (hanya kader/super_admin, 404, duplikat 422), §11.2 rujukan teredaksi untuk `admin_kelurahan`, `log_audit` akses super_admin; `POST /rujukan` hanya kader/super_admin. **(6)** Dashboard kelurahan: `distribusi_risiko` → `distribusi_riwayat_keluarga`, field `rujukan.total` dan `belum_ditindaklanjuti` dihapus, `ada_data_disembunyikan`, complementary suppression. **(7)** Gamifikasi: `exp_total`/`level_gamifikasi` di `pengguna`, tabel `badge_pengguna`, `program.kategori_aktivitas/exp_reward/badge_reward`, `GET /peringkat`, `profil.tampil_di_peringkat`; field reward dihapus dari `peserta_program`; `PATCH /program/{id}/peserta` menerima `user_id`. **(8)** `pengguna.aktif`, `profil.bb_awal_kg`, `indikator.interval_skrining_hari`; `GET /profil` kosong → 200 + `profil_lengkap:false`; `auth/me.profil` bisa `null`. **(9)** Login: rate limit per email+IP, tanpa aturan panjang password. **(10)** `/tren` satu titik per hari. **(11)** Enum baru (`kategori_*`, `wilayah.tipe`, `faskes.jenis`, `status_sesi`); §19 kolom pencarian; §21 TODO-KONFIRMASI; lampiran UI & bug dalam satu dokumen | BE   |
 | 1.5.1 | 2026-10-24 | Klarifikasi tanpa ubah bentuk: consent juga untuk `PUT /profil`; tarik consent → pemilik tetap bisa baca/hapus data lama; rujukan tetap ada; tinggi profil 120–220 (422); `tampil_di_peringkat` tidak di-reset; read-only dikirim → 422; snapshot `skor_*`; `ambang_kategori.status` dihapus; audit mencakup verifikasi & ubah status rujukan; register rate limit; `per_page` 1–100; TODO #4/#7 selesai | BE |
 | 1.6.0 | 2026-11-05 | **Penyesuaian Arahan Pembimbing Lapangan & Dinas Kesehatan RI:**<br>**(1)** `admin_kelurahan` diberikan akses **read-only** pada catatan rekam medis warga kelurahannya (`GET /catatan-kesehatan`, `GET /catatan-kesehatan/{id}`). Aksi `POST`/`DELETE` tetap dilarang.<br>**(2)** Penyelarasan ambang batas tekanan darah resmi **Kemenkes RI / PERHI**: Sistol normal < 130 mmHg (tensi 120 pas adalah Normal, bukan pra-hipertensi), Diastol normal < 85 mmHg (80 pas adalah Normal).<br>**(3)** Penambahan kolom `nik` (16 digit angka, unik) pada tabel `pengguna` + validasi registrasi/admin master.<br>**(4)** Modul `program` mendukung **CRUD penuh**: Super Admin bisa membuat se-kota (`wilayah_id = null`), Admin Kelurahan membuat per kelurahan; penambahan endpoint `GET /program/{id}`, `PUT /program/{id}`, dan `DELETE /program/{id}`.<br>**(5)** Modul baru `pengaduan`: Warga melapor keluhan layanan Posbindu/faskes ke pihak kelurahan (`POST /pengaduan`), Admin Kelurahan memberikan tanggapan resmi (`PATCH /pengaduan/{id}/tanggapi`).<br>**(6)** Modul baru `target_kesehatan`: Warga dapat menyetel target dinamis multi-metrik (BB, TB, massa otot, tensi, dll) dengan respon motivasi otomatis saat target tercapai.<br>**(7)** Modul Ekspor Data Super Admin: `GET /admin/export?tipe=catatan\|posbindu\|rujukan` menghasilkan file download CSV stream (UTF-8 BOM).<br>**(8)** Modul Integrasi Bot Telegram & Pengingat Bulanan: pairing akun warga via deep link (`/telegram/status`, `/telegram/webhook`) dan artisan scheduler bulanan (`reminder:skrining-ptm`).<br>**(9)** Mutasi warga: Bila `wilayah_id` warga diubah, `kader_id` otomatis di-reset ke `null` untuk melindungi privasi data warga. | BE |
+| 1.7.0 | 2026-11-12 | **Penyempurnaan Keamanan, Peta Faskes, dan Perbaikan Validasi Operasional:**<br>**(1)** **Keamanan Password Kuat:** `POST /api/v1/auth/register` wajib password minimal 8 karakter dengan minimal 1 huruf kapital, 1 angka, dan 1 simbol khusus (`Password::min(8)->letters()->mixedCase()->numbers()->symbols()`).<br>**(2)** **Validasi Waktu Catat Kesehatan:** Perbaikan aturan `dicatat_pada` pada `POST /api/v1/catatan-kesehatan` dari `before_or_equal:today` (yang salah mengira jam hari ini sebagai masa depan) menjadi `before_or_equal:now` dengan toleransi buffer 10 menit.<br>**(3)** **Gula Darah & Puasa:** Penegasan validasi bahwa bila field `gula_darah` diisi, field `jenis_gula_darah` (`puasa` / `2jam_pp`) wajib disertakan.<br>**(4)** **Aktivasi Koordinat Peta Faskes (`GET /api/v1/faskes`):** Pengisian data koordinat geografis presisi (`lat`, `lng`) serta telepon resmi Puskesmas, Rumah Sakit, dan Klinik di seluruh Kota Banjarbaru untuk integrasi peta interaktif warga.<br>**(5)** **Keputusan Kebijakan Peta Warga (§0 #19):** Titik lokasi rumah warga secara individual diputuskan **TIDAK DITAMPILKAN DI PETA** demi mematuhi UU PDP No. 27/2022 dan prinsip etika *k-anonymity* SehatKita.<br>**(6)** **Bot Telegram Anti-Duplikasi:** Penambahan mekanisme atomic lock (`Cache::lock`) pada scheduler polling bot untuk mencegah duplikasi balasan pesan warga. | BE |
