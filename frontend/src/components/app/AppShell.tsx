@@ -141,8 +141,8 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
         </div>
 
         <nav className="sidebar-nav">
-          {grup.map((g) => (
-            <div className="nav-group" key={g.judul}>
+          {grup.map((g, gi) => (
+            <div className={`nav-group${g.items.length === 1 && gi > 0 ? " nav-group-tight" : ""}`} key={g.judul}>
               {g.items.length > 1 ? <div className="nav-group-title">{g.judul}</div> : null}
               {g.items.map((n) => (
                 <Link key={n.href} href={n.href} className={`snav ${aktif(n.href) ? "active" : ""}`}>

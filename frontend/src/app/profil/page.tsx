@@ -433,18 +433,18 @@ export default function ProfilPage() {
         </div>
       )}
 
-      <div className="card mt-16" style={{ display: "grid", gap: 0, padding: 0 }}>
+      <div className="card mt-16" style={{ display: "grid", gap: 0, padding: 0, overflow: "hidden" }}>
         <Link
           href="/setelan"
           className="li"
-          style={{ borderBottom: "1px solid var(--border)" }}
+          style={{ borderBottom: "1px solid var(--border)", borderRadius: 0 }}
         >
           <span className="li-ico">
             <Icon name="settings" size={18} />
           </span>
           <div className="li-main">
             <strong className="text-sm">Pengaturan</strong>
-            <span className="tiny">Privasi & persetujuan data</span>
+            <span className="tiny">Privasi &amp; persetujuan data</span>
           </div>
           <span className="li-side">
             <Icon name="chevron-right" size={18} />
@@ -453,14 +453,14 @@ export default function ProfilPage() {
         <button
           type="button"
           className="li"
-          style={{ border: "none", background: "none", cursor: "pointer", textAlign: "left", width: "100%" }}
+          style={{ background: "none", cursor: "pointer", textAlign: "left", width: "100%", borderRadius: 0, border: "none", borderBottom: "none" }}
           onClick={() => setKonfirmasiKeluar(true)}
         >
-          <span className="li-ico">
+          <span className="li-ico" style={{ background: "var(--danger-bg)", color: "var(--danger)" }}>
             <Icon name="log-out" size={18} />
           </span>
           <div className="li-main">
-            <strong className="text-sm">Keluar</strong>
+            <strong className="text-sm" style={{ color: "var(--danger)" }}>Keluar</strong>
             <span className="tiny">Akhiri sesi di perangkat ini</span>
           </div>
         </button>
