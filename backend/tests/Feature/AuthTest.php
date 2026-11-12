@@ -145,16 +145,16 @@ class AuthTest extends TestCase
         $this->postJson('/api/v1/auth/register', [
             'name'                  => 'Pendaftar Baru',
             'email'                 => 'baru@sehatkita.test',
-            'password'              => 'rahasia123',
-            'password_confirmation' => 'rahasia123',
+            'password'              => 'Rahasia123!',
+            'password_confirmation' => 'Rahasia123!',
             'wilayah_id'            => $wilayah->id,
         ])->assertStatus(201)
           ->assertJsonPath('data.user.role', 'user');
 
         $baru = Pengguna::where('email', 'baru@sehatkita.test')->firstOrFail();
-        $this->assertTrue(Hash::check('rahasia123', $baru->password));
+        $this->assertTrue(Hash::check('Rahasia123!', $baru->password));
         // Password harus tersimpan sebagai hash, bukan teks asli.
-        $this->assertNotSame('rahasia123', $baru->password);
+        $this->assertNotSame('Rahasia123!', $baru->password);
     }
 
     public function test_register_email_ganda_ditolak(): void
@@ -165,9 +165,23 @@ class AuthTest extends TestCase
         $this->postJson('/api/v1/auth/register', [
             'name'                  => 'Duplikat',
             'email'                 => $user->email,
+            'password'              => 'Rahasia123!',
+            'password_confirmation' => 'Rahasia123!',
+            'wilayah_id'            => $wilayah->id,
+        ])->assertStatus(422)->assertJsonValidationErrors('email');
+    }
+
+    public function test_register_password_lemah_ditolak(): void
+    {
+        $wilayah = $this->wilayah();
+
+        // Tanpa simbol dan tanpa huruf kapital
+        $this->postJson('/api/v1/auth/register', [
+            'name'                  => 'Lemah',
+            'email'                 => 'lemah@sehatkita.test',
             'password'              => 'rahasia123',
             'password_confirmation' => 'rahasia123',
             'wilayah_id'            => $wilayah->id,
-        ])->assertStatus(422)->assertJsonValidationErrors('email');
+        ])->assertStatus(422)->assertJsonValidationErrors('password');
     }
 }

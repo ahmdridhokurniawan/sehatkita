@@ -103,7 +103,7 @@ class CatatanKesehatanController extends Controller
 
         // Validasi input
         $data = $request->validate([
-            'dicatat_pada'     => 'required|date|before_or_equal:today',
+            'dicatat_pada'     => ['required', 'date', 'before_or_equal:' . now()->addMinutes(10)->toDateTimeString()],
             'sumber'           => 'required|in:mandiri,kader,puskesmas',
             'bb_kg'            => 'nullable|numeric|gt:0|max:500',
             'tinggi_cm'        => 'nullable|numeric|min:50|max:250',

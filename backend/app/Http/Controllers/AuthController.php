@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Pengguna;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
@@ -16,7 +17,12 @@ class AuthController extends Controller
             'name'       => 'required|string|max:255',
             'nik'        => 'nullable|string|size:16|regex:/^[0-9]+$/|unique:pengguna,nik',
             'email'      => 'required|email|unique:pengguna,email',
-            'password'   => 'required|string|min:8|confirmed',
+            'password'   => [
+                'required',
+                'string',
+                'confirmed',
+                Password::min(8)->letters()->mixedCase()->numbers()->symbols(),
+            ],
             'wilayah_id' => 'required|exists:wilayah,id',
         ]);
 
