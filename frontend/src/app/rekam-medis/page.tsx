@@ -45,7 +45,7 @@ function toneKategori(k = ""): "safe" | "warning" | "danger" {
 export default function RekamMedisPage() {
   const { user } = useUser();
   const petugas = user?.role === "kader" || user?.role === "admin_kelurahan" || user?.role === "super_admin";
-  const bisaHapus = user?.role === "kader" || user?.role === "super_admin";
+  const bisaHapus = user?.role !== "admin_kelurahan";
   const [periode, setPeriode] = useState<"1m" | "3m" | "6m" | "1y">("3m");
   const [indikator, setIndikator] = useState<string>("bb_kg");
   const [cari, setCari] = useState("");

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import Icon from "./Icon";
 
 type Props = {
@@ -27,7 +28,7 @@ export default function Modal({ open, onClose, title, children, footer, size = "
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div
         className={`modal ${size === "lg" ? "modal-lg" : ""}`}
@@ -46,6 +47,7 @@ export default function Modal({ open, onClose, title, children, footer, size = "
         <div className="modal-body">{children}</div>
         {footer ? <div className="modal-foot">{footer}</div> : null}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

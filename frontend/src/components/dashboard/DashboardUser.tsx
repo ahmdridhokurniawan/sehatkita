@@ -176,6 +176,7 @@ export default function DashboardUser({ user }: { user: User }) {
       <section>
         <div className="app-section-title">
           <h2>Target Kesehatan</h2>
+          <Link href="/target-kesehatan">Lihat Semua →</Link>
         </div>
         <TargetBaru />
       </section>
