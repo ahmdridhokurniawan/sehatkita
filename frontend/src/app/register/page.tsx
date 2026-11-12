@@ -8,6 +8,7 @@ import ThemeToggle from "@/components/ui/ThemeToggle";
 import Modal from "@/components/ui/Modal";
 import AuthAside from "@/components/auth/AuthAside";
 import { auth, setToken, wilayah as wilayahApi, ApiError } from "@/lib/api";
+import { clearUserCache } from "@/hooks/useUser";
 import type { Wilayah } from "@/types";
 
 type Err = Record<string, string>;
@@ -85,6 +86,8 @@ export default function RegisterPage() {
 
       // Simpan token ke localStorage
       setToken(res.token);
+
+      clearUserCache();
 
       // User baru (consent_at null) → redirect ke onboarding (kontrak §26)
       if (res.user.consent_at === null) {

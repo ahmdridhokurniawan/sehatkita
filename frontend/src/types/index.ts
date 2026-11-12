@@ -440,6 +440,13 @@ export interface PesertaProgramInput {
   /** Wajib bila yang mengubah kader/admin/super_admin */
   user_id?: number;
 }
+/** §12.6 — peserta program (GET /program/{id}/peserta) */
+export interface PesertaProgram {
+  user_id: number;
+  nama: string;
+  status: StatusPeserta;
+  status_lain?: string;
+}
 /* ============================================================
  * §13 — Target & Refleksi
  * ============================================================ */

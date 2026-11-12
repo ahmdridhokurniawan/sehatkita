@@ -11,7 +11,8 @@ import { ErrorState, Loading } from "@/components/ui/Empty";
 import { useUser } from "@/hooks/useUser";
 import { angka, tanggal } from "@/lib/format";
 import { program as programApi, ApiError } from "@/lib/api";
-import type { Program } from "@/types";
+import type { Program, PesertaProgram } from "@/types";
+import { LABEL_STATUS_PESERTA } from "@/lib/labels";
 
 /* Detail program — kontrak §12 tidak punya GET /program/{id};
    data diambil dari GET /program lalu difilter per id. */
@@ -37,12 +38,32 @@ export default function ProgramDetailPage() {
   const id = Number(params?.id);
   const { user, loading: loadingUser } = useUser();
   const bolehIkut = user?.role === "user";
+  const bolehKelolaPeserta =
+    user?.role === "kader" || user?.role === "admin_kelurahan" || user?.role === "super_admin";
 
   const [program, setProgram] = useState<Program | null>(null);
+  const [peserta, setPeserta] = useState<PesertaProgram[]>([]);
+  const [pesertaLoading, setPesertaLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [proses, setProses] = useState(false);
   const [aksiErr, setAksiErr] = useState("");
+  const [tandaiId, setTandaiId] = useState<number | null>(null);
+
+  async function muatPeserta() {
+    if (!id || !bolehKelolaPeserta) return;
+    setPesertaLoading(true);
+    try {
+      const res = await programApi.peserta(id);
+      setPeserta(res || []);
+    } catch (err) {
+      if (err instanceof ApiError && err.status !== 403 && err.status !== 404) {
+        setAksiErr(err.message || "Gagal memuat daftar peserta");
+      }
+    } finally {
+      setPesertaLoading(false);
+    }
+  }
 
   async function muat() {
     if (!id) return;
@@ -64,6 +85,11 @@ export default function ProgramDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadingUser, user, id]);
 
+  useEffect(() => {
+    if (!loadingUser && user) muatPeserta();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadingUser, user, id]);
+
   async function toggle() {
     if (!program) return;
     setProses(true);
@@ -81,6 +107,20 @@ export default function ProgramDetailPage() {
       setAksiErr(err instanceof ApiError ? err.message : "Gagal mengubah keikutsertaan");
     } finally {
       setProses(false);
+    }
+  }
+
+  async function tandaiSelesai(user_id: number) {
+    if (!program) return;
+    setTandaiId(user_id);
+    setAksiErr("");
+    try {
+      await programApi.ubahPeserta(program.id, { status: "selesai", user_id });
+      await muatPeserta();
+    } catch (err) {
+      setAksiErr(err instanceof ApiError ? err.message : "Gagal menandai selesai");
+    } finally {
+      setTandaiId(null);
     }
   }
 
@@ -180,6 +220,52 @@ export default function ProgramDetailPage() {
               </div>
             </div>
           </div>
+
+          {bolehKelolaPeserta ? (
+            <div className="card mt-12">
+              <div className="row-between mb-8">
+                <strong className="text-sm">Daftar Peserta</strong>
+                <span className="tiny">{angka(program.jumlah_peserta)} orang</span>
+              </div>
+
+              {pesertaLoading ? (
+                <p className="tiny center">Memuat peserta…</p>
+              ) : peserta.length === 0 ? (
+                <p className="tiny center" style={{ padding: "12px 0" }}>
+                  Belum ada peserta terdaftar.
+                </p>
+              ) : (
+                <div style={{ display: "grid", gap: 8 }}>
+                  {peserta.map((p) => {
+                    const selesai = p.status === "selesai";
+                    return (
+                      <div key={p.user_id} className="li">
+                        <span className="li-ico">
+                          <Icon name="user" size={18} />
+                        </span>
+                        <div className="li-main">
+                          <strong className="text-sm">{p.nama}</strong>
+                          <span className="tiny mt-2">
+                            {LABEL_STATUS_PESERTA[p.status] || p.status}
+                          </span>
+                        </div>
+                        {!selesai ? (
+                          <Button
+                            size="sm"
+                            variant={p.status === "berhenti" ? "outline" : "primary"}
+                            onClick={() => tandaiSelesai(p.user_id)}
+                            loading={tandaiId === p.user_id}
+                          >
+                            Tandai Selesai
+                          </Button>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ) : null}
         </>
       ) : null}
     </AppShell>

@@ -39,6 +39,7 @@ import type {
   LogAudit,
   PersetujuanData,
   PesertaProgramInput,
+  PesertaProgram,
   Peringkat,
   Profil,
   Program,
@@ -459,6 +460,9 @@ export const program = {
   /** §12.4 PATCH peserta (ubah status keikutsertaan) */
   ubahPeserta: (id: number, payload: PesertaProgramInput) =>
     request<{ status: string }>(`/program/${id}/peserta`, { method: "PATCH", body: payload }),
+  /** §12.6 GET daftar peserta  */
+  peserta: (id: number) =>
+    request<PesertaProgram[]>(`/program/${id}/peserta`),
   /** §12.5 GET /peringkat — peringkat EXP satu kelurahan */
   peringkat: (query?: { wilayah_id?: number }) => request<Peringkat>("/peringkat", { query }),
 };

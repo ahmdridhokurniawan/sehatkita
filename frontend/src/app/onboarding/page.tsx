@@ -11,6 +11,7 @@ import {
   RIWAYAT_KELUARGA_OPTIONS,
 } from "@/lib/session";
 import { profil, persetujuan, ApiError } from "@/lib/api";
+import { clearUserCache } from "@/hooks/useUser";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -88,6 +89,8 @@ export default function OnboardingPage() {
 
       // §5.3 POST /persetujuan
       await persetujuan.setuju("1.0");
+
+      clearUserCache();
 
       router.push("/dashboard");
     } catch (err) {

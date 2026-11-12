@@ -8,6 +8,7 @@ import ThemeToggle from "@/components/ui/ThemeToggle";
 import Modal from "@/components/ui/Modal";
 import AuthAside from "@/components/auth/AuthAside";
 import { auth, setToken, ApiError } from "@/lib/api";
+import { clearUserCache } from "@/hooks/useUser";
 
 type Err = { email?: string; password?: string };
 
@@ -46,6 +47,7 @@ export default function LoginPage() {
       
       // Simpan token ke localStorage, lalu langsung ke menu utama
       setToken(res.token);
+      clearUserCache();
       router.push("/dashboard");
     } catch (err: any) {
       setLoading(false);
