@@ -625,6 +625,24 @@ table.tbl tbody tr:hover { background: var(--surface-2); }
 .btn:not(.btn-icon):not(:disabled):active { transform: none; }
 .btn:active { transform: none !important; }
 
+/* ===== PAKSA: semua tombol tidak boleh bergerak sama sekali ===== */
+.btn,
+.btn-primary,
+.btn-outline,
+.btn-ghost,
+.btn-danger,
+.btn-sm,
+.btn-lg,
+.btn-block,
+.btn-icon {
+  transform: none !important;
+}
+.btn:hover,
+.btn:active,
+.btn:focus {
+  transform: none !important;
+}
+
 :focus-visible { box-shadow: var(--ring); outline: none; }
 
 .badge { font-weight: 700; }

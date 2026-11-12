@@ -42,18 +42,15 @@
   overflow: hidden;
   box-shadow: var(--shadow-xs);
   transition:
-    transform .18s var(--ease),
     box-shadow .18s var(--ease),
     border-color .18s var(--ease);
 
-  /* masuk berurutan */
-  opacity: 0;
-  animation: ins-rise .42s var(--ease) forwards;
-  animation-delay: calc(var(--i, 0) * 60ms);
+  /* masuk berurutan: tetap tapi tanpa animasi gerak */
+  opacity: 1;
 }
 
 .ins-sum-card:hover { box-shadow: var(--shadow-sm); border-color: var(--border-strong); }
-.ins-sum-card:active { transform: none; }
+.ins-sum-card:active { transform: none; filter: brightness(.94); }
 .ins-sum-card:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
@@ -74,9 +71,9 @@
   border-radius: 10px;
   background: var(--surface-2);
   color: currentColor;
-  transition: transform .25s var(--ease), background .25s var(--ease);
+  transition: none;
 }
-.ins-sum-card:hover .ins-sum-ico { transform: scale(1.08) rotate(-4deg); }
+.ins-sum-card:hover .ins-sum-ico { transform: none; }
 .ins-sum-card.aktif .ins-sum-ico { background: currentColor; }
 .ins-sum-card.aktif .ins-sum-ico svg { color: var(--surface); }
 
@@ -151,19 +148,11 @@
   box-shadow: var(--shadow-xs);
   overflow: hidden;
   transition:
-    transform .18s var(--ease),
     box-shadow .18s var(--ease),
     border-color .18s var(--ease);
-
-  opacity: 0;
-  animation: ins-rise .4s var(--ease) forwards;
-  animation-delay: calc(var(--i, 0) * 45ms + 80ms);
+  opacity: 1;
 }
-.ins-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--border-strong);
-}
+.ins-card:hover { box-shadow: var(--shadow-md); border-color: var(--border-strong); }
 
 /* rel menggantikan borderLeft inline — bisa dianimasikan tinggi */
 .ins-card-rail {
@@ -196,9 +185,9 @@
   border-radius: 9px;
   background: color-mix(in srgb, currentColor 12%, transparent);
   color: currentColor;
-  transition: transform .2s var(--ease);
+  transition: none;
 }
-.ins-card:hover .ins-ico { transform: scale(1.1); }
+.ins-card:hover .ins-ico { transform: none; }
 
 .ins-card-title {
   flex: 1;
@@ -307,9 +296,9 @@
   display: grid; place-items: center;
   background: color-mix(in srgb, var(--prime) 12%, transparent);
   color: var(--prime);
-  transition: transform 0.22s var(--ease);
+  transition: none;
 }
-.pa-head:hover .pa-ico { transform: scale(1.06); }
+.pa-head:hover .pa-ico { transform: none; }
 .pa-txt { display: grid; gap: 2px; min-width: 0; flex: 1 1 auto; }
 .pa-txt strong { font-size: 0.875rem; line-height: 1.35; }
 .pa-chev {
