@@ -198,15 +198,12 @@ export default function AppShell({ children, greet, noFab, onFab, roles }: Props
             <Icon name="panel-left" size={18} />
           </button>
 
-          <span className="avatar d-only-none">{inisial(nama)}</span>
-          <div className="who">
-            <strong>
-              {greet ? `${greet}, ` : ""}
-              {nama.split(" ")[0]}
-            </strong>
-            <span>
-              <Icon name="map-pin" size={12} /> {wilayah || "—"}
+          {/* Brand tengah header */}
+          <div className="app-top-brand">
+            <span className="brand-mark" style={{ width: 28, height: 28, borderRadius: 8, fontSize: ".75rem" }}>
+              <Icon name="heart-pulse" size={15} />
             </span>
+            <span className="app-top-title">SehatKita</span>
           </div>
 
           <div className="acts">
