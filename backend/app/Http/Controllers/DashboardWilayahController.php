@@ -50,7 +50,11 @@ class DashboardWilayahController extends Controller
             $wilayahId = $request->query('wilayah_id');
         }
 
-        abort_unless($wilayahId, 422, 'wilayah_id wajib untuk super_admin');
+        if (! $wilayahId) {
+            abort(422, $user->role === 'admin_kelurahan'
+                ? 'Akun admin kelurahan belum memiliki wilayah penugasan.'
+                : 'wilayah_id wajib untuk super_admin');
+        }
 
         $wilayah = Wilayah::find($wilayahId);
         abort_unless($wilayah, 404, 'Wilayah tidak ditemukan');
