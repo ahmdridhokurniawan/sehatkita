@@ -442,10 +442,13 @@ export interface PesertaProgramInput {
 }
 /** §12.6 — peserta program (GET /program/{id}/peserta) */
 export interface PesertaProgram {
+  id?: number;
   user_id: number;
-  nama: string;
+  name: string;
+  email?: string;
   status: StatusPeserta;
-  status_lain?: string;
+  terdaftar_pada?: string;
+  selesai_pada?: string | null;
 }
 /* ============================================================
  * §13 — Target & Refleksi

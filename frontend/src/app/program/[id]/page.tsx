@@ -244,7 +244,7 @@ export default function ProgramDetailPage() {
                           <Icon name="user" size={18} />
                         </span>
                         <div className="li-main">
-                          <strong className="text-sm">{p.nama}</strong>
+                          <strong className="text-sm">{p.name}</strong>
                           <span className="tiny mt-2">
                             {LABEL_STATUS_PESERTA[p.status] || p.status}
                           </span>
