@@ -141,7 +141,7 @@ export default function TargetBaru() {
                 <div className="li-main">
                   <div className="row" style={{ gap: 6 }}>
                     <strong className="text-sm">{t.judul}</strong>
-                    {t.tercapai ? <Badge tone="safe">Tercapai</Badge> : null}
+                    {t.tercapai ? <Badge tone="safe">Tercapai 🎉</Badge> : null}
                   </div>
                   <span className="tiny">
                     <LabelJenis jenis={t.jenis_target} /> · {t.nilai_awal != null ? `${t.nilai_awal} → ` : ""}
@@ -152,6 +152,25 @@ export default function TargetBaru() {
                     <span className="tiny" style={{ display: "block", marginTop: 4, fontStyle: "italic" }}>
                       "{t.catatan_motivasi}"
                     </span>
+                  ) : null}
+                  {t.tercapai ? (
+                    <div
+                      className="mt-6"
+                      style={{
+                        background: "var(--safe-bg)",
+                        padding: "5px 10px",
+                        borderRadius: "var(--radius-sm)",
+                        color: "var(--safe)",
+                        fontSize: "0.75rem",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        fontWeight: 600,
+                      }}
+                    >
+                      <Icon name="award" size={14} />
+                      <span>Hebat! Target ini tercapai. Pertahankan pola hidup sehatmu!</span>
+                    </div>
                   ) : null}
                 </div>
                 <div className="li-side row" style={{ gap: 6 }}>

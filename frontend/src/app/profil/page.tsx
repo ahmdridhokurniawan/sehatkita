@@ -178,11 +178,12 @@ export default function ProfilPage() {
 
   function validasi(f: FormState): Errors {
     const e: Errors = {};
+    const todayStr = new Date().toISOString().slice(0, 10);
 
     if (f.tgl_lahir.trim() === "") {
       e.tgl_lahir = "Tanggal lahir wajib diisi";
-    } else if (new Date(f.tgl_lahir) >= new Date()) {
-      e.tgl_lahir = "Tanggal lahir harus sebelum hari ini";
+    } else if (f.tgl_lahir > todayStr) {
+      e.tgl_lahir = "Tanggal lahir tidak boleh lebih besar dari hari ini";
     }
 
     if (f.jenis_kelamin === "") e.jenis_kelamin = "Pilih jenis kelamin";

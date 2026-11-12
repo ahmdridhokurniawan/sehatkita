@@ -10,6 +10,7 @@ import Pagination, { type Meta } from "@/components/ui/Pagination";
 import Line from "@/components/charts/Line";
 import CatatModal from "@/components/catatan/CatatModal";
 import { EmptyState } from "@/components/ui/Empty";
+import { useToast } from "@/components/ui/Toast";
 import { useUser } from "@/hooks/useUser";
 import { catatanKesehatan, rekamMedis, ApiError } from "@/lib/api";
 import { tanggal } from "@/lib/format";
@@ -43,6 +44,7 @@ function toneKategori(k = ""): "safe" | "warning" | "danger" {
 }
 
 export default function RekamMedisPage() {
+  const toast = useToast();
   const { user } = useUser();
   const petugas = user?.role === "kader" || user?.role === "admin_kelurahan" || user?.role === "super_admin";
   const bisaHapus = user?.role !== "admin_kelurahan";
@@ -52,6 +54,8 @@ export default function RekamMedisPage() {
   const [halaman, setHalaman] = useState(1);
   const [detail, setDetail] = useState<CatatanKesehatan | null>(null);
   const [catatTerbuka, setCatatTerbuka] = useState(false);
+  const [hapusItem, setHapusItem] = useState<CatatanKesehatan | null>(null);
+  const [sedangHapus, setSedangHapus] = useState(false);
 
   // Fetch data
   const [catatan, setCatatan] = useState<CatatanKesehatan[]>([]);
@@ -238,7 +242,8 @@ export default function RekamMedisPage() {
                       ) : null}
                     </div>
                   </div>
-                  <div className="row gap-6">
+                  <div className="row gap-6" style={{ flexWrap: "wrap" }}>
+                    {c.perlu_verifikasi && <Badge tone="warning">⚠️ Menunggu verifikasi</Badge>}
                     {c.kategori_imt && <Badge tone={toneKategori(c.kategori_imt)}>{c.kategori_imt}</Badge>}
                   </div>
                 </div>
@@ -258,19 +263,8 @@ export default function RekamMedisPage() {
                   </button>
                   {bisaHapus ? (
                     <button
-                      className="btn btn-sm btn-ghost"
-                      style={{ color: "var(--danger)" }}
-                      onClick={async () => {
-                        if (confirm("Hapus catatan ini?")) {
-                          try {
-                            await catatanKesehatan.hapus(c.id);
-                            setCatatan(catatan.filter((x) => x.id !== c.id));
-                          } catch (err) {
-                            console.error("Hapus error:", err);
-                            alert("Gagal menghapus");
-                          }
-                        }
-                      }}
+                      className="btn btn-sm btn-ghost text-danger"
+                      onClick={() => setHapusItem(c)}
                     >
                       <Icon name="trash" size={15} /> Hapus
                     </button>
@@ -326,6 +320,48 @@ export default function RekamMedisPage() {
           </>
         ) : null}
       </Modal>
+
+      {/* Modal konfirmasi hapus */}
+      <Modal
+        open={!!hapusItem}
+        onClose={() => setHapusItem(null)}
+        title="Hapus Catatan Kesehatan"
+        footer={
+          <div className="row gap-8" style={{ justifyContent: "flex-end" }}>
+            <button type="button" className="btn btn-outline" onClick={() => setHapusItem(null)}>
+              Batal
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              disabled={sedangHapus}
+              onClick={async () => {
+                if (!hapusItem) return;
+                setSedangHapus(true);
+                try {
+                  await catatanKesehatan.hapus(hapusItem.id);
+                  setCatatan(catatan.filter((x) => x.id !== hapusItem.id));
+                  toast.success("Catatan berhasil dihapus.");
+                  setHapusItem(null);
+                } catch (err: any) {
+                  const apiErr = err as ApiError;
+                  toast.warning(apiErr.message || "Gagal menghapus catatan.");
+                } finally {
+                  setSedangHapus(false);
+                }
+              }}
+            >
+              {sedangHapus ? "Menghapus…" : "Ya, Hapus"}
+            </button>
+          </div>
+        }
+      >
+        <p className="tiny">
+          Apakah Anda yakin ingin menghapus catatan tanggal{" "}
+          <b>{hapusItem ? tanggal(hapusItem.dicatat_pada, "day") : ""}</b>? Data yang dihapus tidak dapat dikembalikan.
+        </p>
+      </Modal>
+
       <CatatModal open={catatTerbuka} onClose={() => setCatatTerbuka(false)} onSaved={() => muat()} />
     </AppShell>
   );

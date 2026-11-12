@@ -52,8 +52,8 @@
   animation-delay: calc(var(--i, 0) * 60ms);
 }
 
-.ins-sum-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
-.ins-sum-card:active { transform: scale(.985); }
+.ins-sum-card:hover { box-shadow: var(--shadow-sm); border-color: var(--border-strong); }
+.ins-sum-card:active { transform: none; }
 .ins-sum-card:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;

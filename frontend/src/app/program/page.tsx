@@ -142,8 +142,12 @@ export default function ProgramPage() {
 
     setSaving(true);
     try {
+      const wId = role === "super_admin"
+        ? (fWilayah && Number(fWilayah) > 0 ? Number(fWilayah) : null)
+        : (user?.wilayah_id || null);
+
       await programApi.create({
-        wilayah_id: role === "super_admin" ? Number(fWilayah) || 0 : user?.wilayah_id || 0,
+        wilayah_id: wId as any,
         judul: fJudul.trim(),
         jenis: fJenis,
         target_peserta: Number(fTarget) || 1,

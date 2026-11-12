@@ -42,6 +42,7 @@ export default function HalamanPengaduan() {
   const [kategori, setKategori] = useState<KategoriPengaduan>("layanan_posbindu");
   const [submit, setSubmit] = useState(false);
   const [pesan, setPesan] = useState<string | null>(null);
+  const [isError, setIsError] = useState(false);
 
   const muat = useCallback(async () => {
     setLoading(true);
@@ -60,10 +61,12 @@ export default function HalamanPengaduan() {
     muat();
   }, [muat]);
 
-  const kirim = async () => {
+  const kirim = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!judul.trim() || !isi.trim() || submit) return;
     setSubmit(true);
     setPesan(null);
+    setIsError(false);
     try {
       await pengaduanApi.buat({
         judul: judul.trim(),
@@ -73,9 +76,10 @@ export default function HalamanPengaduan() {
       setJudul("");
       setIsi("");
       setKategori("layanan_posbindu");
-      setPesan("Pengaduan terkirim. Terima kasih!");
+      setPesan("Pengaduan berhasil dikirim. Terima kasih atas masukan Anda!");
       await muat();
     } catch (e) {
+      setIsError(true);
       setPesan(e instanceof ApiError ? e.message : "Gagal mengirim pengaduan.");
     } finally {
       setSubmit(false);
@@ -84,89 +88,172 @@ export default function HalamanPengaduan() {
 
   return (
     <AppShell greet="Halo" roles={["user"]}>
-      <div className="page-head">
-        <h1>Pengaduan</h1>
-        <p className="muted">Sampaikan keluhan atau saran. Kami akan tindak lanjuti.</p>
+      <div className="row-between mb-16">
+        <div>
+          <h1 className="h3">Pengaduan Masyarakat</h1>
+          <p className="tiny">Sampaikan keluhan, aspirasi, atau masukan untuk layanan kesehatan kelurahan.</p>
+        </div>
       </div>
 
-      <div className="card mb-12">
-        <h2 className="card-title">Kirim Pengaduan</h2>
-        <div className="form-grid">
-          <label>
-            <span>Kategori</span>
-            <select value={kategori} onChange={(e) => setKategori(e.target.value as KategoriPengaduan)}>
-              {KATEGORI.map((k) => (
-                <option key={k.kode} value={k.kode}>
-                  {k.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            <span>Judul</span>
-            <input
-              type="text"
-              maxLength={150}
-              placeholder="Ringkasan pengaduan"
-              value={judul}
-              onChange={(e) => setJudul(e.target.value)}
-            />
-          </label>
-          <label className="span-2">
-            <span>Isi keluhan</span>
+      <div className="card mb-20">
+        <div className="row gap-12 items-center mb-16">
+          <div
+            className="stat-ico"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "var(--radius)",
+              background: "var(--primary-050)",
+              color: "var(--primary)",
+            }}
+          >
+            <Icon name="edit" size={20} />
+          </div>
+          <div>
+            <strong className="text-sm" style={{ fontSize: "1rem" }}>
+              Tulis Pengaduan Baru
+            </strong>
+            <p className="tiny">Pengaduan akan ditinjau oleh pihak kelurahan dan fasilitas kesehatan terkait.</p>
+          </div>
+        </div>
+
+        <form onSubmit={kirim}>
+          <div className="grid grid-2" style={{ gap: 14 }}>
+            <div className="field">
+              <label className="label" htmlFor="kategori-pengaduan">
+                Kategori <span className="req">*</span>
+              </label>
+              <select
+                id="kategori-pengaduan"
+                className="select"
+                value={kategori}
+                onChange={(e) => setKategori(e.target.value as KategoriPengaduan)}
+              >
+                {KATEGORI.map((k) => (
+                  <option key={k.kode} value={k.kode}>
+                    {k.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="field">
+              <label className="label" htmlFor="judul-pengaduan">
+                Judul Pengaduan <span className="req">*</span>
+              </label>
+              <input
+                id="judul-pengaduan"
+                className="input"
+                type="text"
+                maxLength={150}
+                placeholder="Contoh: Jadwal Posbindu RT 04"
+                value={judul}
+                onChange={(e) => setJudul(e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <div className="field mt-12">
+            <label className="label" htmlFor="isi-pengaduan">
+              Isi Keluhan / Masukan <span className="req">*</span>
+            </label>
             <textarea
+              id="isi-pengaduan"
+              className="textarea"
               rows={4}
-              placeholder="Jelaskan masalahnya…"
+              placeholder="Ceritakan detail keluhan atau masukan Anda secara jelas…"
               value={isi}
               onChange={(e) => setIsi(e.target.value)}
+              required
             />
-          </label>
-        </div>
-        {pesan ? <p className="alert alert-info mt-8">{pesan}</p> : null}
-        <div className="mt-12">
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={submit || !judul.trim() || !isi.trim()}
-            onClick={kirim}
-          >
-            {submit ? "Mengirim…" : "Kirim Pengaduan"}
-          </button>
-        </div>
+          </div>
+
+          {pesan && (
+            <div className={`alert ${isError ? "alert-danger" : "alert-success"} mt-12`}>
+              <Icon name={isError ? "alert-circle" : "check-circle"} size={18} />
+              <div>{pesan}</div>
+            </div>
+          )}
+
+          <div className="mt-16 row-between items-center">
+            <span className="tiny text-3">
+              <Icon name="shield" size={13} /> Identitas Anda terlindungi sesuai ketentuan privasi.
+            </span>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={submit || !judul.trim() || !isi.trim()}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+            >
+              <Icon name="send" size={16} />
+              {submit ? "Mengirim…" : "Kirim Pengaduan"}
+            </button>
+          </div>
+        </form>
       </div>
 
       <section>
         <div className="app-section-title">
-          <h2>Riwayat Pengaduan</h2>
+          <h2>Riwayat Pengaduan Anda</h2>
+          <span className="tiny">{list.length} pengaduan</span>
         </div>
+
         {loading ? (
-          <EmptyState title="Memuat…" />
+          <EmptyState title="Memuat data pengaduan…" />
         ) : error ? (
           <ErrorState message={error} onRetry={muat} />
         ) : list.length === 0 ? (
-          <EmptyState title="Belum ada pengaduan" desc="Belum ada pengaduan yang kamu kirim." />
+          <EmptyState
+            title="Belum ada pengaduan"
+            desc="Anda belum pernah mengirim pengaduan. Kirimkan pengaduan melalui formulir di atas bila mengalami kendala."
+          />
         ) : (
-          <div className="pengaduan-list">
+          <div className="pengaduan-list mt-12">
             {list.map((p) => (
-              <article key={p.id} className="card pengaduan-item">
-                <div className="row-between">
-                  <Badge tone={STATUS_TONE[p.status]}>{STATUS_LABEL[p.status]}</Badge>
-                  <span className="tiny muted">{tanggal(p.created_at, "long")}</span>
-                </div>
-                <h3 className="text-sm fw-600 mt-8">{p.judul}</h3>
-                <p className="pengaduan-isi">{p.isi}</p>
-                <div className="row gap-8 mt-8">
-                  <span className="badge badge-default">{kategoriLabel(p.kategori)}</span>
-                </div>
-                {p.tanggapan ? (
-                  <div className="pengaduan-tanggapan mt-8">
-                    <div className="row gap-6">
-                      <Icon name="mail" size={14} />
-                      <strong className="tiny">Tanggapan admin</strong>
-                    </div>
-                    <p className="tiny mt-4">{p.tanggapan}</p>
+              <article key={p.id} className="card card-flat" style={{ border: "1px solid var(--border)" }}>
+                <div className="row-between mb-8">
+                  <div className="row gap-8 items-center">
+                    <Badge tone={STATUS_TONE[p.status]}>{STATUS_LABEL[p.status]}</Badge>
+                    <span className="badge">{kategoriLabel(p.kategori)}</span>
                   </div>
-                ) : null}
+                  <span className="tiny text-3">{tanggal(p.created_at, "long")}</span>
+                </div>
+                <h3 className="text-sm fw-700" style={{ fontSize: "1.05rem" }}>
+                  {p.judul}
+                </h3>
+                <p className="tiny mt-6" style={{ lineHeight: 1.6, color: "var(--text)" }}>
+                  {p.isi}
+                </p>
+
+                {p.tanggapan ? (
+                  <div
+                    className="mt-12"
+                    style={{
+                      background: "var(--surface-2)",
+                      borderLeft: "4px solid var(--primary)",
+                      borderRadius: "0 var(--radius-sm) var(--radius-sm) 0",
+                      padding: "12px 14px",
+                    }}
+                  >
+                    <div className="row gap-6 items-center">
+                      <span className="text-primary">
+                        <Icon name="mail" size={15} />
+                      </span>
+                      <strong className="tiny">Tanggapan Kelurahan / Petugas:</strong>
+                    </div>
+                    <p className="tiny mt-4" style={{ lineHeight: 1.5, color: "var(--text)" }}>
+                      {p.tanggapan}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="row gap-6 mt-8 items-center">
+                    <span className="text-3">
+                      <Icon name="clock" size={13} />
+                    </span>
+                    <span className="tiny text-3">Menunggu peninjauan petugas kelurahan</span>
+                  </div>
+                )}
               </article>
             ))}
           </div>

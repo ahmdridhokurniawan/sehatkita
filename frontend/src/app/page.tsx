@@ -272,28 +272,41 @@ export default function LandingPage() {
               <span className="feat-ico"><Icon name="file-text" /></span>
               <h3>Rekam Medis</h3>
               <p>Simpan riwayat berat badan, tekanan darah, gula darah, kolesterol, dan lainnya dalam satu tempat.</p>
-              <span className="feat-link">Lihat riwayat <Icon name="arrow-right" size={15} /></span>
+              <Link href="/rekam-medis" className="feat-link">
+                Lihat riwayat <Icon name="arrow-right" size={15} />
+              </Link>
             </div>
             <div className="feat" data-reveal>
               <span className="feat-ico"><Icon name="sparkles" /></span>
               <h3>Insight Kesehatan</h3>
               <p>Analisis otomatis dari data yang Anda catat, dengan penjelasan sederhana dan rekomendasi tindak lanjut.</p>
+              <Link href="/insight" className="feat-link">
+                Pelajari insight <Icon name="arrow-right" size={15} />
+              </Link>
             </div>
             <div className="feat" data-reveal>
               <span className="feat-ico"><Icon name="send" /></span>
               <h3>Rujukan &amp; Notifikasi</h3>
               <p>Terhubung ke fasilitas kesehatan dan dapatkan pemberitahuan saat tindak lanjut diperlukan.</p>
+              <Link href="/rujukan" className="feat-link">
+                Info rujukan <Icon name="arrow-right" size={15} />
+              </Link>
             </div>
             <div className="feat" data-reveal>
               <span className="feat-ico"><Icon name="target" /></span>
               <h3>Target Kesehatan</h3>
               <p>Tetapkan target berat badan, aktivitas, dan asupan air, lalu pantau perkembangannya.</p>
+              <Link href="/target-kesehatan" className="feat-link">
+                Atur target <Icon name="arrow-right" size={15} />
+              </Link>
             </div>
             <div className="feat feat-wide feat-accent" data-reveal>
               <span className="feat-ico"><Icon name="award" /></span>
- <h3>Tantangan &amp; Reward</h3>
+              <h3>Tantangan &amp; Reward</h3>
               <p>Ikuti tantangan kesehatan bersama warga, kumpulkan badge, dan naik level sesuai partisipasi nyata.</p>
-              <span className="feat-link">Jelajahi tantangan <Icon name="arrow-right" size={15} /></span>
+              <Link href="/program" className="feat-link" style={{ color: "#fff" }}>
+                Jelajahi tantangan <Icon name="arrow-right" size={15} />
+              </Link>
             </div>
             <div className="feat" data-reveal>
               <span className="feat-ico"><Icon name="building" /></span>

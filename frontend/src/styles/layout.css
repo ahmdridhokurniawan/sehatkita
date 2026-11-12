@@ -55,8 +55,19 @@
 
 /* Indikator mini (dashboard masyarakat) */
 .metric {
-  display: flex; flex-direction: column; gap: 6px;
-  padding: 15px 16px; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 6px; justify-content: space-between;
+  padding: 16px 18px; border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  min-height: 114px;
+  transition: border-color .15s ease, background .15s ease;
+}
+.metric:hover {
+  border-color: var(--border-strong);
+}
+@media (max-width: 440px) {
+  .metric { padding: 12px 14px; min-height: 104px; }
+  .metric-val { font-size: 1.2rem; }
 }
 .metric-name { font-size: .75rem; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
 .metric-val { font-size: 1.35rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
@@ -153,8 +164,8 @@
 :root[data-theme="dark"] .preview-tabs button.active { color: #06201D; }
 
 /* Feature cards — komposisi bervariasi (bukan kartu identik) */
-.feat { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 22px; background: var(--surface); display: flex; flex-direction: column; gap: 12px; transition: all .2s var(--ease); }
-.feat:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.feat { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 22px; background: var(--surface); display: flex; flex-direction: column; gap: 12px; transition: border-color .15s ease; }
+.feat:hover { border-color: var(--primary); }
 .feat-ico { width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; background: var(--primary-050); color: var(--primary); }
 .feat-ico svg { width: 23px; height: 23px; }
 .feat h3 { font-size: 1.0625rem; }
@@ -375,7 +386,11 @@
   border-radius: 50%; background: rgba(255,255,255,.08); pointer-events: none;
 }
 .health-hero.waspada { background: linear-gradient(135deg, #FF5A22, #D94814); }
-.health-hero.bahaya  { background: linear-gradient(135deg, #C63D26, #9E2F1E); }
+.health-hero.bahaya  {
+  background: linear-gradient(135deg, #C63D26, #8B1E12);
+  border: 1px solid rgba(255, 255, 255, .18);
+  box-shadow: 0 10px 28px -10px rgba(198, 61, 38, .45);
+}
 .health-hero.baik    { background: linear-gradient(135deg, #6B8E3F, #55722E); }
 .health-hero h2 { color: #fff; font-size: 1.25rem; }
 .health-hero .score { font-size: 2.6rem; font-weight: 800; line-height: 1; }

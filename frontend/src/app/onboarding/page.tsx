@@ -40,11 +40,12 @@ export default function OnboardingPage() {
   // Validasi di sisi frontend (sama aturannya dengan kontrak §5.2)
   function validasi(): boolean {
     const err: Record<string, string> = {};
+    const todayStr = new Date().toISOString().slice(0, 10);
 
     if (!tglLahir) {
       err.tglLahir = "Tanggal lahir wajib diisi.";
-    } else if (new Date(tglLahir) >= new Date()) {
-      err.tglLahir = "Tanggal lahir harus sebelum hari ini.";
+    } else if (tglLahir > todayStr) {
+      err.tglLahir = "Tanggal lahir tidak boleh lebih besar dari hari ini.";
     }
 
     if (!jenisKelamin) err.jenisKelamin = "Pilih jenis kelamin.";

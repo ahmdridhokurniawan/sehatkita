@@ -27,11 +27,11 @@ export default function LoginPage() {
     const err: Err = {};
     if (!email) err.email = "Email wajib diisi.";
     else if (!/^\S+@\S+\.\S+$/.test(email)) err.email = "Format email tidak valid.";
-    if (!password) err.password = "Password wajib diisi.";
-    // Login TIDAK boleh memeriksa panjang password. Aturan minimal 8 karakter
-    // hanya untuk pendaftaran akun baru. Kalau diperiksa di sini, akun lama
-    // dengan password lebih pendek tidak akan pernah bisa masuk — padahal
-    // backend sendiri menerimanya.
+    if (!password) {
+      err.password = "Password wajib diisi.";
+    } else if (password.length < 8) {
+      err.password = "Password minimal 8 karakter.";
+    }
     setErrors(err);
     return Object.keys(err).length === 0;
   }
@@ -52,9 +52,10 @@ export default function LoginPage() {
     } catch (err: any) {
       setLoading(false);
       const apiErr = err as ApiError;
-      if (apiErr.status === 422) {
-        setAlert(apiErr.message || "Email atau password salah.");
-        setErrors({ email: "Email atau password salah." });
+      if (apiErr.status === 422 || apiErr.status === 401) {
+        const pesan = apiErr.message || "Email atau password salah.";
+        setAlert(pesan);
+        setErrors({ email: pesan });
       } else {
         setAlert(apiErr.message || "Terjadi kesalahan. Coba lagi.");
       }

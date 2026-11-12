@@ -123,13 +123,34 @@ export default function DashboardUser({ user }: { user: User }) {
         )}
       </section>
 
+      {/* Tombol Aksi Utama */}
+      <div className="grid grid-2" style={{ gap: 10 }}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => setCatatTerbuka(true)}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px 14px" }}
+        >
+          <Icon name="plus" size={18} />
+          <span>Catat Kesehatan</span>
+        </button>
+        <Link
+          href="/target-kesehatan"
+          className="btn btn-outline"
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px 14px" }}
+        >
+          <Icon name="target" size={18} />
+          <span>Kelola Target</span>
+        </Link>
+      </div>
+
       {/* Indikator terkini */}
-      {indikator_terkini && (
-        <section>
-          <div className="app-section-title">
-            <h2>Indikator Terkini</h2>
-            <Link href="/rekam-medis">Lihat semua</Link>
-          </div>
+      <section>
+        <div className="app-section-title">
+          <h2>Indikator Terkini</h2>
+          <Link href="/rekam-medis">Lihat semua →</Link>
+        </div>
+        {indikator_terkini ? (
           <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
             {[
               { label: "IMT", val: indikator_terkini.imt ?? "—", unit: "kg/m²", kat: indikator_terkini.kategori_imt },
@@ -169,8 +190,38 @@ export default function DashboardUser({ user }: { user: User }) {
               </div>
             ))}
           </div>
-        </section>
-      )}
+        ) : (
+          <div className="card mt-12 center" style={{ padding: "28px 20px" }}>
+            <span
+              className="stat-ico"
+              style={{
+                margin: "0 auto 12px",
+                width: 44,
+                height: 44,
+                borderRadius: "50%",
+                background: "var(--primary-050)",
+                color: "var(--primary)",
+              }}
+            >
+              <Icon name="activity" size={22} />
+            </span>
+            <strong className="text-sm" style={{ display: "block", fontSize: "1rem" }}>
+              Belum ada data pemeriksaan
+            </strong>
+            <p className="tiny" style={{ maxWidth: 360, margin: "6px auto 16px" }}>
+              Catat berat badan, tekanan darah, atau gula darah Anda untuk melihat ringkasan indikator dan tren kesehatan.
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => setCatatTerbuka(true)}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+            >
+              <Icon name="plus" size={15} /> Catat Pemeriksaan Pertama
+            </button>
+          </div>
+        )}
+      </section>
 
       {/* Target — dinamis (U9) */}
       <section>
@@ -193,26 +244,23 @@ export default function DashboardUser({ user }: { user: User }) {
 
       {/* Kalkulator IMT */}
       <section>
-        <div className="app-section-title">
-          <h2>Kalkulator IMT</h2>
-        </div>
         <KalkulatorBMI />
       </section>
 
-      {/* Rujukan aktif (§8.1 — satu objek atau null) */}
-      {rujukan_aktif ? (
-        <section>
-          <div className="app-section-title">
-            <h2>Rujukan Aktif</h2>
-            <Link href="/rujukan">Semua</Link>
-          </div>
+      {/* Rujukan Aktif */}
+      <section>
+        <div className="app-section-title">
+          <h2>Rujukan</h2>
+          <Link href="/rujukan">Riwayat Rujukan</Link>
+        </div>
+        {rujukan_aktif ? (
           <div className="card mt-12">
             <div className="li">
               <span className="li-ico">
                 <Icon name="send" size={18} />
               </span>
               <div className="li-main">
-                <strong className="text-sm">{rujukan_aktif.faskes?.nama || "Faskes"}</strong>
+                <strong className="text-sm">{rujukan_aktif.faskes?.nama || "Fasilitas Kesehatan"}</strong>
                 <span className="tiny">{rujukan_aktif.alasan || "Menunggu tindak lanjut"}</span>
               </div>
               <div className="li-side">
@@ -222,17 +270,50 @@ export default function DashboardUser({ user }: { user: User }) {
               </div>
             </div>
           </div>
-        </section>
-      ) : (
-        <p className="tiny mt-4 mb-16">
-          <Icon name="shield-check" size={13} /> Tidak ada rujukan aktif saat ini.
-        </p>
-      )}
+        ) : (
+          <div
+            className="card card-flat mt-12"
+            style={{
+              padding: "14px 16px",
+              background: "var(--surface-2)",
+              border: "1px dashed var(--border-strong)",
+            }}
+          >
+            <div className="row gap-12 items-center">
+              <span
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: "50%",
+                  background: "var(--surface)",
+                  color: "var(--safe)",
+                  display: "grid",
+                  placeItems: "center",
+                  flex: "none",
+                }}
+              >
+                <Icon name="shield-check" size={18} />
+              </span>
+              <div className="flex-1">
+                <strong className="text-sm" style={{ display: "block" }}>
+                  Tidak ada rujukan aktif
+                </strong>
+                <p className="tiny" style={{ marginTop: 2 }}>
+                  Kondisi kesehatan Anda terpantau aman tanpa kebutuhan rujukan ke faskes saat ini.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
 
-      <p className="tiny center mt-8 mb-16">
-        <Icon name="shield" size={13} /> SehatKita bukan alat diagnosis medis dan tidak menggantikan pemeriksaan tenaga
-        kesehatan.
-      </p>
+      {/* Catatan Disclaimer Medis */}
+      <div className="privacy-note mt-20 mb-16">
+        <Icon name="shield" size={18} />
+        <div>
+          <b>Peringatan Medis:</b> SehatKita bukan alat diagnosis mandiri dan tidak menggantikan pemeriksaan langsung oleh tenaga kesehatan profesional.
+        </div>
+      </div>
 
       <CatatModal
         open={catatTerbuka}

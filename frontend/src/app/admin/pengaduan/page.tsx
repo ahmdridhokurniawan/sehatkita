@@ -139,21 +139,31 @@ export default function HalamanAdminPengaduan() {
           <>
             <h3 className="text-sm fw-600">{aktif.judul}</h3>
             <p className="pengaduan-isi mt-8">{aktif.isi}</p>
-            <div className="form-grid mt-12">
-              <label>
-                <span>Status</span>
-                <select value={status} onChange={(e) => setStatus(e.target.value as Exclude<StatusPengaduan, "menunggu">)}>
+            <div className="mt-16">
+              <div className="field">
+                <label className="label">Status Penanganan</label>
+                <select
+                  className="select"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as Exclude<StatusPengaduan, "menunggu">)}
+                >
                   {PENGOLAHAN.map((s) => (
                     <option key={s.kode} value={s.kode}>
                       {s.label}
                     </option>
                   ))}
                 </select>
-              </label>
-              <label className="span-2">
-                <span>Tanggapan</span>
-                <textarea rows={4} value={tanggapan} onChange={(e) => setTanggapan(e.target.value)} />
-              </label>
+              </div>
+              <div className="field mt-12">
+                <label className="label">Tanggapan Resmi</label>
+                <textarea
+                  className="textarea"
+                  rows={4}
+                  placeholder="Tuliskan tanggapan atau tindakan yang telah diambil…"
+                  value={tanggapan}
+                  onChange={(e) => setTanggapan(e.target.value)}
+                />
+              </div>
             </div>
             {pesan ? <p className="alert alert-info mt-8">{pesan}</p> : null}
             <div className="row gap-8 mt-12" style={{ justifyContent: "flex-end" }}>
