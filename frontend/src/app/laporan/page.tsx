@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import AppShell from "@/components/app/AppShell";
+import { BrandLockup } from "@/components/ui/BrandLogo";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
 import Bar from "@/components/charts/Bar";
@@ -104,9 +105,28 @@ export default function LaporanKelurahanPage() {
     };
   }, [periode, perluPilihWilayah, wilayahId, loadingUser]);
 
+  const wilayahAktifNama =
+    wilayahList.find((w) => w.id === wilayahId)?.nama ||
+    user?.wilayah?.nama ||
+    "Kota Banjarbaru";
+
   return (
     <AppShell greet="Laporan Kelurahan" roles={["admin_kelurahan", "super_admin"]}>
-      <section>
+      <div className="print-head">
+        <div className="row" style={{ gap: 12 }}>
+          <BrandLockup variant="sm" />
+          <div>
+            <strong>Laporan Agregat Kesehatan — SehatKita</strong>
+            <span>Pemerintah Kota Banjarbaru · Wilayah {wilayahAktifNama}</span>
+          </div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <strong>Periode {LABEL_PERIODE[periode]}</strong>
+          <span>Dicetak {new Date().toLocaleDateString("id-ID")}</span>
+        </div>
+      </div>
+
+      <section className="no-print">
         <div className="app-section-title">
           <h2>Laporan Agregat</h2>
           <div className="row-end" style={{ gap: 8 }}>
@@ -145,6 +165,13 @@ export default function LaporanKelurahanPage() {
                 </option>
               ))}
             </select>
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={() => window.print()}
+            >
+              <Icon name="download" size={16} /> Cetak / PDF
+            </button>
           </div>
         </div>
       </section>

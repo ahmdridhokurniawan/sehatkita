@@ -161,6 +161,7 @@ export default function PeringkatPage() {
           <div className="card card-flat mt-12">
             {data.daftar.length === 0 ? (
               <EmptyState
+                icon="award"
                 title="Peringkat belum tersedia"
                 desc={`Butuh minimal 5 peserta di ${data.wilayah.nama}. Saat ini ${data.peserta_peringkat} peserta.`}
               />

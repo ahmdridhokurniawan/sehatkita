@@ -225,7 +225,7 @@ export default function TargetKesehatanPage() {
         </div>
       ) : daftar.length === 0 ? (
         <div className="card card-flat">
-          <EmptyState title="Belum ada target" desc="Buat target kesehatan pertamamu." />
+          <EmptyState icon="target" title="Belum ada target" desc="Buat target kesehatan pertamamu." />
         </div>
       ) : (
         <div style={{ display: "grid", gap: 12 }}>

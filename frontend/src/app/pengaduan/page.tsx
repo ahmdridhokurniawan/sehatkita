@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
-import { EmptyState, ErrorState } from "@/components/ui/Empty";
+import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
 import { pengaduanApi, ApiError } from "@/lib/api";
 import { tanggal } from "@/lib/format";
 import type { Pengaduan, KategoriPengaduan, StatusPengaduan } from "@/types";
@@ -216,11 +216,12 @@ export default function HalamanPengaduan() {
         </div>
 
         {loading ? (
-          <EmptyState title="Memuat data pengaduan…" />
+          <Loading text="Memuat data pengaduan…" />
         ) : error ? (
           <ErrorState message={error} onRetry={muat} />
         ) : list.length === 0 ? (
           <EmptyState
+            icon="bell"
             title="Belum ada pengaduan"
             desc="Anda belum pernah mengirim pengaduan. Kirimkan pengaduan melalui formulir di atas bila mengalami kendala."
           />

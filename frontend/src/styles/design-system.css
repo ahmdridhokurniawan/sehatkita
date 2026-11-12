@@ -7,52 +7,52 @@
 
 /* ---------- 1. TOKENS: LIGHT (default) ---------- */
 :root {
-  /* Brand — Palette Colorhunt: #F3F6F4 · #7D8D39 · #5B6E2C · #FF5A22 */
-  --primary:        #7D8D39;
-  --primary-600:    #6B7A30;
-  --primary-700:    #5B6E2C;
-  --primary-050:    #EEF2E3;
-  --primary-100:    #DFE6C9;
+  /* Brand — Kota Banjarbaru Olive Emerald & Warm Coral */
+  --primary:        #556B24;
+  --primary-600:    #475B1D;
+  --primary-700:    #374715;
+  --primary-050:    #ECF2DD;
+  --primary-100:    #D8E4BC;
   --accent:         #FF5A22;
   --accent-600:     #E64E1C;
   --accent-700:     #C94117;
   --accent-050:     #FDEDE6;
   --accent-100:     #F8DACF;
-  --green:          #93A35A;
-  --green-050:      #EEF1E4;
+  --green:          #65802B;
+  --green-050:      #EDF3DF;
 
   /* Semantic */
-  --warning:        #D65E1E;
-  --warning-bg:     #FAE8DE;
-  --danger:         #B4483B;
-  --danger-bg:      #F9E6E3;
-  --safe:           #5B7A4A;
-  --safe-bg:        #E4EDDF;
-  --info:           #6E7C64;
-  --info-bg:        #E7EBE4;
+  --warning:        #C95416;
+  --warning-bg:     #FCEADF;
+  --danger:         #B33D31;
+  --danger-bg:      #FBE6E3;
+  --safe:           #3E6B38;
+  --safe-bg:        #E2EFE0;
+  --info:           #4B6251;
+  --info-bg:        #E5ECE7;
 
   /* Surfaces */
-  --bg:             #F3F6F4;
+  --bg:             #F4F7F0;
   --surface:        #FFFFFF;
-  --surface-2:      #EDF0EA;
-  --surface-3:      #DFE4DB;
-  --border:         #DFE3DA;
-  --border-strong:  #C6CEBE;
+  --surface-2:      #EBF0E5;
+  --surface-3:      #DCE4D3;
+  --border:         #D8E0CF;
+  --border-strong:  #BBC7AD;
 
   /* Text */
-  --text:           #10150D;
-  --text-2:         #63695C;
-  --text-3:         #8B9283;
+  --text:           #12180E;
+  --text-2:         #4E5846;
+  --text-3:         #6C7664;
   --text-invert:    #FFFFFF;
   --on-primary:     #FFFFFF;
 
   /* Chart palette */
-  --c-1: #5B6E2C;
-  --c-2: #7D8D39;
-  --c-3: #93A35A;
-  --c-4: #B7C47E;
+  --c-1: #3E5218;
+  --c-2: #556B24;
+  --c-3: #7D8D39;
+  --c-4: #A6B86C;
   --c-5: #FF5A22;
-  --c-6: #D6DFB9;
+  --c-6: #D8E4BC;
 
   /* Layout */
   --radius-sm: 9px;
@@ -142,6 +142,13 @@ body {
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
   transition: background-color .25s var(--ease), color .25s var(--ease);
+}
+:root:not([data-theme="dark"]) body {
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(920px 440px at 90% -8%, rgba(107, 130, 44, .11), transparent 64%),
+    radial-gradient(720px 380px at -4% 102%, rgba(255, 90, 34, .055), transparent 60%);
+  background-attachment: fixed;
 }
 h1, h2, h3, h4, h5 {
   margin: 0;
@@ -323,17 +330,26 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .btn svg, .btn-icon svg, .btn span { pointer-events: none; }
 
 .btn-primary {
-  background: var(--primary);
-  color: #fff;
-  box-shadow: var(--shadow-xs);
+  background: linear-gradient(180deg, #627B2B 0%, #4E6320 100%);
+  color: var(--on-primary);
+  border-color: rgba(55, 71, 21, .22);
+  box-shadow:
+    0 1px 2px rgba(47, 60, 23, .14),
+    0 6px 14px -6px rgba(78, 99, 32, .42),
+    inset 0 1px 0 rgba(255, 255, 255, .24);
 }
 :root[data-theme="dark"] .btn-primary {
   background: var(--primary);
   color: var(--on-primary);
+  border-color: transparent;
+  box-shadow: var(--shadow-xs);
 }
 .btn-primary:hover:not(:disabled) {
-  background: var(--primary-600);
+  background: linear-gradient(180deg, #566E24 0%, #42541A 100%);
   transform: none;
+}
+:root[data-theme="dark"] .btn-primary:hover:not(:disabled) {
+  background: var(--primary-600);
 }
 
 .btn-outline {
@@ -495,10 +511,20 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 .tab-panel.active { display: block; animation: fadeUp .3s var(--ease); }
 
 /* ---------- 10. TABLE ---------- */
-.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); -webkit-overflow-scrolling: touch; }
+.table-wrap {
+  position: relative;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  -webkit-overflow-scrolling: touch;
+}
 .card:has(table.tbl), .card:has(.table-wrap) { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 table.tbl { width: 100%; border-collapse: collapse; font-size: .875rem; min-width: 560px; }
 table.tbl th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   text-align: left; padding: 12px 16px; background: var(--surface-2);
   font-size: .75rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
   color: var(--text-2); white-space: nowrap; border-bottom: 1px solid var(--border);
@@ -577,10 +603,33 @@ table.tbl tbody tr:hover { background: var(--surface-2); }
 }
 
 /* ---------- 13. EMPTY / LOADING ---------- */
-.empty { text-align: center; padding: 44px 20px; color: var(--text-2); }
-.empty svg { width: 44px; height: 44px; margin: 0 auto 14px; color: var(--text-3); stroke-width: 1.5; }
-.empty h4 { color: var(--text); margin-bottom: 5px; }
-.empty p { font-size: .875rem; max-width: 340px; margin-inline: auto; }
+.empty { text-align: center; padding: 40px 20px; color: var(--text-2); }
+.empty-ico {
+  width: 62px; height: 62px; margin: 0 auto 14px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--primary-050);
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, transparent);
+  color: var(--primary);
+}
+.empty-ico.is-danger {
+  background: var(--danger-bg);
+  border-color: color-mix(in srgb, var(--danger) 24%, transparent);
+  color: var(--danger);
+}
+.empty-ico svg { width: 26px; height: 26px; margin: 0; color: currentColor; stroke-width: 1.85; }
+.empty h4 { color: var(--text); margin-bottom: 6px; font-size: 1.02rem; }
+.empty p { font-size: .875rem; max-width: 360px; margin-inline: auto; }
+.loading-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 6px 0;
+}
+.loading-skel-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
 
 .skeleton {
   background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
@@ -698,7 +747,8 @@ table.tbl tbody tr:hover { background: var(--surface-2); }
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
   .container { padding-inline: 16px; }
   .hide-mobile { display: none !important; }
-  .toast-wrap { top: auto; bottom: 82px; left: 14px; right: 14px; max-width: none; }
+  .toast-wrap { top: 14px; bottom: auto; left: 14px; right: 14px; max-width: none; }
+  table.tbl th, table.tbl td { padding: 10px 12px; }
 
   /* Target sentuh minimum 44x44 px (WCAG 2.5.5 / Apple HIG).
      Di layar kecil tombol ikon 34-40 px terlalu kecil untuk jempol. */
@@ -766,8 +816,8 @@ table.tbl tbody tr:hover { background: var(--surface-2); }
   transform: none !important;
 }
 
-:focus-visible { box-shadow: var(--ring); outline: none; }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; box-shadow: var(--ring); }
 
 .badge { font-weight: 700; }
-.badge-primary { background: color-mix(in srgb, var(--primary) 14%, transparent); }
+.badge-primary { background: color-mix(in srgb, var(--primary) 13%, transparent); border-color: color-mix(in srgb, var(--primary) 22%, transparent); }
 .nav-group-title { letter-spacing: .13em; }

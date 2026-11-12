@@ -55,6 +55,10 @@
   .feat:hover { transform: none; }
 }
 
+.acc-q { transition: background-color .15s var(--ease), color .15s var(--ease); }
+.acc-q:hover { background: var(--primary-050); }
+.acc-q:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+
 /* ---------- Hormati preferensi sistem ---------- */
 @media (prefers-reduced-motion: reduce) {
   .hero::before,

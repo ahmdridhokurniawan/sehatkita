@@ -341,7 +341,7 @@ export default function AdminPenggunaPage() {
           <div className="mt-12" style={{ display: "grid", gap: 12 }}>
             {filtered.length === 0 ? (
               <div className="card card-flat">
-                <EmptyState title="Tidak ada pengguna" desc="Tidak ada pengguna dengan filter ini." />
+                <EmptyState icon="users" title="Tidak ada pengguna" desc="Tidak ada pengguna dengan filter ini." />
               </div>
             ) : (
               filtered.map((p) => (

@@ -11,7 +11,7 @@ import { useUser, clearUserCache } from "@/hooks/useUser";
 import { auth as authApi, clearToken } from "@/lib/api";
 import { inisial } from "@/lib/format";
 
-type NavItem = { href: string; icon: string; label: string };
+type NavItem = { href: string; icon: string; label: string; short?: string };
 
 const SIDEBAR_KEY = "sehatkita_sidebar_collapsed";
 const SIDEBAR_EVENT = "sehatkita-sidebar-toggle";
@@ -40,8 +40,8 @@ function langgananSidebar(cb: () => void): () => void {
 
 const NAV_UTAMA: NavItem[] = [
   { href: "/dashboard", icon: "home", label: "Beranda" },
-  { href: "/rekam-medis", icon: "clipboard", label: "Rekam Medis" },
-  { href: "/target-kesehatan", icon: "target", label: "Target Kesehatan" },
+  { href: "/rekam-medis", icon: "clipboard", label: "Rekam Medis", short: "Rekam" },
+  { href: "/target-kesehatan", icon: "target", label: "Target Kesehatan", short: "Target" },
   { href: "/program", icon: "award", label: "Tantangan" },
   { href: "/peringkat", icon: "trending-up", label: "Peringkat" },
   { href: "/insight", icon: "zap", label: "History" },
@@ -267,7 +267,7 @@ export default function AppShell({ children, noFab, onFab, roles }: Props) {
         {navBawah.map((n) => (
           <Link key={n.href} href={n.href} className={aktif(n.href) ? "active" : ""}>
             <Icon name={n.icon} size={22} />
-            <span>{n.label}</span>
+            <span>{n.short || n.label}</span>
           </Link>
         ))}
         <button

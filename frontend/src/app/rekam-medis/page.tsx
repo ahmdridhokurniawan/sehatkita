@@ -9,7 +9,7 @@ import Segmented from "@/components/ui/Segmented";
 import Pagination, { type Meta } from "@/components/ui/Pagination";
 import Line from "@/components/charts/Line";
 import CatatModal from "@/components/catatan/CatatModal";
-import { EmptyState } from "@/components/ui/Empty";
+import { EmptyState, Loading } from "@/components/ui/Empty";
 import { useToast } from "@/components/ui/Toast";
 import { useUser } from "@/hooks/useUser";
 import { catatanKesehatan, rekamMedis, ApiError } from "@/lib/api";
@@ -127,7 +127,7 @@ export default function RekamMedisPage() {
   if (loading) {
     return (
       <AppShell onFab={() => setCatatTerbuka(true)}>
-        <EmptyState title="Memuat..." desc="Data rekam medis sedang dimuat..." />
+        <Loading text="Data rekam medis sedang dimuat…" variant="cards" />
       </AppShell>
     );
   }
@@ -156,6 +156,7 @@ export default function RekamMedisPage() {
         </div>
         {seri.length < 2 ? (
           <EmptyState
+            icon="line-chart"
             title="Belum cukup data"
             desc="Grafik muncul setelah minimal dua pengukuran. Satu titik data belum dapat membentuk tren."
           />
@@ -215,7 +216,7 @@ export default function RekamMedisPage() {
 
       <div className="mt-16">
         {baris.length === 0 ? (
-          <EmptyState title="Belum ada catatan" desc="Tekan tombol Catat di kanan atas untuk mulai mencatat." />
+          <EmptyState icon="heart-pulse" title="Belum ada catatan" desc="Tekan tombol Catat di kanan atas untuk mulai mencatat." />
         ) : (
           baris.map((c) => {
             const items = [

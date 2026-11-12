@@ -251,7 +251,7 @@ export default function AdminFaskesPage() {
           <div className="mt-12" style={{ display: "grid", gap: 12 }}>
             {filtered.length === 0 ? (
               <div className="card card-flat">
-                <EmptyState title="Tidak ada faskes" desc="Tidak ada faskes dengan filter ini." />
+                <EmptyState icon="hospital" title="Tidak ada faskes" desc="Tidak ada faskes dengan filter ini." />
               </div>
             ) : (
               filtered.map((f) => (

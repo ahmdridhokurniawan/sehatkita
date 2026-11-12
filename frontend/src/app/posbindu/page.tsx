@@ -296,6 +296,7 @@ export default function PosbinduPage() {
       {!loading && !error && bolehKelola ? (
         sesi.length === 0 ? (
           <EmptyState
+            icon="calendar"
             title="Belum ada sesi"
             desc={
               bolehBuatSesi
@@ -307,7 +308,7 @@ export default function PosbinduPage() {
           <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
             {sesiTersaring.length === 0 ? (
               <div className="card card-flat">
-                <EmptyState title="Sesi tidak ditemukan" desc={`Tidak ada sesi yang cocok dengan “${cari}”.`} />
+                <EmptyState icon="search" title="Sesi tidak ditemukan" desc={`Tidak ada sesi yang cocok dengan “${cari}”.`} />
               </div>
             ) : null}
             {sesiTersaring.map((s) => {
@@ -339,12 +340,12 @@ export default function PosbinduPage() {
 
       {!loading && !error && !bolehKelola ? (
         kunjungan.length === 0 ? (
-          <EmptyState title="Belum ada kunjungan" desc="Riwayat kunjungan Posbindu Anda akan tampil di sini." />
+          <EmptyState icon="calendar-check" title="Belum ada kunjungan" desc="Riwayat kunjungan Posbindu Anda akan tampil di sini." />
         ) : (
           <div className="grid mt-12" style={{ gap: 10 }}>
             {kunjunganTersaring.length === 0 ? (
               <div className="card card-flat">
-                <EmptyState title="Kunjungan tidak ditemukan" desc={`Tidak ada yang cocok dengan “${cari}”.`} />
+                <EmptyState icon="search" title="Kunjungan tidak ditemukan" desc={`Tidak ada yang cocok dengan “${cari}”.`} />
               </div>
             ) : null}
             {kunjunganTersaring.map((k) => (
@@ -437,7 +438,7 @@ export default function PosbinduPage() {
         title={detail ? `Sesi ${tanggal(detail.tanggal)}` : "Detail Sesi"}
         size="lg"
       >
-        {detailLoading ? <Loading text="Memuat peserta…" /> : null}
+        {detailLoading ? <Loading text="Memuat peserta…" variant="spinner" /> : null}
         {detailErr ? <ErrorState message={detailErr} /> : null}
 
         {detail ? (

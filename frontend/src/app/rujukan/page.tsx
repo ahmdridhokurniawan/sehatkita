@@ -122,7 +122,7 @@ export default function RujukanPage() {
           <div className="mt-12" style={{ display: "grid", gap: 12 }}>
             {daftar.length === 0 ? (
               <div className="card card-flat">
-                <EmptyState title="Tidak ada rujukan" desc="Tidak ada rujukan dengan status ini." />
+                <EmptyState icon="hospital" title="Tidak ada rujukan" desc="Tidak ada rujukan dengan status ini." />
               </div>
             ) : (
               daftar.map((r) => (

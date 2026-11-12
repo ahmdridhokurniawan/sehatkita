@@ -262,6 +262,7 @@ export default function ProgramPage() {
 
       {!loading && !error && program.length === 0 ? (
         <EmptyState
+          icon="award"
           title="Belum ada program"
           desc={
             bolehBuat
@@ -272,7 +273,7 @@ export default function ProgramPage() {
       ) : null}
 
       {!loading && !error && program.length > 0 && tersaring.length === 0 ? (
-        <EmptyState title="Program tidak ditemukan" desc={`Tidak ada program yang cocok dengan “${cari}”.`} />
+        <EmptyState icon="search" title="Program tidak ditemukan" desc={`Tidak ada program yang cocok dengan “${cari}”.`} />
       ) : null}
 
       {!loading && !error && tersaring.length > 0 ? (

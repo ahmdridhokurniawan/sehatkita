@@ -147,7 +147,7 @@ export default function AdminLogAuditPage() {
           <div className="mt-12" style={{ display: "grid", gap: 12 }}>
             {filtered.length === 0 ? (
               <div className="card card-flat">
-                <EmptyState title="Tidak ada log" desc="Tidak ada aktivitas dengan filter ini." />
+                <EmptyState icon="shield" title="Tidak ada log" desc="Tidak ada aktivitas dengan filter ini." />
               </div>
             ) : (
               filtered.map((log) => (

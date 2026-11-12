@@ -117,7 +117,9 @@
 .chip {
   display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: var(--radius-pill);
   border: 1px solid var(--border); background: var(--surface); font-size: .8125rem; font-weight: 600; color: var(--text-2);
+  transition: background .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease);
 }
+.chip:not(.is-active):hover { border-color: var(--primary); color: var(--primary); background: var(--primary-050); }
 .chip.is-active { background: var(--primary-050); border-color: var(--primary); color: var(--primary); }
 
 /* ---------- Kartu sorotan (hero ringkas dashboard) ---------- */
@@ -180,9 +182,28 @@
 }
 
 /* ---------- Cetak laporan ---------- */
+.print-head { display: none; }
 @media print {
-  .sidebar, .dash-scrim, .no-print { display: none !important; }
+  .sidebar, .dash-scrim, .no-print, .bottom-nav, .fab { display: none !important; }
   .dash { grid-template-columns: 1fr; }
   .dash-content { padding: 0; }
-  .card { break-inside: avoid; }
+  .print-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 12px;
+    margin-bottom: 18px;
+    border-bottom: 2px solid #12180E;
+  }
+  .print-head strong { display: block; font-size: 1.05rem; color: #12180E; }
+  .print-head span { font-size: .8rem; color: #4E5846; }
+  .card, .status-cell {
+    break-inside: avoid;
+    background: #fff !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border-color: #cbd5e1 !important;
+  }
+  .card::before { display: none; }
 }
