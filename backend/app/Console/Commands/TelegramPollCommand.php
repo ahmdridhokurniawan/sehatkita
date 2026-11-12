@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Services\TelegramService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 
 class TelegramPollCommand extends Command
 {
@@ -12,36 +13,47 @@ class TelegramPollCommand extends Command
 
     public function handle(TelegramService $telegram): int
     {
+        $lock = Cache::lock('telegram_bot_poller_lock', 30);
+        if (! $lock->get()) {
+            $this->warn('Telegram bot poller sudah berjalan di proses lain. Mencegah duplikasi proses.');
+            return 0;
+        }
+
         $this->info('Memulai Telegram Bot Poller (@sehatkita_banjarbaru_bot)...');
         $this->info('Tekan Ctrl+C untuk berhenti.');
 
         $offset = 0;
         $once   = $this->option('once');
 
-        do {
-            $updates = $telegram->getUpdates($offset, 2);
+        try {
+            do {
+                $lock->refresh();
+                $updates = $telegram->getUpdates($offset, 2);
 
-            foreach ($updates as $update) {
-                $offset = $update['update_id'] + 1;
+                foreach ($updates as $update) {
+                    $offset = $update['update_id'] + 1;
 
-                if (isset($update['message'])) {
-                    $text = $update['message']['text'] ?? '';
-                    $from = $update['message']['from']['first_name'] ?? 'Warga';
-                    $this->line("Menerima pesan dari {$from}: {$text}");
+                    if (isset($update['message'])) {
+                        $text = $update['message']['text'] ?? '';
+                        $from = $update['message']['from']['first_name'] ?? 'Warga';
+                        $this->line("Menerima pesan dari {$from}: {$text}");
 
-                    $sukses = $telegram->prosesPesan($update['message']);
-                    if ($sukses) {
-                        $this->info("-> Berhasil diproses dan dibalas!");
+                        $sukses = $telegram->prosesPesan($update['message']);
+                        if ($sukses) {
+                            $this->info("-> Berhasil diproses dan dibalas!");
+                        }
                     }
                 }
-            }
 
-            if ($once) {
-                break;
-            }
+                if ($once) {
+                    break;
+                }
 
-            usleep(100000); // 0.1 detik (super cepat)
-        } while (true);
+                usleep(100000); // 0.1 detik (super cepat)
+            } while (true);
+        } finally {
+            $lock->release();
+        }
 
         return 0;
     }
