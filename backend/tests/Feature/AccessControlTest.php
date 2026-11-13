@@ -288,4 +288,84 @@ class AccessControlTest extends TestCase
         $this->assertTrue($rujukan->fresh()->otomatis);
         $this->assertSame('tensi', $rujukan->fresh()->indikator);
     }
+
+    public function test_posbindu_dan_program_menolak_akses_lintas_peran_dan_wilayah(): void
+    {
+        $kelA = $this->wilayah();
+        $kelB = Wilayah::firstOrCreate(
+            ['kode' => '63.72.05.1009'],
+            ['nama' => 'Kemuning', 'tipe' => 'kelurahan']
+        );
+
+        $wargaA = $this->pengguna('user');
+        $wargaA->update(['nik' => '6372050101010001']);
+        $kaderB = Pengguna::create([
+            'name'       => 'Kader B',
+            'email'      => 'kader.b.' . uniqid() . '@sehatkita.test',
+            'password'   => 'rahasia123',
+            'role'       => 'kader',
+            'wilayah_id' => $kelB->id,
+            'consent_at' => now(),
+            'aktif'      => true,
+        ]);
+
+        $sesiA = \App\Models\SesiPosbindu::create([
+            'wilayah_id' => $kelA->id,
+            'tanggal'    => now()->toDateString(),
+            'lokasi'     => 'Posbindu A',
+            'status'     => 'akan_datang',
+        ]);
+
+        // showSesi ditolak untuk warga biasa & kader kelurahan lain
+        $this->asUser($wargaA)->getJson("/api/v1/posbindu/sesi/{$sesiA->id}")->assertStatus(403);
+        $this->asUser($kaderB)->getJson("/api/v1/posbindu/sesi/{$sesiA->id}")->assertStatus(403);
+
+        // cariNik kader B tidak melihat warga kelurahan A
+        $resNik = $this->asUser($kaderB)->getJson('/api/v1/pengguna/cari-nik?nik=637205')->assertOk();
+        $this->assertCount(0, $resNik->json('data'));
+
+        // Program wilayah A tidak boleh diikuti warga kelurahan lain, daftar peserta ditolak untuk warga biasa
+        $progA = \App\Models\Program::create([
+            'wilayah_id' => $kelA->id,
+            'judul'      => 'Senam Kel A',
+            'jenis'      => 'olahraga',
+            'mulai'      => now()->toDateString(),
+            'selesai'    => now()->addDays(5)->toDateString(),
+            'exp_reward' => 50,
+            'status'     => 'berjalan',
+        ]);
+        \App\Models\PesertaProgram::create([
+            'program_id' => $progA->id,
+            'user_id'    => $wargaA->id,
+            'status'     => 'terdaftar',
+        ]);
+
+        $this->asUser($wargaA)->getJson("/api/v1/program/{$progA->id}/peserta")->assertStatus(403);
+        $this->asUser($kaderB)->patchJson("/api/v1/program/{$progA->id}/peserta", [
+            'user_id' => $wargaA->id,
+            'status'  => 'selesai',
+        ])->assertStatus(403);
+    }
+
+    public function test_webhook_telegram_menolak_secret_salah_dan_profil_menjaga_peringkat(): void
+    {
+        config()->set('services.telegram.webhook_secret', 'rahasia-webhook-uji');
+        $this->postJson('/api/v1/telegram/webhook', ['message' => ['chat' => ['id' => 123], 'text' => '/start']])
+            ->assertStatus(403);
+        $this->withHeader('X-Telegram-Bot-Api-Secret-Token', 'rahasia-webhook-uji')
+            ->postJson('/api/v1/telegram/webhook', ['message' => ['chat' => ['id' => 123], 'text' => '/start']])
+            ->assertOk();
+
+        $user = $this->pengguna('user');
+        $user->profil->update(['tampil_di_peringkat' => true]);
+
+        $this->asUser($user)->putJson('/api/v1/profil', [
+            'tgl_lahir'         => '1990-01-01',
+            'jenis_kelamin'     => 'P',
+            'tinggi_cm'         => 160,
+            'tingkat_aktivitas' => 'sedang',
+            'merokok'           => false,
+            'riwayat_keluarga'  => ['tidak_ada'],
+        ])->assertOk()->assertJsonPath('data.tampil_di_peringkat', true);
+    }
 }

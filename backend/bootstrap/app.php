@@ -53,7 +53,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 403     => $e->getMessage() !== '' ? $e->getMessage() : 'Tidak punya akses.',
                 404     => 'Data tidak ditemukan.',
                 429     => 'Terlalu banyak permintaan, coba lagi nanti.',
-                422     => 'Validasi gagal',
+                422     => ($e instanceof ValidationException || $e->getMessage() === '') ? 'Validasi gagal' : $e->getMessage(),
                 default => config('app.debug') ? $e->getMessage() : 'Terjadi kesalahan pada server.',
             };
 

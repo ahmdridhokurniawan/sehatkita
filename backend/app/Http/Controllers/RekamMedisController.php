@@ -113,7 +113,12 @@ class RekamMedisController extends Controller
     private function nilai(string $kode, CatatanKesehatan $c): ?float
     {
         if ($kode === 'imt') {
-            return $this->kalkulator->hitungImt($c->bb_kg, $c->pengguna?->profil?->tinggi_cm);
+            $tinggi = $c->tinggi_cm ?? $c->pengguna?->profil?->tinggi_cm;
+
+            return $this->kalkulator->hitungImt(
+                $c->bb_kg !== null ? (float) $c->bb_kg : null,
+                $tinggi !== null ? (float) $tinggi : null
+            );
         }
 
         $nilai = $c->{$kode};

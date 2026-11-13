@@ -32,6 +32,8 @@ class Profil extends Model
         'target_air_ml',
     ];
 
+    protected $appends = ['usia'];
+
     // Cast tipe kolom.
     protected function casts(): array
     {
@@ -50,5 +52,11 @@ class Profil extends Model
     public function pengguna(): BelongsTo
     {
         return $this->belongsTo(Pengguna::class, 'user_id');
+    }
+
+    // Usia bulat tahun dihitung dari tanggal lahir
+    public function getUsiaAttribute(): ?int
+    {
+        return $this->tgl_lahir ? (int) $this->tgl_lahir->diffInYears(now()) : null;
     }
 }

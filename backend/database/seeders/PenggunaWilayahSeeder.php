@@ -13,19 +13,15 @@ class PenggunaWilayahSeeder extends Seeder
         // Sandi seragam akun demo
         $password = 'demo1234';
 
-        // Ambil ID kecamatan Banjarbaru Utara
-        $kecamatanId = Wilayah::where('kode', '63.72.04')->value('id');
-
-        if (! $kecamatanId) {
-            $this->command->error('Kecamatan Banjarbaru Utara belum ada. Jalankan WilayahSeeder dulu.');
-            return;
-        }
-
-        // Ambil daftar kelurahan di bawah kecamatan
-        $kelurahan = Wilayah::where('parent_id', $kecamatanId)
-            ->where('tipe', 'kelurahan')
+        // Ambil seluruh kelurahan (Banjarbaru Utara & Banjarbaru Selatan) agar setiap role di semua kelurahan punya akun demo
+        $kelurahan = Wilayah::where('tipe', 'kelurahan')
             ->orderBy('kode')
             ->get();
+
+        if ($kelurahan->isEmpty()) {
+            $this->command->error('Data kelurahan belum ada. Jalankan WilayahSeeder dulu.');
+            return;
+        }
 
         foreach ($kelurahan as $index => $w) {
             $slug = strtolower(str_replace(' ', '', $w->nama));
@@ -76,6 +72,30 @@ class PenggunaWilayahSeeder extends Seeder
                 'versi_kebijakan' => '1.0',
             ]
         );
+
+        // Kader tambahan di kelurahan padat (untuk demonstrasi penugasan banyak kader di Super Admin)
+        $kaderTambahan = [
+            ['Loktabat Utara', 'kader2.loktabatutara@sehatkita.test', 'Kader Posbindu Mawar (LU)', '6372042002920001'],
+            ['Guntung Paikat', 'kader2.guntungpaikat@sehatkita.test', 'Kader Posbindu Melati (GP)', '6372052002930002'],
+        ];
+        foreach ($kaderTambahan as [$namaKel, $emailKader, $namaKader, $nikKader]) {
+            $wil = $kelurahan->firstWhere('nama', $namaKel);
+            if ($wil) {
+                Pengguna::updateOrCreate(
+                    ['email' => $emailKader],
+                    [
+                        'name'            => $namaKader,
+                        'nik'             => $nikKader,
+                        'password'        => $password,
+                        'role'            => 'kader',
+                        'wilayah_id'      => $wil->id,
+                        'aktif'           => true,
+                        'consent_at'      => now(),
+                        'versi_kebijakan' => '1.0',
+                    ]
+                );
+            }
+        }
 
         // Update akun demo lama agar seragam 8 karakter
         $demoSa = Pengguna::where('email', 'demo.superadmin@example.test')->first();

@@ -3,11 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\CatatanKesehatan;
-use App\Models\LogAudit;
 use App\Models\Pengguna;
 use App\Models\Profil;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 /**
@@ -41,7 +39,7 @@ class ProfilController extends Controller
 
             // super_admin membaca data individu -> catat di log_audit (§5.1)
             if ($pemanggil->role === 'super_admin' && $pemanggil->id !== $user->id) {
-                $this->catatAudit($pemanggil, $user);
+                $this->catatAudit($pemanggil, 'baca_data_individu', Profil::class, $user->id);
             }
         }
 
@@ -81,13 +79,15 @@ class ProfilController extends Controller
             ], 422);
         }
 
-        $validated['riwayat_keluarga']    = $riwayat;
-        $validated['tampil_di_peringkat'] = $request->boolean('tampil_di_peringkat');
+        $validated['riwayat_keluarga'] = $riwayat;
+        if ($request->has('tampil_di_peringkat')) {
+            $validated['tampil_di_peringkat'] = $request->boolean('tampil_di_peringkat');
+        }
 
         // Simpan berat awal dari catatan terverifikasi terbaru saat target pertama kali dibuat
         $lama = $user->profil;
         if (! empty($validated['bb_target_kg']) && empty($lama?->bb_awal_kg)) {
-            $validated['bb_awal_kg'] = CatatanKesehatan::beratTerakhir($user->id) ?? $validated['bb_target_kg'];
+            $validated['bb_awal_kg'] = CatatanKesehatan::beratTerakhir($user->id);
         }
 
         $user->profil()->updateOrCreate(['user_id' => $user->id], $validated);
@@ -142,27 +142,10 @@ class ProfilController extends Controller
 
         return match ($pemanggil->role) {
             'super_admin'     => true,
-            'kader'           => (int) $target->kader_id === (int) $pemanggil->id,
+            'kader'           => $this->dalamBinaan($pemanggil, $target),
             'admin_kelurahan' => (int) $target->wilayah_id === (int) $pemanggil->wilayah_id,
             default           => false,
         };
-    }
-
-    // Catat log audit akses profil warga oleh super admin tanpa mengganggu pembacaan
-    private function catatAudit(Pengguna $pemanggil, Pengguna $target): void
-    {
-        try {
-            LogAudit::create([
-                'user_id'    => $pemanggil->id,
-                'aksi'       => 'baca_data_individu',
-                'model'      => Profil::class,
-                'model_id'   => $target->id,
-                'ip'         => request()->ip(),
-                'user_agent' => substr((string) request()->userAgent(), 0, 255),
-            ]);
-        } catch (\Throwable $e) {
-            Log::warning('Gagal mencatat log audit profil: ' . $e->getMessage());
-        }
     }
 
     // Kembalikan response 404 standar saat profil tidak ditemukan

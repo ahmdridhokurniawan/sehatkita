@@ -8,7 +8,7 @@ use App\Services\TelegramService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 
-// Command cron untuk mengirimkan pengingat pemeriksaan Posbindu bulanan via Telegram
+// Command cron untuk mengirimkan pefngingat pemeriksaan Posbindu bulanan via Telegram
 class KirimPengingatSkrining extends Command
 {
     protected $signature = 'reminder:skrining-ptm';
@@ -38,7 +38,8 @@ class KirimPengingatSkrining extends Command
                     ? $catatanTerakhir->dicatat_pada->diffInDays(now()) . ' hari yang lalu'
                     : 'belum pernah periksa';
 
-                $pesan = "Halo *{$warga->name}*!\n\n"
+                $namaAman = $telegram->escapeMarkdown($warga->name);
+                $pesan = "Halo *{$namaAman}*!\n\n"
                     . "Pemeriksaan kesehatan terakhir Anda: _{$selisih}_.\n\n"
                     . "Apakah Anda sudah cek tensi dan gula darah bulan ini?\n"
                     . "Yuk luangkan waktu mengunjungi sesi Posbindu terdekat di kelurahan Anda untuk menjaga tubuh tetap sehat dan bugar!\n\n"

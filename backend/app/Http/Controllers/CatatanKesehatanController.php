@@ -158,10 +158,6 @@ class CatatanKesehatanController extends Controller
             'dicatat_oleh' => $user->id,
         ]);
 
-        if ($profil?->tinggi_cm !== null) {
-            unset($isi['tinggi_cm']);
-        }
-
         $isi['perlu_verifikasi'] = $this->kalkulator->perluVerifikasi($data);
 
         $catatan = DB::transaction(function () use ($isi, $data, $pemilik) {
@@ -204,6 +200,10 @@ class CatatanKesehatanController extends Controller
 
         abort_unless($boleh, 404, 'Catatan tidak ditemukan');
 
+        if ($user->role === 'super_admin' && $catatan->user_id !== $user->id) {
+            $this->catatAudit($user, 'baca_data_individu', CatatanKesehatan::class, $catatan->id);
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Detail catatan kesehatan',
@@ -229,6 +229,10 @@ class CatatanKesehatanController extends Controller
         abort_unless($boleh, 404, 'Catatan tidak ditemukan');
 
         $catatan->delete();
+
+        if ($user->role === 'super_admin' && $catatan->user_id !== $user->id) {
+            $this->catatAudit($user, 'hapus_catatan_kesehatan', CatatanKesehatan::class, $catatan->id);
+        }
 
         return response()->json(['success' => true, 'message' => 'Catatan berhasil dihapus', 'data' => null]);
     }
@@ -271,9 +275,11 @@ class CatatanKesehatanController extends Controller
 
         if ($data['setuju']) {
             $catatan->update(['perlu_verifikasi' => false]);
+            $this->catatAudit($request->user(), 'verifikasi_setujui_catatan', CatatanKesehatan::class, $catatan->id);
             $pesan = 'Catatan diverifikasi dan masuk agregat.';
         } else {
             $catatan->delete();
+            $this->catatAudit($request->user(), 'verifikasi_tolak_catatan', CatatanKesehatan::class, $catatan->id);
             $pesan = 'Catatan ditolak dan dihapus.';
         }
 

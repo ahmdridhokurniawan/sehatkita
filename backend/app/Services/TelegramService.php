@@ -25,7 +25,7 @@ class TelegramService
         }
 
         try {
-            $res = Http::withoutVerifying()->timeout(10)->post("https://api.telegram.org/bot{$this->token}/sendMessage", [
+            $res = Http::timeout(10)->post("https://api.telegram.org/bot{$this->token}/sendMessage", [
                 'chat_id'    => $chatId,
                 'text'       => $pesan,
                 'parse_mode' => $parseMode,
@@ -35,6 +35,11 @@ class TelegramService
             Log::error('Gagal kirim pesan Telegram: ' . $e->getMessage());
             return false;
         }
+    }
+
+    public function escapeMarkdown(string $teks): string
+    {
+        return str_replace(['\\', '_', '*', '`', '['], ['\\\\', '\\_', '\\*', '\\`', '\\['], $teks);
     }
 
     public function linkHubungkan(string $connectToken): string
@@ -54,7 +59,7 @@ class TelegramService
                 $query['offset'] = $offset;
             }
 
-            $res = Http::withoutVerifying()->timeout($timeout + 5)->get("https://api.telegram.org/bot{$this->token}/getUpdates", $query);
+            $res = Http::timeout($timeout + 5)->get("https://api.telegram.org/bot{$this->token}/getUpdates", $query);
 
             if ($res->successful() && isset($res->json()['result'])) {
                 return $res->json()['result'];
@@ -79,7 +84,8 @@ class TelegramService
         $userTerkoneksi = \App\Models\Pengguna::where('telegram_chat_id', (string) $chatId)->first();
 
         if ($userTerkoneksi) {
-            $pesan = "Halo *{$userTerkoneksi->name}*!\n\nAkun SehatKita Anda sudah aktif dan terhubung. Anda akan menerima notifikasi pengingat pemeriksaan bulanan dan rujukan kesehatan langsung di sini.";
+            $namaAman = $this->escapeMarkdown($userTerkoneksi->name);
+            $pesan = "Halo *{$namaAman}*!\n\nAkun SehatKita Anda sudah aktif dan terhubung. Anda akan menerima notifikasi pengingat pemeriksaan bulanan dan rujukan kesehatan langsung di sini.";
             $this->kirimPesan($chatId, $pesan);
             return true;
         }
@@ -95,7 +101,8 @@ class TelegramService
                     'telegram_connect_token' => null,
                 ]);
 
-                $pesan = "Halo *{$user->name}*!\n\nAkun SehatKita Anda berhasil terhubung dengan Bot Telegram resmi Dinas Kesehatan Kota Banjarbaru.\n\nAnda akan menerima notifikasi pengingat pemeriksaan bulanan dan rujukan kesehatan langsung di sini.";
+                $namaAman = $this->escapeMarkdown($user->name);
+                $pesan = "Halo *{$namaAman}*!\n\nAkun SehatKita Anda berhasil terhubung dengan Bot Telegram resmi Dinas Kesehatan Kota Banjarbaru.\n\nAnda akan menerima notifikasi pengingat pemeriksaan bulanan dan rujukan kesehatan langsung di sini.";
                 $this->kirimPesan($chatId, $pesan);
                 return true;
             } else {

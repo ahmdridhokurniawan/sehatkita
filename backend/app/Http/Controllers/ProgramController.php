@@ -42,7 +42,7 @@ class ProgramController extends Controller
             $query->where('jenis', $request->query('jenis'));
         }
 
-        $this->saringCari($query, ['judul'], $request);
+        $this->saringCari($query, ['judul', 'kategori_aktivitas'], $request);
 
         $list = $query->orderBy('mulai')->paginate($this->perHalaman($request));
 
@@ -133,7 +133,7 @@ class ProgramController extends Controller
             : null;
 
         if (in_array($user->role, ['kader', 'admin_kelurahan', 'super_admin'], true)) {
-            $bolehLihat = $user->role !== 'admin_kelurahan'
+            $bolehLihat = $user->role === 'super_admin'
                 || ! $program->wilayah_id
                 || (int) $program->wilayah_id === (int) $user->wilayah_id;
 
@@ -221,10 +221,12 @@ class ProgramController extends Controller
     // Tampilkan daftar peserta program sesuai cakupan wilayah petugas
     public function peserta(Request $request, int $id)
     {
-        $user    = $request->user();
+        $user = $request->user();
+        $this->wajibPeran($user, ['kader', 'admin_kelurahan', 'super_admin'], 'Hanya kader atau admin yang dapat melihat daftar peserta.');
+
         $program = Program::findOrFail($id);
 
-        if ($user->role === 'admin_kelurahan' && $program->wilayah_id) {
+        if ($user->role !== 'super_admin' && $program->wilayah_id) {
             abort_unless((int) $program->wilayah_id === (int) $user->wilayah_id, 403, 'Akses ditolak.');
         }
 
@@ -244,9 +246,20 @@ class ProgramController extends Controller
 
         $program = Program::findOrFail($id);
 
+        if ($program->wilayah_id && (int) $program->wilayah_id !== (int) $user->wilayah_id) {
+            abort(403, 'Program ini hanya untuk warga kelurahan terkait.');
+        }
+
         if ($program->selesai && $program->selesai->isPast() && ! $program->selesai->isToday()) {
             throw ValidationException::withMessages([
                 'program' => ['Program sudah berakhir.'],
+            ]);
+        }
+
+        if ($program->target_peserta !== null
+            && $program->peserta()->where('status', '!=', 'berhenti')->count() >= $program->target_peserta) {
+            throw ValidationException::withMessages([
+                'program' => ['Kuota peserta program sudah penuh.'],
             ]);
         }
 
@@ -316,11 +329,15 @@ class ProgramController extends Controller
             'foto.max'      => 'Ukuran foto maksimal 5 MB.',
         ]);
 
-        if ($peserta->bukti_foto && Storage::disk('public')->exists($peserta->bukti_foto)) {
-            Storage::disk('public')->delete($peserta->bukti_foto);
+        if ($peserta->bukti_foto) {
+            foreach (['local', 'public'] as $disk) {
+                if (Storage::disk($disk)->exists($peserta->bukti_foto)) {
+                    Storage::disk($disk)->delete($peserta->bukti_foto);
+                }
+            }
         }
 
-        $path = $request->file('foto')->store("program-bukti/{$program->id}", 'public');
+        $path = $request->file('foto')->store("program-bukti/{$program->id}", 'local');
 
         $peserta->update([
             'bukti_foto'         => $path,
@@ -344,19 +361,30 @@ class ProgramController extends Controller
     {
         $user = $request->user();
         $program = Program::findOrFail($id);
-        $peserta = PesertaProgram::where('program_id', $program->id)
+        $peserta = PesertaProgram::with('pengguna:id,wilayah_id')
+            ->where('program_id', $program->id)
             ->where('id', $pesertaId)
             ->firstOrFail();
 
+        $programSamaWilayah = ! $program->wilayah_id || (int) $program->wilayah_id === (int) $user->wilayah_id;
+        $wargaSamaWilayah = $peserta->pengguna?->wilayah_id !== null
+            && (int) $peserta->pengguna->wilayah_id === (int) $user->wilayah_id;
+
         $boleh = (int) $peserta->user_id === (int) $user->id
             || $user->role === 'super_admin'
-            || ($user->role === 'admin_kelurahan' && (! $program->wilayah_id || (int) $program->wilayah_id === (int) $user->wilayah_id))
-            || ($user->role === 'kader' && (! $peserta->pengguna?->wilayah_id || (int) $peserta->pengguna?->wilayah_id === (int) $user->wilayah_id));
+            || ($user->role === 'admin_kelurahan' && $programSamaWilayah)
+            || ($user->role === 'kader' && $programSamaWilayah && $wargaSamaWilayah);
 
         abort_unless($boleh, 403, 'Anda tidak memiliki akses melihat dokumentasi ini.');
-        abort_unless($peserta->bukti_foto && Storage::disk('public')->exists($peserta->bukti_foto), 404, 'Foto bukti tidak ditemukan.');
+        abort_unless($peserta->bukti_foto, 404, 'Foto bukti tidak ditemukan.');
 
-        return Storage::disk('public')->response($peserta->bukti_foto);
+        foreach (['local', 'public'] as $disk) {
+            if (Storage::disk($disk)->exists($peserta->bukti_foto)) {
+                return Storage::disk($disk)->response($peserta->bukti_foto);
+            }
+        }
+
+        abort(404, 'Foto bukti tidak ditemukan.');
     }
 
     // PATCH /program/{id}/peserta — kontrak 12.4 + verifikasi bukti (selesai/ditolak)
@@ -381,7 +409,7 @@ class ProgramController extends Controller
                 'Hanya kader/admin yang dapat memverifikasi penyelesaian tantangan.'
             );
 
-            if ($user->role === 'admin_kelurahan' && $program->wilayah_id) {
+            if ($user->role !== 'super_admin' && $program->wilayah_id) {
                 abort_unless((int) $program->wilayah_id === (int) $user->wilayah_id, 403,
                     'Program ini bukan wilayah Anda.');
             }
@@ -401,11 +429,20 @@ class ProgramController extends Controller
             }
         }
 
-        $peserta = PesertaProgram::where('program_id', $program->id)
+        $peserta = PesertaProgram::with('pengguna:id,wilayah_id,exp_total,level_gamifikasi')
+            ->where('program_id', $program->id)
             ->where('user_id', $targetId)
             ->first();
 
         abort_unless($peserta, 404, 'Peserta belum terdaftar pada program ini.');
+
+        if ($user->role === 'kader' && $targetId !== (int) $user->id) {
+            abort_unless(
+                $peserta->pengguna && (int) $peserta->pengguna->wilayah_id === (int) $user->wilayah_id,
+                403,
+                'Peserta ini bukan warga wilayah Anda.'
+            );
+        }
 
         // Idempoten: exp hanya diberikan sekali (kontrak 12.4).
         $sudahSelesai = $peserta->status === 'selesai';

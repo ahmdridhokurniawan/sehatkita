@@ -16,7 +16,9 @@ class InsightService
     public function untukUser(Pengguna $user): array
     {
         $catatan = $user->catatanKesehatan()
+            ->where('perlu_verifikasi', false)
             ->orderBy('dicatat_pada')
+            ->orderBy('id')
             ->get();
 
         // Jika belum ada riwayat sama sekali

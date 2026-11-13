@@ -11,6 +11,7 @@ use App\Services\RujukanOtomatisService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 // Controller pengelolaan sesi dan pencatatan kunjungan Posbindu
 class PosbinduController extends Controller
@@ -49,6 +50,8 @@ class PosbinduController extends Controller
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
+
+        $this->saringCari($query, ['lokasi', 'catatan'], $request);
 
         $list = $query->orderByDesc('tanggal')->paginate($this->perHalaman($request));
 
@@ -91,12 +94,19 @@ class PosbinduController extends Controller
     // Tampilkan detail sesi beserta daftar hadir peserta Posbindu
     public function showSesi(Request $request, int $id)
     {
+        $user = $request->user();
+        $this->hanyaPetugas($user);
+
         $sesi = SesiPosbindu::with('kader:id,name')
             ->with(['kunjungan' => fn ($q) => $q->with('pengguna:id,name')])
             ->find($id);
 
         if (! $sesi) {
             return $this->responTidakDitemukan('Sesi Posbindu tidak ditemukan');
+        }
+
+        if ($user->role !== 'super_admin') {
+            abort_unless((int) $sesi->wilayah_id === (int) $user->wilayah_id, 403, 'Sesi ini bukan wilayah Anda.');
         }
 
         return response()->json([
@@ -114,13 +124,15 @@ class PosbinduController extends Controller
                 'kader'          => $sesi->kader
                     ? ['id' => $sesi->kader->id, 'name' => $sesi->kader->name]
                     : null,
-                'peserta'        => $sesi->kunjungan->map(fn ($k) => [
-                    'kunjungan_id' => $k->id,
-                    'user_id'      => $k->user_id,
-                    'name'         => $k->pengguna?->name,
-                    'hadir'        => (bool) $k->hadir,
-                    'dicatat'      => $k->catatan_kesehatan_id !== null,
-                ])->values(),
+                'peserta'        => $user->role === 'admin_kelurahan'
+                    ? []
+                    : $sesi->kunjungan->map(fn ($k) => [
+                        'kunjungan_id' => $k->id,
+                        'user_id'      => $k->user_id,
+                        'name'         => $k->pengguna?->name,
+                        'hadir'        => (bool) $k->hadir,
+                        'dicatat'      => $k->catatan_kesehatan_id !== null,
+                    ])->values(),
             ],
         ]);
     }
@@ -168,16 +180,55 @@ class PosbinduController extends Controller
             return $this->responTidakDitemukan('Sesi Posbindu tidak ditemukan');
         }
 
+        if ($user->role !== 'super_admin') {
+            abort_unless((int) $sesi->wilayah_id === (int) $user->wilayah_id, 403, 'Sesi ini bukan wilayah Anda.');
+        }
+
         $data = $request->validate([
             'user_id' => 'required|exists:pengguna,id',
             'hadir'   => 'required|boolean',
-            'catatan_kesehatan' => 'nullable|array',
-            'catatan_kesehatan.bb_kg'      => 'nullable|numeric',
-            'catatan_kesehatan.sistol'     => 'nullable|integer',
-            'catatan_kesehatan.diastol'    => 'nullable|integer',
-            'catatan_kesehatan.gula_darah' => 'nullable|integer',
+            'catatan_kesehatan'                  => 'nullable|array',
+            'catatan_kesehatan.bb_kg'            => 'nullable|numeric|gt:0|max:500',
+            'catatan_kesehatan.tinggi_cm'        => 'nullable|numeric|min:50|max:250',
+            'catatan_kesehatan.sistol'           => 'nullable|integer|gt:0|max:400',
+            'catatan_kesehatan.diastol'          => 'nullable|integer|gt:0|max:300',
+            'catatan_kesehatan.gula_darah'       => 'nullable|integer|gt:0|max:1500',
             'catatan_kesehatan.jenis_gula_darah' => 'nullable|in:puasa,2jam_pp',
+            'catatan_kesehatan.kolesterol'       => 'nullable|integer|gt:0|max:1500',
+            'catatan_kesehatan.asam_urat'        => 'nullable|numeric|gt:0|max:50',
+            'catatan_kesehatan.lingkar_perut'    => 'nullable|numeric|gt:0|max:300',
+            'catatan_kesehatan.tidur_jam'        => 'nullable|numeric|min:0|max:24',
+            'catatan_kesehatan.merokok'          => 'nullable|boolean',
+            'catatan_kesehatan.konsumsi_manis'   => 'nullable|in:jarang,sering,setiap_hari',
+            'catatan_kesehatan.catatan'          => 'nullable|string',
         ]);
+
+        if (! empty($data['catatan_kesehatan'])) {
+            $rawCk = $data['catatan_kesehatan'];
+            $sistol = $rawCk['sistol'] ?? null;
+            $diastol = $rawCk['diastol'] ?? null;
+            if (($sistol === null) !== ($diastol === null)) {
+                throw ValidationException::withMessages([
+                    'catatan_kesehatan.sistol' => ['Sistol dan diastol harus diisi berpasangan.'],
+                ]);
+            }
+            if (($rawCk['gula_darah'] ?? null) !== null && ($rawCk['jenis_gula_darah'] ?? null) === null) {
+                throw ValidationException::withMessages([
+                    'catatan_kesehatan.jenis_gula_darah' => ['Jenis gula darah wajib diisi bila gula darah diukur.'],
+                ]);
+            }
+            if (($rawCk['gula_darah'] ?? null) === null) {
+                $data['catatan_kesehatan']['jenis_gula_darah'] = null;
+            }
+        }
+
+        if ($user->role !== 'super_admin') {
+            $wargaSah = Pengguna::whereKey($data['user_id'])
+                ->where('role', 'user')
+                ->where('wilayah_id', $sesi->wilayah_id)
+                ->exists();
+            abort_unless($wargaSah, 404, 'Peserta tidak ditemukan di wilayah sesi ini.');
+        }
 
         if (! $data['hadir'] && ! empty($data['catatan_kesehatan'])) {
             return response()->json([
@@ -203,7 +254,7 @@ class PosbinduController extends Controller
 
                 $tinggiEfektif = $warga->profil?->tinggi_cm !== null
                     ? (float) $warga->profil->tinggi_cm
-                    : null;
+                    : (isset($rawCk['tinggi_cm']) ? (float) $rawCk['tinggi_cm'] : null);
 
                 $snapshot = $this->kalkulator->snapshot($rawCk, $tinggiEfektif);
 
@@ -310,6 +361,13 @@ class PosbinduController extends Controller
             );
         }
 
+        if ($sesi->kunjungan()->whereNotNull('catatan_kesehatan_id')->exists()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sesi yang sudah memiliki catatan kesehatan tidak dapat dihapus.',
+            ], 422);
+        }
+
         $sesi->delete();
 
         return response()->json([
@@ -352,7 +410,8 @@ class PosbinduController extends Controller
     // Cari warga aktif berdasarkan awalan NIK minimal 3 digit untuk autocomplete
     public function cariNik(Request $request)
     {
-        $this->hanyaPetugas($request->user());
+        $user = $request->user();
+        $this->hanyaPetugas($user);
 
         $nik = trim((string) ($request->query('nik') ?? $request->query('q') ?? ''));
         $nikBersih = preg_replace('/[^0-9]/', '', $nik);
@@ -368,7 +427,9 @@ class PosbinduController extends Controller
         $hasil = Pengguna::query()
             ->select('id', 'name', 'nik', 'wilayah_id')
             ->with('wilayah:id,nama')
+            ->where('role', 'user')
             ->where('aktif', true)
+            ->when($user->role !== 'super_admin', fn ($q) => $q->where('wilayah_id', $user->wilayah_id))
             ->whereNotNull('nik')
             ->where('nik', 'like', "{$nikBersih}%")
             ->orderBy('nik', 'asc')

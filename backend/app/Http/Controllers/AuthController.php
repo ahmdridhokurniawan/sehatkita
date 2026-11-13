@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Pengguna;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
@@ -28,7 +29,7 @@ class AuthController extends Controller
                 'confirmed',
                 Password::min(8)->letters()->mixedCase()->numbers()->symbols(),
             ],
-            'wilayah_id' => 'required|exists:wilayah,id',
+            'wilayah_id' => ['required', Rule::exists('wilayah', 'id')->where('tipe', 'kelurahan')],
         ], [
             'password.min'       => 'Password minimal 8 karakter.',
             'password.regex'     => 'Password harus mengandung minimal 1 huruf kapital, 1 angka, dan 1 simbol.',

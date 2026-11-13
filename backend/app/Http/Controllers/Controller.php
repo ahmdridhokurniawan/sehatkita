@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\LogAudit;
 use App\Models\Pengguna;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 abstract class Controller
 {
@@ -41,11 +43,31 @@ abstract class Controller
             return $query;
         }
 
-        return $query->where(function (Builder $q) use ($kolom, $kata) {
+        $kata = mb_substr($kata, 0, 100);
+        $escaped = addcslashes($kata, '%_\\');
+
+        return $query->where(function (Builder $q) use ($kolom, $escaped) {
             foreach ($kolom as $namaKolom) {
-                $q->orWhere($namaKolom, 'like', '%'.$kata.'%');
+                $q->orWhere($namaKolom, 'like', '%'.$escaped.'%');
             }
         });
+    }
+
+    // Catat aktivitas sensitif atau akses data individu ke tabel log_audit
+    protected function catatAudit(Pengguna $pelaku, string $aksi, string $model, ?int $modelId = null): void
+    {
+        try {
+            LogAudit::create([
+                'user_id'    => $pelaku->id,
+                'aksi'       => $aksi,
+                'model'      => $model,
+                'model_id'   => $modelId,
+                'ip'         => request()->ip(),
+                'user_agent' => substr((string) request()->userAgent(), 0, 255),
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Gagal mencatat log audit: ' . $e->getMessage());
+        }
     }
 
     // Format blok meta paginasi standar untuk seluruh response daftar

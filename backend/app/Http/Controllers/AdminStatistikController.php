@@ -29,6 +29,27 @@ class AdminStatistikController extends Controller
         Gate::authorize('manage-master');
 
         $semingguLalu = now()->subDays(7);
+        $hariIni = now()->toDateString();
+
+        $programByStatus = Program::query()
+            ->select(['id', 'status', 'mulai', 'selesai'])
+            ->get()
+            ->countBy(function (Program $p) use ($hariIni) {
+                if ($p->status === 'selesai') {
+                    return 'selesai';
+                }
+                $mulai = $p->mulai?->toDateString();
+                $selesai = $p->selesai?->toDateString();
+                if ($mulai && $hariIni < $mulai) {
+                    return 'akan_datang';
+                }
+                if ($selesai && $hariIni > $selesai) {
+                    return 'selesai';
+                }
+                return 'berjalan';
+            })
+            ->map(fn ($v) => (int) $v)
+            ->all();
 
         return response()->json([
             'success' => true,
@@ -45,13 +66,13 @@ class AdminStatistikController extends Controller
                 // Program (status: akan_datang | berjalan | selesai)
                 'total_program'              => Program::count(),
                 'total_program_participants' => PesertaProgram::count(),
-                'program_by_status'          => $this->hitungPerKolom(Program::query(), 'status'),
+                'program_by_status'          => $programByStatus,
 
                 // Catatan kesehatan
                 'total_catatan'              => CatatanKesehatan::count(),
                 'avg_imt'                    => $this->rataRataImt(),
-                'avg_sistol'                 => $this->bulatSatu(CatatanKesehatan::avg('sistol')),
-                'avg_diastol'                => $this->bulatSatu(CatatanKesehatan::avg('diastol')),
+                'avg_sistol'                 => $this->bulatSatu(CatatanKesehatan::where('perlu_verifikasi', false)->avg('sistol')),
+                'avg_diastol'                => $this->bulatSatu(CatatanKesehatan::where('perlu_verifikasi', false)->avg('diastol')),
 
                 // Master data
                 'total_wilayah'              => Wilayah::count(),

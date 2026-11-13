@@ -37,8 +37,9 @@ return [
 
     // Konfigurasi API bot telegram untuk notifikasi pengingat kesehatan
     'telegram' => [
-        'bot_token'    => env('TELEGRAM_BOT_TOKEN'),
-        'bot_username' => env('TELEGRAM_BOT_USERNAME', 'sehatkita_ptm_bot'),
+        'bot_token'      => env('TELEGRAM_BOT_TOKEN'),
+        'bot_username'   => env('TELEGRAM_BOT_USERNAME', 'sehatkita_ptm_bot'),
+        'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET'),
     ],
 
 ];

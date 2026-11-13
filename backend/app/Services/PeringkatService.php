@@ -21,6 +21,7 @@ class PeringkatService
             ->where('wilayah_id', $wilayahId)
             ->where('role', 'user')
             ->where('aktif', true)
+            ->whereNotNull('consent_at')
             ->orderByDesc('exp_total')
             ->orderBy('id')
             ->get()
@@ -57,6 +58,7 @@ class PeringkatService
         return Pengguna::where('wilayah_id', $wilayahId)
             ->where('role', 'user')
             ->where('aktif', true)
+            ->whereNotNull('consent_at')
             ->count();
     }
 

@@ -109,7 +109,7 @@ class ProgramApiTest extends TestCase
 
     public function test_warga_unggah_foto_bukti_dan_admin_verifikasi_misi(): void
     {
-        Storage::fake('public');
+        Storage::fake('local');
 
         $admin = $this->pengguna('admin_kelurahan');
         $warga = $this->pengguna('user');
@@ -133,7 +133,12 @@ class ProgramApiTest extends TestCase
         ]);
 
         // 1. Warga unggah dokumentasi -> menunggu_verifikasi
-        $file = UploadedFile::fake()->image('dokumentasi.jpg', 320, 240);
+        $file = function_exists('imagecreatetruecolor')
+            ? UploadedFile::fake()->image('dokumentasi.jpg', 320, 240)
+            : UploadedFile::fake()->createWithContent(
+                'dokumentasi.png',
+                base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==')
+            );
         $resUpload = $this->asUser($warga)->post("/api/v1/program/{$program->id}/bukti", [
             'foto'          => $file,
             'catatan_bukti' => 'Sudah lari 5 km pagi ini',
@@ -145,7 +150,7 @@ class ProgramApiTest extends TestCase
 
         $peserta = PesertaProgram::where('program_id', $program->id)->where('user_id', $warga->id)->firstOrFail();
         $this->assertNotNull($peserta->bukti_foto);
-        Storage::disk('public')->assertExists($peserta->bukti_foto);
+        Storage::disk('local')->assertExists($peserta->bukti_foto);
 
         // 2. Admin bisa mengakses gambar bukti
         $this->asUser($admin)

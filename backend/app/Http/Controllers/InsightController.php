@@ -18,7 +18,8 @@ class InsightController extends Controller
         $data  = $this->insight->untukUser($request->user());
 
         if ($level) {
-            $data = array_values(array_filter($data, fn ($i) => $i['level'] === $level));
+            $levels = array_filter(array_map('trim', explode(',', (string) $level)));
+            $data = array_values(array_filter($data, fn ($i) => in_array($i['level'], $levels, true)));
         }
 
         return response()->json([

@@ -58,6 +58,17 @@ class TelegramController extends Controller
     // Terima pembaruan pesan masuk dari webhook resmi Telegram
     public function webhook(Request $request)
     {
+        $secret = (string) config('services.telegram.webhook_secret', '');
+
+        if ($secret !== '' || app()->isProduction()) {
+            $headerToken = (string) $request->header('X-Telegram-Bot-Api-Secret-Token', '');
+            abort_unless(
+                $secret !== '' && $headerToken !== '' && hash_equals($secret, $headerToken),
+                403,
+                'Webhook secret tidak valid.'
+            );
+        }
+
         $message = $request->input('message');
         if (! $message) {
             return response()->json(['ok' => true]);

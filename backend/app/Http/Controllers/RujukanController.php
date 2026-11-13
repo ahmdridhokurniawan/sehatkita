@@ -75,7 +75,17 @@ class RujukanController extends Controller
         }
         $this->saringRentangTanggal($query, $request);
 
-        $this->saringCari($query, ['alasan', 'catatan'], $request);
+        $kata = trim((string) ($request->query('search') ?? $request->query('q') ?? ''));
+        if ($kata !== '') {
+            $escaped = addcslashes(mb_substr($kata, 0, 100), '%_\\');
+            $kolomCari = $user->role === 'admin_kelurahan' ? ['indikator'] : ['alasan', 'catatan', 'indikator'];
+            $query->where(function ($q) use ($kolomCari, $escaped) {
+                foreach ($kolomCari as $k) {
+                    $q->orWhere($k, 'like', '%' . $escaped . '%');
+                }
+                $q->orWhereHas('faskes', fn ($fq) => $fq->where('nama', 'like', '%' . $escaped . '%'));
+            });
+        }
 
         $list = $query->orderByDesc('created_at')->paginate($this->perHalaman($request));
 
@@ -123,6 +133,8 @@ class RujukanController extends Controller
             'catatan'        => $data['catatan'] ?? $rujukan->catatan,
             'ditangani_oleh' => $user->id,
         ]);
+
+        $this->catatAudit($user, 'ubah_status_rujukan', Rujukan::class, $rujukan->id);
 
         return response()->json([
             'success' => true,

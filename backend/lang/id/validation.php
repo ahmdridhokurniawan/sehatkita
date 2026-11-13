@@ -42,6 +42,28 @@ return [
         'string' => 'Kolom :attribute harus :min sampai :max karakter.',
         'array' => 'Kolom :attribute harus berisi :min sampai :max item.',
     ],
+    'gt' => [
+        'numeric' => 'Kolom :attribute harus lebih besar dari :value.',
+        'string' => 'Kolom :attribute harus lebih dari :value karakter.',
+        'array' => 'Kolom :attribute harus berisi lebih dari :value item.',
+    ],
+    'gte' => [
+        'numeric' => 'Kolom :attribute harus minimal :value.',
+        'string' => 'Kolom :attribute minimal :value karakter.',
+        'array' => 'Kolom :attribute minimal berisi :value item.',
+    ],
+    'lt' => [
+        'numeric' => 'Kolom :attribute harus kurang dari :value.',
+        'string' => 'Kolom :attribute harus kurang dari :value karakter.',
+        'array' => 'Kolom :attribute harus berisi kurang dari :value item.',
+    ],
+    'lte' => [
+        'numeric' => 'Kolom :attribute maksimal :value.',
+        'string' => 'Kolom :attribute maksimal :value karakter.',
+        'array' => 'Kolom :attribute maksimal berisi :value item.',
+    ],
+    'image' => 'Kolom :attribute harus berupa gambar.',
+    'mimes' => 'Kolom :attribute harus berupa berkas berjenis: :values.',
     'size' => [
         'numeric' => 'Kolom :attribute harus bernilai :size.',
         'string' => 'Kolom :attribute harus :size karakter.',

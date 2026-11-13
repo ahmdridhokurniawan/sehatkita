@@ -218,23 +218,26 @@ class DashboardController extends Controller
     // Hitung selisih nilai indikator bulan berjalan dibandingkan bulan sebelumnya
     private function perbandingan($semua, ?float $tinggiEfektif): array
     {
-        $sekarang = now();
-        $ini      = $semua->first(fn ($c) => $c->dicatat_pada->isSameMonth($sekarang));
-        $lalu     = $semua->first(fn ($c) => $c->dicatat_pada->isSameMonth($sekarang->copy()->subMonth()));
+        $sekarang  = now();
+        $bulanLalu = $sekarang->copy()->subMonthNoOverflow();
 
-        $selisih = fn (string $kolom, int $desimal = 2) => ($ini && $lalu && $ini->{$kolom} !== null && $lalu->{$kolom} !== null)
-            ? round((float) $ini->{$kolom} - (float) $lalu->{$kolom}, $desimal)
-            : null;
+        $catatanIni  = $semua->filter(fn ($c) => $c->dicatat_pada && $c->dicatat_pada->isSameMonth($sekarang));
+        $catatanLalu = $semua->filter(fn ($c) => $c->dicatat_pada && $c->dicatat_pada->isSameMonth($bulanLalu));
 
-        $imtIni  = $ini ? $this->kalkulator->hitungImt($ini->bb_kg, $ini->tinggi_cm ?? $tinggiEfektif) : null;
-        $imtLalu = $lalu ? $this->kalkulator->hitungImt($lalu->bb_kg, $lalu->tinggi_cm ?? $tinggiEfektif) : null;
+        $iniBb   = $catatanIni->first(fn ($c) => $c->bb_kg !== null);
+        $laluBb  = $catatanLalu->first(fn ($c) => $c->bb_kg !== null);
+        $iniSis  = $catatanIni->first(fn ($c) => $c->sistol !== null);
+        $laluSis = $catatanLalu->first(fn ($c) => $c->sistol !== null);
+
+        $imtIni  = $iniBb ? $this->kalkulator->hitungImt((float) $iniBb->bb_kg, $iniBb->tinggi_cm !== null ? (float) $iniBb->tinggi_cm : $tinggiEfektif) : null;
+        $imtLalu = $laluBb ? $this->kalkulator->hitungImt((float) $laluBb->bb_kg, $laluBb->tinggi_cm !== null ? (float) $laluBb->tinggi_cm : $tinggiEfektif) : null;
 
         return [
-            'periode_ini'    => $ini?->dicatat_pada->format('Y-m'),
-            'periode_lalu'   => $lalu?->dicatat_pada->format('Y-m'),
-            'bb_selisih_kg'  => $selisih('bb_kg'),
+            'periode_ini'    => $catatanIni->first()?->dicatat_pada?->format('Y-m'),
+            'periode_lalu'   => $catatanLalu->first()?->dicatat_pada?->format('Y-m'),
+            'bb_selisih_kg'  => ($iniBb && $laluBb) ? round((float) $iniBb->bb_kg - (float) $laluBb->bb_kg, 2) : null,
             'imt_selisih'    => ($imtIni !== null && $imtLalu !== null) ? round($imtIni - $imtLalu, 2) : null,
-            'sistol_selisih' => $selisih('sistol', 0),
+            'sistol_selisih' => ($iniSis && $laluSis) ? (int) $iniSis->sistol - (int) $laluSis->sistol : null,
         ];
     }
 

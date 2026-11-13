@@ -180,6 +180,7 @@ class DashboardWilayahController extends Controller
             ->join('profil as pr', 'p.id', '=', 'pr.user_id')
             ->where('p.wilayah_id', $wilayahId)
             ->where('p.role', 'user')
+            ->where('p.aktif', true)
             ->whereNotNull('p.consent_at')
             ->whereNotNull('pr.riwayat_keluarga')
             ->pluck('pr.riwayat_keluarga');
@@ -213,6 +214,7 @@ class DashboardWilayahController extends Controller
             ->join('profil as pr', 'p.id', '=', 'pr.user_id')
             ->where('p.wilayah_id', $wilayahId)
             ->where('p.role', 'user')
+            ->where('p.aktif', true)
             ->whereNotNull('p.consent_at')
             ->whereNotNull('pr.tgl_lahir')
             ->pluck('pr.tgl_lahir');
@@ -239,6 +241,7 @@ class DashboardWilayahController extends Controller
             ->join('pengguna as p', 'ck.user_id', '=', 'p.id')
             ->where('p.wilayah_id', $wilayahId)
             ->where('p.role', 'user')
+            ->where('p.aktif', true)
             ->whereNotNull('p.consent_at')
             ->where('ck.dicatat_pada', '>=', $tglMulai)
             ->where('ck.perlu_verifikasi', false)

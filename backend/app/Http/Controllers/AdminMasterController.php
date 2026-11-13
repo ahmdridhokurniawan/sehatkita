@@ -47,10 +47,11 @@ class AdminMasterController extends Controller
         $this->hanyaSuperAdmin($request->user());
 
         $data = $request->validate([
-            'kode'     => 'required|string|max:30|unique:indikator,kode',
-            'nama'     => 'required|string|max:100',
-            'satuan'   => 'nullable|string|max:20',
-            'kelompok' => 'nullable|string|max:50',
+            'kode'                   => 'required|string|max:30|unique:indikator,kode',
+            'nama'                   => 'required|string|max:100',
+            'satuan'                 => 'nullable|string|max:20',
+            'kelompok'               => 'nullable|string|max:50',
+            'interval_skrining_hari' => 'nullable|integer|min:1|max:365',
         ]);
 
         $indikator = Indikator::create($data);
@@ -72,10 +73,11 @@ class AdminMasterController extends Controller
         }
 
         $data = $request->validate([
-            'kode'     => ['sometimes', 'string', 'max:30', Rule::unique('indikator', 'kode')->ignore($id)],
-            'nama'     => 'sometimes|string|max:100',
-            'satuan'   => 'sometimes|nullable|string|max:20',
-            'kelompok' => 'sometimes|nullable|string|max:50',
+            'kode'                   => ['sometimes', 'string', 'max:30', Rule::unique('indikator', 'kode')->ignore($id)],
+            'nama'                   => 'sometimes|string|max:100',
+            'satuan'                 => 'sometimes|nullable|string|max:20',
+            'kelompok'               => 'sometimes|nullable|string|max:50',
+            'interval_skrining_hari' => 'sometimes|nullable|integer|min:1|max:365',
         ]);
 
         $indikator->update($data);
@@ -228,6 +230,10 @@ class AdminMasterController extends Controller
     {
         $this->hanyaSuperAdmin($request->user());
 
+        if ($request->filled('email')) {
+            $request->merge(['email' => strtolower(trim((string) $request->input('email')))]);
+        }
+
         $data = $request->validate([
             'name'       => 'required|string|max:100',
             'nik'        => 'nullable|string|size:16|regex:/^[0-9]+$/|unique:pengguna,nik',
@@ -235,6 +241,7 @@ class AdminMasterController extends Controller
             'password'   => ['required', 'string', Password::min(8), 'regex:/[A-Z]/', 'regex:/[0-9]/', 'regex:/[^a-zA-Z0-9\s]/'],
             'role'       => ['required', Rule::in(['super_admin', 'admin_kelurahan', 'kader', 'user'])],
             'wilayah_id' => 'nullable|exists:wilayah,id',
+            'kader_id'   => 'nullable|exists:pengguna,id',
         ], [
             'password.regex' => 'Password harus mengandung minimal 1 huruf kapital, 1 angka, dan 1 simbol.',
         ]);
@@ -258,6 +265,10 @@ class AdminMasterController extends Controller
             return $this->tidakDitemukan('Pengguna tidak ditemukan');
         }
 
+        if ($request->filled('email')) {
+            $request->merge(['email' => strtolower(trim((string) $request->input('email')))]);
+        }
+
         $data = $request->validate([
             'name'       => 'sometimes|string|max:100',
             'nik'        => ['sometimes', 'nullable', 'string', 'size:16', 'regex:/^[0-9]+$/', Rule::unique('pengguna', 'nik')->ignore($id)],
@@ -265,6 +276,7 @@ class AdminMasterController extends Controller
             'password'   => ['sometimes', 'string', Password::min(8), 'regex:/[A-Z]/', 'regex:/[0-9]/', 'regex:/[^a-zA-Z0-9\s]/'],
             'role'       => ['sometimes', Rule::in(['super_admin', 'admin_kelurahan', 'kader', 'user'])],
             'wilayah_id' => 'sometimes|nullable|exists:wilayah,id',
+            'kader_id'   => 'sometimes|nullable|exists:pengguna,id',
             'aktif'      => 'sometimes|boolean',
         ], [
             'password.regex' => 'Password harus mengandung minimal 1 huruf kapital, 1 angka, dan 1 simbol.',
@@ -417,7 +429,14 @@ class AdminMasterController extends Controller
             return $this->tidakDitemukan('Faskes tidak ditemukan');
         }
 
-        $faskes->update($request->validate($this->aturanFaskes()));
+        $aturan = $this->aturanFaskes();
+        foreach ($aturan as $field => $rule) {
+            $aturan[$field] = is_string($rule)
+                ? preg_replace('/^required\|/', 'sometimes|', $rule)
+                : array_map(fn ($r) => $r === 'required' ? 'sometimes' : $r, (array) $rule);
+        }
+
+        $faskes->update($request->validate($aturan));
 
         return response()->json([
             'success' => true,
@@ -471,6 +490,7 @@ class AdminMasterController extends Controller
             $query->where('model', $request->model);
         }
         $this->saringRentangTanggal($query, $request);
+        $this->saringCari($query, ['aksi', 'model'], $request);
 
         $list = $query->latest('created_at')->paginate($this->perHalaman($request));
 
