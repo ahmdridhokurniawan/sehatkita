@@ -27,3 +27,19 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 4. **ATURAN GIT**
    - Saat melakukan `git add` atau `git commit`, **HANYA** stage file di dalam `frontend/` (`git add frontend/`). Pastikan `git diff --name-only --cached` tidak menyentuh `backend/`.
 
+## PRE-EXECUTION PROTOCOL — WAJIB BACA KONTRAK & AUDIT DULU
+
+Sebelum menulis, mengubah, atau menghapus kode apa pun di `frontend/`, AI **WAJIB** menjalankan 3 langkah ini terlebih dahulu:
+
+1. **BACA KONTRAK API TERLEBIH DAHULU (`../kontrak-api.md`)**
+   - Periksa endpoint resmi, metode HTTP, parameter query/body, enum status/kategori, aturan peran (role), dan struktur JSON response di `../kontrak-api.md`.
+   - **DILARANG** menebak nama field, payload, atau URL endpoint dari ingatan tanpa memverifikasi `../kontrak-api.md`.
+
+2. **AUDIT KODE EKSISTING SEBELUM EKSEKUSI**
+   - Baca dan audit file terkait yang sudah ada sebelum mengedit: `frontend/src/lib/api.ts`, `frontend/src/types/index.ts`, `frontend/src/lib/enums.ts`, serta halaman/komponen terkait fitur yang diminta.
+   - Cek fungsi helper, komponen UI, atau client API yang sudah tersedia agar tidak membuat kode duplikat, bentrok tipe data, atau merusak fitur lain yang berjalan.
+
+3. **VERIFIKASI SETELAH EKSEKUSI**
+   - Setelah perubahan selesai, jalankan pengecekan TypeScript/lint/build di `frontend/` dan pastikan tidak ada error sebelum melaporkan tugas selesai.
+
+
