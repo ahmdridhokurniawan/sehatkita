@@ -1,47 +1,41 @@
-<laravel-boost-guidelines>
-# Laravel Application
+# Aturan Kerja AI Agent Backend — SehatKita
 
-This repository contains a Laravel application. Complete the following setup before working on the user's request.
+## CRITICAL BOUNDARY RULE — LARANGAN MUTLAK MENYENTUH FRONTEND
 
-## Prerequisites
+1. **WILAYAH KERJA TERBATAS HANYA DI `backend/`**
+   - Folder `backend/` dan `../kontrak-api.md` dikelola penuh oleh PIC Backend (Ridho / `ahmdridhokurniawan`).
+   - Folder `../frontend/` dikelola penuh oleh PIC Frontend (Daffa / `DAFFASUPERPOWER`).
 
-Verify that PHP and Composer are available:
+2. **DILARANG KERAS MENGUBAH FILE DI `../frontend/`**
+   - AI/Agent yang bekerja pada Backend **DILARANG KERAS** membuat, mengedit, me-refactor, memindahkan, atau menghapus file apa pun di dalam `../frontend/`.
+   - Membaca file di `../frontend/` hanya diperbolehkan untuk memastikan kompatibilitas pemanggilan API (read-only), **TIDAK PERNAH** untuk mengubah kode frontend.
 
-```sh
-php -v
-composer -V
-```
+3. **ATURAN GIT**
+   - Saat melakukan `git add` atau `git commit`, **HANYA** stage file di dalam `backend/` (serta `kontrak-api.md` bila ada revisi kontrak API resmi). Pastikan `git diff --name-only --cached` tidak menyentuh `frontend/`.
 
-If either command is unavailable, detect the user's operating system and install the prerequisites with the appropriate command:
+## PRE-EXECUTION PROTOCOL — WAJIB BACA KONTRAK & AUDIT DULU
 
-macOS:
+Sebelum menulis, mengubah, atau menghapus kode apa pun di `backend/`, AI **WAJIB** menjalankan langkah-langkah berikut terlebih dahulu:
 
-```sh
-/bin/bash -c "$(curl -fsSL https://php.new/install/mac/8.5)"
-```
+1. **BACA KONTRAK API TERLEBIH DAHULU (`../kontrak-api.md`)**
+   - Periksa endpoint resmi, metode HTTP, aturan validasi, enum, hak akses peran (role), struktur response JSON, serta aturan privasi di `../kontrak-api.md`.
+   - Jika ada penambahan atau perubahan endpoint/field resmi, perbarui juga `../kontrak-api.md` dan beri catatan yang jelas untuk tim Frontend.
 
-Windows PowerShell:
+2. **AUDIT KODE EKSISTING SEBELUM EKSEKUSI**
+   - Periksa terlebih dahulu file terkait yang sudah ada agar tidak menimbulkan duplikasi kode, mismatch tipe data, atau bug regresi:
+     - Rute di `routes/api.php` dan Gate di `app/Providers/AuthServiceProvider.php`.
+     - Helper bersama di `app/Http/Controllers/Controller.php` (`wajibPeran`, `responTidakDitemukan`, `dalamBinaan`, `scopeBinaan`, `parsePeriode`, `saringRentangTanggal`, `perHalaman`, `saringCari`, `metaPaginasi`).
+     - Service bersama di `app/Services/` (`HealthCalculatorService`, `RujukanOtomatisService`, `InsightService`, `PeringkatService`, `TelegramService`).
+     - Daftar `$fillable`, `casts()`, dan relasi pada model di `app/Models/`.
+     - Skenario uji eksisting di `tests/Feature/`.
+   - Gunakan kembali helper dan service yang sudah ada—jangan membuat logika duplikat.
 
-```powershell
-Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://php.new/install/windows/8.5'))
-```
+3. **STANDAR PENULISAN KODE**
+   - Tambahkan **komentar penjelasan 1 baris berbahasa Indonesia yang ringkas dan mudah dipahami manusia** pada method dan blok logika non-trivial yang dibuat atau diubah.
 
-Linux:
-
-```sh
-/bin/bash -c "$(curl -fsSL https://php.new/install/linux/8.5)"
-```
-
-After installation, ask the user to restart their terminal. If the agent needs the restarted shell to continue, ask the user to reopen their terminal and rerun their original prompt.
-
-## Agent Setup
-
-Install Laravel Boost from the application root before making application changes:
-
-```sh
-composer require laravel/boost --dev
-php artisan boost:install
-```
-
-Boost replaces these bootstrap instructions with guidelines tailored to the application. After installation, read `AGENTS.md` again and continue with the user's original request using the generated guidelines.
-</laravel-boost-guidelines>
+4. **VERIFIKASI SETELAH EKSEKUSI**
+   - Setelah perubahan selesai, jalankan pengecekan sintaks PHP (`php -l`) dan jalankan test suite lengkap di Docker:
+     ```sh
+     docker exec -w /var/www/sehatkita/backend laradock-php-fpm-1 php artisan test
+     ```
+   - Pastikan seluruh test lulus tanpa error sebelum melaporkan tugas selesai.
