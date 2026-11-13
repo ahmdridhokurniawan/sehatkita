@@ -1,128 +1,148 @@
-# 🏥 SehatKita — Sistem Monitoring & Skrining PTM
+# SehatKita — Backend API Service
 
-[![Backend CI](https://github.com/ahmdridhokurniawan/sehatkita/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/ahmdridhokurniawan/sehatkita/actions)
-[![Kontrak API](https://img.shields.io/badge/Kontrak%20API-v1.6.0-blue)](kontrak-api.md)
-[![PHP](https://img.shields.io/badge/PHP-8.4-777BB4?logo=php&logoColor=white)](https://php.net)
-[![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)](https://laravel.com)
-[![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js&logoColor=white)](https://nextjs.org)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Laravel](https://img.shields.io/badge/Laravel-13.17-FF2D20?logo=laravel&logoColor=white)](https://laravel.com)
+[![PHP](https://img.shields.io/badge/PHP-%5E8.3-777BB4?logo=php&logoColor=white)](https://php.net)
+[![Sanctum](https://img.shields.io/badge/Auth-Laravel%20Sanctum%204.3-0F172A)](https://laravel.com/docs/sanctum)
+[![Kontrak API](https://img.shields.io/badge/Kontrak%20API-v1.7.0-2563EB)](../kontrak-api.md)
+[![Tests](https://img.shields.io/badge/PHPUnit-59%20Tests%20%7C%20241%20Assertions-16A34A)](#pengujian-otomatis)
 
-**SehatKita** adalah platform pemantauan dan skrining dini **Penyakit Tidak Menular (PTM)** terintegrasi berbasis web untuk skala kelurahan dan kecamatan (studi kasus wilayah kerja Dinas Kesehatan Kota Banjarbaru). Sistem ini memfasilitasi pencatatan mandiri warga, kegiatan pos pembinaan terpadu (Posbindu) oleh kader, monitoring kesehatan agregat oleh pihak kelurahan, dan perumusan kebijakan kesehatan masyarakat oleh Dinas Kesehatan.
+RESTful API untuk platform pemantauan dan skrining dini **Penyakit Tidak Menular (PTM)** skala kelurahan/kecamatan (studi kasus 8 kelurahan di Kecamatan Banjarbaru Utara & Banjarbaru Selatan, Kota Banjarbaru).
 
----
-
-## 📌 Fitur Utama
-
-1. **Skrining Kesehatan Berkala & Mandiri:**
-   - Deteksi Indeks Massa Tubuh (IMT), tekanan darah (sistol/diastol), gula darah (puasa & 2 jam setelah makan), kolesterol total, asam urat, lingkar perut, dan durasi tidur.
-   - Ambang batas tensi resmi standar **Kemenkes RI / PERHI** (Sistol normal `< 130 mmHg`, Diastol normal `< 85 mmHg`).
-2. **Kalkulasi Skor Risiko & Rujukan Faskes Otomatis:**
-   - Normalisasi skor risiko `0–100` berbasis aturan klinis.
-   - Pemicu rujukan otomatis ke Puskesmas kelurahan setempat bila tensi mencapai tingkat krisis (`>= 180/110 mmHg`).
-3. **Pencatatan Kehadiran & Pemeriksaan Posbindu:**
-   - Manajemen sesi pos pembinaan terpadu di setiap kelurahan.
-   - Dropdown pencarian warga cepat berbasis awalan NIK 16 digit.
-4. **Dashboard Agregat Anonim Kelurahan:**
-   - Rekapitulasi sebaran IMT, faktor riwayat keluarga, dan demografi kelompok usia.
-   - Penerapan **k-anonymity suppression** (data sel `< 5` disembunyikan demi melindungi privasi warga).
-5. **Gamifikasi & Capaian Warga:**
-   - Reward EXP dan level gamifikasi untuk setiap keikutsertaan program kesehatan kelurahan.
-   - Badge penghargaan dan papan peringkat (*leaderboard*) kelurahan.
-6. **Integrasi Bot Telegram & Pengingat Rutin:**
-   - Pairing akun warga dengan bot Telegram resmi (`/telegram/status` & webhook).
-   - Pengingat otomatis berkala bulanan bagi warga yang belum melakukan skrining dalam 30 hari terakhir.
-7. **Layanan Pengaduan & Aspirasi Warga:**
-   - Penyampaian keluhan layanan Posbindu/faskes ke pihak kelurahan dan tanggapan resmi dari Admin Kelurahan.
-8. **Ekspor Rekapitulasi Data:**
-   - Ekspor rekapitulasi data format CSV dengan standar UTF-8 BOM untuk pelaporan Dinkes (Catatan Kesehatan, Posbindu, Rujukan).
+Seluruh endpoint berada di bawah prefix `/api/v1` dan mengacu pada [kontrak-api.md](../kontrak-api.md) sebagai satu-satunya sumber kebenaran (*single source of truth*) antara Backend dan Frontend.
 
 ---
 
-## 👥 Matriks Hak Akses & Peran Pengguna
+## Alur Inti Sistem
 
-| Role | Deskripsi | Hak Akses Utama |
+```mermaid
+flowchart LR
+    Input["Catatan Kesehatan\n(Mandiri / Kader Posbindu / Puskesmas)"] --> Calc["HealthCalculatorService\n(IMT, Kategori Kemenkes/PERHI, Skor 0-100)"]
+    Calc --> Anom{"Di luar rentang wajar?"}
+    Anom -- Ya --> Queue["perlu_verifikasi = true\n(Antrean Verifikasi Super Admin)"]
+    Anom -- Tidak --> Krit{"Memicu rujukan?\n(Tensi >=180/110 atau GD 2JPP >=200)"}
+    Krit -- Ya --> Ruj["RujukanOtomatisService\n(Maks. 1 Rujukan ke Puskesmas Setempat)"]
+    Krit -- Tidak --> Agg["Dashboard & Agregat Wilayah\n(k-anonymity MIN_SEL = 5)"]
+```
+
+---
+
+## Fitur Utama Backend
+
+- **Kalkulasi Klinis Dinamis (`HealthCalculatorService`):** Ambang kategori tidak di-*hardcode*, melainkan dibaca dari tabel `ambang_kategori` (mendukung standar Kemenkes RI / PERHI untuk tensi, IMT, gula darah puasa & 2 jam PP, kolesterol, asam urat, dan lingkar perut).
+- **Deteksi Anomali & Verifikasi:** Input di luar rentang klinis wajar otomatis ditandai `perlu_verifikasi = true`, dikecualikan dari statistik rata-rata serta rujukan otomatis, hingga ditinjau `super_admin`.
+- **Rujukan Otomatis (`RujukanOtomatisService`):** Pemicu rujukan otomatis ke Puskesmas kelurahan warga saat catatan sah melewati batas krisis.
+- **Privasi Data Medis & k-Anonymity:**
+  - Wajib persetujuan privasi (`/persetujuan`) sebelum mencatat data kesehatan atau memperbarui profil keluarga.
+  - Sel agregat dengan jumlah `< 5` beserta *complementary cell* otomatis disembunyikan di endpoint `/dashboard/kelurahan` dan `/laporan/kelurahan`.
+  - Identitas individu disensor pada tampilan `admin_kelurahan` (read-only untuk pengawasan wilayah) dan setiap akses data individu oleh `super_admin` dicatat ke `log_audit`.
+- **Posbindu, Program Gamifikasi, & Pengaduan:** Manajemen sesi Posbindu, pencarian warga berbasis awalan NIK, program tantangan kesehatan dengan unggah foto bukti & hadiah EXP/Badge/Leaderboard, target kesehatan dinamis, serta pengaduan warga.
+- **Integrasi Bot Telegram (`TelegramService`):** Pairing akun warga via token/webhook dan pengiriman pengingat skrining PTM otomatis setiap hari pukul `08:00`.
+- **Ekspor Dinkes:** Unduh data CSV berstandar UTF-8 BOM via `GET /api/v1/admin/export`.
+
+---
+
+## Prasyarat Sistem
+
+- **PHP:** `^8.3` (diuji berjalan di PHP 8.3 & 8.4)
+- **Ekstensi PHP:** `mbstring`, `pdo_mysql`, `pdo_sqlite`, `sqlite3`, `bcmath`, `gd`, `zip`
+- **Composer:** `2.8+`
+- **Database:** MariaDB / MySQL (atau SQLite in-memory untuk menjalankan `php artisan test`)
+
+---
+
+## Panduan Instalasi & Menjalankan
+
+### Opsi A — Menggunakan Laradock (Docker)
+
+Jika environment memakai Laradock (`mariadb`, `redis`, `php-fpm`, `nginx`, `workspace`):
+
+1. Pastikan konfigurasi database di `.env` mengarah ke service `mariadb`:
+   ```env
+   DB_CONNECTION=mysql
+   DB_HOST=mariadb
+   DB_PORT=3306
+   DB_DATABASE=sehatkita
+   DB_USERNAME=root
+   DB_PASSWORD=root
+   ```
+2. Masuk ke container `workspace` lalu jalankan migrasi & seeder:
+   ```bash
+   docker exec -it laradock-workspace-1 bash
+   cd /var/www/sehatkita/backend
+   composer install
+   cp .env.example .env   # jika belum ada
+   php artisan key:generate
+   php artisan migrate:fresh --seed
+   ```
+
+### Opsi B — Lokal Tanpa Docker
+
+```bash
+cd backend
+composer install
+cp .env.example .env
+php artisan key:generate
+```
+
+Sesuaikan koneksi MySQL/MariaDB lokal di `.env` (`DB_HOST=127.0.0.1`), lalu jalankan:
+
+```bash
+php artisan migrate:fresh --seed
+php artisan serve
+```
+
+Server API lokal aktif di `http://127.0.0.1:8000` (base URL API: `http://127.0.0.1:8000/api/v1`).
+
+---
+
+## Kredensial Akun Demo (Hasil Seeder)
+
+Password default seluruh akun demo: **`demo1234`**
+
+| Role | Contoh Email | Cakupan |
 |---|---|---|
-| `super_admin` | Dinas Kesehatan Kota | Kelola master data (indikator, ambang, wilayah, faskes), verifikasi log catatan ekstrem, ekspor CSV, pantau statistik keseluruhan se-kota. |
-| `admin_kelurahan` | Perangkat Kelurahan | Pantau dashboard agregat kelurahan, kelola jadwal sesi Posbindu, buat program kelurahan, tanggapi pengaduan warga, akses *read-only* rekam medis warga wilayahnya. |
-| `kader` | Kader Posbindu | Catat kehadiran dan hasil skrining warga di sesi Posbindu, buat rujukan faskes manual, pantau warga binaan. |
-| `user` | Warga Kelurahan | Catat kesehatan mandiri, pantau grafik tren pribadi, tetapkan target kesehatan dinamis, ikuti program tantangan, hubungkan bot Telegram, ajukan pengaduan. |
+| **Super Admin Dinkes** | `superadmin@sehatkita.test` | Master data, statistik kota, antrean anomali, ekspor CSV, log audit |
+| **Admin Kelurahan** | `admin.loktabatutara@sehatkita.test`, `admin.guntungpaikat@sehatkita.test`, *(tersedia untuk seluruh 8 kelurahan)* | Agregat kelurahan, sesi Posbindu, program kelurahan, tanggapi pengaduan |
+| **Kader Posbindu** | `kader.loktabatutara@sehatkita.test`, `kader2.loktabatutara@sehatkita.test`, `kader.guntungpaikat@sehatkita.test`, `kader2.guntungpaikat@sehatkita.test` | Pencatatan peserta Posbindu, warga binaan, rujukan faskes, verifikasi bukti program |
+| **Warga** | `warga.loktabatutara@sehatkita.test` (Budi Santoso), `warga.guntungpaikat@sehatkita.test` (M. Rizky Pratama), `warga.{slug}@sehatkita.test` | Catatan mandiri, grafik tren, target kesehatan, refleksi, program, pengaduan |
+
+> Pola slug kelurahan di `PenggunaWilayahSeeder` menghilangkan spasi (huruf kecil):
+> `loktabatutara`, `guntungpaikat`, `kemuning`, `loktabatselatan`, `sungaibesar`, `mentaos`, `sungaiulin`, `guntungpayung`.
 
 ---
 
-## 🚀 Arsitektur Proyek (Monorepo)
+## Scheduler & Bot Telegram
 
-```text
-sehatkita/
-├── backend/            # RESTful API Service (Laravel 13, Sanctum, SQLite/MySQL)
-├── frontend/           # Web Client SPA (Next.js 15, Tailwind CSS, TypeScript)
-├── kontrak-api.md      # Spesifikasi resmi kontrak API v1.6.0
-└── docker-compose.yml  # Orkestrasi container deployment
-```
+```bash
+# Jalankan pengingat skrining PTM manual (terjadwal otomatis tiap 08:00 di routes/console.php)
+php artisan reminder:skrining-ptm
 
-### Format Respon API Baku
-Semua response API dibungkus amplop JSON standar:
-```json
-{
-  "success": true,
-  "message": "OK",
-  "data": { }
-}
-```
-Untuk respon paginasi:
-```json
-{
-  "success": true,
-  "message": "OK",
-  "data": [ ],
-  "meta": { "page": 1, "per_page": 15, "total": 120, "last_page": 8 }
-}
+# Jalankan worker scheduler di lokal
+php artisan schedule:work
+
+# Jalankan long-polling Bot Telegram untuk pengembangan lokal
+php artisan telegram:poll
+php artisan telegram:poll --once
 ```
 
 ---
 
-## 📖 Ringkasan Rute API (Kontrak v1.6.0)
+## Pengujian Otomatis
 
-Semua rute beralamat di prefix `/api/v1/`:
+```bash
+php artisan test
+```
 
-### 1. Autentikasi & Profil
-- `POST /auth/register` — Registrasi warga (publik, rate-limited)
-- `POST /auth/login` — Autentikasi & penerbitan Bearer token
-- `POST /auth/logout` — Pencabutan token sesi
-- `GET /auth/me` — Info profil pengguna yang sedang login
-- `GET /profil` & `PUT /profil` — Pengambilan dan pembaruan profil kesehatan & riwayat keluarga
-- `POST /persetujuan` & `DELETE /persetujuan` — Manajemen persetujuan privasi data medis
-
-### 2. Catatan Kesehatan & Posbindu
-- `GET /catatan-kesehatan` & `POST /catatan-kesehatan` — Riwayat & input pemeriksaan kesehatan
-- `GET /catatan-kesehatan/{id}` & `DELETE /catatan-kesehatan/{id}` — Detail & pembatalan catatan (soft delete)
-- `GET /tren` — Deret waktu indikator untuk grafik tren rekam medis
-- `GET /posbindu/sesi` & `POST /posbindu/sesi` — Jadwal sesi Posbindu kelurahan
-- `POST /posbindu/sesi/{id}/peserta` — Pencatatan kehadiran & hasil skrining peserta Posbindu
-- `GET /pengguna/cari-nik` — Autocomplete pencarian warga berbasis NIK untuk kader
-
-### 3. Layanan Pendukung & Komunitas
-- `GET /rujukan`, `POST /rujukan`, `PATCH /rujukan/{id}/status` — Alur rujukan fasilitas kesehatan
-- `GET /program`, `POST /program/{id}/peserta`, `PATCH /program/{id}/peserta` — Program tantangan sehat
-- `GET /target-kesehatan`, `POST /target-kesehatan`, `PATCH /target-kesehatan/{id}/capai` — Target dinamis personal
-- `GET /pengaduan`, `POST /pengaduan`, `PATCH /pengaduan/{id}/tanggapi` — Saluran aspirasi warga
-- `GET /telegram/status`, `POST /telegram/webhook` — Integrasi notifikasi bot Telegram
-
-### 4. Modul Admin Dinkes (`/admin/*`)
-- `GET /admin/statistik` — Metrik keseluruhan sistem
-- `GET /admin/export` — Unduh data rekapitulasi format CSV (UTF-8 BOM)
-- `GET /admin/catatan-kesehatan/perlu-verifikasi` & `PATCH .../verifikasi` — Verifikasi data kesehatan di luar rentang wajar
-- `CRUD /admin/indikator`, `CRUD /admin/ambang-kategori`, `CRUD /admin/faskes`, `CRUD /admin/pengguna` — Master data
+Suite pengujian menggunakan SQLite `:memory:` yang terisolasi dan mencakup **59 tests (241 assertions)** pada `tests/Feature/` (autentikasi, otorisasi peran & wilayah, kalkulasi klinis, insight, posbindu, rujukan, program + unggah bukti, target & refleksi, pengaduan, ekspor, Telegram, dan idempotensi seeder).
 
 ---
 
-## 🛠️ Pembagian Tanggung Jawab Tim
+## Struktur Direktori Utama
 
-Sesuai aturan kepemilikan kode ([`.github/CODEOWNERS`](.github/CODEOWNERS)):
-* **Backend, Database, Konfigurasi Server & Kontrak API:** Ahmad Ridho Kurniawan ([@ahmdridhokurniawan](https://github.com/ahmdridhokurniawan))
-* **Frontend Web Client & Integrasi Tampilan:** Daffa Aulia ([@DAFFASUPERPOWER](https://github.com/DAFFASUPERPOWER))
-
----
-
-## 📄 Lisensi
-
-Proyek ini dilisensikan di bawah lisensi [MIT](LICENSE).
+- `app/Http/Controllers/` — Controller API per modul kontrak (`/api/v1/*`)
+- `app/Models/` — Model Eloquent (`Pengguna`, `Profil`, `CatatanKesehatan`, `Wilayah`, `Faskes`, `Indikator`, `AmbangKategori`, `SesiPosbindu`, `KunjunganPosbindu`, `Rujukan`, `Program`, `PesertaProgram`, `BadgePengguna`, `TargetKesehatan`, `Refleksi`, `Pengaduan`, `LogAudit`, `RiwayatWilayah`, `Pengobatan`)
+- `app/Services/` — `HealthCalculatorService`, `InsightService`, `PeringkatService`, `RujukanOtomatisService`, `TelegramService`
+- `app/Console/Commands/` — `KirimPengingatSkrining` (`reminder:skrining-ptm`), `TelegramPollCommand` (`telegram:poll`)
+- `database/seeders/` — `WilayahSeeder`, `IndikatorSeeder`, `FaskesSeeder`, `PenggunaWilayahSeeder`, `WargaDummySeeder`
+- `routes/api.php` & `routes/console.php` — Definisi endpoint API `/v1` dan jadwal scheduler
+- `tests/Feature/` — Pengujian integrasi dan regresi API
