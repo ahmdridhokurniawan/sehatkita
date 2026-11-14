@@ -80,6 +80,32 @@ class TelegramService
             return false;
         }
 
+        // Proses perintah /start <token> lebih dulu agar tautan akun baru tetap dapat menautkan ulang chat_id
+        if (str_starts_with($text, '/start ')) {
+            $token = trim(substr($text, 7));
+            $user  = $token !== '' ? \App\Models\Pengguna::where('telegram_connect_token', $token)->first() : null;
+
+            if ($user) {
+                // Lepas chat_id dari akun lain bila sebelumnya pernah terhubung di perangkat Telegram yang sama
+                \App\Models\Pengguna::where('telegram_chat_id', (string) $chatId)
+                    ->where('id', '!=', $user->id)
+                    ->update(['telegram_chat_id' => null]);
+
+                $user->update([
+                    'telegram_chat_id'       => (string) $chatId,
+                    'telegram_connect_token' => null,
+                ]);
+
+                $namaAman = $this->escapeMarkdown($user->name);
+                $pesan = "Halo *{$namaAman}*!\n\nAkun SehatKita Anda berhasil terhubung dengan Bot Telegram resmi Dinas Kesehatan Kota Banjarbaru.\n\nAnda akan menerima notifikasi pengingat pemeriksaan bulanan dan rujukan kesehatan langsung di sini.";
+                $this->kirimPesan($chatId, $pesan);
+                return true;
+            }
+
+            $this->kirimPesan($chatId, "Token penghubung tidak valid atau sudah kedaluwarsa. Silakan ambil tautan baru di web SehatKita.");
+            return false;
+        }
+
         // Cek apakah akun warga dengan chat_id ini sudah terhubung
         $userTerkoneksi = \App\Models\Pengguna::where('telegram_chat_id', (string) $chatId)->first();
 
@@ -90,26 +116,7 @@ class TelegramService
             return true;
         }
 
-        // Jika belum terhubung dan mengirim /start <token>
-        if (str_starts_with($text, '/start ')) {
-            $token = trim(substr($text, 7));
-            $user  = \App\Models\Pengguna::where('telegram_connect_token', $token)->first();
-
-            if ($user) {
-                $user->update([
-                    'telegram_chat_id'       => (string) $chatId,
-                    'telegram_connect_token' => null,
-                ]);
-
-                $namaAman = $this->escapeMarkdown($user->name);
-                $pesan = "Halo *{$namaAman}*!\n\nAkun SehatKita Anda berhasil terhubung dengan Bot Telegram resmi Dinas Kesehatan Kota Banjarbaru.\n\nAnda akan menerima notifikasi pengingat pemeriksaan bulanan dan rujukan kesehatan langsung di sini.";
-                $this->kirimPesan($chatId, $pesan);
-                return true;
-            } else {
-                $this->kirimPesan($chatId, "Token penghubung tidak valid atau sudah kedaluwarsa. Silakan ambil tautan baru di web SehatKita.");
-                return false;
-            }
-        } elseif ($text === '/start') {
+        if ($text === '/start') {
             $this->kirimPesan($chatId, "Selamat datang di Bot SehatKita! Silakan hubungkan bot ini melalui menu Profil di aplikasi SehatKita.");
             return true;
         }

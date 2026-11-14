@@ -53,9 +53,12 @@ class SeederTest extends TestCase
         $this->assertGreaterThan(0, LogAudit::count());
         $this->assertGreaterThan(0, RiwayatWilayah::count());
 
-        // Pastikan IndikatorSeeder selaras dengan HealthCalculatorService (gula_darah puasa & rujukan otomatis)
+        // Pastikan IndikatorSeeder selaras dengan HealthCalculatorService (gula_darah puasa, 2jam_pp & ambang Kemenkes 130/85)
         $kalkulator = app(HealthCalculatorService::class);
         $this->assertSame('tinggi', $kalkulator->kategori('gula_darah', 150, 'puasa')['kategori'] ?? null);
+        $this->assertFalse($kalkulator->kategori('gula_darah', 210, '2jam_pp')['memicu_rujukan'] ?? true);
+        $this->assertSame('normal', $kalkulator->kategori('sistol', 125)['kategori'] ?? null);
+        $this->assertSame('normal', $kalkulator->kategori('diastol', 82)['kategori'] ?? null);
         $this->assertTrue($kalkulator->kategori('sistol', 185)['memicu_rujukan'] ?? false);
     }
 

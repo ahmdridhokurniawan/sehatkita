@@ -13,6 +13,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 
 class AdminMasterController extends Controller
 {
@@ -81,6 +82,8 @@ class AdminMasterController extends Controller
         ]);
 
         $indikator->update($data);
+        // Bersihkan cache kalkulator agar perubahan kode/interval indikator langsung aktif
+        $this->kalkulator->lupakanCache();
 
         return response()->json([
             'success' => true,
@@ -100,6 +103,7 @@ class AdminMasterController extends Controller
 
         // ambang_kategori cascadeOnDelete -> ikut terhapus.
         $indikator->delete();
+        $this->kalkulator->lupakanCache();
 
         return response()->json([
             'success' => true,
@@ -139,7 +143,15 @@ class AdminMasterController extends Controller
     {
         $this->hanyaSuperAdmin($request->user());
 
-        $ambang = AmbangKategori::create($request->validate($this->aturanAmbang()));
+        $data = $request->validate($this->aturanAmbang());
+        $this->pastikanAmbangTidakTumpangTindih(
+            (int) $data['indikator_id'],
+            $data['jenis_gula_darah'] ?? null,
+            (float) $data['batas_min'],
+            isset($data['batas_max']) ? (float) $data['batas_max'] : null
+        );
+
+        $ambang = AmbangKategori::create($data);
         $ambang->load('indikator:id,kode,nama,satuan');
         $this->kalkulator->lupakanCache();
 
@@ -167,7 +179,27 @@ class AdminMasterController extends Controller
                 : array_merge(['sometimes'], (array) $rule);
         }
 
-        $ambang->update($request->validate($aturan));
+        $data = $request->validate($aturan);
+        $minBaru = array_key_exists('batas_min', $data) ? (float) $data['batas_min'] : (float) $ambang->batas_min;
+        $maxBaru = array_key_exists('batas_max', $data)
+            ? ($data['batas_max'] === null ? null : (float) $data['batas_max'])
+            : ($ambang->batas_max === null ? null : (float) $ambang->batas_max);
+
+        if ($maxBaru !== null && $maxBaru < $minBaru) {
+            throw ValidationException::withMessages([
+                'batas_max' => ['Batas maksimum harus lebih besar atau sama dengan batas minimum.'],
+            ]);
+        }
+
+        $this->pastikanAmbangTidakTumpangTindih(
+            (int) ($data['indikator_id'] ?? $ambang->indikator_id),
+            array_key_exists('jenis_gula_darah', $data) ? $data['jenis_gula_darah'] : $ambang->jenis_gula_darah,
+            $minBaru,
+            $maxBaru,
+            $ambang->id
+        );
+
+        $ambang->update($data);
         $ambang->load('indikator:id,kode,nama,satuan');
         $this->kalkulator->lupakanCache();
 
@@ -238,13 +270,13 @@ class AdminMasterController extends Controller
             'name'       => 'required|string|max:100',
             'nik'        => 'nullable|string|size:16|regex:/^[0-9]+$/|unique:pengguna,nik',
             'email'      => 'required|email|max:150|unique:pengguna,email',
-            'password'   => ['required', 'string', Password::min(8), 'regex:/[A-Z]/', 'regex:/[0-9]/', 'regex:/[^a-zA-Z0-9\s]/'],
+            'password'   => ['required', 'string', Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
             'role'       => ['required', Rule::in(['super_admin', 'admin_kelurahan', 'kader', 'user'])],
             'wilayah_id' => 'nullable|exists:wilayah,id',
             'kader_id'   => 'nullable|exists:pengguna,id',
-        ], [
-            'password.regex' => 'Password harus mengandung minimal 1 huruf kapital, 1 angka, dan 1 simbol.',
         ]);
+
+        $this->pastikanKaderSah($data['kader_id'] ?? null, isset($data['wilayah_id']) ? (int) $data['wilayah_id'] : null);
 
         $pengguna = Pengguna::create($data);
 
@@ -273,13 +305,11 @@ class AdminMasterController extends Controller
             'name'       => 'sometimes|string|max:100',
             'nik'        => ['sometimes', 'nullable', 'string', 'size:16', 'regex:/^[0-9]+$/', Rule::unique('pengguna', 'nik')->ignore($id)],
             'email'      => ['sometimes', 'email', 'max:150', Rule::unique('pengguna', 'email')->ignore($id)],
-            'password'   => ['sometimes', 'string', Password::min(8), 'regex:/[A-Z]/', 'regex:/[0-9]/', 'regex:/[^a-zA-Z0-9\s]/'],
+            'password'   => ['sometimes', 'string', Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
             'role'       => ['sometimes', Rule::in(['super_admin', 'admin_kelurahan', 'kader', 'user'])],
             'wilayah_id' => 'sometimes|nullable|exists:wilayah,id',
             'kader_id'   => 'sometimes|nullable|exists:pengguna,id',
             'aktif'      => 'sometimes|boolean',
-        ], [
-            'password.regex' => 'Password harus mengandung minimal 1 huruf kapital, 1 angka, dan 1 simbol.',
         ]);
 
         // Catat riwayat perpindahan wilayah dan lepas kader lama bila warga mutasi kelurahan (U12)
@@ -294,6 +324,13 @@ class AdminMasterController extends Controller
                 ]);
             }
             $data['kader_id'] = null;
+        }
+
+        if (array_key_exists('kader_id', $data) && $data['kader_id'] !== null) {
+            $wilayahEfektif = array_key_exists('wilayah_id', $data)
+                ? ($data['wilayah_id'] === null ? null : (int) $data['wilayah_id'])
+                : ($pengguna->wilayah_id === null ? null : (int) $pengguna->wilayah_id);
+            $this->pastikanKaderSah((int) $data['kader_id'], $wilayahEfektif);
         }
 
         $pengguna->update($data);
@@ -562,5 +599,51 @@ class AdminMasterController extends Controller
             'lat'        => 'nullable|numeric|between:-90,90',
             'lng'        => 'nullable|numeric|between:-180,180',
         ];
+    }
+
+    // Tolak interval ambang batas [batas_min, batas_max) yang tumpang tindih pada indikator dan jenis gula sama
+    private function pastikanAmbangTidakTumpangTindih(
+        int $indikatorId,
+        ?string $jenisGula,
+        float $min,
+        ?float $max,
+        ?int $abaikanId = null
+    ): void {
+        $lain = AmbangKategori::where('indikator_id', $indikatorId)
+            ->when($jenisGula === null, fn ($q) => $q->whereNull('jenis_gula_darah'), fn ($q) => $q->where('jenis_gula_darah', $jenisGula))
+            ->when($abaikanId !== null, fn ($q) => $q->where('id', '!=', $abaikanId))
+            ->get(['id', 'batas_min', 'batas_max']);
+
+        foreach ($lain as $row) {
+            $rMin = (float) $row->batas_min;
+            $rMax = $row->batas_max === null ? null : (float) $row->batas_max;
+            $tumpangTindih = ($max === null || $rMin < $max) && ($rMax === null || $min < $rMax);
+            if ($tumpangTindih) {
+                throw ValidationException::withMessages([
+                    'batas_min' => ['Rentang ambang kategori tumpang tindih dengan aturan yang sudah ada.'],
+                ]);
+            }
+        }
+    }
+
+    // Pastikan kader_id yang ditugaskan benar-benar akun kader aktif di wilayah warga
+    private function pastikanKaderSah(?int $kaderId, ?int $wilayahId): void
+    {
+        if ($kaderId === null) {
+            return;
+        }
+
+        $kader = Pengguna::find($kaderId);
+        if (! $kader || $kader->role !== 'kader' || ! $kader->aktif) {
+            throw ValidationException::withMessages([
+                'kader_id' => ['Kader pembina harus merupakan akun kader yang aktif.'],
+            ]);
+        }
+
+        if ($wilayahId !== null && (int) $kader->wilayah_id !== $wilayahId) {
+            throw ValidationException::withMessages([
+                'kader_id' => ['Kader pembina harus berada di kelurahan yang sama dengan warga.'],
+            ]);
+        }
     }
 }

@@ -54,11 +54,21 @@ class ProfilController extends Controller
     public function update(Request $request)
     {
         $user = $request->user();
+        $this->wajibPeran($user, ['user'], 'Hanya user biasa yang dapat memperbarui profil kesehatannya.');
+
+        // Tolak pembaruan profil bila warga belum menyetujui kebijakan privasi (§5.2)
+        if ($user->consent_at === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validasi gagal',
+                'errors'  => ['consent' => ['Persetujuan data belum diberikan.']],
+            ], 422);
+        }
 
         $validated = $request->validate([
             'tgl_lahir'                   => 'required|date|before:today',
             'jenis_kelamin'               => ['required', Rule::in(['L', 'P'])],
-            'tinggi_cm'                   => 'required|integer|min:50|max:250',
+            'tinggi_cm'                   => 'required|numeric|min:120|max:220',
             'tingkat_aktivitas'           => ['required', Rule::in(['ringan', 'sedang', 'berat'])],
             'merokok'                     => 'required|boolean',
             'riwayat_keluarga'            => 'required|array|min:1',
@@ -141,10 +151,9 @@ class ProfilController extends Controller
         }
 
         return match ($pemanggil->role) {
-            'super_admin'     => true,
-            'kader'           => $this->dalamBinaan($pemanggil, $target),
-            'admin_kelurahan' => (int) $target->wilayah_id === (int) $pemanggil->wilayah_id,
-            default           => false,
+            'super_admin' => true,
+            'kader'       => $this->dalamBinaan($pemanggil, $target),
+            default       => false,
         };
     }
 

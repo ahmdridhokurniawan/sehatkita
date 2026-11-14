@@ -22,7 +22,8 @@ use App\Http\Controllers\TelegramController;
 use App\Http\Controllers\WilayahController;
 use Illuminate\Support\Facades\Route;
 
-Route::prefix('v1')->group(function () {
+// Batasi parameter ID numerik di seluruh rute API agar input invalid menghasilkan 404, bukan 500 TypeError
+Route::prefix('v1')->whereNumber(['id', 'pesertaId', 'catatan_kesehatan'])->group(function () {
 
     // Rute Publik
     Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:10,1');

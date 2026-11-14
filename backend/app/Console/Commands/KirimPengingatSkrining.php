@@ -24,18 +24,23 @@ class KirimPengingatSkrining extends Command
             ->get();
 
         $terkirim = 0;
+        // Ambil tanggal pencatatan terakhir per warga sekaligus agar tidak terjadi N+1 query di dalam loop
+        $terakhirPerWarga = CatatanKesehatan::whereIn('user_id', $wargaList->pluck('id'))
+            ->selectRaw('user_id, MAX(dicatat_pada) as terakhir')
+            ->groupBy('user_id')
+            ->pluck('terakhir', 'user_id');
+
         foreach ($wargaList as $warga) {
-            $catatanTerakhir = CatatanKesehatan::where('user_id', $warga->id)
-                ->orderByDesc('dicatat_pada')
-                ->orderByDesc('id')
-                ->first();
+            $tanggalTerakhir = isset($terakhirPerWarga[$warga->id])
+                ? Carbon::parse($terakhirPerWarga[$warga->id])
+                : null;
 
             // Bandingkan instance Carbon langsung agar terhindar dari perbedaan tipe tanggal
-            $perluPengingat = ! $catatanTerakhir || $catatanTerakhir->dicatat_pada->lt($batasTanggal);
+            $perluPengingat = ! $tanggalTerakhir || $tanggalTerakhir->lt($batasTanggal);
 
             if ($perluPengingat) {
-                $selisih = $catatanTerakhir
-                    ? $catatanTerakhir->dicatat_pada->diffInDays(now()) . ' hari yang lalu'
+                $selisih = $tanggalTerakhir
+                    ? ((int) floor($tanggalTerakhir->diffInDays(now()))) . ' hari yang lalu'
                     : 'belum pernah periksa';
 
                 $namaAman = $telegram->escapeMarkdown($warga->name);

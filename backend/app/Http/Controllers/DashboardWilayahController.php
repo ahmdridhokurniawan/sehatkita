@@ -63,6 +63,8 @@ class DashboardWilayahController extends Controller
 
         $wilayah = Wilayah::find($wilayahId);
         abort_unless($wilayah, 404, 'Wilayah tidak ditemukan');
+        // Pastikan dashboard kelurahan tidak menerima ID wilayah tingkat kecamatan (§9.1)
+        abort_unless($wilayah->tipe === 'kelurahan', 422, 'wilayah_id harus berupa kelurahan.');
 
         [$periode, $tglMulai] = $this->parsePeriode($request->query('periode'));
 

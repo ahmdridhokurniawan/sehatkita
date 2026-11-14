@@ -19,6 +19,14 @@ class AdminExportController extends Controller
         $tipe     = $request->query('tipe', 'catatan');
         $namaFile = 'sehatkita_export_' . $tipe . '_' . date('Ymd_His') . '.csv';
 
+        // Catat aktivitas ekspor data individu oleh super_admin ke tabel log_audit
+        $modelAudit = match ($tipe) {
+            'posbindu' => KunjunganPosbindu::class,
+            'rujukan'  => Rujukan::class,
+            default    => CatatanKesehatan::class,
+        };
+        $this->catatAudit($request->user(), 'baca_data_individu', $modelAudit, null);
+
         return response()->stream(function () use ($tipe, $request) {
             $handle = fopen('php://output', 'w');
             // Sisipkan UTF-8 BOM agar karakter terbaca rapi saat dibuka di Microsoft Excel
@@ -69,9 +77,9 @@ class AdminExportController extends Controller
                 fputcsv($handle, [
                     $r->id,
                     $r->dicatat_pada?->format('Y-m-d') ?? $r->dicatat_pada,
-                    $r->pengguna?->name ?? '—',
+                    $this->amanCsv($r->pengguna?->name),
                     $r->pengguna?->nik ? "'".$r->pengguna->nik : '—',
-                    $r->pengguna?->wilayah?->nama ?? '—',
+                    $this->amanCsv($r->pengguna?->wilayah?->nama),
                     $r->bb_kg ?? '—',
                     $r->tinggi_cm ?? '—',
                     $r->imt ?? '—',
@@ -107,11 +115,11 @@ class AdminExportController extends Controller
                 fputcsv($handle, [
                     $k->id,
                     $k->sesi?->tanggal?->format('Y-m-d') ?? $k->sesi?->tanggal ?? '—',
-                    $k->sesi?->lokasi ?? '—',
-                    $k->sesi?->wilayah?->nama ?? '—',
-                    $k->pengguna?->name ?? '—',
+                    $this->amanCsv($k->sesi?->lokasi),
+                    $this->amanCsv($k->sesi?->wilayah?->nama),
+                    $this->amanCsv($k->pengguna?->name),
                     $k->pengguna?->nik ? "'".$k->pengguna->nik : '—',
-                    $k->sesi?->kader?->name ?? '—',
+                    $this->amanCsv($k->sesi?->kader?->name),
                     $k->hadir ? 'Hadir' : 'Tidak Hadir',
                 ]);
             }
@@ -134,14 +142,29 @@ class AdminExportController extends Controller
                 fputcsv($handle, [
                     $ruj->id,
                     $ruj->created_at?->format('Y-m-d') ?? '—',
-                    $ruj->pengguna?->name ?? '—',
+                    $this->amanCsv($ruj->pengguna?->name),
                     $ruj->pengguna?->nik ? "'".$ruj->pengguna->nik : '—',
-                    $ruj->pengguna?->wilayah?->nama ?? '—',
-                    $ruj->faskes?->nama ?? '—',
-                    $ruj->alasan ?? '—',
+                    $this->amanCsv($ruj->pengguna?->wilayah?->nama),
+                    $this->amanCsv($ruj->faskes?->nama),
+                    $this->amanCsv($ruj->alasan),
                     $ruj->status ?? '—',
                 ]);
             }
         });
+    }
+
+    // Netralkan awalan karakter rumus spreadsheet agar sel teks CSV tidak memicu CSV formula injection
+    private function amanCsv(mixed $nilai): string
+    {
+        if ($nilai === null || $nilai === '') {
+            return '—';
+        }
+
+        $teks = (string) $nilai;
+        if (preg_match('/^[=+\-@\t\r]/', $teks) === 1) {
+            return "'" . $teks;
+        }
+
+        return $teks;
     }
 }

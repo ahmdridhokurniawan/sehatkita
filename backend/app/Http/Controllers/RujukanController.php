@@ -30,14 +30,11 @@ class RujukanController extends Controller
             'alasan'    => 'required|string|max:255',
         ]);
 
-        // Pembatasan wilayah untuk non-super admin
+        // Pembatasan warga binaan untuk kader
         if ($user->role !== 'super_admin') {
-            $pemilik = Pengguna::query()
-                ->whereKey($data['user_id'])
-                ->where('wilayah_id', $user->wilayah_id)
-                ->exists();
+            $pemilik = Pengguna::find($data['user_id']);
 
-            abort_unless($pemilik, 404, 'Peserta tidak ditemukan di wilayah Anda.');
+            abort_unless($pemilik && $this->dalamBinaan($user, $pemilik), 404, 'Peserta tidak ditemukan di binaan Anda.');
         }
 
         $rujukan = Rujukan::create([
@@ -64,10 +61,16 @@ class RujukanController extends Controller
 
         if (! in_array($user->role, self::ROLE_PETUGAS, true)) {
             $query->where('user_id', $user->id);
-        } elseif ($user->role !== 'super_admin') {
+        } elseif ($user->role === 'kader') {
+            $query->whereHas('pengguna', fn ($q) => $this->scopeBinaan($q, $user));
+        } elseif ($user->role === 'admin_kelurahan') {
             $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $user->wilayah_id));
-        } elseif ($request->filled('wilayah_id')) {
-            $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $request->wilayah_id));
+        } else {
+            if ($request->filled('wilayah_id')) {
+                $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $request->wilayah_id));
+            }
+            // Catat akses baca daftar rujukan oleh super_admin sesuai kontrak §2
+            $this->catatAudit($user, 'baca_data_individu', Rujukan::class, null);
         }
 
         if ($request->filled('status')) {
@@ -109,7 +112,9 @@ class RujukanController extends Controller
         ]);
 
         $query = Rujukan::query();
-        if ($user->role !== 'super_admin') {
+        if ($user->role === 'kader') {
+            $query->whereHas('pengguna', fn ($q) => $this->scopeBinaan($q, $user));
+        } elseif ($user->role === 'admin_kelurahan') {
             $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $user->wilayah_id));
         }
         $rujukan = $query->findOrFail($id);

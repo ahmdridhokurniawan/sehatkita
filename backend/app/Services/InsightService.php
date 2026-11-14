@@ -131,7 +131,8 @@ class InsightService
             ]];
         }
 
-        $bulan = Carbon::parse($gulaTerakhir->dicatat_pada)->diffInMonths(now());
+        // Pembulatan ke bawah agar selisih bulan Carbon 3 tidak muncul sebagai angka pecahan
+        $bulan = (int) floor(Carbon::parse($gulaTerakhir->dicatat_pada)->diffInMonths(now()));
 
         if ($bulan >= 6) {
             return [[
@@ -152,7 +153,8 @@ class InsightService
             return [];
         }
 
-        $hari = Carbon::parse($terakhir->dicatat_pada)->diffInDays(now());
+        // Pembulatan ke bawah agar selisih hari Carbon 3 tetap berupa bilangan bulat
+        $hari = (int) floor(Carbon::parse($terakhir->dicatat_pada)->diffInDays(now()));
 
         if ($hari >= 5) {
             return [[

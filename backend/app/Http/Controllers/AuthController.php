@@ -65,12 +65,13 @@ class AuthController extends Controller
         $email = strtolower(trim($validated['email']));
         $user  = Pengguna::where('email', $email)->first();
 
-        if ($user && ! $user->aktif) {
-            return response()->json(['success' => false, 'message' => 'Akun dinonaktifkan'], 403);
-        }
-
+        // Verifikasi kata sandi lebih dulu agar tidak membocorkan status aktif akun ke penelepon tak dikenal
         if (! $user || ! Hash::check($validated['password'], $user->password)) {
             throw ValidationException::withMessages(['email' => ['Email atau password salah']]);
+        }
+
+        if (! $user->aktif) {
+            return response()->json(['success' => false, 'message' => 'Akun dinonaktifkan'], 403);
         }
 
         // Hapus token lama agar hanya sesi login terbaru yang aktif

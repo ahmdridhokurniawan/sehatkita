@@ -19,7 +19,8 @@ class TelegramPollCommand extends Command
             return 0;
         }
 
-        $this->info('Memulai Telegram Bot Poller (@sehatkita_banjarbaru_bot)...');
+        $botUsername = config('services.telegram.bot_username', 'sehatkita_ptm_bot');
+        $this->info("Memulai Telegram Bot Poller (@{$botUsername})...");
         $this->info('Tekan Ctrl+C untuk berhenti.');
 
         $offset = 0;

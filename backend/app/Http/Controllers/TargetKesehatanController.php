@@ -10,6 +10,8 @@ class TargetKesehatanController extends Controller
 {
     public function index(Request $request)
     {
+        $this->hanyaWarga($request->user());
+
         $query = TargetKesehatan::where('user_id', $request->user()->id);
 
         if ($request->has('tercapai')) {
@@ -27,6 +29,8 @@ class TargetKesehatanController extends Controller
 
     public function store(Request $request)
     {
+        $this->hanyaWarga($request->user());
+
         $data = $request->validate([
             'judul'            => 'required|string|max:100',
             'jenis_target'     => 'required|string|max:50',
@@ -113,9 +117,17 @@ class TargetKesehatanController extends Controller
     // Cari target kesehatan berdasarkan ID atau gagalkan dengan 404 jika bukan miliknya
     private function cariTargetMilik(Request $request, int $id): TargetKesehatan
     {
+        $this->hanyaWarga($request->user());
+
         $target = TargetKesehatan::where('user_id', $request->user()->id)->find($id);
         abort_unless($target, 404, 'Target tidak ditemukan.');
 
         return $target;
+    }
+
+    // Batasi pengelolaan target kesehatan pribadi hanya untuk peran warga
+    private function hanyaWarga($user): void
+    {
+        $this->wajibPeran($user, ['user'], 'Hanya warga yang dapat mengelola target kesehatan.');
     }
 }

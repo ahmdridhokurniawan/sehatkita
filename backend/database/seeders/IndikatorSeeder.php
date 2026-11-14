@@ -38,8 +38,9 @@ class IndikatorSeeder extends Seeder
                 'kelompok'               => 'pemeriksaan fisik',
                 'interval_skrining_hari' => 30,
                 'ambang'                 => [
-                    [null, 0,   120,  'normal',          'normal',          0, false],
-                    [null, 120, 140,  'perlu_perhatian', 'perlu_perhatian', 1, false],
+                    // Ambang tekanan darah sesuai pedoman Kemenkes RI (< 130/85 mmHg normal)
+                    [null, 0,   130,  'normal',          'normal',          0, false],
+                    [null, 130, 140,  'perlu_perhatian', 'perlu_perhatian', 1, false],
                     [null, 140, 180,  'tinggi',          'berisiko',        2, false],
                     [null, 180, null, 'krisis',          'berisiko',        3, true],
                 ],
@@ -51,8 +52,8 @@ class IndikatorSeeder extends Seeder
                 'kelompok'               => 'pemeriksaan fisik',
                 'interval_skrining_hari' => 30,
                 'ambang'                 => [
-                    [null, 0,   80,   'normal',          'normal',          0, false],
-                    [null, 80,  90,   'perlu_perhatian', 'perlu_perhatian', 1, false],
+                    [null, 0,   85,   'normal',          'normal',          0, false],
+                    [null, 85,  90,   'perlu_perhatian', 'perlu_perhatian', 1, false],
                     [null, 90,  110,  'tinggi',          'berisiko',        2, false],
                     [null, 110, null, 'krisis',          'berisiko',        3, true],
                 ],
@@ -69,7 +70,7 @@ class IndikatorSeeder extends Seeder
                     ['puasa',   126, null, 'tinggi',          'berisiko',        2, false],
                     ['2jam_pp', 0,   140,  'normal',          'normal',          0, false],
                     ['2jam_pp', 140, 200,  'perlu_perhatian', 'perlu_perhatian', 1, false],
-                    ['2jam_pp', 200, null, 'tinggi',          'berisiko',        2, true],
+                    ['2jam_pp', 200, null, 'tinggi',          'berisiko',        2, false],
                 ],
             ],
             [

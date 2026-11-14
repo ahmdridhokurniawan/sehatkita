@@ -103,7 +103,13 @@ class ProgramController extends Controller
         }
 
         $data['exp_reward'] = $data['exp_reward'] ?? 50;
-        unset($data['status']);
+        // Setel status awal di DB selaras dengan rentang tanggal mulai dan selesai program
+        $hariIni = now()->toDateString();
+        $data['status'] = match (true) {
+            $data['mulai'] > $hariIni                             => 'akan_datang',
+            ! empty($data['selesai']) && $data['selesai'] < $hariIni => 'selesai',
+            default                                               => 'berjalan',
+        };
 
         $program = Program::create($data);
 
@@ -444,70 +450,71 @@ class ProgramController extends Controller
             );
         }
 
-        // Idempoten: exp hanya diberikan sekali (kontrak 12.4).
-        $sudahSelesai = $peserta->status === 'selesai';
+        // Bungkus pembaruan status dan pemberian EXP/badge dalam satu transaksi atomik agar idempoten tanpa celah gagal parsial
+        $hasil = DB::transaction(function () use ($peserta, $program, $data, $user, $request) {
+            $terkunci     = PesertaProgram::whereKey($peserta->id)->lockForUpdate()->firstOrFail();
+            $sudahSelesai = $terkunci->status === 'selesai';
 
-        $peserta->status = $data['status'];
-        if ($data['status'] === 'selesai') {
-            $peserta->selesai_pada = $peserta->selesai_pada ?? now();
-            $peserta->diverifikasi_oleh = $user->id;
-            $peserta->diverifikasi_pada = now();
-            if ($request->filled('catatan_verifikasi')) {
-                $peserta->catatan_verifikasi = $data['catatan_verifikasi'];
-            }
-        } elseif ($data['status'] === 'ditolak') {
-            $peserta->selesai_pada = null;
-            $peserta->diverifikasi_oleh = $user->id;
-            $peserta->diverifikasi_pada = now();
-            $peserta->catatan_verifikasi = $data['catatan_verifikasi'] ?: 'Foto bukti belum sesuai kriteria misi. Silakan kirim ulang.';
-        }
-        $peserta->save();
-
-        $hasil = [
-            'status'           => $peserta->status,
-            'exp_didapat'      => 0,
-            'exp_total'        => (int) $peserta->pengguna?->exp_total,
-            'level_gamifikasi' => (int) $peserta->pengguna?->level_gamifikasi,
-            'badge_baru'       => null,
-        ];
-
-        if ($data['status'] === 'selesai' && ! $sudahSelesai) {
-            $hasil = DB::transaction(function () use ($peserta, $program) {
-                $warga = $peserta->pengguna;
-
-                $expLama   = (int) $warga->exp_total;
-                $expDapat  = (int) $program->exp_reward;
-                $expTotal  = $expLama + $expDapat;
-
-                $warga->exp_total        = $expTotal;
-                $warga->level_gamifikasi = $this->levelDariExp($expTotal);
-                $warga->save();
-
-                $badgeBaru = null;
-                if ($program->badge_reward) {
-                    $ada = BadgePengguna::where('user_id', $warga->id)
-                        ->where('badge', $program->badge_reward)
-                        ->exists();
-
-                    if (! $ada) {
-                        BadgePengguna::create([
-                            'user_id'    => $warga->id,
-                            'badge'      => $program->badge_reward,
-                            'program_id' => $program->id,
-                        ]);
-                        $badgeBaru = $program->badge_reward;
-                    }
+            $terkunci->status = $data['status'];
+            if ($data['status'] === 'selesai') {
+                $terkunci->selesai_pada      = $terkunci->selesai_pada ?? now();
+                $terkunci->diverifikasi_oleh = $user->id;
+                $terkunci->diverifikasi_pada = now();
+                if ($request->filled('catatan_verifikasi')) {
+                    $terkunci->catatan_verifikasi = $data['catatan_verifikasi'];
                 }
+            } elseif ($data['status'] === 'ditolak') {
+                $terkunci->selesai_pada       = null;
+                $terkunci->diverifikasi_oleh  = $user->id;
+                $terkunci->diverifikasi_pada  = now();
+                $terkunci->catatan_verifikasi = $data['catatan_verifikasi'] ?: 'Foto bukti belum sesuai kriteria misi. Silakan kirim ulang.';
+            }
+            $terkunci->save();
 
+            $warga = Pengguna::whereKey($terkunci->user_id)->lockForUpdate()->firstOrFail();
+
+            if ($data['status'] !== 'selesai' || $sudahSelesai) {
                 return [
-                    'status'           => 'selesai',
-                    'exp_didapat'      => $expDapat,
-                    'exp_total'        => $expTotal,
-                    'level_gamifikasi' => $warga->level_gamifikasi,
-                    'badge_baru'       => $badgeBaru,
+                    'status'           => $terkunci->status,
+                    'exp_didapat'      => 0,
+                    'exp_total'        => (int) $warga->exp_total,
+                    'level_gamifikasi' => (int) $warga->level_gamifikasi,
+                    'badge_baru'       => null,
                 ];
-            });
-        }
+            }
+
+            $expLama  = (int) $warga->exp_total;
+            $expDapat = (int) $program->exp_reward;
+            $expTotal = $expLama + $expDapat;
+
+            $warga->exp_total        = $expTotal;
+            $warga->level_gamifikasi = $this->levelDariExp($expTotal);
+            $warga->save();
+
+            $badgeBaru = null;
+            if ($program->badge_reward) {
+                $ada = BadgePengguna::where('user_id', $warga->id)
+                    ->where('badge', $program->badge_reward)
+                    ->exists();
+
+                if (! $ada) {
+                    BadgePengguna::create([
+                        'user_id'    => $warga->id,
+                        'badge'      => $program->badge_reward,
+                        'program_id' => $program->id,
+                    ]);
+                    $badgeBaru = $program->badge_reward;
+                }
+            }
+
+            return [
+                'status'           => 'selesai',
+                'exp_didapat'      => $expDapat,
+                'exp_total'        => $expTotal,
+                'level_gamifikasi' => $warga->level_gamifikasi,
+                'badge_baru'       => $badgeBaru,
+            ];
+        });
 
         return response()->json([
             'success' => true,

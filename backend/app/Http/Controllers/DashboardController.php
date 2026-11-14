@@ -26,6 +26,8 @@ class DashboardController extends Controller
     public function pribadi(Request $request)
     {
         $user   = $request->user();
+        // Kunci endpoint dashboard pribadi hanya untuk peran warga sesuai kontrak §8.1
+        $this->wajibPeran($user, ['user'], 'Hanya warga yang memiliki dashboard pribadi.');
         $profil = $user->profil;
 
         [, $tglMulai] = $this->parsePeriode($request->query('periode'));
@@ -116,6 +118,8 @@ class DashboardController extends Controller
     public function laporanPribadi(Request $request)
     {
         $user    = $request->user();
+        // Kunci endpoint laporan pribadi hanya untuk peran warga sesuai kontrak §14.1
+        $this->wajibPeran($user, ['user'], 'Hanya warga yang memiliki laporan pribadi.');
         $profil  = $user->profil;
         [$periode, $tglMulai] = $this->parsePeriode($request->query('periode'));
 

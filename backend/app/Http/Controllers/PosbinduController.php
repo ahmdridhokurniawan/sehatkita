@@ -37,9 +37,11 @@ class PosbinduController extends Controller
                 'kunjungan as hadir' => fn ($q) => $q->where('hadir', true),
             ]);
 
-        // Petugas non-super admin terkunci pada wilayah kerjanya
-        if ($user->role !== 'super_admin') {
+        // Admin kelurahan melihat sesi kelurahannya; kader hanya melihat sesi yang ditangani dirinya (§10.1)
+        if ($user->role === 'admin_kelurahan') {
             $query->where('wilayah_id', $user->wilayah_id);
+        } elseif ($user->role === 'kader') {
+            $query->where('kader_id', $user->id);
         } elseif ($request->filled('wilayah_id')) {
             $query->where('wilayah_id', $request->wilayah_id);
         }
@@ -82,6 +84,8 @@ class PosbinduController extends Controller
             'catatan'    => 'nullable|string',
         ]);
 
+        $this->validasiKaderWilayah($data['kader_id'] ?? null, (int) $data['wilayah_id']);
+
         $sesi = SesiPosbindu::create($data + ['status' => 'akan_datang']);
 
         return response()->json([
@@ -98,7 +102,7 @@ class PosbinduController extends Controller
         $this->hanyaPetugas($user);
 
         $sesi = SesiPosbindu::with('kader:id,name')
-            ->with(['kunjungan' => fn ($q) => $q->with('pengguna:id,name')])
+            ->with(['kunjungan' => fn ($q) => $q->with('pengguna:id,name,kader_id,wilayah_id')])
             ->find($id);
 
         if (! $sesi) {
@@ -108,6 +112,24 @@ class PosbinduController extends Controller
         if ($user->role !== 'super_admin') {
             abort_unless((int) $sesi->wilayah_id === (int) $user->wilayah_id, 403, 'Sesi ini bukan wilayah Anda.');
         }
+
+        // Kader tidak boleh melihat detail sesi milik kader lain dan daftar pesertanya disaring ke warga binaannya (§10.3)
+        if ($user->role === 'kader' && $sesi->kader_id !== null && (int) $sesi->kader_id !== (int) $user->id) {
+            return $this->responTidakDitemukan('Sesi Posbindu tidak ditemukan');
+        }
+
+        $daftarPeserta = $user->role === 'admin_kelurahan'
+            ? collect()
+            : $sesi->kunjungan
+                ->filter(fn ($k) => $user->role !== 'kader' || ($k->pengguna && $this->dalamBinaan($user, $k->pengguna)))
+                ->map(fn ($k) => [
+                    'kunjungan_id' => $k->id,
+                    'user_id'      => $k->user_id,
+                    'name'         => $k->pengguna?->name,
+                    'hadir'        => (bool) $k->hadir,
+                    'dicatat'      => $k->catatan_kesehatan_id !== null,
+                ])
+                ->values();
 
         return response()->json([
             'success' => true,
@@ -124,15 +146,7 @@ class PosbinduController extends Controller
                 'kader'          => $sesi->kader
                     ? ['id' => $sesi->kader->id, 'name' => $sesi->kader->name]
                     : null,
-                'peserta'        => $user->role === 'admin_kelurahan'
-                    ? []
-                    : $sesi->kunjungan->map(fn ($k) => [
-                        'kunjungan_id' => $k->id,
-                        'user_id'      => $k->user_id,
-                        'name'         => $k->pengguna?->name,
-                        'hadir'        => (bool) $k->hadir,
-                        'dicatat'      => $k->catatan_kesehatan_id !== null,
-                    ])->values(),
+                'peserta'        => $daftarPeserta,
             ],
         ]);
     }
@@ -160,6 +174,10 @@ class PosbinduController extends Controller
             'status'   => ['sometimes', Rule::in(['akan_datang', 'berjalan', 'selesai'])],
         ]);
 
+        if (array_key_exists('kader_id', $data)) {
+            $this->validasiKaderWilayah($data['kader_id'], (int) $sesi->wilayah_id);
+        }
+
         $sesi->update($data);
 
         return response()->json([
@@ -173,15 +191,19 @@ class PosbinduController extends Controller
     public function storePeserta(Request $request, int $id)
     {
         $user = $request->user();
-        $this->hanyaPetugas($user);
+        // Sesuai kontrak §10.5 & §16, pencatatan peserta/pemeriksaan hanya boleh oleh kader atau super_admin
+        $this->wajibPeran($user, ['kader', 'super_admin'], 'Hanya kader atau super admin yang boleh mencatat pemeriksaan peserta Posbindu.');
 
         $sesi = SesiPosbindu::find($id);
         if (! $sesi) {
             return $this->responTidakDitemukan('Sesi Posbindu tidak ditemukan');
         }
 
-        if ($user->role !== 'super_admin') {
+        if ($user->role === 'kader') {
             abort_unless((int) $sesi->wilayah_id === (int) $user->wilayah_id, 403, 'Sesi ini bukan wilayah Anda.');
+            if ($sesi->kader_id !== null && (int) $sesi->kader_id !== (int) $user->id) {
+                return $this->responTidakDitemukan('Sesi Posbindu tidak ditemukan');
+            }
         }
 
         $data = $request->validate([
@@ -205,6 +227,12 @@ class PosbinduController extends Controller
 
         if (! empty($data['catatan_kesehatan'])) {
             $rawCk = $data['catatan_kesehatan'];
+            $ukur  = ['bb_kg', 'sistol', 'diastol', 'gula_darah', 'kolesterol', 'asam_urat', 'lingkar_perut', 'tidur_jam'];
+            if (! collect($ukur)->contains(fn ($k) => isset($rawCk[$k]) && $rawCk[$k] !== null)) {
+                throw ValidationException::withMessages([
+                    'catatan_kesehatan.pengukuran' => ['Minimal satu pengukuran harus diisi.'],
+                ]);
+            }
             $sistol = $rawCk['sistol'] ?? null;
             $diastol = $rawCk['diastol'] ?? null;
             if (($sistol === null) !== ($diastol === null)) {
@@ -222,12 +250,17 @@ class PosbinduController extends Controller
             }
         }
 
-        if ($user->role !== 'super_admin') {
-            $wargaSah = Pengguna::whereKey($data['user_id'])
-                ->where('role', 'user')
-                ->where('wilayah_id', $sesi->wilayah_id)
-                ->exists();
-            abort_unless($wargaSah, 404, 'Peserta tidak ditemukan di wilayah sesi ini.');
+        $warga = Pengguna::with('profil')->find($data['user_id']);
+        if ($user->role === 'kader') {
+            abort_unless($warga && $warga->role === 'user' && $this->dalamBinaan($user, $warga), 404, 'Peserta tidak ditemukan di binaan Anda.');
+        } else {
+            abort_unless($warga && $warga->role === 'user', 404, 'Peserta tidak ditemukan.');
+        }
+
+        if (! empty($data['catatan_kesehatan']) && $warga->consent_at === null) {
+            throw ValidationException::withMessages([
+                'consent' => ['Persetujuan data belum diberikan.'],
+            ]);
         }
 
         if (! $data['hadir'] && ! empty($data['catatan_kesehatan'])) {
@@ -247,9 +280,8 @@ class PosbinduController extends Controller
         $kunjunganId = null;
         $catatanKesehatanId = null;
 
-        DB::transaction(function () use ($sesi, $user, $data, &$kunjunganId, &$catatanKesehatanId) {
+        DB::transaction(function () use ($sesi, $user, $data, $warga, &$kunjunganId, &$catatanKesehatanId) {
             if ($data['hadir'] && ! empty($data['catatan_kesehatan'])) {
-                $warga = Pengguna::with('profil')->findOrFail($data['user_id']);
                 $rawCk = $data['catatan_kesehatan'];
 
                 $tinggiEfektif = $warga->profil?->tinggi_cm !== null
@@ -303,23 +335,27 @@ class PosbinduController extends Controller
         ], 201);
     }
 
-    // Tampilkan riwayat kunjungan Posbindu sesuai peran dan wilayah pengguna
+    // Tampilkan riwayat kunjungan Posbindu sesuai peran dan binaan pengguna (§10.6)
     public function indexKunjungan(Request $request)
     {
         $user = $request->user();
+        $this->wajibPeran($user, ['user', 'kader', 'super_admin'], 'Admin kelurahan tidak memiliki akses ke riwayat kunjungan individu.');
 
         $query = KunjunganPosbindu::query()
             ->with(['sesi:id,tanggal,lokasi,wilayah_id', 'pengguna:id,name']);
 
         if ($user->role === 'user') {
             $query->where('user_id', $user->id);
-        } else {
-            if ($user->role !== 'super_admin') {
-                $query->whereHas('sesi', fn ($q) => $q->where('wilayah_id', $user->wilayah_id));
-            }
+        } elseif ($user->role === 'kader') {
             if ($request->filled('user_id')) {
-                $query->where('user_id', $request->user_id);
+                $target = Pengguna::find($request->user_id);
+                abort_unless($target && $this->dalamBinaan($user, $target), 404, 'Warga tidak ditemukan.');
+                $query->where('user_id', $target->id);
+            } else {
+                $query->whereHas('pengguna', fn ($q) => $this->scopeBinaan($q, $user));
             }
+        } elseif ($request->filled('user_id')) {
+            $query->where('user_id', $request->user_id);
         }
 
         if ($request->filled('sesi_id')) {
@@ -399,6 +435,21 @@ class PosbinduController extends Controller
     private function hanyaAdmin($user): void
     {
         $this->wajibPeran($user, self::ROLE_ADMIN, 'Hanya admin kelurahan atau super admin yang boleh mengelola sesi Posbindu.');
+    }
+
+    // Pastikan kader_id pada sesi benar-benar akun ber-role kader aktif di wilayah sesi
+    private function validasiKaderWilayah(mixed $kaderId, int $wilayahId): void
+    {
+        if ($kaderId === null || $kaderId === '') {
+            return;
+        }
+
+        $kader = Pengguna::find($kaderId);
+        if (! $kader || $kader->role !== 'kader' || ! $kader->aktif || (int) $kader->wilayah_id !== $wilayahId) {
+            throw ValidationException::withMessages([
+                'kader_id' => ['Kader harus aktif, berperan kader, dan berada di wilayah yang sama dengan sesi.'],
+            ]);
+        }
     }
 
     // Batasi akses Posbindu hanya untuk kader atau admin

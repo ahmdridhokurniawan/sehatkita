@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CatatanKesehatan;
 use App\Models\Pengguna;
+use App\Models\SesiPosbindu;
 use App\Services\HealthCalculatorService;
 use App\Services\RujukanOtomatisService;
 use Illuminate\Http\Request;
@@ -49,6 +50,13 @@ class CatatanKesehatanController extends Controller
             if ($request->filled('user_id')) {
                 $query->where('user_id', $request->user_id);
             }
+            // Catat akses baca data individu oleh super_admin sesuai kontrak §2 & §7.3
+            $this->catatAudit(
+                $user,
+                'baca_data_individu',
+                CatatanKesehatan::class,
+                $request->filled('user_id') ? (int) $request->user_id : null
+            );
         } else {
             abort(403, 'Akses ditolak');
         }
@@ -65,21 +73,24 @@ class CatatanKesehatanController extends Controller
             $query->whereDate('dicatat_pada', '<=', $request->sampai);
         }
 
-        // `indikator` boleh multi; imt turunan bb_kg + tinggi snapshot.
+        // `indikator` boleh multi; imt mensyaratkan berat badan dan tinggi badan valid.
         if ($request->filled('indikator')) {
-            $diminta = array_map('trim', explode(',', $request->indikator));
-
-            if (in_array('imt', $diminta, true)) {
-                $diminta = [...$diminta, 'bb_kg'];
-            }
-
-            $boleh = ['bb_kg', 'sistol', 'diastol', 'gula_darah', 'kolesterol', 'asam_urat', 'lingkar_perut', 'tidur_jam'];
+            $diminta   = array_map('trim', explode(',', $request->indikator));
+            $cariImt   = in_array('imt', $diminta, true);
+            $boleh     = ['bb_kg', 'sistol', 'diastol', 'gula_darah', 'kolesterol', 'asam_urat', 'lingkar_perut', 'tidur_jam'];
             $indikator = array_values(array_intersect($diminta, $boleh));
 
-            if ($indikator !== []) {
-                $query->where(function ($q) use ($indikator) {
+            if ($cariImt || $indikator !== []) {
+                $query->where(function ($q) use ($indikator, $cariImt) {
                     foreach ($indikator as $ind) {
                         $q->orWhereNotNull($ind);
+                    }
+                    if ($cariImt) {
+                        $q->orWhere(function ($sub) {
+                            $sub->whereNotNull('bb_kg')
+                                ->whereNotNull('tinggi_cm')
+                                ->where('tinggi_cm', '>', 0);
+                        });
                     }
                 });
             }
@@ -103,6 +114,21 @@ class CatatanKesehatanController extends Controller
     public function store(Request $request)
     {
         $user = $request->user();
+
+        // Tolak field hasil kalkulasi/read-only server jika dikirim langsung oleh client (§7.1)
+        $fieldReadOnly = [
+            'imt', 'kategori_imt', 'kategori_tensi', 'kategori_gula_darah',
+            'kategori_kolesterol', 'kategori_asam_urat', 'skor_imt', 'skor_tensi',
+            'skor_gula_darah', 'skor_kolesterol', 'skor_asam_urat', 'skor_risiko',
+            'status_kesehatan', 'perlu_verifikasi', 'dicatat_oleh', 'created_at',
+        ];
+        foreach ($fieldReadOnly as $field) {
+            if ($request->has($field)) {
+                throw ValidationException::withMessages([
+                    $field => ["Field {$field} dihitung oleh server dan tidak boleh dikirim."],
+                ]);
+            }
+        }
 
         // Validasi input — izinkan timestamp pada hari ini hingga 23:59:59 waktu server
         $batasHariIni = now()->endOfDay()->format('Y-m-d H:i:s');
@@ -143,8 +169,14 @@ class CatatanKesehatanController extends Controller
             ]);
         }
 
-        // Tentukan tinggi badan efektif
+        // Tentukan tinggi badan efektif; tolak input tinggi_cm jika profil warga sudah memilikinya (§7.2)
         $profil = $pemilik->profil;
+        if (($data['tinggi_cm'] ?? null) !== null && $profil?->tinggi_cm !== null) {
+            throw ValidationException::withMessages([
+                'tinggi_cm' => ['Tinggi badan sudah tersimpan di profil warga dan tidak boleh dikirim ulang.'],
+            ]);
+        }
+
         $tinggiEfektif = $profil?->tinggi_cm !== null
             ? (float) $profil->tinggi_cm
             : (isset($data['tinggi_cm']) ? (float) $data['tinggi_cm'] : null);
@@ -231,7 +263,7 @@ class CatatanKesehatanController extends Controller
         $catatan->delete();
 
         if ($user->role === 'super_admin' && $catatan->user_id !== $user->id) {
-            $this->catatAudit($user, 'hapus_catatan_kesehatan', CatatanKesehatan::class, $catatan->id);
+            $this->catatAudit($user, 'ubah_data_individu', CatatanKesehatan::class, $catatan->id);
         }
 
         return response()->json(['success' => true, 'message' => 'Catatan berhasil dihapus', 'data' => null]);
@@ -323,6 +355,8 @@ class CatatanKesehatanController extends Controller
     private function tentukanPemilik($user, array $data): Pengguna
     {
         if ($data['sumber'] === 'mandiri') {
+            abort_unless($user->role === 'user', 403, 'Hanya warga yang dapat membuat catatan mandiri.');
+
             return $user;
         }
 
@@ -355,6 +389,17 @@ class CatatanKesehatanController extends Controller
                 throw ValidationException::withMessages([
                     'sesi_posbindu_id' => ['sesi_posbindu_id wajib untuk sumber kader.'],
                 ]);
+            }
+
+            // Pastikan sesi Posbindu sesuai wilayah warga dan kader yang bertugas bila ditentukan
+            $sesi = SesiPosbindu::find($data['sesi_posbindu_id']);
+            if (! $sesi || (int) $sesi->wilayah_id !== (int) $pemilik->wilayah_id) {
+                throw ValidationException::withMessages([
+                    'sesi_posbindu_id' => ['Sesi Posbindu tidak sesuai dengan wilayah warga.'],
+                ]);
+            }
+            if ($user->role === 'kader' && $sesi->kader_id !== null && (int) $sesi->kader_id !== (int) $user->id) {
+                abort(404, 'Sesi Posbindu tidak ditemukan');
             }
 
             return $pemilik;
