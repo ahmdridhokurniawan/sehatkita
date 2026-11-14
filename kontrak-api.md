@@ -123,7 +123,7 @@ Gagal (`errors` hanya pada 422):
 | `status_sesi`                                                      | `akan_datang`, `berlangsung`, `selesai` (dihitung dari tanggal)                                      |
 | `level_insight`                                                    | `info`, `peringatan`, `bahaya`                                                                       |
 | `wilayah.tipe`                                                     | `kecamatan`, `kelurahan`                                                                             |
-| `faskes.jenis`                                                     | `puskesmas`, `klinik`, `rumah_sakit`, `posbindu`                                                     |
+| `faskes.jenis`                                                     | `puskesmas`, `klinik`, `rumah_sakit`, `lainnya`                                                      |
 
 **Pemetaan baku skor → status → level** (satu-satunya kosakata; dipakai di seluruh dokumen):
 
@@ -733,7 +733,7 @@ Log `perlu_verifikasi = true` tidak dipakai. Contoh konsisten dengan §7.2/§8.1
 
 ### 10.1 GET `/posbindu/sesi` (kader, admin_kelurahan, super_admin)
 
-Query: `?wilayah_id=3&dari=2026-10-01&status=akan_datang&search=`. `kader` hanya melihat sesi dengan `kader_id` = dirinya; `admin_kelurahan` sesi wilayahnya. `status` dihitung dari `tanggal` (`akan_datang` > hari ini, `berlangsung` = hari ini, `selesai` < hari ini); tidak ada kolom `status`.
+Query: `?wilayah_id=3&dari=2026-10-01&status=akan_datang&search=`. `kader` melihat sesi di wilayahnya dengan `kader_id = dirinya` atau `kader_id = null` (sesi kelurahan belum ditugaskan); `admin_kelurahan` melihat seluruh sesi wilayahnya. `kader` pada objek respons bisa bernilai `null`. `status` dihitung dari `tanggal` (`akan_datang` > hari ini, `berlangsung` = hari ini, `selesai` < hari ini); tidak ada kolom `status`.
 
 ```json
 [
@@ -871,6 +871,7 @@ Ubah tanggal/lokasi/kader/catatan. **200** objek sesi.
 {
   "id": 15,
   "user_id": 12,
+  "user": { "id": 12, "name": "Budi Santoso", "nik": "6372010101010001" },
   "faskes": { "id": 1, "nama": "Puskesmas Landasan Ulin" },
   "alasan": "Tekanan darah tinggi pada 2 pengukuran terakhir",
   "status": "baru",
@@ -910,7 +911,7 @@ Bentuk teredaksi untuk `admin_kelurahan`:
 
 ### 11.3 PATCH `/rujukan/{id}/status` (kader, admin_kelurahan, super_admin)
 
-Status hanya maju: `baru` → `dihubungi` → `tertangani` | `ditolak`. `catatan` wajib untuk `ditolak`.
+Status hanya maju: `baru` → `dihubungi` → `tertangani` | `ditolak`. Status final (`tertangani` atau `ditolak`) tidak dapat diubah lagi (`422`). `catatan` wajib untuk `ditolak`.
 
 ```json
 {
@@ -935,6 +936,7 @@ Query: `?status=berjalan&search=`. `status` dihitung dari `mulai`/`selesai`. `di
 [
   {
     "id": 4,
+    "wilayah_id": 3,
     "judul": "Tantangan Push-up 21 Hari",
     "jenis": "olahraga",
     "kategori_aktivitas": "push_up",
@@ -1147,8 +1149,8 @@ Butuh role `super_admin`.
 | GET/POST   | `/admin/pengguna`                           | Daftar (filter role) / buat akun kader atau admin kelurahan (`nik`, `name`, `email`)           |
 | PUT        | `/admin/pengguna/{id}`                      | Ubah data/role/wilayah/nik; **mutasi `wilayah_id` otomatis reset `kader_id` ke `null`**        |
 | DELETE     | `/admin/pengguna/{id}`                      | Nonaktifkan: `aktif = false` dan semua token dicabut                                           |
-| GET/POST   | `/admin/faskes`                             | Daftar / tambah faskes                                                                         |
-| PUT/DELETE | `/admin/faskes/{id}`                        | Ubah / hapus faskes                                                                            |
+| GET/POST   | `/admin/faskes`                             | Daftar / tambah faskes (`nama`, `jenis`, `alamat`, `telepon`, `wilayah_id`, `lat`, `lng`)      |
+| PUT/DELETE | `/admin/faskes/{id}`                        | Ubah / hapus faskes (`lat` -90..90, `lng` -180..180 opsional)                                  |
 | GET        | `/admin/log-audit`                          | Riwayat aktivitas, termasuk `baca_data_individu` oleh `super_admin`                            |
 | GET        | `/admin/statistik`                          | Statistik keseluruhan sistem                                                                   |
 | GET        | `/admin/export`                             | **Ekspor CSV (UTF-8 BOM)**: `?tipe=catatan\|posbindu\|rujukan&wilayah_id=`                      |
@@ -1169,6 +1171,7 @@ Butuh role `super_admin`.
   "batas_min": 25.0,
   "batas_max": 30.0,
   "kategori": "gemuk",
+  "status": "perlu_perhatian",
   "skor": 1,
   "memicu_rujukan": false
 }
@@ -1357,3 +1360,4 @@ Bagian ini bukan kontrak API.
 | 1.5.1 | 2026-10-24 | Klarifikasi tanpa ubah bentuk: consent juga untuk `PUT /profil`; tarik consent → pemilik tetap bisa baca/hapus data lama; rujukan tetap ada; tinggi profil 120–220 (422); `tampil_di_peringkat` tidak di-reset; read-only dikirim → 422; snapshot `skor_*`; `ambang_kategori.status` dihapus; audit mencakup verifikasi & ubah status rujukan; register rate limit; `per_page` 1–100; TODO #4/#7 selesai | BE |
 | 1.6.0 | 2026-11-05 | **Penyesuaian Arahan Pembimbing Lapangan & Dinas Kesehatan RI:**<br>**(1)** `admin_kelurahan` diberikan akses **read-only** pada catatan rekam medis warga kelurahannya (`GET /catatan-kesehatan`, `GET /catatan-kesehatan/{id}`). Aksi `POST`/`DELETE` tetap dilarang.<br>**(2)** Penyelarasan ambang batas tekanan darah resmi **Kemenkes RI / PERHI**: Sistol normal < 130 mmHg (tensi 120 pas adalah Normal, bukan pra-hipertensi), Diastol normal < 85 mmHg (80 pas adalah Normal).<br>**(3)** Penambahan kolom `nik` (16 digit angka, unik) pada tabel `pengguna` + validasi registrasi/admin master.<br>**(4)** Modul `program` mendukung **CRUD penuh**: Super Admin bisa membuat se-kota (`wilayah_id = null`), Admin Kelurahan membuat per kelurahan; penambahan endpoint `GET /program/{id}`, `PUT /program/{id}`, dan `DELETE /program/{id}`.<br>**(5)** Modul baru `pengaduan`: Warga melapor keluhan layanan Posbindu/faskes ke pihak kelurahan (`POST /pengaduan`), Admin Kelurahan memberikan tanggapan resmi (`PATCH /pengaduan/{id}/tanggapi`).<br>**(6)** Modul baru `target_kesehatan`: Warga dapat menyetel target dinamis multi-metrik (BB, TB, massa otot, tensi, dll) dengan respon motivasi otomatis saat target tercapai.<br>**(7)** Modul Ekspor Data Super Admin: `GET /admin/export?tipe=catatan\|posbindu\|rujukan` menghasilkan file download CSV stream (UTF-8 BOM).<br>**(8)** Modul Integrasi Bot Telegram & Pengingat Bulanan: pairing akun warga via deep link (`/telegram/status`, `/telegram/webhook`) dan artisan scheduler bulanan (`reminder:skrining-ptm`).<br>**(9)** Mutasi warga: Bila `wilayah_id` warga diubah, `kader_id` otomatis di-reset ke `null` untuk melindungi privasi data warga. | BE |
 | 1.7.0 | 2026-11-12 | **Penyempurnaan Keamanan, Peta Faskes, dan Perbaikan Validasi Operasional:**<br>**(1)** **Keamanan Password Kuat:** `POST /api/v1/auth/register` wajib password minimal 8 karakter dengan minimal 1 huruf kapital, 1 angka, dan 1 simbol khusus (`Password::min(8)->letters()->mixedCase()->numbers()->symbols()`).<br>**(2)** **Validasi Waktu Catat Kesehatan:** Perbaikan aturan `dicatat_pada` pada `POST /api/v1/catatan-kesehatan` dari `before_or_equal:today` (yang salah mengira jam hari ini sebagai masa depan) menjadi `before_or_equal:now` dengan toleransi buffer 10 menit.<br>**(3)** **Gula Darah & Puasa:** Penegasan validasi bahwa bila field `gula_darah` diisi, field `jenis_gula_darah` (`puasa` / `2jam_pp`) wajib disertakan.<br>**(4)** **Aktivasi Koordinat Peta Faskes (`GET /api/v1/faskes`):** Pengisian data koordinat geografis presisi (`lat`, `lng`) serta telepon resmi Puskesmas, Rumah Sakit, dan Klinik di seluruh Kota Banjarbaru untuk integrasi peta interaktif warga.<br>**(5)** **Keputusan Kebijakan Peta Warga (§0 #19):** Titik lokasi rumah warga secara individual diputuskan **TIDAK DITAMPILKAN DI PETA** demi mematuhi UU PDP No. 27/2022 dan prinsip etika *k-anonymity* SehatKita.<br>**(6)** **Bot Telegram Anti-Duplikasi:** Penambahan mekanisme atomic lock (`Cache::lock`) pada scheduler polling bot untuk mencegah duplikasi balasan pesan warga. | BE |
+| 1.7.1 | 2026-11-14 | **Penyelarasan Kontrak & Penguatan Audit Lintas Role:**<br>**(1)** Enum `faskes.jenis` diselaraskan ke nilai aktual DB & controller (`puskesmas`, `klinik`, `rumah_sakit`, `lainnya`) serta dokumentasi koordinat opsional `lat`/`lng` di `/admin/faskes`.<br>**(2)** Bentuk `ambang_kategori` (§15) menyertakan field aktual `status` (`normal`, `perlu_perhatian`, `berisiko`).<br>**(3)** `GET /posbindu/sesi` bagi `kader` menampilkan sesi wilayah yang ditugaskan kepadanya atau belum bertuan (`kader_id = null`); `cari-nik` dibatasi hanya `kader` (scope binaan) & `super_admin`.<br>**(4)** Response `rujukan` non-`admin_kelurahan` menyertakan objek `user` (`id`, `name`, `nik`) dan menolak transisi keluar dari status final (`tertangani`/`ditolak`); response `program` menyertakan `wilayah_id` serta mengisolasi `admin_kelurahan` pada program kota dan mencegah double-EXP dari status final `selesai`. | BE |
