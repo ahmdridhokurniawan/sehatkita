@@ -48,7 +48,7 @@ class RujukanController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Rujukan dibuat',
-            'data'    => $this->bentuk($rujukan->load(['faskes', 'pembuat', 'penangan'])),
+            'data'    => $this->bentuk($rujukan->load(['faskes', 'pembuat', 'penangan', 'pengguna:id,name,nik'])),
         ], 201);
     }
 
@@ -57,7 +57,7 @@ class RujukanController extends Controller
     {
         $user = $request->user();
 
-        $query = Rujukan::with(['faskes', 'pembuat', 'penangan']);
+        $query = Rujukan::with(['faskes', 'pembuat', 'penangan', 'pengguna:id,name,nik']);
 
         if (! in_array($user->role, self::ROLE_PETUGAS, true)) {
             $query->where('user_id', $user->id);
@@ -121,6 +121,12 @@ class RujukanController extends Controller
 
         $urutan = ['baru' => 0, 'dihubungi' => 1, 'tertangani' => 2, 'ditolak' => 2];
 
+        if ($rujukan->status !== $data['status'] && in_array($rujukan->status, ['tertangani', 'ditolak'], true)) {
+            throw ValidationException::withMessages([
+                'status' => ['Status rujukan yang sudah final tidak dapat diubah.'],
+            ]);
+        }
+
         if ($urutan[$data['status']] < $urutan[$rujukan->status]) {
             throw ValidationException::withMessages([
                 'status' => ['Status rujukan tidak boleh mundur.'],
@@ -144,7 +150,7 @@ class RujukanController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Status rujukan diperbarui',
-            'data'    => $this->bentuk($rujukan->fresh(['faskes', 'pembuat', 'penangan']), $user),
+            'data'    => $this->bentuk($rujukan->fresh(['faskes', 'pembuat', 'penangan', 'pengguna:id,name,nik']), $user),
         ]);
     }
 
@@ -167,6 +173,9 @@ class RujukanController extends Controller
 
         return $dasar + [
             'user_id'        => $r->user_id,
+            'user'           => $r->pengguna
+                ? ['id' => $r->pengguna->id, 'name' => $r->pengguna->name, 'nik' => $r->pengguna->nik]
+                : null,
             'alasan'         => $r->alasan,
             'dibuat_oleh'    => $r->pembuat
                 ? ['id' => $r->pembuat->id, 'name' => $r->pembuat->name]

@@ -37,11 +37,12 @@ class PosbinduController extends Controller
                 'kunjungan as hadir' => fn ($q) => $q->where('hadir', true),
             ]);
 
-        // Admin kelurahan melihat sesi kelurahannya; kader hanya melihat sesi yang ditangani dirinya (§10.1)
+        // Admin kelurahan melihat sesi kelurahannya; kader melihat sesi miliknya atau sesi kelurahannya yang belum ditugaskan ke kader lain (§10.1)
         if ($user->role === 'admin_kelurahan') {
             $query->where('wilayah_id', $user->wilayah_id);
         } elseif ($user->role === 'kader') {
-            $query->where('kader_id', $user->id);
+            $query->where('wilayah_id', $user->wilayah_id)
+                ->where(fn ($q) => $q->where('kader_id', $user->id)->orWhereNull('kader_id'));
         } elseif ($request->filled('wilayah_id')) {
             $query->where('wilayah_id', $request->wilayah_id);
         }
@@ -462,7 +463,7 @@ class PosbinduController extends Controller
     public function cariNik(Request $request)
     {
         $user = $request->user();
-        $this->hanyaPetugas($user);
+        $this->wajibPeran($user, ['kader', 'super_admin'], 'Hanya kader atau super admin yang dapat mencari warga berdasarkan NIK.');
 
         $nik = trim((string) ($request->query('nik') ?? $request->query('q') ?? ''));
         $nikBersih = preg_replace('/[^0-9]/', '', $nik);
@@ -480,7 +481,7 @@ class PosbinduController extends Controller
             ->with('wilayah:id,nama')
             ->where('role', 'user')
             ->where('aktif', true)
-            ->when($user->role !== 'super_admin', fn ($q) => $q->where('wilayah_id', $user->wilayah_id))
+            ->when($user->role === 'kader', fn ($q) => $this->scopeBinaan($q, $user))
             ->whereNotNull('nik')
             ->where('nik', 'like', "{$nikBersih}%")
             ->orderBy('nik', 'asc')

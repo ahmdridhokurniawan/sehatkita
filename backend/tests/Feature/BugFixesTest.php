@@ -480,4 +480,100 @@ class BugFixesTest extends TestCase
         $this->assertSame('999001', (string) $wargaBaru->telegram_chat_id);
         $this->assertNull($wargaBaru->telegram_connect_token);
     }
+
+    public function test_bug13_program_kota_isolasi_wilayah_dan_anti_double_exp(): void
+    {
+        $superAdmin = $this->buatPengguna('super_admin', ['wilayah_id' => null], false);
+        $adminA     = $this->buatPengguna('admin_kelurahan', ['wilayah_id' => $this->kelurahanA->id], false);
+        $wargaA     = $this->buatPengguna('user', ['wilayah_id' => $this->kelurahanA->id]);
+        $wargaB     = $this->buatPengguna('user', ['wilayah_id' => $this->kelurahanB->id]);
+
+        $program = Program::create([
+            'wilayah_id' => null,
+            'judul'      => 'Tantangan Sehat Kota',
+            'jenis'      => 'olahraga',
+            'mulai'      => now()->subDay()->toDateString(),
+            'selesai'    => now()->addDays(10)->toDateString(),
+            'status'     => 'berjalan',
+            'exp_reward' => 100,
+        ]);
+
+        PesertaProgram::create(['program_id' => $program->id, 'user_id' => $wargaA->id, 'status' => 'terdaftar']);
+        PesertaProgram::create(['program_id' => $program->id, 'user_id' => $wargaB->id, 'status' => 'terdaftar']);
+
+        // Admin kelurahan A hanya boleh melihat peserta kelurahan A di program tingkat kota
+        $resPeserta = $this->asUser($adminA)->getJson("/api/v1/program/{$program->id}/peserta")->assertOk();
+        $userIds = collect($resPeserta->json('data'))->pluck('user_id')->all();
+        $this->assertSame([$wargaA->id], $userIds);
+
+        // Admin kelurahan A ditolak memverifikasi peserta kelurahan B
+        $this->asUser($adminA)->patchJson("/api/v1/program/{$program->id}/peserta", [
+            'user_id' => $wargaB->id,
+            'status'  => 'selesai',
+        ])->assertStatus(403);
+
+        // Selesaikan warga A, lalu pastikan tidak bisa diturunkan/diulang untuk menggandakan EXP
+        $this->asUser($adminA)->patchJson("/api/v1/program/{$program->id}/peserta", [
+            'user_id' => $wargaA->id,
+            'status'  => 'selesai',
+        ])->assertOk();
+        $this->asUser($adminA)->patchJson("/api/v1/program/{$program->id}/peserta", [
+            'user_id' => $wargaA->id,
+            'status'  => 'ditolak',
+            'catatan_verifikasi' => 'Tes ulang',
+        ])->assertStatus(422);
+        $this->assertSame(100, (int) $wargaA->fresh()->exp_total);
+
+        // Super admin tidak boleh menonaktifkan atau menurunkan peran diri sendiri
+        $this->asUser($superAdmin)->putJson("/api/v1/admin/pengguna/{$superAdmin->id}", [
+            'aktif' => false,
+        ])->assertStatus(422);
+        $this->asUser($superAdmin)->putJson("/api/v1/admin/pengguna/{$superAdmin->id}", [
+            'role' => 'user',
+        ])->assertStatus(422);
+    }
+
+    public function test_bug14_posbindu_sesi_tak_bertuan_dan_status_rujukan_final(): void
+    {
+        $kaderA = $this->buatPengguna('kader', ['wilayah_id' => $this->kelurahanA->id], false);
+        $kaderB = $this->buatPengguna('kader', ['wilayah_id' => $this->kelurahanA->id], false);
+        $wargaA = $this->buatPengguna('user', ['wilayah_id' => $this->kelurahanA->id, 'kader_id' => $kaderA->id, 'nik' => '6372051001000001']);
+        $wargaB = $this->buatPengguna('user', ['wilayah_id' => $this->kelurahanA->id, 'kader_id' => $kaderB->id, 'nik' => '6372051001000002']);
+
+        SesiPosbindu::create([
+            'wilayah_id' => $this->kelurahanA->id,
+            'tanggal'    => now()->toDateString(),
+            'lokasi'     => 'Balai Warga Umum',
+            'kader_id'   => null,
+            'status'     => 'akan_datang',
+        ]);
+
+        // Sesi tanpa kader_id di kelurahan sendiri harus terlihat oleh kader kelurahan tsb
+        $resSesi = $this->asUser($kaderA)->getJson('/api/v1/posbindu/sesi')->assertOk();
+        $this->assertCount(1, $resSesi->json('data'));
+
+        // Autocomplete NIK kader A tidak boleh membocorkan warga binaan kader B
+        $resNik = $this->asUser($kaderA)->getJson('/api/v1/pengguna/cari-nik?nik=637205')->assertOk();
+        $this->assertSame([$wargaA->id], collect($resNik->json('data'))->pluck('id')->all());
+
+        $faskes = Faskes::create([
+            'wilayah_id' => $this->kelurahanA->id,
+            'nama'       => 'Puskesmas Uji',
+            'jenis'      => 'puskesmas',
+        ]);
+        $rujukan = Rujukan::create([
+            'user_id'   => $wargaA->id,
+            'faskes_id' => $faskes->id,
+            'alasan'    => 'Tensi tinggi',
+            'status'    => 'tertangani',
+        ]);
+
+        // Rujukan menyertakan ringkasan identitas warga bagi kader dan status final tidak bisa dibalik
+        $resRuj = $this->asUser($kaderA)->getJson('/api/v1/rujukan')->assertOk();
+        $this->assertSame($wargaA->name, $resRuj->json('data.0.user.name'));
+        $this->asUser($kaderA)->patchJson("/api/v1/rujukan/{$rujukan->id}/status", [
+            'status'  => 'ditolak',
+            'catatan' => 'Batal',
+        ])->assertStatus(422);
+    }
 }

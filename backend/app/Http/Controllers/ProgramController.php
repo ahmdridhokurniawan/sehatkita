@@ -378,8 +378,7 @@ class ProgramController extends Controller
 
         $boleh = (int) $peserta->user_id === (int) $user->id
             || $user->role === 'super_admin'
-            || ($user->role === 'admin_kelurahan' && $programSamaWilayah)
-            || ($user->role === 'kader' && $programSamaWilayah && $wargaSamaWilayah);
+            || (in_array($user->role, ['admin_kelurahan', 'kader'], true) && $programSamaWilayah && $wargaSamaWilayah);
 
         abort_unless($boleh, 403, 'Anda tidak memiliki akses melihat dokumentasi ini.');
         abort_unless($peserta->bukti_foto, 404, 'Foto bukti tidak ditemukan.');
@@ -442,7 +441,7 @@ class ProgramController extends Controller
 
         abort_unless($peserta, 404, 'Peserta belum terdaftar pada program ini.');
 
-        if ($user->role === 'kader' && $targetId !== (int) $user->id) {
+        if (in_array($user->role, ['kader', 'admin_kelurahan'], true) && $targetId !== (int) $user->id) {
             abort_unless(
                 $peserta->pengguna && (int) $peserta->pengguna->wilayah_id === (int) $user->wilayah_id,
                 403,
@@ -454,6 +453,12 @@ class ProgramController extends Controller
         $hasil = DB::transaction(function () use ($peserta, $program, $data, $user, $request) {
             $terkunci     = PesertaProgram::whereKey($peserta->id)->lockForUpdate()->firstOrFail();
             $sudahSelesai = $terkunci->status === 'selesai';
+
+            if ($sudahSelesai && $data['status'] !== 'selesai') {
+                throw ValidationException::withMessages([
+                    'status' => ['Peserta yang sudah selesai tidak dapat diubah statusnya.'],
+                ]);
+            }
 
             $terkunci->status = $data['status'];
             if ($data['status'] === 'selesai') {
@@ -545,7 +550,7 @@ class ProgramController extends Controller
         $query = PesertaProgram::with('pengguna:id,name,email,wilayah_id')
             ->where('program_id', $program->id);
 
-        if ($user->role === 'kader') {
+        if (in_array($user->role, ['kader', 'admin_kelurahan'], true)) {
             $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $user->wilayah_id));
         }
 
@@ -563,6 +568,7 @@ class ProgramController extends Controller
 
         return [
             'id'                 => $p->id,
+            'wilayah_id'         => $p->wilayah_id,
             'judul'              => $p->judul,
             'deskripsi'          => $p->deskripsi,
             'kriteria_misi'      => $p->kriteria_misi,

@@ -272,7 +272,7 @@ class AdminMasterController extends Controller
             'email'      => 'required|email|max:150|unique:pengguna,email',
             'password'   => ['required', 'string', Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
             'role'       => ['required', Rule::in(['super_admin', 'admin_kelurahan', 'kader', 'user'])],
-            'wilayah_id' => 'nullable|exists:wilayah,id',
+            'wilayah_id' => ['nullable', Rule::exists('wilayah', 'id')->where('tipe', 'kelurahan')],
             'kader_id'   => 'nullable|exists:pengguna,id',
         ]);
 
@@ -307,10 +307,20 @@ class AdminMasterController extends Controller
             'email'      => ['sometimes', 'email', 'max:150', Rule::unique('pengguna', 'email')->ignore($id)],
             'password'   => ['sometimes', 'string', Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
             'role'       => ['sometimes', Rule::in(['super_admin', 'admin_kelurahan', 'kader', 'user'])],
-            'wilayah_id' => 'sometimes|nullable|exists:wilayah,id',
+            'wilayah_id' => ['sometimes', 'nullable', Rule::exists('wilayah', 'id')->where('tipe', 'kelurahan')],
             'kader_id'   => 'sometimes|nullable|exists:pengguna,id',
             'aktif'      => 'sometimes|boolean',
         ]);
+
+        // Cegah super admin menonaktifkan atau menurunkan peran akunnya sendiri
+        if ($pengguna->id === $request->user()->id) {
+            if ($request->has('aktif') && ! $request->boolean('aktif')) {
+                throw ValidationException::withMessages(['aktif' => ['Tidak boleh menonaktifkan akun sendiri.']]);
+            }
+            if (isset($data['role']) && $data['role'] !== 'super_admin') {
+                throw ValidationException::withMessages(['role' => ['Tidak boleh mengubah peran akun sendiri.']]);
+            }
+        }
 
         // Catat riwayat perpindahan wilayah dan lepas kader lama bila warga mutasi kelurahan (U12)
         if ($request->has('wilayah_id') && (int) $request->wilayah_id !== (int) $pengguna->wilayah_id) {
@@ -323,7 +333,9 @@ class AdminMasterController extends Controller
                     'diubah_oleh'       => $request->user()->id,
                 ]);
             }
-            $data['kader_id'] = null;
+            if (! array_key_exists('kader_id', $data)) {
+                $data['kader_id'] = null;
+            }
         }
 
         if (array_key_exists('kader_id', $data) && $data['kader_id'] !== null) {

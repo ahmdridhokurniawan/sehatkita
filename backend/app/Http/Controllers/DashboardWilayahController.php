@@ -89,7 +89,11 @@ class DashboardWilayahController extends Controller
         $riwayat = $this->saringKelompok($this->distribusiRiwayatKeluarga($wilayahId));
         $usia    = $this->saringKelompok($this->kelompokUsia($wilayahId));
 
-        $rujukan = Rujukan::whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $wilayahId))
+        $rujukan = Rujukan::whereHas('pengguna', fn ($q) => $q
+                ->where('wilayah_id', $wilayahId)
+                ->where('role', 'user')
+                ->where('aktif', true)
+                ->whereNotNull('consent_at'))
             ->where('created_at', '>=', $tglMulai)
             ->selectRaw('status, COUNT(*) AS total')
             ->groupBy('status')
@@ -137,6 +141,7 @@ class DashboardWilayahController extends Controller
             ->where('p.aktif', true)
             ->whereNotNull('p.consent_at')
             ->where('ck.dicatat_pada', '>=', $tglMulai)
+            ->where('ck.dicatat_pada', '<=', now()->toDateString())
             ->where('ck.perlu_verifikasi', false)
             ->whereNull('ck.deleted_at')
             ->whereNotNull('ck.bb_kg')
@@ -162,12 +167,15 @@ class DashboardWilayahController extends Controller
                 continue;
             }
 
-            $kategori = match (true) {
-                $imt < 18.5 => 'kurus',
-                $imt < 25   => 'normal',
-                $imt < 30   => 'gemuk',
-                default     => 'obesitas',
-            };
+            $dinamis  = $this->kalkulator->kategori('imt', $imt)['kategori'] ?? null;
+            $kategori = isset($mentah[$dinamis ?? ''])
+                ? $dinamis
+                : match (true) {
+                    $imt < 18.5 => 'kurus',
+                    $imt < 25   => 'normal',
+                    $imt < 30   => 'gemuk',
+                    default     => 'obesitas',
+                };
 
             $mentah[$kategori]++;
         }

@@ -38,6 +38,8 @@ class Pengguna extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'telegram_chat_id',
+        'telegram_connect_token',
     ];
 
     // Cast: bagaimana Laravel membaca/menulis tipe kolom tertentu.

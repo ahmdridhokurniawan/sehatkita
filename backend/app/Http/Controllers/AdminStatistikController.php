@@ -68,8 +68,8 @@ class AdminStatistikController extends Controller
                 'total_program_participants' => PesertaProgram::count(),
                 'program_by_status'          => $programByStatus,
 
-                // Catatan kesehatan
-                'total_catatan'              => CatatanKesehatan::count(),
+                // Catatan kesehatan (hanya data terverifikasi)
+                'total_catatan'              => CatatanKesehatan::where('perlu_verifikasi', false)->count(),
                 'avg_imt'                    => $this->rataRataImt(),
                 'avg_sistol'                 => $this->bulatSatu(CatatanKesehatan::where('perlu_verifikasi', false)->avg('sistol')),
                 'avg_diastol'                => $this->bulatSatu(CatatanKesehatan::where('perlu_verifikasi', false)->avg('diastol')),
@@ -81,7 +81,7 @@ class AdminStatistikController extends Controller
                 // Aktivitas 7 hari terakhir
                 'new_users_7d'               => Pengguna::where('created_at', '>=', $semingguLalu)->count(),
                 'new_rujukan_7d'             => Rujukan::where('created_at', '>=', $semingguLalu)->count(),
-                'new_catatan_7d'             => CatatanKesehatan::where('created_at', '>=', $semingguLalu)->count(),
+                'new_catatan_7d'             => CatatanKesehatan::where('perlu_verifikasi', false)->where('created_at', '>=', $semingguLalu)->count(),
                 'total_audit_logs_7d'        => LogAudit::where('created_at', '>=', $semingguLalu)->count(),
             ],
         ]);
