@@ -71,6 +71,7 @@ Route::prefix('v1')->whereNumber(['id', 'pesertaId', 'catatan_kesehatan'])->grou
         // Rujukan
         Route::post('/rujukan', [RujukanController::class, 'store']);
         Route::get('/rujukan', [RujukanController::class, 'index']);
+        Route::get('/rujukan/{id}/surat', [RujukanController::class, 'surat']);
         Route::patch('/rujukan/{id}/status', [RujukanController::class, 'updateStatus']);
 
         // Posbindu
@@ -94,6 +95,7 @@ Route::prefix('v1')->whereNumber(['id', 'pesertaId', 'catatan_kesehatan'])->grou
         Route::post('/program/{id}/peserta', [ProgramController::class, 'ikut']);
         Route::patch('/program/{id}/peserta', [ProgramController::class, 'ubahStatusPeserta']);
         Route::post('/program/{id}/bukti', [ProgramController::class, 'kirimBukti']);
+        Route::delete('/program/{id}/bukti', [ProgramController::class, 'hapusBukti']);
         Route::get('/program/{id}/bukti/{pesertaId}', [ProgramController::class, 'lihatBukti']);
         Route::get('/peringkat', [PeringkatController::class, 'index']);
 

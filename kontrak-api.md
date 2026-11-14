@@ -109,7 +109,7 @@ Gagal (`errors` hanya pada 422):
 | `sumber`                                                           | `mandiri`, `kader`, `puskesmas`                                                                      |
 | `jenis_gula_darah`                                                 | `puasa`, `2jam_pp`                                                                                   |
 | `jenis_kelamin`                                                    | `L`, `P`                                                                                             |
-| `status_rujukan`                                                   | `baru`, `dihubungi`, `tertangani`, `ditolak`                                                         |
+| `status_rujukan`                                                   | `baru`, `dihubungi`, `selesai`, `ditolak`                                                            |
 | `status_kesehatan`                                                 | `normal`, `perlu_perhatian`, `berisiko`                                                              |
 | `kategori_imt`                                                     | `kurus`, `normal`, `gemuk`, `obesitas`                                                               |
 | `kategori_tensi`                                                   | `normal`, `perlu_perhatian`, `tinggi`, `krisis`                                                      |
@@ -119,7 +119,7 @@ Gagal (`errors` hanya pada 422):
 | `riwayat_keluarga`                                                 | `hipertensi`, `diabetes`, `jantung`, `stroke`, `kolesterol`, `asma`, `kanker`, `ginjal`, `tidak_ada` |
 | `jenis_program`                                                    | `olahraga`, `edukasi`, `pemeriksaan`, `lainnya`                                                      |
 | `status_program`                                                   | `akan_datang`, `berjalan`, `selesai` (dihitung dari tanggal)                                         |
-| `status_peserta`                                                   | `terdaftar`, `selesai`, `berhenti`                                                                   |
+| `status_peserta`                                                   | `terdaftar`, `menunggu_verifikasi`, `selesai`, `ditolak`, `berhenti`                                 |
 | `status_sesi`                                                      | `akan_datang`, `berlangsung`, `selesai` (dihitung dari tanggal)                                      |
 | `level_insight`                                                    | `info`, `peringatan`, `bahaya`                                                                       |
 | `wilayah.tipe`                                                     | `kecamatan`, `kelurahan`                                                                             |
@@ -694,7 +694,7 @@ Log `perlu_verifikasi = true` tidak dipakai. Contoh konsisten dengan §7.2/§8.1
     { "kelompok": "25-29", "jumlah": 34 },
     { "kelompok": "50-54", "jumlah": 9 }
   ],
-  "rujukan": { "baru": 8, "dihubungi": 10, "tertangani": 10 },
+  "rujukan": { "baru": 8, "dihubungi": 10, "selesai": 10 },
   "kepatuhan_pencatatan_persen": 83,
   "tren": [
     { "periode": "2026-08", "total_pencatatan": 280 },
@@ -911,7 +911,7 @@ Bentuk teredaksi untuk `admin_kelurahan`:
 
 ### 11.3 PATCH `/rujukan/{id}/status` (kader, admin_kelurahan, super_admin)
 
-Status hanya maju: `baru` → `dihubungi` → `tertangani` | `ditolak`. Status final (`tertangani` atau `ditolak`) tidak dapat diubah lagi (`422`). `catatan` wajib untuk `ditolak`.
+Status hanya maju: `baru` → `dihubungi` → `selesai` | `ditolak`. Status final (`selesai` atau `ditolak`) tidak dapat diubah lagi (`422`). `catatan` wajib untuk `ditolak`.
 
 ```json
 {
@@ -921,6 +921,49 @@ Status hanya maju: `baru` → `dihubungi` → `tertangani` | `ditolak`. Status f
 ```
 
 **200** objek rujukan terbaru (bentuk sesuai role pemanggil). `ditangani_oleh` dan `updated_at` terisi otomatis dari token.
+
+### 11.4 GET `/rujukan/{id}/surat` (user, kader, super_admin)
+
+Mengambil data terstruktur **Surat Pengantar Rujukan Posbindu** untuk dicetak atau disimpan sebagai PDF di web.
+
+- `user` hanya boleh mengakses surat miliknya; `kader` hanya untuk warga binaannya; `super_admin` dapat mengakses semua (dicatat ke `log_audit` dengan aksi `baca_data_individu`).
+- `admin_kelurahan` ditolak **`403`** untuk menjaga privasi data individu sesuai §11.2.
+- Opsional query `?format=html` mengembalikan dokumen HTML siap cetak ukuran A4.
+
+**200** `data` (JSON default):
+
+```json
+{
+  "id": 15,
+  "nomor_surat": "SK-RUJ/2026/000015",
+  "tanggal_rujukan": "2026-10-03T14:30:00+08:00",
+  "tanggal_cetak": "2026-10-03T15:00:00+08:00",
+  "status": "baru",
+  "otomatis": false,
+  "indikator": null,
+  "alasan": "Tekanan darah tinggi pada 2 pengukuran terakhir",
+  "catatan": null,
+  "pasien": {
+    "id": 12,
+    "name": "Budi Santoso",
+    "nik": "6372010101010001",
+    "jenis_kelamin": "L",
+    "tgl_lahir": "1980-05-12",
+    "usia": 46,
+    "wilayah": "Guntung Paikat, Banjarbaru Selatan"
+  },
+  "faskes": {
+    "id": 1,
+    "nama": "Puskesmas Landasan Ulin",
+    "jenis": "puskesmas",
+    "alamat": "Jl. A. Yani Km 23",
+    "telepon": "0511-4700000"
+  },
+  "dibuat_oleh": { "id": 5, "name": "Kader A", "role": "kader" },
+  "ditangani_oleh": null,
+  "disclaimer": "Surat pengantar rujukan ini merupakan tindak lanjut skrining Posbindu SehatKita, bukan diagnosis medis resmi. Untuk rujukan berjenjang BPJS/RS, harap tetap melalui pemeriksaan dokter di Puskesmas/FKTP terdekat."
+}
+```
 
 ---
 
@@ -979,13 +1022,20 @@ Ikut program. **201** `data`: `{"status":"terdaftar"}`. Sudah terdaftar → 422.
 ### 12.7 PATCH `/program/{id}/peserta` (user, kader, admin_kelurahan, super_admin)
 
 ```json
-{ "user_id": 12, "status": "selesai" }
+{ "user_id": 12, "status": "selesai", "catatan_verifikasi": "Opsional" }
 ```
 
-- `user` hanya boleh `berhenti` untuk dirinya (`user_id` diabaikan). `selesai` hanya oleh `kader` (warga binaan), `admin_kelurahan` (wilayahnya), atau `super_admin`, agar reward tidak diklaim sendiri.
+- `user` hanya boleh `berhenti` untuk dirinya (`user_id` diabaikan). `selesai` dan `ditolak` hanya oleh `kader` (warga binaan), `admin_kelurahan` (wilayahnya), atau `super_admin`, agar reward tidak diklaim sendiri.
+- Saat `ditolak`, `catatan_verifikasi` bersifat opsional (bila kosong, server mengisi pesan default).
 - Saat `selesai` (sekali saja, idempoten): server menambah `exp_reward` ke `pengguna.exp_total`, memperbarui `level_gamifikasi`, dan mencatat `badge_reward` ke `badge_pengguna`.
 
 **200** `data`: `{"status":"selesai","exp_didapat":100,"exp_total":220,"level_gamifikasi":3,"badge_baru":"jagoan_pushup"}`
+
+### 12.7b Bukti Foto Dokumentasi Tantangan (`/program/{id}/bukti`)
+
+- **POST `/program/{id}/bukti`** (`user`, multipart `foto` `jpg/jpeg/png/webp` maks. `5 MB`, `catatan_bukti` opsional maks. 500): Mengunggah/mengganti foto dokumentasi misi. Status peserta berubah menjadi `menunggu_verifikasi`. Ditolak **422** bila misi sudah `selesai`.
+- **DELETE `/program/{id}/bukti`** (`user`): Menghapus foto dokumentasi yang sudah diunggah sebelum misi berstatus `selesai`, membersihkan file penyimpanan & catatan verifikasi, dan mengembalikan status peserta ke `terdaftar`. **200** `data`: objek `peserta_saya` terbaru (`bukti_foto_url: null`, `status: "terdaftar"`). Bila misi sudah `selesai` → **422**.
+- **GET `/program/{id}/bukti/{pesertaId}`** (`user` pemilik, `kader`/`admin_kelurahan` wilayah terkait, `super_admin`): Mengambil file foto dokumentasi terautentikasi.
 
 ### 12.8 GET `/peringkat` (auth)
 
@@ -1097,7 +1147,7 @@ Query: `?periode=3m`
     {
       "tanggal": "2026-09-15",
       "faskes": "Puskesmas Landasan Ulin",
-      "status": "tertangani"
+      "status": "selesai"
     }
   ],
   "disclaimer": "Sistem ini bukan alat diagnosis medis. Konsultasikan hasil dengan tenaga kesehatan."
@@ -1361,3 +1411,5 @@ Bagian ini bukan kontrak API.
 | 1.6.0 | 2026-11-05 | **Penyesuaian Arahan Pembimbing Lapangan & Dinas Kesehatan RI:**<br>**(1)** `admin_kelurahan` diberikan akses **read-only** pada catatan rekam medis warga kelurahannya (`GET /catatan-kesehatan`, `GET /catatan-kesehatan/{id}`). Aksi `POST`/`DELETE` tetap dilarang.<br>**(2)** Penyelarasan ambang batas tekanan darah resmi **Kemenkes RI / PERHI**: Sistol normal < 130 mmHg (tensi 120 pas adalah Normal, bukan pra-hipertensi), Diastol normal < 85 mmHg (80 pas adalah Normal).<br>**(3)** Penambahan kolom `nik` (16 digit angka, unik) pada tabel `pengguna` + validasi registrasi/admin master.<br>**(4)** Modul `program` mendukung **CRUD penuh**: Super Admin bisa membuat se-kota (`wilayah_id = null`), Admin Kelurahan membuat per kelurahan; penambahan endpoint `GET /program/{id}`, `PUT /program/{id}`, dan `DELETE /program/{id}`.<br>**(5)** Modul baru `pengaduan`: Warga melapor keluhan layanan Posbindu/faskes ke pihak kelurahan (`POST /pengaduan`), Admin Kelurahan memberikan tanggapan resmi (`PATCH /pengaduan/{id}/tanggapi`).<br>**(6)** Modul baru `target_kesehatan`: Warga dapat menyetel target dinamis multi-metrik (BB, TB, massa otot, tensi, dll) dengan respon motivasi otomatis saat target tercapai.<br>**(7)** Modul Ekspor Data Super Admin: `GET /admin/export?tipe=catatan\|posbindu\|rujukan` menghasilkan file download CSV stream (UTF-8 BOM).<br>**(8)** Modul Integrasi Bot Telegram & Pengingat Bulanan: pairing akun warga via deep link (`/telegram/status`, `/telegram/webhook`) dan artisan scheduler bulanan (`reminder:skrining-ptm`).<br>**(9)** Mutasi warga: Bila `wilayah_id` warga diubah, `kader_id` otomatis di-reset ke `null` untuk melindungi privasi data warga. | BE |
 | 1.7.0 | 2026-11-12 | **Penyempurnaan Keamanan, Peta Faskes, dan Perbaikan Validasi Operasional:**<br>**(1)** **Keamanan Password Kuat:** `POST /api/v1/auth/register` wajib password minimal 8 karakter dengan minimal 1 huruf kapital, 1 angka, dan 1 simbol khusus (`Password::min(8)->letters()->mixedCase()->numbers()->symbols()`).<br>**(2)** **Validasi Waktu Catat Kesehatan:** Perbaikan aturan `dicatat_pada` pada `POST /api/v1/catatan-kesehatan` dari `before_or_equal:today` (yang salah mengira jam hari ini sebagai masa depan) menjadi `before_or_equal:now` dengan toleransi buffer 10 menit.<br>**(3)** **Gula Darah & Puasa:** Penegasan validasi bahwa bila field `gula_darah` diisi, field `jenis_gula_darah` (`puasa` / `2jam_pp`) wajib disertakan.<br>**(4)** **Aktivasi Koordinat Peta Faskes (`GET /api/v1/faskes`):** Pengisian data koordinat geografis presisi (`lat`, `lng`) serta telepon resmi Puskesmas, Rumah Sakit, dan Klinik di seluruh Kota Banjarbaru untuk integrasi peta interaktif warga.<br>**(5)** **Keputusan Kebijakan Peta Warga (§0 #19):** Titik lokasi rumah warga secara individual diputuskan **TIDAK DITAMPILKAN DI PETA** demi mematuhi UU PDP No. 27/2022 dan prinsip etika *k-anonymity* SehatKita.<br>**(6)** **Bot Telegram Anti-Duplikasi:** Penambahan mekanisme atomic lock (`Cache::lock`) pada scheduler polling bot untuk mencegah duplikasi balasan pesan warga. | BE |
 | 1.7.1 | 2026-11-14 | **Penyelarasan Kontrak & Penguatan Audit Lintas Role:**<br>**(1)** Enum `faskes.jenis` diselaraskan ke nilai aktual DB & controller (`puskesmas`, `klinik`, `rumah_sakit`, `lainnya`) serta dokumentasi koordinat opsional `lat`/`lng` di `/admin/faskes`.<br>**(2)** Bentuk `ambang_kategori` (§15) menyertakan field aktual `status` (`normal`, `perlu_perhatian`, `berisiko`).<br>**(3)** `GET /posbindu/sesi` bagi `kader` menampilkan sesi wilayah yang ditugaskan kepadanya atau belum bertuan (`kader_id = null`); `cari-nik` dibatasi hanya `kader` (scope binaan) & `super_admin`.<br>**(4)** Response `rujukan` non-`admin_kelurahan` menyertakan objek `user` (`id`, `name`, `nik`) dan menolak transisi keluar dari status final (`tertangani`/`ditolak`); response `program` menyertakan `wilayah_id` serta mengisolasi `admin_kelurahan` pada program kota dan mencegah double-EXP dari status final `selesai`. | BE |
+| 1.8.0 | 2026-11-14 | **Surat Rujukan & Penyelarasan Status Rujukan:**<br>**(1)** Endpoint baru `GET /rujukan/{id}/surat` (§11.4) mengembalikan data terstruktur & HTML cetak A4 Surat Pengantar Rujukan.<br>**(2)** Enum `status_rujukan` diganti dari `tertangani` menjadi `selesai` (`baru`, `dihubungi`, `selesai`, `ditolak`). | BE |
+| 1.8.1 | 2026-11-14 | **Hapus Foto Bukti Tantangan & Perbaikan Penolakan Tanpa Catatan:**<br>**(1)** Endpoint baru `DELETE /program/{id}/bukti` (§12.7b) mengizinkan role `user` menghapus foto dokumentasi sebelum misi berstatus `selesai`.<br>**(2)** `PATCH /program/{id}/peserta` saat status `ditolak` aman menerima payload tanpa `catatan_verifikasi`. | BE |

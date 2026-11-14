@@ -99,7 +99,7 @@ class DashboardWilayahController extends Controller
             ->groupBy('status')
             ->pluck('total', 'status');
 
-        $rujukanMentah = collect(['baru', 'dihubungi', 'tertangani', 'ditolak'])
+        $rujukanMentah = collect(['baru', 'dihubungi', 'selesai', 'ditolak'])
             ->mapWithKeys(fn ($s) => [$s => (int) ($rujukan[$s] ?? 0)])
             ->all();
 

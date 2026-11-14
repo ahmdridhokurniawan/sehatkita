@@ -666,7 +666,7 @@ class WargaDummySeeder extends Seeder
         }
 
         // ------------------------------------------------------------------
-        // 6. Data Rujukan Faskes (memenuhi 4 status: baru, dihubungi, tertangani, ditolak & k-anonymity)
+        // 6. Data Rujukan Faskes (memenuhi 4 status: baru, dihubungi, selesai, ditolak & k-anonymity)
         // ------------------------------------------------------------------
         if ($kaderLu && $faskesPuskesmasLu && count($listWargaLu) >= 27) {
             $rujukanSeed = [
@@ -683,12 +683,12 @@ class WargaDummySeeder extends Seeder
                 [$listWargaLu[12], $faskesPuskesmasLu, 'sistol',     false, 'dihubungi',  'Tekanan darah sistolik 144 mmHg.', 'Kader sudah menjadwalkan pendampingan lansia.', $kaderLu->id, $kaderLu->id],
                 [$listWargaLu[13], $faskesKlinik ?? $faskesPuskesmasLu, 'kolesterol', false, 'dihubungi', 'Kolesterol 225 mg/dL dan riwayat hipertensi keluarga.', 'Menunggu antrean pemeriksaan lab klinik.', $kaderLu->id, $kaderLu->id],
                 [$listWargaLu[6],  $faskesPuskesmasLu, 'asam_urat',  false, 'dihubungi',  'Asam urat 7.4 mg/dL dan sistol 134 mmHg.', 'Dihubungi via telepon untuk kontrol.', $kaderLu->id, $kaderLu->id],
-                // 5 status tertangani
-                [$listWargaLu[0],  $faskesPuskesmasLu, 'kolesterol', false, 'tertangani', 'Kontrol rutin kolesterol & kebugaran.', 'Sudah diperiksa dokter Puskesmas, hasil baik.', $kaderLu->id, $adminLu?->id ?? $kaderLu->id],
-                [$listWargaLu[1],  $faskesPuskesmasLu, 'sistol',     false, 'tertangani', 'Konsultasi riwayat diabetes keluarga.', 'Sudah mendapatkan edukasi diet rendah gula.', $kaderLu->id, $adminLu?->id ?? $kaderLu->id],
-                [$listWargaLu[2],  $faskesPuskesmasLu, 'asam_urat',  false, 'tertangani', 'Skrining lanjutan posbindu.', 'Sudah ditangani di poli umum.', $kaderLu->id, $kaderLu->id],
-                [$listWargaLu[3],  $faskesPuskesmasLu, 'sistol',     false, 'tertangani', 'Edukasi berhenti merokok dan tensi.', 'Warga mengikuti konseling UBM Puskesmas.', $kaderLu->id, $kaderLu->id],
-                [$listWargaLu[7],  $faskesPuskesmasLu, 'gula_darah', false, 'tertangani', 'Pemeriksaan ulang gula darah.', 'Hasil HbA1c stabil, lanjut kontrol 3 bulan.', $kaderLu->id, $kaderLu->id],
+                // 5 status selesai
+                [$listWargaLu[0],  $faskesPuskesmasLu, 'kolesterol', false, 'selesai',    'Kontrol rutin kolesterol & kebugaran.', 'Sudah diperiksa dokter Puskesmas, hasil baik.', $kaderLu->id, $adminLu?->id ?? $kaderLu->id],
+                [$listWargaLu[1],  $faskesPuskesmasLu, 'sistol',     false, 'selesai',    'Konsultasi riwayat diabetes keluarga.', 'Sudah mendapatkan edukasi diet rendah gula.', $kaderLu->id, $adminLu?->id ?? $kaderLu->id],
+                [$listWargaLu[2],  $faskesPuskesmasLu, 'asam_urat',  false, 'selesai',    'Skrining lanjutan posbindu.', 'Sudah ditangani di poli umum.', $kaderLu->id, $kaderLu->id],
+                [$listWargaLu[3],  $faskesPuskesmasLu, 'sistol',     false, 'selesai',    'Edukasi berhenti merokok dan tensi.', 'Warga mengikuti konseling UBM Puskesmas.', $kaderLu->id, $kaderLu->id],
+                [$listWargaLu[7],  $faskesPuskesmasLu, 'gula_darah', false, 'selesai',    'Pemeriksaan ulang gula darah.', 'Hasil HbA1c stabil, lanjut kontrol 3 bulan.', $kaderLu->id, $kaderLu->id],
                 // 5 status ditolak (memenuhi MIN_SEL = 5 agar seluruh 4 status tampil di Dashboard Wilayah)
                 [$listWargaLu[22], $faskesPuskesmasLu, 'sistol',     false, 'ditolak',    'Tekanan darah 150/92 mmHg perlu konfirmasi.', 'Warga sudah kontrol ke dokter pribadi dengan hasil tensi stabil.', $kaderLu->id, $kaderLu->id],
                 [$listWargaLu[23], $faskesPuskesmasLu, 'gula_darah', false, 'ditolak',    'Gula darah puasa 126 mg/dL.', 'Warga belum berpuasa 8 jam saat pengecekan, dijadwalkan ulang.', $kaderLu->id, $kaderLu->id],
@@ -716,7 +716,7 @@ class WargaDummySeeder extends Seeder
             $rujukanGpSeed = [
                 [$listWargaGp[6],  $faskesRs,          'sistol',     'baru',       'Tensi 156/96 mmHg dan gula darah puasa 148 mg/dL.', null, 'Dirujuk ke poli penyakit dalam RSD Idaman.'],
                 [$listWargaGp[4],  $faskesPuskesmasBs, 'kolesterol', 'dihubungi',  'Kolesterol 244 mg/dL dan tensi 148/92 mmHg.', $kaderGp->id, 'Sudah dijadwalkan konsultasi gizi & PTM.'],
-                [$listWargaGp[5],  $faskesPuskesmasBs, 'sistol',     'tertangani', 'Tensi 140/88 mmHg berkala.', $adminGp?->id ?? $kaderGp->id, 'Sudah menerima terapi antihipertensi ringan.'],
+                [$listWargaGp[5],  $faskesPuskesmasBs, 'sistol',     'selesai',    'Tensi 140/88 mmHg berkala.', $adminGp?->id ?? $kaderGp->id, 'Sudah menerima terapi antihipertensi ringan.'],
                 [$listWargaGp[10], $faskesRsAlmansyur, 'gula_darah', 'ditolak',    'Gula darah 124 mg/dL.', $kaderGp->id, 'Warga sudah kontrol rutin di klinik BPJS terdaftar.'],
             ];
             foreach ($rujukanGpSeed as [$uGp, $fGp, $indGp, $stGp, $alasanGp, $penGp, $catGp]) {

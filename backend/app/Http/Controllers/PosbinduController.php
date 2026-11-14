@@ -8,6 +8,7 @@ use App\Models\Pengguna;
 use App\Models\SesiPosbindu;
 use App\Services\HealthCalculatorService;
 use App\Services\RujukanOtomatisService;
+use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
@@ -18,7 +19,8 @@ class PosbinduController extends Controller
 {
     public function __construct(
         private HealthCalculatorService $kalkulator,
-        private RujukanOtomatisService $rujukanOtomatis
+        private RujukanOtomatisService $rujukanOtomatis,
+        private TelegramService $telegram
     ) {}
 
     private const ROLE_ADMIN = ['admin_kelurahan', 'super_admin'];
@@ -88,6 +90,17 @@ class PosbinduController extends Controller
         $this->validasiKaderWilayah($data['kader_id'] ?? null, (int) $data['wilayah_id']);
 
         $sesi = SesiPosbindu::create($data + ['status' => 'akan_datang']);
+
+        $tanggalLabel = $sesi->tanggal?->format('d-m-Y') ?? (string) $data['tanggal'];
+        $catatanTambahan = $sesi->catatan ? "\nCatatan: {$sesi->catatan}" : '';
+        $this->telegram->siarkanKeWilayah(
+            (int) $sesi->wilayah_id,
+            'Jadwal Sesi Posbindu Baru',
+            "Telah dijadwalkan pemeriksaan kesehatan Posbindu di kelurahan Anda.\n"
+            . "Tanggal: {$tanggalLabel}\n"
+            . "Lokasi: {$sesi->lokasi}{$catatanTambahan}\n\n"
+            . 'Jangan lupa hadir untuk memantau tekanan darah, gula darah, dan kondisi kesehatan Anda!'
+        );
 
         return response()->json([
             'success' => true,
@@ -280,8 +293,9 @@ class PosbinduController extends Controller
 
         $kunjunganId = null;
         $catatanKesehatanId = null;
+        $catatanRingkas = null;
 
-        DB::transaction(function () use ($sesi, $user, $data, $warga, &$kunjunganId, &$catatanKesehatanId) {
+        DB::transaction(function () use ($sesi, $user, $data, $warga, &$kunjunganId, &$catatanKesehatanId, &$catatanRingkas) {
             if ($data['hadir'] && ! empty($data['catatan_kesehatan'])) {
                 $rawCk = $data['catatan_kesehatan'];
 
@@ -312,6 +326,10 @@ class PosbinduController extends Controller
                 }
 
                 $catatanKesehatanId = $ck->id;
+                $catatanRingkas = [
+                    'status' => $ck->status_kesehatan,
+                    'skor'   => $ck->skor_risiko,
+                ];
             }
 
             $kunjungan = KunjunganPosbindu::create([
@@ -323,6 +341,21 @@ class PosbinduController extends Controller
             ]);
             $kunjunganId = $kunjungan->id;
         });
+
+        if ($data['hadir'] && $catatanRingkas !== null) {
+            $statusLabel = ucwords(str_replace('_', ' ', (string) ($catatanRingkas['status'] ?? 'tercatat')));
+            $skorInfo = $catatanRingkas['skor'] !== null ? "\nSkor risiko PTM: {$catatanRingkas['skor']}" : '';
+            $tanggalSesi = $sesi->tanggal?->format('d-m-Y') ?? '-';
+
+            $this->telegram->kirimNotifikasiUser(
+                $warga,
+                'Hasil Pemeriksaan Posbindu Tercatat',
+                "Halo {$warga->name},\n"
+                . "Hasil pemeriksaan Posbindu Anda ({$tanggalSesi} di {$sesi->lokasi}) sudah dicatat oleh kader.\n"
+                . "Status kesehatan: {$statusLabel}{$skorInfo}\n\n"
+                . 'Lihat rincian lengkapnya di menu Riwayat Kesehatan pada aplikasi SehatKita.'
+            );
+        }
 
         return response()->json([
             'success' => true,

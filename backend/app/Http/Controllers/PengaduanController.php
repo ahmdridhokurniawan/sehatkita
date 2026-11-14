@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pengaduan;
+use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 // Controller modul pengaduan warga untuk admin kelurahan dan dinas kesehatan
 class PengaduanController extends Controller
 {
+    public function __construct(private TelegramService $telegram) {}
+
     // Tampilkan daftar pengaduan warga sesuai wilayah tugas admin atau milik sendiri
     public function index(Request $request)
     {
@@ -127,6 +130,16 @@ class PengaduanController extends Controller
             'ditanggapi_oleh' => $user->id,
             'ditanggapi_pada' => now(),
         ]);
+
+        $pengaduan->load(['pengguna', 'penanggap:id,name,role']);
+
+        $this->telegram->kirimNotifikasiUser(
+            $pengaduan->pengguna,
+            'Tanggapan Pengaduan Anda',
+            "Judul: {$pengaduan->judul}\n"
+            . 'Status: ' . strtoupper($pengaduan->status) . "\n"
+            . "Tanggapan: {$pengaduan->tanggapan}"
+        );
 
         return response()->json([
             'success' => true,

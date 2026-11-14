@@ -479,6 +479,27 @@ class BugFixesTest extends TestCase
         $this->assertNull($wargaLama->telegram_chat_id);
         $this->assertSame('999001', (string) $wargaBaru->telegram_chat_id);
         $this->assertNull($wargaBaru->telegram_connect_token);
+
+        // Mendukung format /start@nama_bot <token> saat pindah kembali ke akun lama
+        $wargaLama->update(['telegram_connect_token' => 'tokenbot123']);
+        app(TelegramService::class)->prosesPesan([
+            'chat' => ['id' => 999001],
+            'text' => '/start@sehatkita_ptm_bot tokenbot123',
+        ]);
+
+        $wargaLama->refresh();
+        $wargaBaru->refresh();
+        $this->assertSame('999001', (string) $wargaLama->telegram_chat_id);
+        $this->assertNull($wargaBaru->telegram_chat_id);
+
+        // Perintah /putus melepas tautan chat_id dari akun aktif langsung lewat bot Telegram
+        app(TelegramService::class)->prosesPesan([
+            'chat' => ['id' => 999001],
+            'text' => '/putus',
+        ]);
+
+        $wargaLama->refresh();
+        $this->assertNull($wargaLama->telegram_chat_id);
     }
 
     public function test_bug13_program_kota_isolasi_wilayah_dan_anti_double_exp(): void
@@ -565,7 +586,7 @@ class BugFixesTest extends TestCase
             'user_id'   => $wargaA->id,
             'faskes_id' => $faskes->id,
             'alasan'    => 'Tensi tinggi',
-            'status'    => 'tertangani',
+            'status'    => 'selesai',
         ]);
 
         // Rujukan menyertakan ringkasan identitas warga bagi kader dan status final tidak bisa dibalik

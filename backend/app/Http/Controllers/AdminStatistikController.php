@@ -59,7 +59,7 @@ class AdminStatistikController extends Controller
                 'total_users'                => Pengguna::count(),
                 'users_by_role'              => $this->hitungPerKolom(Pengguna::query(), 'role'),
 
-                // Rujukan (status: baru | dihubungi | tertangani | ditolak)
+                // Rujukan (status: baru | dihubungi | selesai | ditolak)
                 'total_rujukan'              => Rujukan::count(),
                 'rujukan_by_status'          => $this->hitungPerKolom(Rujukan::query(), 'status'),
 

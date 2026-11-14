@@ -157,15 +157,41 @@ class ProgramApiTest extends TestCase
             ->get("/api/v1/program/{$program->id}/bukti/{$peserta->id}")
             ->assertOk();
 
-        // 3. Admin menolak terlebih dahulu dengan alasan
+        // 3. Admin menolak terlebih dahulu tanpa catatan (pakai alasan default, tidak boleh 500)
         $this->asUser($admin)
             ->patchJson("/api/v1/program/{$program->id}/peserta", [
-                'user_id'            => $warga->id,
-                'status'             => 'ditolak',
-                'catatan_verifikasi' => 'Foto buram, mohon unggah ulang.',
+                'user_id' => $warga->id,
+                'status'  => 'ditolak',
             ])->assertOk()
               ->assertJsonPath('data.status', 'ditolak');
+        $this->assertNotNull($peserta->fresh()->catatan_verifikasi);
         $this->assertEquals(0, $warga->fresh()->exp_total);
+
+        // 3b. Warga dapat menghapus foto bukti saat belum selesai -> status kembali terdaftar
+        $this->asUser($admin)
+            ->deleteJson("/api/v1/program/{$program->id}/bukti")
+            ->assertStatus(403);
+
+        $pathLama = $peserta->bukti_foto;
+        $this->asUser($warga)
+            ->deleteJson("/api/v1/program/{$program->id}/bukti")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'terdaftar')
+            ->assertJsonPath('data.bukti_foto_url', null);
+
+        Storage::disk('local')->assertMissing($pathLama);
+        $this->assertNull($peserta->fresh()->bukti_foto);
+
+        // 3c. Warga unggah ulang foto bukti lalu admin setujui selesai -> EXP bertambah & tidak boleh hapus setelah selesai
+        $fileUlang = function_exists('imagecreatetruecolor')
+            ? UploadedFile::fake()->image('dokumentasi-ulang.jpg', 320, 240)
+            : UploadedFile::fake()->createWithContent(
+                'dokumentasi-ulang.png',
+                base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==')
+            );
+        $this->asUser($warga)->post("/api/v1/program/{$program->id}/bukti", [
+            'foto' => $fileUlang,
+        ], ['Accept' => 'application/json'])->assertOk();
 
         // 4. Admin menyetujui selesai -> EXP bertambah
         $this->asUser($admin)
@@ -176,5 +202,11 @@ class ProgramApiTest extends TestCase
               ->assertJsonPath('data.status', 'selesai')
               ->assertJsonPath('data.exp_didapat', 120);
         $this->assertEquals(120, $warga->fresh()->exp_total);
+        $this->assertNull($peserta->fresh()->catatan_verifikasi);
+
+        // Setelah misi selesai terverifikasi, foto tidak boleh dihapus (422)
+        $this->asUser($warga)
+            ->deleteJson("/api/v1/program/{$program->id}/bukti")
+            ->assertStatus(422);
     }
 }

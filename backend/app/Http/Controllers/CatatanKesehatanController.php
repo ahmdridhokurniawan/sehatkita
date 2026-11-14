@@ -7,6 +7,7 @@ use App\Models\Pengguna;
 use App\Models\SesiPosbindu;
 use App\Services\HealthCalculatorService;
 use App\Services\RujukanOtomatisService;
+use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -16,7 +17,8 @@ class CatatanKesehatanController extends Controller
 {
     public function __construct(
         private HealthCalculatorService $kalkulator,
-        private RujukanOtomatisService $rujukanOtomatis
+        private RujukanOtomatisService $rujukanOtomatis,
+        private TelegramService $telegram
     ) {}
 
     // Daftar catatan kesehatan
@@ -206,6 +208,19 @@ class CatatanKesehatanController extends Controller
 
             return $baris;
         });
+
+        if (! $catatan->perlu_verifikasi && in_array($catatan->status_kesehatan, ['perlu_perhatian', 'berisiko'], true)) {
+            $statusLabel = ucwords(str_replace('_', ' ', (string) $catatan->status_kesehatan));
+            $skorInfo = $catatan->skor_risiko !== null ? "\nSkor risiko PTM: {$catatan->skor_risiko}" : '';
+
+            $this->telegram->kirimNotifikasiUser(
+                $pemilik,
+                'Peringatan Dini Hasil Pemeriksaan',
+                "Halo {$pemilik->name},\n"
+                . "Catatan kesehatan terbaru Anda menunjukkan status: {$statusLabel}{$skorInfo}.\n\n"
+                . 'Pantau pola makan, aktivitas fisik, dan pertimbangkan berkonsultasi ke Puskesmas/Posbindu terdekat.'
+            );
+        }
 
         return response()->json([
             'success' => true,

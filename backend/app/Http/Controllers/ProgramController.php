@@ -6,6 +6,7 @@ use App\Models\BadgePengguna;
 use App\Models\Pengguna;
 use App\Models\PesertaProgram;
 use App\Models\Program;
+use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -15,6 +16,8 @@ use Illuminate\Validation\ValidationException;
 // Controller pengelolaan program kesehatan dan keikutsertaan warga
 class ProgramController extends Controller
 {
+    public function __construct(private TelegramService $telegram) {}
+
     // Tampilkan daftar program kesehatan sesuai peran dan status berjalan
     public function index(Request $request)
     {
@@ -112,6 +115,19 @@ class ProgramController extends Controller
         };
 
         $program = Program::create($data);
+
+        if ($program->status !== 'selesai') {
+            $periodeSelesai = $program->selesai ? " s.d. {$program->selesai}" : '';
+            $this->telegram->siarkanKeWilayah(
+                $program->wilayah_id ? (int) $program->wilayah_id : null,
+                'Program & Tantangan Kesehatan Baru',
+                "Ada program baru: {$program->judul}\n"
+                . "Periode: {$program->mulai}{$periodeSelesai}\n"
+                . "Reward: +{$program->exp_reward} EXP"
+                . ($program->badge_reward ? " & Badge {$program->badge_reward}" : '') . "\n\n"
+                . 'Yuk daftar dan selesaikan misinya di aplikasi SehatKita!'
+            );
+        }
 
         return response()->json([
             'success' => true,
@@ -282,9 +298,11 @@ class ProgramController extends Controller
 
         if ($sudah) {
             // Berhenti lalu ikut lagi → aktifkan kembali & bersihkan riwayat lama.
+            $this->hapusFileBukti($sudah->bukti_foto);
             $sudah->update([
                 'status'             => 'terdaftar',
                 'selesai_pada'       => null,
+                'bukti_foto'         => null,
                 'catatan_bukti'      => null,
                 'dikirim_pada'       => null,
                 'catatan_verifikasi' => null,
@@ -335,13 +353,7 @@ class ProgramController extends Controller
             'foto.max'      => 'Ukuran foto maksimal 5 MB.',
         ]);
 
-        if ($peserta->bukti_foto) {
-            foreach (['local', 'public'] as $disk) {
-                if (Storage::disk($disk)->exists($peserta->bukti_foto)) {
-                    Storage::disk($disk)->delete($peserta->bukti_foto);
-                }
-            }
-        }
+        $this->hapusFileBukti($peserta->bukti_foto);
 
         $path = $request->file('foto')->store("program-bukti/{$program->id}", 'local');
 
@@ -360,6 +372,61 @@ class ProgramController extends Controller
             'message' => 'Dokumentasi berhasil dikirim dan menunggu verifikasi kader/admin.',
             'data'    => $this->ringkasanPesertaSaya($peserta->fresh(), $program->id),
         ]);
+    }
+
+    // DELETE /program/{id}/bukti — warga menghapus foto dokumentasi sebelum misi selesai
+    public function hapusBukti(Request $request, int $id)
+    {
+        $user = $request->user();
+        abort_unless($user->role === 'user', 403, 'Hanya warga peserta yang dapat menghapus foto bukti tantangan.');
+
+        $program = Program::findOrFail($id);
+
+        $peserta = PesertaProgram::where('program_id', $program->id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        abort_unless($peserta && $peserta->status !== 'berhenti', 404, 'Anda belum terdaftar pada tantangan ini.');
+
+        if ($peserta->status === 'selesai') {
+            throw ValidationException::withMessages([
+                'program' => ['Foto dokumentasi tantangan yang sudah selesai diverifikasi tidak dapat dihapus.'],
+            ]);
+        }
+
+        abort_unless($peserta->bukti_foto, 404, 'Belum ada foto dokumentasi yang dapat dihapus.');
+
+        $this->hapusFileBukti($peserta->bukti_foto);
+
+        $peserta->update([
+            'bukti_foto'         => null,
+            'catatan_bukti'      => null,
+            'dikirim_pada'       => null,
+            'status'             => 'terdaftar',
+            'catatan_verifikasi' => null,
+            'diverifikasi_oleh'  => null,
+            'diverifikasi_pada'  => null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Foto dokumentasi berhasil dihapus.',
+            'data'    => $this->ringkasanPesertaSaya($peserta->fresh(), $program->id),
+        ]);
+    }
+
+    // Hapus file foto dokumentasi pada disk penyimpanan yang tersedia
+    private function hapusFileBukti(?string $path): void
+    {
+        if (! $path) {
+            return;
+        }
+
+        foreach (['local', 'public'] as $disk) {
+            if (Storage::disk($disk)->exists($path)) {
+                Storage::disk($disk)->delete($path);
+            }
+        }
     }
 
     // GET /program/{id}/bukti/{pesertaId} — tampilkan foto dokumentasi bukti
@@ -449,8 +516,11 @@ class ProgramController extends Controller
             );
         }
 
+        $notifStatus = null;
+        $catatanVerif = null;
+
         // Bungkus pembaruan status dan pemberian EXP/badge dalam satu transaksi atomik agar idempoten tanpa celah gagal parsial
-        $hasil = DB::transaction(function () use ($peserta, $program, $data, $user, $request) {
+        $hasil = DB::transaction(function () use ($peserta, $program, $data, $user, $request, &$notifStatus, &$catatanVerif) {
             $terkunci     = PesertaProgram::whereKey($peserta->id)->lockForUpdate()->firstOrFail();
             $sudahSelesai = $terkunci->status === 'selesai';
 
@@ -462,17 +532,20 @@ class ProgramController extends Controller
 
             $terkunci->status = $data['status'];
             if ($data['status'] === 'selesai') {
-                $terkunci->selesai_pada      = $terkunci->selesai_pada ?? now();
-                $terkunci->diverifikasi_oleh = $user->id;
-                $terkunci->diverifikasi_pada = now();
-                if ($request->filled('catatan_verifikasi')) {
-                    $terkunci->catatan_verifikasi = $data['catatan_verifikasi'];
+                $terkunci->selesai_pada       = $terkunci->selesai_pada ?? now();
+                $terkunci->diverifikasi_oleh  = $user->id;
+                $terkunci->diverifikasi_pada  = now();
+                $terkunci->catatan_verifikasi = $data['catatan_verifikasi'] ?? null;
+                if (! $sudahSelesai) {
+                    $notifStatus = 'selesai';
                 }
             } elseif ($data['status'] === 'ditolak') {
                 $terkunci->selesai_pada       = null;
                 $terkunci->diverifikasi_oleh  = $user->id;
                 $terkunci->diverifikasi_pada  = now();
-                $terkunci->catatan_verifikasi = $data['catatan_verifikasi'] ?: 'Foto bukti belum sesuai kriteria misi. Silakan kirim ulang.';
+                $terkunci->catatan_verifikasi = ($data['catatan_verifikasi'] ?? null) ?: 'Foto bukti belum sesuai kriteria misi. Silakan kirim ulang.';
+                $notifStatus = 'ditolak';
+                $catatanVerif = $terkunci->catatan_verifikasi;
             }
             $terkunci->save();
 
@@ -520,6 +593,26 @@ class ProgramController extends Controller
                 'badge_baru'       => $badgeBaru,
             ];
         });
+
+        if ($notifStatus === 'selesai') {
+            $warga = Pengguna::find($peserta->user_id);
+            $badgeInfo = $hasil['badge_baru'] ? "\nBadge baru: {$hasil['badge_baru']}" : '';
+            $this->telegram->kirimNotifikasiUser(
+                $warga,
+                'Misi Program Selesai!',
+                "Selamat {$warga?->name}! Bukti program \"{$program->judul}\" Anda telah disetujui.\n"
+                . "Hadiah: +{$hasil['exp_didapat']} EXP (Total: {$hasil['exp_total']} EXP){$badgeInfo}"
+            );
+        } elseif ($notifStatus === 'ditolak') {
+            $warga = Pengguna::find($peserta->user_id);
+            $this->telegram->kirimNotifikasiUser(
+                $warga,
+                'Bukti Program Perlu Diperbaiki',
+                "Bukti keikutsertaan Anda pada program \"{$program->judul}\" belum disetujui.\n"
+                . "Catatan petugas: {$catatanVerif}\n\n"
+                . 'Silakan unggah ulang bukti yang sesuai melalui aplikasi SehatKita.'
+            );
+        }
 
         return response()->json([
             'success' => true,

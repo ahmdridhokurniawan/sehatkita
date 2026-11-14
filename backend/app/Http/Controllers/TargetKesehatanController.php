@@ -3,11 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\TargetKesehatan;
+use App\Services\TelegramService;
 use Illuminate\Http\Request;
 
 // Controller CRUD target kesehatan dinamis dan motivasi warga
 class TargetKesehatanController extends Controller
 {
+    public function __construct(private TelegramService $telegram) {}
+
     public function index(Request $request)
     {
         $this->hanyaWarga($request->user());
@@ -92,6 +95,15 @@ class TargetKesehatanController extends Controller
         $motivasi = $tercapai
             ? ($target->catatan_motivasi ?: 'Selamat! Target kesehatan tercapai, pertahankan gaya hidup sehatmu!')
             : 'Target dikembalikan ke status aktif. Semangat berjuang kembali!';
+
+        if ($tercapai) {
+            $this->telegram->kirimNotifikasiUser(
+                $request->user(),
+                'Target Kesehatan Tercapai!',
+                "Selamat {$request->user()->name}! Target \"{$target->judul}\" berhasil tercapai.\n"
+                . $motivasi
+            );
+        }
 
         return response()->json([
             'success'  => true,
