@@ -137,4 +137,16 @@ describe("LoginPage", () => {
       expect(mockSetToken).toHaveBeenCalledWith("tok-session-456", false);
     });
   });
+
+  it("menolak submit saat email dan password kosong", async () => {
+    const user = userEvent.setup();
+    render(<LoginPage />);
+
+    await user.click(screen.getByRole("button", { name: /^masuk$/i }));
+
+    expect(mockLogin).not.toHaveBeenCalled();
+    expect(mockSetToken).not.toHaveBeenCalled();
+    expect(screen.getByText(/email wajib diisi/i)).toBeInTheDocument();
+    expect(screen.getByText(/password wajib diisi/i)).toBeInTheDocument();
+  });
 });

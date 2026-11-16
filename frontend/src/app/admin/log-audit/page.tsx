@@ -1,72 +1,79 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AppShell from "@/components/app/AppShell";
+import TombolKembaliAdmin from "@/components/admin/TombolKembaliAdmin";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
-import { EmptyState } from "@/components/ui/Empty";
+import Pagination, { type Meta } from "@/components/ui/Pagination";
+import { EmptyState, Loading } from "@/components/ui/Empty";
 import { tanggal } from "@/lib/format";
 import { admin as adminApi, ApiError } from "@/lib/api";
+import { useMinLoading } from "@/hooks/useMinLoading";
 import type { LogAudit } from "@/types";
 
-const AKSI_BADGE: Record<string, "safe" | "info" | "warning" | "danger"> = {
-  create: "safe",
-  read: "info",
-  update: "warning",
-  delete: "danger",
+const AKSI_META: Record<string, { label: string; tone: "safe" | "info" | "warning" | "danger" }> = {
+  baca_data_individu: { label: "Baca Data", tone: "info" },
+  ubah_data_individu: { label: "Ubah Data", tone: "warning" },
+  verifikasi_setujui_catatan: { label: "Setujui Catatan", tone: "safe" },
+  verifikasi_tolak_catatan: { label: "Tolak Catatan", tone: "danger" },
+  ubah_status_rujukan: { label: "Ubah Rujukan", tone: "warning" },
 };
+
+const FILTER_AKSI = [
+  { value: "semua", label: "Semua" },
+  { value: "baca_data_individu", label: "Baca Data" },
+  { value: "ubah_data_individu", label: "Ubah Data" },
+  { value: "verifikasi", label: "Verifikasi" },
+  { value: "ubah_status_rujukan", label: "Rujukan" },
+];
 
 export default function AdminLogAuditPage() {
   const [daftar, setDaftar] = useState<LogAudit[]>([]);
+  const [meta, setMeta] = useState<Meta | null>(null);
+  const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<string>("semua");
   const [cari, setCari] = useState("");
   const [loading, setLoading] = useState(true);
+  const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState<string>("");
 
-  // Fetch log-audit on mount
+  const muat = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await adminApi.logAudit.listPaged({
+        page,
+        per_page: 20,
+        aksi: filter !== "semua" ? filter : undefined,
+        search: cari.trim() || undefined,
+      });
+      setDaftar(res.data);
+      setMeta(res.meta);
+      setError("");
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Gagal muat log";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, filter, cari]);
+
   useEffect(() => {
-    (async () => {
-      try {
-        const res = await adminApi.logAudit.list();
-        setDaftar(res);
-        setError("");
-      } catch (err) {
-        const msg = err instanceof ApiError ? err.message : "Gagal muat log";
-        setError(msg);
-        console.error("Fetch log:", err);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+    const t = setTimeout(() => {
+      muat();
+    }, 250);
+    return () => clearTimeout(t);
+  }, [muat]);
 
-  const filtered = useMemo(() => {
-    const q = cari.trim().toLowerCase();
-    return daftar.filter((log) => {
-      if (filter !== "semua" && log.aksi !== filter) return false;
-      if (!q) return true;
-      const teks = [
-        log.model,
-        log.aksi,
-        log.pengguna?.name,
-        log.pengguna?.email,
-        log.model_id != null ? String(log.model_id) : "",
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return teks.includes(q);
-    });
-  }, [filter, daftar, cari]);
-
-  const hitungAksi = (aksi: string) => daftar.filter((l) => l.aksi === aksi).length;
+  const hitungAksi = (prefix: string) => daftar.filter((l) => l.aksi.includes(prefix)).length;
 
   return (
     <AppShell noFab roles={["super_admin"]}>
+      <TombolKembaliAdmin />
       <div className="row-between mb-16">
         <div>
           <h1 className="h3">Log Audit</h1>
-          <p className="tiny">Riwayat aktivitas sistem & perubahan data.</p>
+          <p className="tiny">Riwayat aktivitas sistem & akses data individu.</p>
         </div>
       </div>
 
@@ -81,104 +88,98 @@ export default function AdminLogAuditPage() {
         </div>
       )}
 
-      {loading ? (
-        <div className="card">
-          <p className="tiny center">Memuat…</p>
+      <>
+        <div className="summary-strip mb-12">
+          <span className="summary-strip-item">
+            Total Log: <strong>{meta?.total ?? daftar.length}</strong>
+          </span>
+          <span className="summary-strip-item">
+            Baca Data: <strong>{hitungAksi("baca_")}</strong>
+          </span>
+          <span className="summary-strip-item">
+            Ubah/Rujukan: <strong>{hitungAksi("ubah_")}</strong>
+          </span>
+          <span className="summary-strip-item">
+            Verifikasi: <strong>{hitungAksi("verifikasi_")}</strong>
+          </span>
         </div>
-      ) : (
-        <>
-          <div className="grid grid-4 mb-12" style={{ gap: 10 }}>
-            <div className="metric" style={{ alignItems: "center" }}>
-              <span className="metric-val">{daftar.length}</span>
-              <span className="tiny">Total</span>
-            </div>
-            <div className="metric" style={{ alignItems: "center" }}>
-              <span className="metric-val">{hitungAksi("create")}</span>
-              <span className="tiny">Create</span>
-            </div>
-            <div className="metric" style={{ alignItems: "center" }}>
-              <span className="metric-val">{hitungAksi("update")}</span>
-              <span className="tiny">Update</span>
-            </div>
-            <div className="metric" style={{ alignItems: "center" }}>
-              <span className="metric-val">{hitungAksi("delete")}</span>
-              <span className="tiny">Delete</span>
-            </div>
-          </div>
 
-          <div className="segmented mb-12">
+        <div className="segment mb-12">
+          {FILTER_AKSI.map((f) => (
             <button
-              className={`segmented-item ${filter === "semua" ? "active" : ""}`}
-              onClick={() => setFilter("semua")}
+              key={f.value}
+              type="button"
+              className={filter === f.value ? "active" : undefined}
+              onClick={() => {
+                setFilter(f.value);
+                setPage(1);
+              }}
             >
-              Semua
+              {f.label}
             </button>
-            <button
-              className={`segmented-item ${filter === "create" ? "active" : ""}`}
-              onClick={() => setFilter("create")}
-            >
-              Create
-            </button>
-            <button
-              className={`segmented-item ${filter === "update" ? "active" : ""}`}
-              onClick={() => setFilter("update")}
-            >
-              Update
-            </button>
-            <button
-              className={`segmented-item ${filter === "delete" ? "active" : ""}`}
-              onClick={() => setFilter("delete")}
-            >
-              Delete
-            </button>
-          </div>
+          ))}
+        </div>
 
-          <div className="input-icon mb-12">
-            <Icon name="search" size={18} />
-            <input
-              className="input"
-              type="search"
-              placeholder="Cari log (model, aksi, pengguna)…"
-              value={cari}
-              onChange={(e) => setCari(e.target.value)}
-            />
-          </div>
+        <div className="input-icon mb-12">
+          <Icon name="search" size={18} />
+          <input
+            className="input"
+            type="search"
+            placeholder="Cari log (aksi atau model)…"
+            value={cari}
+            onChange={(e) => {
+              setCari(e.target.value);
+              setPage(1);
+            }}
+          />
+        </div>
 
-          <div className="mt-12" style={{ display: "grid", gap: 12 }}>
-            {filtered.length === 0 ? (
-              <div className="card card-flat">
-                <EmptyState icon="shield" title="Tidak ada log" desc="Tidak ada aktivitas dengan filter ini." />
-              </div>
-            ) : (
-              filtered.map((log) => (
-                <div className="card card-flat" key={log.id}>
-                  <div className="row items-start gap-10">
-                    <span className="li-ico">
-                      <Icon name="file-text" size={18} />
-                    </span>
-                    <div className="flex-1">
-                      <div className="row-between">
-                        <strong className="text-sm">{log.model}</strong>
-                        <Badge tone={AKSI_BADGE[log.aksi] || "default"}>{log.aksi}</Badge>
-                      </div>
-                      <p className="tiny mt-4">User: {log.pengguna?.name || log.user_id}</p>
-                      <p className="tiny mt-2">Model ID: {log.model_id}</p>
-                      <p className="tiny mt-2">IP: {log.ip}</p>
-                      <p className="tiny mt-2">
-                        <Icon name="calendar" size={12} /> {tanggal(log.created_at, "day")}
-                      </p>
+        {tampilLoading ? (
+          <div className="mt-12">
+            <Loading variant="list" text="Memuat log audit…" />
+          </div>
+        ) : daftar.length === 0 ? (
+          <div className="mt-12">
+            <EmptyState icon="shield" title="Tidak ada log" desc="Tidak ada aktivitas dengan filter ini." />
+          </div>
+        ) : (
+          <div className="card card-list mt-12">
+            {daftar.map((log) => {
+              const info = AKSI_META[log.aksi];
+              return (
+                <div className="li" key={log.id} style={{ alignItems: "flex-start" }}>
+                  <span className="li-ico">
+                    <Icon name="file-text" size={18} />
+                  </span>
+                  <div className="li-main">
+                    <div className="row-between wrap gap-8">
+                      <strong className="text-sm">{log.model}</strong>
+                      <Badge tone={info?.tone || "default"}>{info?.label || log.aksi}</Badge>
                     </div>
+                    <p className="tiny mt-4">
+                      Aksi: {log.aksi} · User: {log.pengguna?.name || log.user_id}
+                      {log.model_id != null ? ` · Model ID: ${log.model_id}` : ""}
+                    </p>
+                    <p className="tiny mt-2">
+                      IP: {log.ip} · <Icon name="calendar" size={12} /> {tanggal(log.created_at, "day")}
+                    </p>
                   </div>
                 </div>
-              ))
-            )}
+              );
+            })}
           </div>
+        )}
 
-          <p className="tiny center mt-16 mb-16">
-            <Icon name="info" size={13} /> Log mencatat akses super admin ke data individu.
-          </p>
-        </>
-      )}
+        {meta ? (
+          <div className="mt-12">
+            <Pagination meta={meta} onPage={setPage} />
+          </div>
+        ) : null}
+
+        <p className="tiny center mt-16 mb-16">
+          <Icon name="info" size={13} /> Log mencatat akses super admin ke data individu & verifikasi.
+        </p>
+      </>
     </AppShell>
   );
 }

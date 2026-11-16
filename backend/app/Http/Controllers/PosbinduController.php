@@ -492,16 +492,17 @@ class PosbinduController extends Controller
         $this->wajibPeran($user, self::ROLE_PETUGAS, 'Hanya kader atau admin kelurahan yang berhak mengelola Posbindu.');
     }
 
-    // Cari warga aktif berdasarkan awalan NIK minimal 3 digit untuk autocomplete
+    // Cari warga aktif berdasarkan awalan NIK (min. 3 digit) atau nama warga (min. 2 huruf) untuk autocomplete
     public function cariNik(Request $request)
     {
         $user = $request->user();
-        $this->wajibPeran($user, ['kader', 'super_admin'], 'Hanya kader atau super admin yang dapat mencari warga berdasarkan NIK.');
+        $this->wajibPeran($user, ['kader', 'super_admin'], 'Hanya kader atau super admin yang dapat mencari warga berdasarkan NIK atau nama.');
 
-        $nik = trim((string) ($request->query('nik') ?? $request->query('q') ?? ''));
-        $nikBersih = preg_replace('/[^0-9]/', '', $nik);
+        $kata = trim((string) ($request->query('q') ?? $request->query('nik') ?? ''));
+        $hanyaDigit = preg_replace('/[^0-9]/', '', $kata);
+        $cariAngka = $kata !== '' && preg_match('/^[0-9\s-]+$/', $kata) === 1;
 
-        if (strlen($nikBersih) < 3) {
+        if ($cariAngka && strlen($hanyaDigit) < 3) {
             return response()->json([
                 'success' => true,
                 'message' => 'Ketik minimal 3 digit NIK',
@@ -509,16 +510,34 @@ class PosbinduController extends Controller
             ]);
         }
 
-        $hasil = Pengguna::query()
+        if (! $cariAngka && mb_strlen($kata) < 2) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Ketik minimal 2 huruf nama atau 3 digit NIK',
+                'data'    => [],
+            ]);
+        }
+
+        $query = Pengguna::query()
             ->select('id', 'name', 'nik', 'wilayah_id')
             ->with('wilayah:id,nama')
             ->where('role', 'user')
             ->where('aktif', true)
-            ->when($user->role === 'kader', fn ($q) => $this->scopeBinaan($q, $user))
-            ->whereNotNull('nik')
-            ->where('nik', 'like', "{$nikBersih}%")
-            ->orderBy('nik', 'asc')
-            ->limit(10)
+            ->when($user->role === 'kader', fn ($q) => $this->scopeBinaan($q, $user));
+
+        if ($cariAngka) {
+            $query->whereNotNull('nik')
+                ->where('nik', 'like', "{$hanyaDigit}%")
+                ->orderBy('nik', 'asc');
+        } else {
+            $escaped = addcslashes(mb_substr($kata, 0, 80), '%_\\');
+            $query->where(function ($q) use ($escaped) {
+                $q->where('name', 'like', "%{$escaped}%")
+                    ->orWhere('nik', 'like', "{$escaped}%");
+            })->orderBy('name', 'asc');
+        }
+
+        $hasil = $query->limit(10)
             ->get()
             ->map(fn ($p) => [
                 'id'         => $p->id,

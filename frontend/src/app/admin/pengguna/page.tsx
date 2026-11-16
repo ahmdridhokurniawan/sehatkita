@@ -2,23 +2,26 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/app/AppShell";
+import TombolKembaliAdmin from "@/components/admin/TombolKembaliAdmin";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import Segmented from "@/components/ui/Segmented";
-import { EmptyState } from "@/components/ui/Empty";
+import { EmptyState, Loading } from "@/components/ui/Empty";
+import Pagination, { type Meta } from "@/components/ui/Pagination";
 import { useToast } from "@/components/ui/Toast";
 import { tanggal } from "@/lib/format";
 import { admin as adminApi, wilayah as wilayahApi, ApiError } from "@/lib/api";
+import { useMinLoading } from "@/hooks/useMinLoading";
 import type { Role } from "@/lib/enums";
 import type { AdminPengguna, AdminPenggunaInput, Wilayah, RiwayatWilayah } from "@/types";
 
 const FILTER = [
   { value: "semua", label: "Semua" },
-  { value: "user", label: "User" },
-  { value: "kader", label: "Kader" },
+  { value: "user", label: "Peserta Warga" },
+  { value: "kader", label: "Kader Posbindu" },
   { value: "admin_kelurahan", label: "Admin Kelurahan" },
-  { value: "super_admin", label: "Super Admin" },
+  { value: "super_admin", label: "Super Admin Kota" },
 ];
 
 const ROLE_BADGE: Record<Role, "default" | "info" | "warning" | "danger"> = {
@@ -29,10 +32,10 @@ const ROLE_BADGE: Record<Role, "default" | "info" | "warning" | "danger"> = {
 };
 
 const ROLE_LABEL: Record<Role, string> = {
-  user: "User",
-  kader: "Kader",
+  user: "Peserta Warga",
+  kader: "Kader Posbindu",
   admin_kelurahan: "Admin Kelurahan",
-  super_admin: "Super Admin",
+  super_admin: "Super Admin Kota",
 };
 
 const ROLE_OPSI = (Object.keys(ROLE_LABEL) as Role[]).map((r) => ({
@@ -63,6 +66,8 @@ type FormState = {
   password: string;
   role: Role;
   wilayah_id: string;
+  kader_id: string;
+  alasan_mutasi: string;
   aktif: boolean;
 };
 
@@ -73,6 +78,8 @@ const FORM_KOSONG: FormState = {
   password: "",
   role: "kader",
   wilayah_id: "",
+  kader_id: "",
+  alasan_mutasi: "",
   aktif: true,
 };
 
@@ -82,11 +89,15 @@ export default function AdminPenggunaPage() {
   const toast = useToast();
   const [filter, setFilter] = useState<string>("semua");
   const [cari, setCari] = useState("");
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<Meta | null>(null);
   const [daftar, setDaftar] = useState<AdminPengguna[]>([]);
   const [loading, setLoading] = useState(true);
+  const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState("");
 
   const [kelurahan, setKelurahan] = useState<Wilayah[]>([]);
+  const [kaderWilayah, setKaderWilayah] = useState<AdminPengguna[]>([]);
 
   const [formBuka, setFormBuka] = useState(false);
   const [sunting, setSunting] = useState<AdminPengguna | null>(null);
@@ -105,35 +116,28 @@ export default function AdminPenggunaPage() {
   const muat = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApi.pengguna.list();
-      setDaftar(res || []);
+      const res = await adminApi.pengguna.listPaged({
+        page,
+        per_page: 20,
+        role: filter !== "semua" ? filter : undefined,
+        search: cari.trim() || undefined,
+      });
+      setDaftar(res.data || []);
+      setMeta(res.meta ?? null);
       setError("");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Gagal muat pengguna");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, filter, cari]);
 
   useEffect(() => {
-    let aktif = true;
-    adminApi.pengguna
-      .list()
-      .then((res) => {
-        if (!aktif) return;
-        setDaftar(res || []);
-        setError("");
-      })
-      .catch((err) => {
-        if (aktif) setError(err instanceof ApiError ? err.message : "Gagal muat pengguna");
-      })
-      .finally(() => {
-        if (aktif) setLoading(false);
-      });
-    return () => {
-      aktif = false;
-    };
-  }, []);
+    const timer = setTimeout(() => {
+      void muat();
+    }, cari ? 250 : 0);
+    return () => clearTimeout(timer);
+  }, [muat, cari]);
 
   // Dropdown wilayah. Gagal memuat wilayah tidak boleh memblokir halaman.
   useEffect(() => {
@@ -147,18 +151,24 @@ export default function AdminPenggunaPage() {
     })();
   }, []);
 
-  const filtered = useMemo(() => {
-    const q = cari.trim().toLowerCase();
-    return daftar.filter((p) => {
-      const cocokRole = filter === "semua" || p.role === filter;
-      const cocokCari =
-        q === "" ||
-        p.name?.toLowerCase().includes(q) ||
-        p.email?.toLowerCase().includes(q) ||
-        p.wilayah?.nama?.toLowerCase().includes(q);
-      return cocokRole && cocokCari;
-    });
-  }, [filter, cari, daftar]);
+  // Muat daftar kader aktif di wilayah terpilih ketika menyunting/membuat akun user
+  useEffect(() => {
+    if (!formBuka || form.role !== "user" || !form.wilayah_id) return;
+    let aktif = true;
+    adminApi.pengguna
+      .list({ role: "kader", wilayah_id: Number(form.wilayah_id), per_page: 100 })
+      .then((res) => {
+        if (aktif) setKaderWilayah((res || []).filter((k) => k.aktif !== false));
+      })
+      .catch(() => {
+        if (aktif) setKaderWilayah([]);
+      });
+    return () => {
+      aktif = false;
+    };
+  }, [formBuka, form.role, form.wilayah_id]);
+
+  const kaderOpsi = form.role === "user" && form.wilayah_id ? kaderWilayah : [];
 
   const jumlahNonaktif = useMemo(() => daftar.filter((p) => p.aktif === false).length, [daftar]);
 
@@ -178,6 +188,8 @@ export default function AdminPenggunaPage() {
       password: "",
       role: p.role,
       wilayah_id: p.wilayah_id ? String(p.wilayah_id) : "",
+      kader_id: p.kader_id ? String(p.kader_id) : "",
+      alasan_mutasi: "",
       aktif: p.aktif !== false,
     });
     setErrForm({});
@@ -185,8 +197,12 @@ export default function AdminPenggunaPage() {
   }
 
   function ubah<K extends keyof FormState>(kunci: K, nilai: FormState[K]) {
-    setForm((p) => ({ ...p, [kunci]: nilai }));
-    setErrForm((p) => ({ ...p, [kunci]: "" }));
+    setForm((p) => ({
+      ...p,
+      [kunci]: nilai,
+      ...(kunci === "wilayah_id" ? { kader_id: "" } : {}),
+    }));
+    setErrForm((p) => ({ ...p, [kunci]: "", ...(kunci === "wilayah_id" ? { kader_id: "" } : {}) }));
   }
 
   async function bukaRiwayat(p: AdminPengguna) {
@@ -214,16 +230,30 @@ export default function AdminPenggunaPage() {
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) e.email = "Format email tidak valid.";
 
     // Password wajib untuk akun baru, opsional saat mengubah (kosong = tidak diubah).
-    if (!sunting && form.password === "") e.password = "Password wajib diisi untuk akun baru.";
-    if (form.password !== "" && form.password.length < 8) e.password = "Password minimal 8 karakter.";
+    if (!sunting && form.password === "") {
+      e.password = "Password wajib diisi untuk akun baru.";
+    } else if (form.password !== "") {
+      if (form.password.length < 8) {
+        e.password = "Password minimal 8 karakter.";
+      } else if (
+        !/[a-z]/.test(form.password) ||
+        !/[A-Z]/.test(form.password) ||
+        !/[0-9]/.test(form.password) ||
+        !/[^A-Za-z0-9]/.test(form.password)
+      ) {
+        e.password = "Password harus mengandung huruf kecil, huruf kapital, angka, dan simbol.";
+      }
+    }
 
     if ((form.role === "kader" || form.role === "admin_kelurahan") && form.wilayah_id === "") {
       e.wilayah_id = `Wilayah wajib dipilih untuk role ${ROLE_LABEL[form.role]}.`;
     }
 
-    // NIK: 16 digit angka bila diisi
-    const nik = form.nik.trim();
-    if (nik !== "" && !/^\d{16}$/.test(nik)) e.nik = "NIK harus 16 digit angka.";
+    // NIK: 16 digit angka bila diisi (khusus role warga / user)
+    const nik = form.role === "user" ? form.nik.trim() : "";
+    if (form.role === "user" && nik !== "" && !/^\d{16}$/.test(nik)) {
+      e.nik = "NIK harus 16 digit angka.";
+    }
 
     setErrForm(e);
     if (Object.keys(e).length > 0) {
@@ -231,15 +261,45 @@ export default function AdminPenggunaPage() {
       return;
     }
 
+    const wilayahBerubah =
+      sunting !== null &&
+      form.wilayah_id !== (sunting.wilayah_id ? String(sunting.wilayah_id) : "");
+
     const payload: Partial<AdminPenggunaInput> & { aktif?: boolean } = {
       name: nama,
       email,
       role: form.role,
     };
-    if (form.wilayah_id !== "") payload.wilayah_id = Number(form.wilayah_id);
+    if (form.wilayah_id !== "") {
+      payload.wilayah_id = Number(form.wilayah_id);
+    } else if (sunting) {
+      payload.wilayah_id = null;
+    }
     if (form.password !== "") payload.password = form.password;
-    if (nik !== "") payload.nik = nik;
-    if (sunting) payload.aktif = form.aktif;
+    if (form.role === "user") {
+      if (nik !== "") {
+        payload.nik = nik;
+      } else if (sunting) {
+        payload.nik = null;
+      }
+    } else if (sunting && sunting.nik) {
+      payload.nik = null;
+    }
+    if (form.role === "user") {
+      if (form.kader_id !== "") {
+        payload.kader_id = Number(form.kader_id);
+      } else if (sunting) {
+        payload.kader_id = null;
+      }
+    } else if (sunting && sunting.kader_id) {
+      payload.kader_id = null;
+    }
+    if (sunting) {
+      payload.aktif = form.aktif;
+      if (wilayahBerubah && form.alasan_mutasi.trim() !== "") {
+        payload.alasan_mutasi = form.alasan_mutasi.trim();
+      }
+    }
 
     setSimpan(true);
     try {
@@ -261,6 +321,7 @@ export default function AdminPenggunaPage() {
         if (apiErr.errors.password) map.password = apiErr.errors.password[0];
         if (apiErr.errors.role) map.role = apiErr.errors.role[0];
         if (apiErr.errors.wilayah_id) map.wilayah_id = apiErr.errors.wilayah_id[0];
+        if (apiErr.errors.kader_id) map.kader_id = apiErr.errors.kader_id[0];
         if (apiErr.errors.nik) map.nik = apiErr.errors.nik[0];
         setErrForm(map);
       }
@@ -287,6 +348,7 @@ export default function AdminPenggunaPage() {
 
   return (
     <AppShell noFab roles={["super_admin"]}>
+      <TombolKembaliAdmin />
       <div className="row-between mb-16">
         <div>
           <h1 className="h3">Kelola Pengguna</h1>
@@ -308,51 +370,55 @@ export default function AdminPenggunaPage() {
         </div>
       )}
 
-      {loading ? (
-        <div className="card">
-          <p className="tiny center">Memuat…</p>
-        </div>
+      {tampilLoading ? (
+        <Loading variant="list" text="Memuat daftar pengguna…" />
       ) : (
         <>
-          <div className="grid grid-2 mb-12" style={{ gap: 12 }}>
-            <div className="metric">
-              <span className="metric-val">{daftar.length}</span>
-              <span className="tiny">Total Pengguna</span>
-            </div>
-            <div className="metric">
-              <span className="metric-val">{jumlahNonaktif}</span>
-              <span className="tiny">Nonaktif</span>
-            </div>
+          <div className="summary-strip mb-12">
+            <span className="summary-strip-item">
+              Total Pengguna: <strong>{meta?.total ?? daftar.length}</strong>
+            </span>
+            <span className="summary-strip-item">
+              Nonaktif (halaman ini): <strong>{jumlahNonaktif}</strong>
+            </span>
           </div>
 
-          <Segmented items={FILTER} value={filter} onChange={setFilter} />
+          <Segmented
+            items={FILTER}
+            value={filter}
+            onChange={(val) => {
+              setFilter(val);
+              setPage(1);
+            }}
+          />
 
           <div className="input-icon mt-12">
             <Icon name="search" size={18} />
             <input
               className="input"
               type="search"
-              placeholder="Cari nama, email, atau wilayah…"
+              placeholder="Cari nama, email, atau NIK…"
               value={cari}
-              onChange={(e) => setCari(e.target.value)}
+              onChange={(e) => {
+                setCari(e.target.value);
+                setPage(1);
+              }}
             />
           </div>
 
-          <div className="mt-12" style={{ display: "grid", gap: 12 }}>
-            {filtered.length === 0 ? (
-              <div className="card card-flat">
-                <EmptyState icon="users" title="Tidak ada pengguna" desc="Tidak ada pengguna dengan filter ini." />
-              </div>
+          <div className="mt-12">
+            {daftar.length === 0 ? (
+              <EmptyState icon="users" title="Tidak ada pengguna" desc="Tidak ada pengguna dengan filter ini." />
             ) : (
-              filtered.map((p) => (
-                <div className="card card-flat" key={p.id}>
-                  <div className="row items-start gap-10">
+              <div className="card card-list">
+                {daftar.map((p) => (
+                  <div className="li" key={p.id} style={{ alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
                     <span className="li-ico">
                       <Icon name="user" size={18} />
                     </span>
-                    <div className="flex-1">
-                      <div className="row-between">
-                        <strong className="text-sm">
+                    <div className="li-main" style={{ flex: "1 1 220px" }}>
+                      <div className="row-between" style={{ gap: 8, alignItems: "center" }}>
+                        <strong style={{ margin: 0 }}>
                           {p.name}
                           {p.aktif === false ? (
                             <span className="tiny" style={{ marginLeft: 6 }}>
@@ -362,38 +428,40 @@ export default function AdminPenggunaPage() {
                         </strong>
                         <Badge tone={ROLE_BADGE[p.role]}>{ROLE_LABEL[p.role]}</Badge>
                       </div>
-                      <p className="tiny mt-4">{p.email}</p>
-                      <p className="tiny mt-2">Wilayah: {p.wilayah?.nama || "—"}</p>
+                      <span style={{ display: "block", marginTop: 2 }}>{p.email}</span>
+                      <span style={{ display: "block", marginTop: 2 }}>Wilayah: {p.wilayah?.nama || "—"}</span>
+                    </div>
+                    <div className="row gap-8 wrap" style={{ alignItems: "center" }}>
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-sm"
+                        onClick={() => bukaRiwayat(p)}
+                      >
+                        <Icon name="clock" size={14} /> Riwayat
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-outline btn-sm"
+                        onClick={() => bukaSunting(p)}
+                      >
+                        <Icon name="pencil" size={14} /> Ubah
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-sm"
+                        disabled={p.aktif === false}
+                        onClick={() => setSasaran(p)}
+                      >
+                        <Icon name="x" size={14} /> Nonaktifkan
+                      </button>
                     </div>
                   </div>
-                  <div className="row mt-12" style={{ gap: 8, justifyContent: "flex-end" }}>
-                    <button
-                      type="button"
-                      className="btn btn-outline btn-sm"
-                      onClick={() => bukaRiwayat(p)}
-                    >
-                      <Icon name="clock" size={14} /> Riwayat
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-outline btn-sm"
-                      onClick={() => bukaSunting(p)}
-                    >
-                      <Icon name="pencil" size={14} /> Ubah
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-outline btn-sm"
-                      disabled={p.aktif === false}
-                      onClick={() => setSasaran(p)}
-                    >
-                      <Icon name="x" size={14} /> Nonaktifkan
-                    </button>
-                  </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
+
+          {meta && <Pagination meta={meta} onPage={setPage} />}
 
           <p className="tiny center mt-16 mb-16">
             <Icon name="info" size={13} /> Menonaktifkan akun tidak menghapus datanya; akun langsung
@@ -431,26 +499,28 @@ export default function AdminPenggunaPage() {
           {errForm.name ? <div className="err-msg show">{errForm.name}</div> : null}
         </div>
 
-        <div className="field">
-          <label className="label" htmlFor="nik">
-            NIK <span className="opt">(opsional)</span>
-          </label>
-          <input
-            className={"input" + (errForm.nik ? " is-error" : "")}
-            id="nik"
-            inputMode="numeric"
-            maxLength={16}
-            autoComplete="off"
-            placeholder="16 digit — dipakai untuk pencarian warga di Posbindu"
-            value={form.nik}
-            onChange={(e) => ubah("nik", e.target.value.replace(/\D/g, ""))}
-          />
-          {errForm.nik ? (
-            <div className="err-msg show">{errForm.nik}</div>
-          ) : (
-            <div className="hint">Warga tanpa NIK tidak bisa dicari kader di form Posbindu.</div>
-          )}
-        </div>
+        {form.role === "user" ? (
+          <div className="field">
+            <label className="label" htmlFor="nik">
+              NIK <span className="opt">(opsional)</span>
+            </label>
+            <input
+              className={"input" + (errForm.nik ? " is-error" : "")}
+              id="nik"
+              inputMode="numeric"
+              maxLength={16}
+              autoComplete="off"
+              placeholder="16 digit — dipakai untuk pencarian warga di Posbindu"
+              value={form.nik}
+              onChange={(e) => ubah("nik", e.target.value.replace(/\D/g, ""))}
+            />
+            {errForm.nik ? (
+              <div className="err-msg show">{errForm.nik}</div>
+            ) : (
+              <div className="hint">Warga tanpa NIK tidak bisa dicari kader di form Posbindu.</div>
+            )}
+          </div>
+        ) : null}
 
         <div className="field">
           <label className="label" htmlFor="email">
@@ -486,7 +556,7 @@ export default function AdminPenggunaPage() {
             <div className="hint">
               {sunting
                 ? "Mengisi password baru akan mengeluarkan pengguna dari semua sesi."
-                : "Minimal 8 karakter."}
+                : "Min. 8 karakter: huruf kecil, huruf kapital, angka, dan simbol."}
             </div>
           )}
         </div>
@@ -534,6 +604,48 @@ export default function AdminPenggunaPage() {
           )}
         </div>
 
+        {sunting &&
+        form.wilayah_id !== "" &&
+        form.wilayah_id !== (sunting.wilayah_id ? String(sunting.wilayah_id) : "") ? (
+          <div className="field">
+            <label className="label" htmlFor="alasan_mutasi">
+              Alasan mutasi wilayah <span className="opt">(opsional)</span>
+            </label>
+            <input
+              className="input"
+              id="alasan_mutasi"
+              placeholder="cth: Pindah domisili KTP"
+              value={form.alasan_mutasi}
+              onChange={(e) => ubah("alasan_mutasi", e.target.value)}
+            />
+          </div>
+        ) : null}
+
+        {form.role === "user" ? (
+          <div className="field">
+            <label className="label" htmlFor="kader_id">
+              Kader pembina <span className="opt">(opsional)</span>
+            </label>
+            <select
+              className={"select" + (errForm.kader_id ? " is-error" : "")}
+              id="kader_id"
+              disabled={!form.wilayah_id}
+              value={form.kader_id}
+              onChange={(e) => ubah("kader_id", e.target.value)}
+            >
+              <option value="">
+                {form.wilayah_id ? "— Belum ditentukan —" : "— Pilih wilayah terlebih dahulu —"}
+              </option>
+              {kaderOpsi.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.name}
+                </option>
+              ))}
+            </select>
+            {errForm.kader_id ? <div className="err-msg show">{errForm.kader_id}</div> : null}
+          </div>
+        ) : null}
+
         {sunting ? (
           <div className="field">
             <label className="label" style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -561,7 +673,7 @@ export default function AdminPenggunaPage() {
           <>
             <p className="tiny muted mb-12">{riwayatTarget.name}</p>
             {riwayatLoad ? (
-              <p className="tiny center">Memuat…</p>
+              <Loading variant="list" text="Memuat riwayat wilayah…" />
             ) : riwayatErr ? (
               <div className="alert alert-danger">{riwayatErr}</div>
             ) : riwayat.length === 0 ? (

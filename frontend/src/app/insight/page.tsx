@@ -7,6 +7,7 @@ import Icon from "@/components/ui/Icon";
 import Segmented from "@/components/ui/Segmented";
 import { EmptyState, ErrorState } from "@/components/ui/Empty";
 import { insight as insightApi, ApiError } from "@/lib/api";
+import { useMinLoading } from "@/hooks/useMinLoading";
 import { tanggal } from "@/lib/format";
 import { LABEL_INSIGHT } from "@/lib/labels";
 import PanelAmbang from "@/components/insight/PanelAmbang";
@@ -53,6 +54,7 @@ export default function InsightPage() {
   const [semua, setSemua] = useState<Insight[]>([]);
   const [ambang, setAmbang] = useState<AmbangBaris[]>([]);
   const [loading, setLoading] = useState(true);
+  const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState("");
   const [sorot, setSorot] = useState("");
   const daftarRef = useRef<HTMLDivElement | null>(null);
@@ -68,7 +70,7 @@ export default function InsightPage() {
       setAmbang(am ?? []);
       setError("");
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Gagal memuat insight");
+      setError(err instanceof ApiError ? err.message : "Gagal memuat peringatan dini");
     } finally {
       setLoading(false);
     }
@@ -87,7 +89,7 @@ export default function InsightPage() {
         setError("");
       })
       .catch((err) => {
-        if (aktif) setError(err instanceof ApiError ? err.message : "Gagal memuat insight");
+        if (aktif) setError(err instanceof ApiError ? err.message : "Gagal memuat peringatan dini");
       })
       .finally(() => {
         if (aktif) setLoading(false);
@@ -117,15 +119,15 @@ export default function InsightPage() {
   }
 
   return (
-    <AppShell noFab>
+    <AppShell noFab roles={["user"]}>
       <header className="ins-head">
         <div>
-          <h1 className="h3">History Kesehatan</h1>
+          <h1 className="h3">Peringatan Dini</h1>
           <p className="tiny">
-            {loading
+            {tampilLoading
               ? "Menyusun saran dari catatan terakhirmu…"
               : total === 0
-                ? "Belum ada saran. Catat kesehatan rutin agar insight muncul."
+                ? "Belum ada saran. Catat kesehatan rutin agar peringatan dini muncul."
                 : bahaya > 0
                   ? `${total} saran · ${bahaya} perlu tindakan cepat`
                   : `${total} saran · tidak ada yang mendesak`}
@@ -154,7 +156,7 @@ export default function InsightPage() {
               <span className="ins-sum-ico">
                 <Icon name={tone.ico} size={18} />
               </span>
-              <span className="ins-sum-num">{loading ? "–" : n}</span>
+              <span className="ins-sum-num">{tampilLoading ? "–" : n}</span>
               <span className="ins-sum-label">{tone.label}</span>
               <span className="ins-sum-sub">{n === 0 ? "tidak ada" : tone.ringkas}</span>
               <span className="ins-sum-bar" aria-hidden="true" />
@@ -167,7 +169,7 @@ export default function InsightPage() {
 
       <Segmented items={TINGKAT} value={filter} onChange={setFilter} />
 
-      {loading ? (
+      {tampilLoading ? (
         <div className="ins-skeleton-wrap mt-12" aria-busy="true" aria-live="polite">
           {[0, 1, 2].map((i) => (
             <div className="ins-skeleton" key={i} style={{ ["--i" as string]: i }}>
@@ -185,11 +187,11 @@ export default function InsightPage() {
           {daftar.length === 0 ? (
             <div className="card card-flat">
               <EmptyState
-                title="Tidak ada insight"
+                title="Tidak ada peringatan dini"
                 desc={
                   filter === "semua"
-                    ? "Catat kesehatan secara rutin agar saran otomatis muncul di sini."
-                    : `Tidak ada insight tingkat ${
+                    ? "Catat kesehatan secara rutin agar saran dan peringatan dini otomatis muncul di sini."
+                    : `Tidak ada peringatan dini tingkat ${
                         TINGKAT.find((x) => x.value === filter)?.label ?? filter
                       }.`
                 }
@@ -232,7 +234,7 @@ export default function InsightPage() {
       <PanelAmbang data={ambang} />
 
       <p className="tiny center mt-16 mb-16">
-        <Icon name="shield" size={13} /> Insight berbasis aturan (bukan ML) dan bukan diagnosis
+        <Icon name="shield" size={13} /> Peringatan dini berbasis aturan (bukan ML) dan bukan diagnosis
         medis.
       </p>
     </AppShell>

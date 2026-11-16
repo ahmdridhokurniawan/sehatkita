@@ -6,9 +6,8 @@ import { pengguna as penggunaApi, ApiError } from "@/lib/api";
 import type { WargaCari } from "@/types";
 
 /* ------------------------------------------------------------------
-   Pilih Warga — autocomplete NIK untuk petugas (kader / admin / super).
-   Sumber: GET /pengguna/cari-nik?nik=… (minimal 3 digit, maks 10 hasil).
-   Warga tanpa NIK tidak akan muncul — backend hanya mencari kolom nik.
+   Pilih Warga — autocomplete nama atau NIK untuk petugas (kader / super_admin).
+   Sumber: GET /pengguna/cari-nik?nik=… (min. 2 huruf nama atau 3 digit NIK).
    ------------------------------------------------------------------ */
 
 type Props = {
@@ -44,20 +43,23 @@ export default function PilihWarga({
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current);
 
-    const bersih = nik.replace(/\D/g, "");
-    if (bersih.length < 3) {
+    const kata = nik.trim();
+    const hanyaAngka = kata !== "" && /^[0-9\s-]+$/.test(kata);
+    const digit = kata.replace(/\D/g, "");
+    const cukup = hanyaAngka ? digit.length >= 3 : kata.length >= 2;
+    if (!cukup) {
       return;
     }
 
     timer.current = setTimeout(async () => {
       setMencari(true);
       try {
-        const data = await penggunaApi.cariNik(bersih);
+        const data = await penggunaApi.cariNik(hanyaAngka ? digit : kata);
         const tersaring = wilayahId
           ? (data ?? []).filter((w) => Number(w.wilayah_id) === Number(wilayahId))
           : (data ?? []);
         setHasil(tersaring);
-        setPesan(tersaring.length === 0 ? "Warga dengan NIK tersebut tidak ditemukan." : "");
+        setPesan(tersaring.length === 0 ? "Warga dengan nama/NIK tersebut tidak ditemukan." : "");
       } catch (err) {
         const e = err as ApiError;
         setHasil([]);
@@ -65,7 +67,7 @@ export default function PilihWarga({
       } finally {
         setMencari(false);
       }
-    }, 400);
+    }, 350);
 
     return () => {
       if (timer.current) clearTimeout(timer.current);
@@ -81,7 +83,7 @@ export default function PilihWarga({
             <div>
               <strong className="text-sm">{value.name}</strong>
               <div className="tiny">
-                NIK {value.nik}
+                {value.nik ? `NIK ${value.nik}` : "NIK belum terdaftar"}
                 {value.wilayah ? ` · ${value.wilayah}` : ""}
               </div>
             </div>
@@ -114,15 +116,17 @@ export default function PilihWarga({
           className={"input" + (error ? " is-error" : "")}
           id={id}
           type="text"
-          inputMode="numeric"
           autoComplete="off"
-          placeholder="Ketik minimal 3 digit NIK…"
+          placeholder="Ketik min. 2 huruf nama atau 3 digit NIK…"
           value={nik}
           onChange={(e) => {
-            const next = e.target.value.replace(/\D/g, "");
+            const next = e.target.value;
             setNik(next);
             setTerbuka(true);
-            if (next.length < 3) {
+            const trimmed = next.trim();
+            const angkaSaja = trimmed !== "" && /^[0-9\s-]+$/.test(trimmed);
+            const cukup = angkaSaja ? trimmed.replace(/\D/g, "").length >= 3 : trimmed.length >= 2;
+            if (!cukup) {
               setHasil([]);
               setPesan("");
               setMencari(false);
@@ -152,7 +156,11 @@ export default function PilihWarga({
               >
                 <span>
                   <strong className="text-sm">{w.name}</strong>
-                  <span className="tiny"> · NIK {w.nik}{w.wilayah ? ` · ${w.wilayah}` : ""}</span>
+                  <span className="tiny">
+                    {" · "}
+                    {w.nik ? `NIK ${w.nik}` : "Tanpa NIK"}
+                    {w.wilayah ? ` · ${w.wilayah}` : ""}
+                  </span>
                 </span>
               </button>
             ))}
@@ -161,7 +169,7 @@ export default function PilihWarga({
       ) : null}
 
       <div className="hint">
-        Pencarian memakai awalan NIK. Warga yang belum punya NIK tidak muncul — minta admin melengkapinya.
+        Bisa mencari lewat nama warga (min. 2 huruf) atau awalan NIK (min. 3 digit).
       </div>
     </div>
   );

@@ -10,7 +10,7 @@ type Props = {
   title?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
-  size?: "md" | "lg";
+  size?: "md" | "legal" | "lg";
 };
 
 /** Modal dialog — mengikuti .modal pada design system prototype. */
@@ -28,10 +28,12 @@ export default function Modal({ open, onClose, title, children, footer, size = "
 
   if (!open) return null;
 
+  const sizeClass = size === "lg" ? "modal-lg" : size === "legal" ? "modal-legal" : "";
+
   return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div
-        className={`modal ${size === "lg" ? "modal-lg" : ""}`}
+        className={`modal ${sizeClass}`}
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
@@ -39,7 +41,7 @@ export default function Modal({ open, onClose, title, children, footer, size = "
         {title ? (
           <div className="modal-head">
             <div className="card-title">{title}</div>
-            <button className="btn-icon btn-sm btn-ghost" onClick={onClose} aria-label="Tutup">
+            <button type="button" className="btn btn-icon btn-sm btn-ghost" onClick={onClose} aria-label="Tutup">
               <Icon name="x" size={18} />
             </button>
           </div>

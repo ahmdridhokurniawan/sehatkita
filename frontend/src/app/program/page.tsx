@@ -10,11 +10,12 @@ import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
 import { useUser } from "@/hooks/useUser";
-import { angka, tanggal } from "@/lib/format";
+import { useMinLoading } from "@/hooks/useMinLoading";
+import { angka, tanggal, todayLocalISO } from "@/lib/format";
 import { program as programApi, wilayah as wilayahApi, ApiError } from "@/lib/api";
 import { JENIS_PROGRAM } from "@/lib/enums";
 import { LABEL_STATUS_PESERTA } from "@/lib/labels";
-import type { JenisProgram, StatusPeserta } from "@/lib/enums";
+import type { JenisProgram, StatusPeserta, StatusProgram } from "@/lib/enums";
 import type { Program, Wilayah } from "@/types";
 
 const LABEL_STATUS: Record<string, string> = {
@@ -53,8 +54,30 @@ const IKON_JENIS: Record<string, { icon: string; bg: string; color: string }> = 
 
 const PILIHAN_JENIS = Object.values(JENIS_PROGRAM);
 
-function hitungStatus(mulai: string, selesai: string | null): keyof typeof LABEL_STATUS {
-  const hariIni = new Date().toISOString().slice(0, 10);
+const SARAN_KATEGORI_LAINNYA = [
+  "Hidrasi & Minum Air",
+  "Berhenti Merokok",
+  "Pola Makan Sehat",
+  "Tidur Berkualitas",
+  "Kesehatan Mental",
+  "Senam Lansia",
+];
+
+function labelJenisProgram(p: Pick<Program, "jenis" | "kategori_aktivitas">): string {
+  const dasar = LABEL_JENIS[p.jenis] || p.jenis;
+  if (p.jenis === "lainnya" && p.kategori_aktivitas?.trim()) {
+    return `${dasar} · ${p.kategori_aktivitas.trim()}`;
+  }
+  return dasar;
+}
+
+function hitungStatus(
+  mulai: string,
+  selesai: string | null,
+  status?: StatusProgram | null,
+): keyof typeof LABEL_STATUS {
+  if (status && status in LABEL_STATUS) return status;
+  const hariIni = todayLocalISO();
   const m = (mulai || "").slice(0, 10);
   const s = (selesai || "").slice(0, 10);
   if (m && m > hariIni) return "akan_datang";
@@ -80,17 +103,22 @@ export default function ProgramPage() {
   const [program, setProgram] = useState<Program[]>([]);
   const [cari, setCari] = useState("");
   const [loading, setLoading] = useState(true);
+  const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState("");
   const [detail, setDetail] = useState<Program | null>(null);
   const [proses, setProses] = useState<number | null>(null);
   const [aksiErr, setAksiErr] = useState("");
 
-  // form buat program
+  // form buat / ubah program
   const [buatOpen, setBuatOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Program | null>(null);
+  const [hapusTarget, setHapusTarget] = useState<Program | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [fJudul, setFJudul] = useState("");
   const [fDeskripsi, setFDeskripsi] = useState("");
   const [fKriteria, setFKriteria] = useState("");
   const [fJenis, setFJenis] = useState<JenisProgram>("olahraga");
+  const [fKategori, setFKategori] = useState("");
   const [fWilayah, setFWilayah] = useState("");
   const [kelurahan, setKelurahan] = useState<Wilayah[]>([]);
   const [fTarget, setFTarget] = useState("50");
@@ -100,6 +128,50 @@ export default function ProgramPage() {
   const [fBadge, setFBadge] = useState("");
   const [fErr, setFErr] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+
+  function bolehUbahProgram(p: Program): boolean {
+    if (role === "super_admin") return true;
+    if (role === "admin_kelurahan") {
+      return p.wilayah_id != null && p.wilayah_id === user?.wilayah_id;
+    }
+    return false;
+  }
+
+  function bukaBuat() {
+    setEditTarget(null);
+    setFJudul("");
+    setFDeskripsi("");
+    setFKriteria("");
+    setFJenis("olahraga");
+    setFKategori("");
+    setFWilayah("");
+    setFTarget("50");
+    setFMulai("");
+    setFSelesai("");
+    setFExp("50");
+    setFBadge("");
+    setFErr({});
+    setAksiErr("");
+    setBuatOpen(true);
+  }
+
+  function bukaEdit(p: Program) {
+    setEditTarget(p);
+    setFJudul(p.judul || "");
+    setFDeskripsi(p.deskripsi || "");
+    setFKriteria(p.kriteria_misi || "");
+    setFJenis(p.jenis);
+    setFKategori(p.kategori_aktivitas || "");
+    setFWilayah(p.wilayah_id != null ? String(p.wilayah_id) : "");
+    setFTarget(String(p.target_peserta || 1));
+    setFMulai((p.mulai || "").slice(0, 10));
+    setFSelesai((p.selesai || "").slice(0, 10));
+    setFExp(String(p.exp ?? 50));
+    setFBadge(p.badge || "");
+    setFErr({});
+    setAksiErr("");
+    setBuatOpen(true);
+  }
 
   const muat = useCallback(async () => {
     setLoading(true);
@@ -167,9 +239,20 @@ export default function ProgramPage() {
 
   async function simpanProgram() {
     const e: Record<string, string> = {};
+    const expAngka = Number(fExp);
     if (!fJudul.trim()) e.judul = "Judul wajib diisi.";
+    if (fJenis === "lainnya" && !fKategori.trim()) {
+      e.kategori_aktivitas = "Tulis atau pilih kategori tantangan lainnya.";
+    }
+    if (!fExp.trim() || Number.isNaN(expAngka) || expAngka < 1) {
+      e.exp = "Reward EXP wajib diisi minimal 1 poin.";
+    }
     if (!fMulai) e.mulai = "Tanggal mulai wajib diisi.";
-    if (fSelesai && fMulai && fSelesai < fMulai) e.selesai = "Selesai tidak boleh sebelum mulai.";
+    if (!fSelesai) {
+      e.selesai = "Tanggal selesai (tenggat) wajib diisi.";
+    } else if (fMulai && fSelesai < fMulai) {
+      e.selesai = "Tenggat selesai tidak boleh sebelum tanggal mulai.";
+    }
     setFErr(e);
     if (Object.keys(e).length) return;
 
@@ -179,28 +262,32 @@ export default function ProgramPage() {
         ? (fWilayah && Number(fWilayah) > 0 ? Number(fWilayah) : null)
         : (user?.wilayah_id || null);
 
-      await programApi.create({
+      const kategoriVal = fJenis === "lainnya" ? fKategori.trim() : null;
+      const payload = {
         wilayah_id: wId,
         judul: fJudul.trim(),
         deskripsi: fDeskripsi.trim() || undefined,
         kriteria_misi: fKriteria.trim() || undefined,
         jenis: fJenis,
+        kategori_aktivitas: kategoriVal,
         target_peserta: Number(fTarget) || 1,
         mulai: fMulai,
-        selesai: fSelesai || undefined,
-        exp: Number(fExp) || 0,
+        selesai: fSelesai,
+        exp: Math.round(expAngka),
         badge: fBadge.trim() || undefined,
-      });
+      };
+
+      if (editTarget) {
+        await programApi.update(editTarget.id, {
+          ...payload,
+          deskripsi: fDeskripsi.trim() || null,
+          kriteria_misi: fKriteria.trim() || null,
+        });
+      } else {
+        await programApi.create(payload);
+      }
       setBuatOpen(false);
-      setFJudul("");
-      setFDeskripsi("");
-      setFKriteria("");
-      setFWilayah("");
-      setFTarget("50");
-      setFMulai("");
-      setFSelesai("");
-      setFExp("50");
-      setFBadge("");
+      setEditTarget(null);
       await muat();
     } catch (err) {
       const apiErr = err as ApiError;
@@ -209,14 +296,29 @@ export default function ProgramPage() {
         for (const [k, v] of Object.entries(apiErr.errors)) map[k] = v[0] ?? "Tidak valid";
         setFErr(map);
       }
-      setAksiErr(apiErr.message || "Gagal membuat program");
+      setAksiErr(apiErr.message || (editTarget ? "Gagal memperbarui program" : "Gagal membuat program"));
     } finally {
       setSaving(false);
     }
   }
 
+  async function hapusProgram() {
+    if (!hapusTarget) return;
+    setDeleting(true);
+    setAksiErr("");
+    try {
+      await programApi.hapus(hapusTarget.id);
+      setHapusTarget(null);
+      await muat();
+    } catch (err) {
+      setAksiErr(err instanceof ApiError ? err.message : "Gagal menghapus program");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   const ringkas = useMemo(() => {
-    const berjalan = program.filter((p) => hitungStatus(p.mulai, p.selesai) === "berjalan").length;
+    const berjalan = program.filter((p) => hitungStatus(p.mulai, p.selesai, p.status) === "berjalan").length;
     const diikuti = program.filter((p) => p.diikuti).length;
     const peserta = program.reduce((s, p) => s + p.jumlah_peserta, 0);
     const totalExp = program.reduce((s, p) => s + (p.exp || 0), 0);
@@ -225,13 +327,24 @@ export default function ProgramPage() {
 
   const tersaring = useMemo(() => {
     const q = cari.trim().toLowerCase();
-    if (!q) return program;
-    return program.filter(
-      (p) =>
-        p.judul.toLowerCase().includes(q) ||
-        (p.deskripsi || "").toLowerCase().includes(q) ||
-        (LABEL_JENIS[p.jenis] || p.jenis).toLowerCase().includes(q),
-    );
+    const hasil = q
+      ? program.filter(
+          (p) =>
+            p.judul.toLowerCase().includes(q) ||
+            (p.deskripsi || "").toLowerCase().includes(q) ||
+            (LABEL_JENIS[p.jenis] || p.jenis).toLowerCase().includes(q),
+        )
+      : [...program];
+
+    const prioritas = (p: Program): number => {
+      const st = hitungStatus(p.mulai, p.selesai, p.status);
+      const statusSaya = p.status_saya || p.peserta_saya?.status;
+      if (st === "selesai" || statusSaya === "selesai") return 2;
+      if (st === "akan_datang") return 1;
+      return 0;
+    };
+
+    return hasil.sort((a, b) => prioritas(a) - prioritas(b) || (a.mulai || "").localeCompare(b.mulai || ""));
   }, [program, cari]);
 
   if (loadingUser) {
@@ -250,29 +363,27 @@ export default function ProgramPage() {
           <p className="tiny">
             {bolehBuat
               ? "Kelola misi sehat kelurahan dan verifikasi dokumentasi warga."
-              : "Ikuti tantangan, kirim foto dokumentasi misi, dan raih EXP serta badge."}
+              : "Ikuti tantangan sehat, kirim foto kegiatan, dan kumpulkan poin (EXP) serta lencana."}
           </p>
         </div>
         {bolehBuat ? (
-          <Button icon="plus" onClick={() => setBuatOpen(true)}>
+          <Button icon="plus" onClick={bukaBuat}>
             Buat tantangan
           </Button>
         ) : null}
       </div>
 
-      <div className="grid grid-3 mb-12" style={{ gap: 12 }}>
-        <div className="card card-flat">
-          <div className="tiny">Tantangan aktif</div>
-          <div className="metric-val">{angka(ringkas.berjalan)}</div>
-        </div>
-        <div className="card card-flat">
-          <div className="tiny">{bolehKelola ? "Total peserta" : "Sedang diikuti"}</div>
-          <div className="metric-val">{angka(bolehKelola ? ringkas.peserta : ringkas.diikuti)}</div>
-        </div>
-        <div className="card card-flat">
-          <div className="tiny">Total reward tersedia</div>
-          <div className="metric-val">+{angka(ringkas.totalExp)} EXP</div>
-        </div>
+      <div className="summary-strip mb-12">
+        <span className="summary-strip-item">
+          Tantangan aktif: <strong>{angka(ringkas.berjalan)}</strong>
+        </span>
+        <span className="summary-strip-item">
+          {bolehKelola ? "Total peserta:" : "Sedang diikuti:"}{" "}
+          <strong>{angka(bolehKelola ? ringkas.peserta : ringkas.diikuti)}</strong>
+        </span>
+        <span className="summary-strip-item">
+          Total hadiah poin: <strong className="text-primary">+{angka(ringkas.totalExp)} Poin (EXP)</strong>
+        </span>
       </div>
 
       {aksiErr ? <div className="err-msg show mb-12">{aksiErr}</div> : null}
@@ -288,10 +399,10 @@ export default function ProgramPage() {
         />
       </div>
 
-      {loading ? <Loading /> : null}
-      {!loading && error ? <ErrorState message={error} onRetry={muat} /> : null}
+      {tampilLoading ? <Loading /> : null}
+      {!tampilLoading && error ? <ErrorState message={error} onRetry={muat} /> : null}
 
-      {!loading && !error && program.length === 0 ? (
+      {!tampilLoading && !error && program.length === 0 ? (
         <EmptyState
           icon="award"
           title="Belum ada tantangan"
@@ -303,21 +414,25 @@ export default function ProgramPage() {
         />
       ) : null}
 
-      {!loading && !error && program.length > 0 && tersaring.length === 0 ? (
+      {!tampilLoading && !error && program.length > 0 && tersaring.length === 0 ? (
         <EmptyState icon="search" title="Tantangan tidak ditemukan" desc={`Tidak ada yang cocok dengan “${cari}”.`} />
       ) : null}
 
-      {!loading && !error && tersaring.length > 0 ? (
-        <div className="grid grid-2" style={{ gap: 14 }}>
+      {!tampilLoading && !error && tersaring.length > 0 ? (
+        <div className="card card-list">
           {tersaring.map((p) => {
-            const st = hitungStatus(p.mulai, p.selesai);
+            const st = hitungStatus(p.mulai, p.selesai, p.status);
             const ikon = IKON_JENIS[p.jenis] || IKON_JENIS.lainnya;
             const statusSaya = (p.status_saya || p.peserta_saya?.status) as StatusPeserta | undefined;
             const persen = p.target_peserta
               ? Math.min(100, Math.round((p.jumlah_peserta / p.target_peserta) * 100))
               : 0;
             return (
-              <div className="card" key={p.id} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <div
+                className="li"
+                key={p.id}
+                style={{ flexDirection: "column", alignItems: "stretch", gap: 10 }}
+              >
                 <div className="row-between" style={{ gap: 10, alignItems: "flex-start" }}>
                   <div className="row gap-10" style={{ alignItems: "flex-start", minWidth: 0 }}>
                     <span
@@ -329,7 +444,7 @@ export default function ProgramPage() {
                     <div style={{ minWidth: 0 }}>
                       <strong className="text-sm">{p.judul}</strong>
                       <p className="tiny mt-2">
-                        {LABEL_JENIS[p.jenis] || p.jenis} · {tanggal(p.mulai)} – {tanggal(p.selesai)}
+                        {labelJenisProgram(p)} · {tanggal(p.mulai)} – {tanggal(p.selesai)}
                       </p>
                     </div>
                   </div>
@@ -348,44 +463,48 @@ export default function ProgramPage() {
                 </p>
 
                 {p.kriteria_misi ? (
-                  <div
-                    className="card card-flat"
-                    style={{ padding: "8px 10px", background: "var(--surface-2)", borderStyle: "dashed" }}
+                  <p
+                    className="tiny"
+                    style={{
+                      paddingLeft: 10,
+                      borderLeft: "2px solid color-mix(in srgb, var(--primary) 55%, transparent)",
+                      color: "var(--text-2)",
+                      lineHeight: 1.45,
+                    }}
                   >
-                    <div className="tiny">
-                      <strong>Syarat Misi:</strong> {p.kriteria_misi}
-                    </div>
-                  </div>
+                    <strong>Syarat Misi:</strong> {p.kriteria_misi}
+                  </p>
                 ) : null}
 
-                <div className="row gap-12 wrap" style={{ marginTop: "auto" }}>
-                  <span className="tiny row gap-4">
-                    <Icon name="users" size={13} /> {angka(p.jumlah_peserta)}/{angka(p.target_peserta)}
-                  </span>
-                  {p.exp > 0 ? (
-                    <span className="badge badge-primary">
-                      <Icon name="zap" size={12} /> +{angka(p.exp)} EXP
+                <div className="row-between wrap gap-10" style={{ alignItems: "center" }}>
+                  <div className="row gap-12 wrap">
+                    <span className="tiny row gap-4">
+                      <Icon name="users" size={13} /> {angka(p.jumlah_peserta)}/{angka(p.target_peserta)}
                     </span>
-                  ) : null}
-                  {p.badge ? (
-                    <span className="badge badge-warning">
-                      <Icon name="trophy" size={12} /> {p.badge}
-                    </span>
+                    {p.exp > 0 ? (
+                      <span className="badge badge-primary">
+                        <Icon name="zap" size={12} /> +{angka(p.exp)} EXP
+                      </span>
+                    ) : null}
+                    {p.badge ? (
+                      <span className="badge badge-warning">
+                        <Icon name="trophy" size={12} /> {p.badge}
+                      </span>
+                    ) : null}
+                  </div>
+                  {p.target_peserta > 0 ? (
+                    <div style={{ width: 140, maxWidth: "100%", height: 6, borderRadius: 99, background: "var(--surface-2)", overflow: "hidden" }}>
+                      <div
+                        style={{
+                          width: `${persen}%`,
+                          height: "100%",
+                          background: "var(--primary)",
+                          borderRadius: 99,
+                        }}
+                      />
+                    </div>
                   ) : null}
                 </div>
-
-                {p.target_peserta > 0 ? (
-                  <div style={{ height: 6, borderRadius: 99, background: "var(--surface-2)", overflow: "hidden" }}>
-                    <div
-                      style={{
-                        width: `${persen}%`,
-                        height: "100%",
-                        background: "var(--primary)",
-                        borderRadius: 99,
-                      }}
-                    />
-                  </div>
-                ) : null}
 
                 <div className="row gap-8 wrap">
                   {bolehIkut && st !== "selesai" && !p.diikuti ? (
@@ -394,26 +513,47 @@ export default function ProgramPage() {
                       size="sm"
                       onClick={() => toggle(p)}
                       loading={proses === p.id}
-                      style={{ flex: 1 }}
                     >
                       Ikuti Tantangan
                     </Button>
                   ) : null}
 
                   {bolehIkut && p.diikuti && statusSaya !== "selesai" ? (
-                    <Link href={`/program/${p.id}#bukti`} className="btn btn-sm btn-primary" style={{ flex: 1 }}>
+                    <Link href={`/program/${p.id}#bukti`} className="btn btn-sm btn-primary">
                       <Icon name="camera" size={14} />{" "}
                       {statusSaya === "menunggu_verifikasi" ? "Lihat Bukti" : "Kirim Bukti Foto"}
                     </Link>
                   ) : null}
 
-                  <Link href={`/program/${p.id}`} className="btn btn-sm btn-outline" style={{ flex: 1 }}>
+                  <Link href={`/program/${p.id}`} className="btn btn-sm btn-outline">
                     <Icon name="file-text" size={14} /> {bolehKelola ? "Validasi Peserta" : "Detail Misi"}
                   </Link>
 
                   <Button variant="ghost" size="sm" onClick={() => setDetail(p)} title="Ringkasan cepat">
                     Ringkas
                   </Button>
+                  {bolehUbahProgram(p) ? (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => bukaEdit(p)}
+                        title="Ubah tantangan"
+                        aria-label="Ubah tantangan"
+                      >
+                        <Icon name="pencil" size={14} /> Ubah
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => setHapusTarget(p)}
+                        title="Hapus tantangan"
+                        aria-label="Hapus tantangan"
+                      >
+                        <Icon name="trash" size={14} /> Hapus
+                      </Button>
+                    </>
+                  ) : null}
                 </div>
               </div>
             );
@@ -452,7 +592,7 @@ export default function ProgramPage() {
             <dl className="dl">
               <div>
                 <dt>Jenis</dt>
-                <dd>{LABEL_JENIS[detail.jenis] || detail.jenis}</dd>
+                <dd>{labelJenisProgram(detail)}</dd>
               </div>
               <div>
                 <dt>Periode</dt>
@@ -463,8 +603,8 @@ export default function ProgramPage() {
               <div>
                 <dt>Status</dt>
                 <dd>
-                  <Badge tone={TONE_STATUS[hitungStatus(detail.mulai, detail.selesai)]}>
-                    {LABEL_STATUS[hitungStatus(detail.mulai, detail.selesai)]}
+                  <Badge tone={TONE_STATUS[hitungStatus(detail.mulai, detail.selesai, detail.status)]}>
+                    {LABEL_STATUS[hitungStatus(detail.mulai, detail.selesai, detail.status)]}
                   </Badge>
                 </dd>
               </div>
@@ -488,11 +628,21 @@ export default function ProgramPage() {
 
       <Modal
         open={buatOpen}
-        onClose={() => setBuatOpen(false)}
-        title="Tantangan Baru"
+        onClose={() => {
+          setBuatOpen(false);
+          setEditTarget(null);
+        }}
+        title={editTarget ? "Ubah Tantangan" : "Tantangan Baru"}
         footer={
           <div className="row-between" style={{ width: "100%" }}>
-            <button className="btn btn-outline" onClick={() => setBuatOpen(false)} type="button">
+            <button
+              className="btn btn-outline"
+              onClick={() => {
+                setBuatOpen(false);
+                setEditTarget(null);
+              }}
+              type="button"
+            >
               Batal
             </button>
             <Button onClick={simpanProgram} loading={saving}>
@@ -538,7 +688,11 @@ export default function ProgramPage() {
           <div className="grid grid-2" style={{ gap: 12 }}>
             <div className="field">
               <label className="label">Jenis</label>
-              <select className="select" value={fJenis} onChange={(e) => setFJenis(e.target.value as JenisProgram)}>
+              <select
+                className="select"
+                value={fJenis}
+                onChange={(e) => setFJenis(e.target.value as JenisProgram)}
+              >
                 {PILIHAN_JENIS.map((j) => (
                   <option key={j} value={j}>
                     {LABEL_JENIS[j]}
@@ -556,6 +710,31 @@ export default function ProgramPage() {
               optional
             />
           </div>
+          {fJenis === "lainnya" ? (
+            <div className="field">
+              <Input
+                label="Kategori aktivitas kustom"
+                placeholder="Ketik kategori tantangan (cth: Hidrasi & Minum Air)"
+                maxLength={50}
+                value={fKategori}
+                onChange={(e) => setFKategori(e.target.value)}
+                error={fErr.kategori_aktivitas}
+                required
+              />
+              <div className="chip-row mt-8" style={{ flexWrap: "wrap", gap: 6 }}>
+                {SARAN_KATEGORI_LAINNYA.map((saran) => (
+                  <button
+                    key={saran}
+                    type="button"
+                    className={`chip${fKategori.trim().toLowerCase() === saran.toLowerCase() ? " is-active" : ""}`}
+                    onClick={() => setFKategori(saran)}
+                  >
+                    {saran}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
           {role === "super_admin" ? (
             <div className="field">
               <label className="label">Kelurahan</label>
@@ -573,18 +752,19 @@ export default function ProgramPage() {
             <Input
               label="Reward EXP"
               type="number"
-              min={0}
+              min={1}
+              max={10000}
               value={fExp}
               onChange={(e) => setFExp(e.target.value)}
-              error={fErr.exp}
-              optional
+              error={fErr.exp || fErr.exp_reward}
+              required
             />
             <Input
               label="Badge"
               placeholder="cth: Juara Sehat"
               value={fBadge}
               onChange={(e) => setFBadge(e.target.value)}
-              error={fErr.badge}
+              error={fErr.badge || fErr.badge_reward}
               optional
             />
           </div>
@@ -598,15 +778,42 @@ export default function ProgramPage() {
               required
             />
             <Input
-              label="Selesai"
+              label="Selesai (Tenggat)"
               type="date"
+              min={fMulai || undefined}
               value={fSelesai}
               onChange={(e) => setFSelesai(e.target.value)}
               error={fErr.selesai}
-              optional
+              required
             />
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        open={!!hapusTarget}
+        onClose={() => setHapusTarget(null)}
+        title="Hapus Tantangan"
+        footer={
+          <div className="row-between" style={{ width: "100%" }}>
+            <button type="button" className="btn btn-outline" onClick={() => setHapusTarget(null)}>
+              Batal
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={hapusProgram}
+              disabled={deleting}
+            >
+              {deleting ? "Menghapus…" : "Hapus"}
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm">
+          Yakin ingin menghapus tantangan <strong>{hapusTarget?.judul}</strong>? Tindakan ini tidak
+          dapat dibatalkan.
+        </p>
       </Modal>
     </AppShell>
   );

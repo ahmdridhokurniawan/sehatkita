@@ -3,204 +3,99 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
-import { BrandLockup } from "@/components/ui/BrandLogo";
-import ThemeToggle from "@/components/ui/ThemeToggle";
+import Line from "@/components/charts/Line";
 import PreviewPanel, { TAB_LABELS, type TabPreview } from "@/components/landing/PreviewPanel";
-import Modal from "@/components/ui/Modal";
-import { FAQ_LANDING } from "@/lib/demo";
+import PublicHeader from "@/components/landing/PublicHeader";
+import PublicFooter from "@/components/landing/PublicFooter";
+import LegalInfoModal, { type LegalTopic } from "@/components/landing/LegalInfoModal";
+import FaqItem from "@/components/landing/FaqItem";
+import CursorField, { handleGridSpotlightLeave, handleGridSpotlightMove } from "@/components/ui/CursorField";
+import { CATATAN_DEMO, FAQ_LANDING } from "@/lib/demo";
 
-/* ---------------- Legal modal ---------------- */
-const LEGAL: Record<string, React.ReactNode> = {
-  privasi: (
-    <>
-      <h3 className="h4">Kebijakan Privasi</h3>
-      <p className="tiny mt-12">
-        Data kesehatan bersifat sensitif. SehatKita menyimpan data sesuai persetujuan pengguna, membatasi akses
-        berdasarkan peran dan wilayah, serta memisahkan data individual dari data agregat. Anda dapat membatalkan
-        persetujuan penggunaan data melalui pengaturan akun.
-      </p>
-      <p className="tiny mt-8">Dokumen lengkap akan disediakan oleh pengelola sistem.</p>
-    </>
-  ),
-  syarat: (
-    <>
-      <h3 className="h4">Syarat dan Ketentuan</h3>
-      <ol className="tiny mt-12" style={{ paddingLeft: 18, display: "grid", gap: 8 }}>
-        <li>
-          <strong>Sifat Informasi (Bukan Diagnosis Medis):</strong> SehatKita berfungsi sebagai alat bantu pemantauan,
-          edukasi, dan pencatatan kesehatan berbasis masyarakat. Hasil perhitungan maupun kategori indikator bukan
-          merupakan diagnosis medis resmi dan tidak menggantikan pemeriksaan dokter atau tenaga kesehatan.
-        </li>
-        <li>
-          <strong>Kelayakan &amp; Keamanan Akun:</strong> Pengguna wajib memberikan identitas wilayah yang sesuai serta
-          menjaga kerahasiaan kredensial akun (kata sandi minimal 8 karakter yang memuat huruf kapital, angka, dan
-          simbol). Aktivitas mencurigakan atau penyalahgunaan akses dapat berakibat pembatasan akun.
-        </li>
-        <li>
-          <strong>Kebenaran Data &amp; Persetujuan:</strong> Pengguna bertanggung jawab atas keakuratan data kesehatan
-          yang dicatat secara mandiri maupun melalui kader Posbindu. Penggunaan data tunduk pada persetujuan
-          pengguna yang dapat diatur kapan saja di halaman profil.
-        </li>
-        <li>
-          <strong>Tantangan &amp; Verifikasi Dokumentasi:</strong> Peserta yang mengikuti tantangan kesehatan dan mengunggah
-          foto dokumentasi penyelesaian misi wajib memastikan foto berasal dari aktivitas nyata yang relevan.
-          Kader atau admin berhak meninjau, menyetujui, atau menolak bukti yang tidak sesuai sebelum poin EXP diberikan.
-        </li>
-        <li>
-          <strong>Keamanan Data Medis &amp; Privasi k-Anonymity:</strong> Rekam kesehatan dan riwayat pemeriksaan
-          terenkripsi serta dibatasi per peran dan wilayah kelurahan. Publikasi papan peringkat maupun laporan agregat
-          Posbindu menerapkan ambang anonimitas (minimal 5 peserta per kelompok wilayah) sehingga identitas individu
-          tetap terlindungi.
-        </li>
-        <li>
-          <strong>Integrasi Sesi Posbindu:</strong> Pencatatan yang dilakukan oleh kader pada sesi Posbindu resmi di
-          Kota Banjarbaru terhubung ke riwayat akun warga terkait setelah melalui validasi wilayah dan persetujuan.
-        </li>
-        <li>
-          <strong>Batasan Tanggung Jawab:</strong> Pengelola terus berupaya menjaga keandalan layanan, namun kondisi
-          gawat darurat medis harus segera ditangani di fasilitas layanan kesehatan terdekat tanpa menunggu hasil dari
-          aplikasi.
-        </li>
-      </ol>
-    </>
-  ),
-  bantuan: (
-    <>
-      <h3 className="h4">Pusat Bantuan SehatKita</h3>
-      <p className="tiny mt-10">
-        Panduan cepat apabila Anda mengalami kendala saat mendaftar, mencatat pemeriksaan, atau mengikuti tantangan:
-      </p>
-      <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
-        <div className="card card-flat" style={{ padding: 12 }}>
-          <strong className="text-sm">1. Pendaftaran &amp; Password</strong>
-          <p className="tiny mt-4">
-            Gunakan filter Kecamatan atau pencarian nama Kelurahan di halaman Daftar Sekarang. Pastikan password
-            mengandung huruf kapital, angka, dan simbol.
-          </p>
-        </div>
-        <div className="card card-flat" style={{ padding: 12 }}>
-          <strong className="text-sm">2. Catatan Kesehatan &amp; Rujukan</strong>
-          <p className="tiny mt-4">
-            Anda dapat mencatat tekanan darah, berat badan, dan gula darah (Puasa / 2 Jam PP) untuk hari ini. Jika ada
-            indikator berisiko, sistem menyarankan rujukan ke Puskesmas terdekat.
-          </p>
-        </div>
-        <div className="card card-flat" style={{ padding: 12 }}>
-          <strong className="text-sm">3. Dukungan Kader &amp; Kontak Resmi</strong>
-          <p className="tiny mt-4">
-            Untuk pembaruan data NIK/kelurahan atau kendala teknis, hubungi Kader Posbindu kelurahan Anda atau{" "}
-            <a href="mailto:halo@sehatkita.id" className="text-primary fw-600">halo@sehatkita.id</a> (Dinas Kesehatan
-            Kota Banjarbaru).
-          </p>
-        </div>
-      </div>
-    </>
-  ),
-  kontak: (
-    <>
-      <h3 className="h4">Kontak Resmi</h3>
-      <p className="tiny mt-12">
-        Email: <a href="mailto:halo@sehatkita.id" className="text-primary fw-600">halo@sehatkita.id</a>
-        <br />
-        Dinas Kesehatan Kota Banjarbaru
-        <br />
-        Kalimantan Selatan
-      </p>
-      <p className="tiny mt-8">Hubungi email resmi di atas untuk pertanyaan layanan, kerja sama wilayah, maupun bantuan akun.</p>
-    </>
-  ),
-};
+const HERO_TREND_LABELS = ["3 Bln Lalu", "", "", "", "Pertengahan", "", "", "", "Terkini"];
 
-/* ---------------- FAQ item ---------------- */
-function FaqItem({ q, a, open, onToggle }: { q: string; a: string; open: boolean; onToggle: () => void }) {
-  return (
-    <div className={`acc ${open ? "open" : ""}`}>
-      <button className="acc-q" aria-expanded={open} onClick={onToggle} type="button">
-        {q} <Icon name="chevron-down" />
-      </button>
-      <div className="acc-a">
-        <div className="acc-a-inner">
-          <div className="acc-a-pad">{a}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ---------------- Reveal saat masuk viewport ----------------
-   Satu IntersectionObserver untuk semua elemen [data-reveal].
-   Kelas `in` dipasang saat elemen masuk layar dan dicabut saat
-   keluar, jadi animasinya berulang tiap kali di-scroll.
-   Elemen tetap "in" kalau masih terlihat, jadi tidak berkedip. */
+/* ---------------- Reveal & Scroll Choreography ----------------
+   Menggabungkan reveal masuk viewport (arah bervariasi, reset hanya jika sudah keluar di bawah layar)
+   serta progres scroll & efek parallax/scrub halus berbasis --scroll-pct, --hero-p, dan --vis. */
 function useReveal() {
   useEffect(() => {
+    const landing = document.querySelector<HTMLElement>(".landing");
+    const hero = document.querySelector<HTMLElement>(".hero");
+    hero?.classList.add("hero-run");
+
     const els = Array.from(document.querySelectorAll<HTMLElement>("[data-reveal]"));
-    if (!els.length) return;
+    const scrubEls = Array.from(document.querySelectorAll<HTMLElement>("[data-scroll-fx]"));
 
     const kurangiGerak = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (kurangiGerak || !("IntersectionObserver" in window)) {
+    if (kurangiGerak) {
       els.forEach((el) => el.classList.add("in"));
+      scrubEls.forEach((el) => el.style.setProperty("--vis", "1"));
       return;
     }
 
-    // rootMargin 0 supaya elemen yang masih terlihat sebagian TIDAK dicabut
-    // (kalau dicabut, konten di tepi layar sempat transparan = terlihat seperti bug).
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) {
-            e.target.classList.add("in");
-          } else {
-            // Hanya dicabut kalau benar-benar 0 px terlihat.
-            e.target.classList.remove("in");
-          }
-        }
-      },
-      { threshold: [0, 0.15] },
-    );
-    els.forEach((el) => io.observe(el));
+    const updateOnScroll = () => {
+      const vh = window.innerHeight || 800;
+      const sy = window.scrollY || window.pageYOffset || 0;
+      const maxScroll = Math.max(1, document.documentElement.scrollHeight - vh);
 
-    /* Elemen yang sudah terlewati (di atas layar) dipaksa tampil.
-       Tanpa ini, scroll cepat / lompat anchor bisa meninggalkan konten
-       transparan selamanya karena observer tidak pernah melihatnya. */
-    let raf = 0;
-    const sapu = () => {
-      raf = 0;
+      if (landing) {
+        landing.style.setProperty("--scroll-pct", Math.min(1, Math.max(0, sy / maxScroll)).toFixed(4));
+        landing.style.setProperty("--hero-p", Math.min(1, Math.max(0, sy / Math.max(320, vh * 0.72))).toFixed(4));
+      }
+
+      const batasMasuk = vh * 0.82;
+      const batasReset = vh * 1.12;
       for (const el of els) {
-        if (el.classList.contains("in")) continue;
-        if (el.getBoundingClientRect().bottom < 0) el.classList.add("in");
+        const top = el.getBoundingClientRect().top;
+        if (top <= batasMasuk) {
+          el.classList.add("in");
+        } else if (top > batasReset) {
+          el.classList.remove("in");
+        }
+      }
+
+      for (const el of scrubEls) {
+        const r = el.getBoundingClientRect();
+        const vis = Math.max(0, Math.min(1, (vh - r.top) / (vh * 0.78)));
+        el.style.setProperty("--vis", vis.toFixed(3));
       }
     };
+
+    const io =
+      "IntersectionObserver" in window
+        ? new IntersectionObserver(
+            (entries) => {
+              for (const e of entries) {
+                if (e.isIntersecting) {
+                  e.target.classList.add("in");
+                } else if (e.boundingClientRect.top > window.innerHeight * 1.12) {
+                  e.target.classList.remove("in");
+                }
+              }
+            },
+            { threshold: 0.06, rootMargin: "0px 0px -16% 0px" },
+          )
+        : null;
+
+    updateOnScroll();
+    for (const el of els) {
+      io?.observe(el);
+    }
+
+    let raf = 0;
     const onScroll = () => {
-      if (!raf) raf = requestAnimationFrame(sapu);
+      if (!raf) {
+        raf = requestAnimationFrame(() => {
+          raf = 0;
+          updateOnScroll();
+        });
+      }
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll, { passive: true });
 
-    // Hero diputar ulang: `hero-run` dipasang saat hero terlihat,
-    // dicabut saat hero benar-benar hilang dari layar.
-    const hero = document.querySelector<HTMLElement>(".hero");
-    if (hero) {
-      const ioHero = new IntersectionObserver(
-        (entries) => {
-          const e = entries[0];
-          if (e.isIntersecting) hero.classList.add("hero-run");
-          else hero.classList.remove("hero-run");
-        },
-        { threshold: 0 },
-      );
-      ioHero.observe(hero);
-      return () => {
-        io.disconnect();
-        ioHero.disconnect();
-        window.removeEventListener("scroll", onScroll);
-        window.removeEventListener("resize", onScroll);
-        if (raf) cancelAnimationFrame(raf);
-      };
-    }
-
     return () => {
-      io.disconnect();
+      io?.disconnect();
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
       if (raf) cancelAnimationFrame(raf);
@@ -209,12 +104,10 @@ function useReveal() {
 }
 
 export default function LandingPage() {
-  const [tabHero, setTabHero] = useState<TabPreview>("rekam");
-  const [tabBig, setTabBig] = useState<TabPreview>("rekam");
+  const [tabPreview, setTabPreview] = useState<TabPreview>("rekam");
   const [faqOpen, setFaqOpen] = useState<number | null>(0);
-  const [navOpen, setNavOpen] = useState(false);
-  const [legal, setLegal] = useState<"privasi" | "syarat" | "bantuan" | "kontak" | null>(null);
   const [navAktif, setNavAktif] = useState("beranda");
+  const [legalTopic, setLegalTopic] = useState<LegalTopic | null>(null);
   useEffect(() => {
     const ids = ["beranda", "fitur", "cara-kerja", "tentang", "faq"];
     const obs = new IntersectionObserver(
@@ -234,47 +127,21 @@ export default function LandingPage() {
 
   return (
     <div className="landing">
+      <div className="scroll-progress" aria-hidden="true" />
       {/* ============ HEADER ============ */}
-      <header className="site-header">
-        <div className="container">
-          <a href="#beranda" className="brand">
-            <BrandLockup variant="md" />
-            <span>
-              SehatKita<small>Kota Banjarbaru</small>
-            </span>
-          </a>
-          <nav className={`nav-main ${navOpen ? "open" : ""}`} id="navMain">
-            <a href="#beranda" className={navAktif === "beranda" ? "active" : ""} onClick={() => setNavAktif("beranda")}>Beranda</a>
-            <a href="#fitur" className={navAktif === "fitur" ? "active" : ""} onClick={() => setNavAktif("fitur")}>Fitur</a>
-            <a href="#cara-kerja" className={navAktif === "cara-kerja" ? "active" : ""} onClick={() => setNavAktif("cara-kerja")}>Cara Kerja</a>
-            <a href="#tentang" className={navAktif === "tentang" ? "active" : ""} onClick={() => setNavAktif("tentang")}>Tentang</a>
-            <a href="#faq" className={navAktif === "faq" ? "active" : ""} onClick={() => setNavAktif("faq")}>FAQ</a>
-            <Link href="/login" className="nav-auth">Masuk</Link>
-            <Link href="/register" className="nav-auth">Daftar</Link>
-          </nav>
-          <div className="header-actions">
-            <ThemeToggle />
-            <Link href="/login" className="btn btn-ghost hide-mobile">Masuk</Link>
-            <Link href="/register" className="btn btn-primary">Mulai Sekarang</Link>
-            <button
-              className="btn btn-ghost btn-icon nav-toggle"
-              aria-label="Buka menu"
-              aria-expanded={navOpen}
-              onClick={() => setNavOpen((v) => !v)}
-              type="button"
-            >
-              <Icon name="list" />
-            </button>
-          </div>
-        </div>
-      </header>
+      <PublicHeader isLanding activeNav={navAktif} onSelectNav={setNavAktif} />
 
       {/* ============ HERO ============ */}
-      <section className="hero" id="beranda">
+      <section className="hero hero-interactive" id="beranda">
+        <CursorField variant="hero" />
+        <span className="hero-cursor-aura" aria-hidden="true" />
         <div className="container">
           <div className="hero-grid">
             <div className="hero-copy">
-              <span className="eyebrow">Platform Monitoring PTM</span>
+              <span className="eyebrow eyebrow-live">
+                <span className="eyebrow-dot" aria-hidden="true" />
+                Platform Monitoring PTM
+              </span>
               <h1 className="display mt-12">
                 Kenali Kondisi Tubuhmu.
                 <br />
@@ -297,23 +164,72 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="preview-shell" aria-label="Pratinjau antarmuka SehatKita">
-              <div className="preview-bar">
-                <span className="d"></span>
-                <span className="d"></span>
-                <span className="d"></span>
-                <span className="url">sehatkita.id/dashboard</span>
-              </div>
-              <div className="preview-body" suppressHydrationWarning>
-                <div className="preview-tabs">
-                  {TAB_LABELS.map(([id, label]) => (
-                    <button key={id} className={tabHero === id ? "active" : ""} onClick={() => setTabHero(id)} type="button">
-                      {label}
-                    </button>
-                  ))}
+            <div className="hero-preview-stage">
+              <div className="hero-bento" aria-label="Ringkasan layanan SehatKita">
+                <div className="card hero-bento-main">
+                  <div className="row-between gap-12 mb-12">
+                    <div>
+                      <span className="hero-bento-kicker">Pantauan 90 Hari</span>
+                      <strong className="hero-bento-title">Progres Berat Badan Warga</strong>
+                    </div>
+                    <span className="badge badge-safe">
+                      <Icon name="trending-down" size={13} /> -5,8 kg
+                    </span>
+                  </div>
+                  <div className="chart">
+                    <Line
+                      labels={HERO_TREND_LABELS}
+                      series={[{ name: "Berat Badan", data: CATATAN_DEMO.map((c) => c.bb_kg) }]}
+                      unit="kg"
+                      height={162}
+                    />
+                  </div>
+                  <div className="hero-bento-stats">
+                    <div className="hero-bento-stat">
+                      <span>Awal</span>
+                      <strong>91,0 kg</strong>
+                    </div>
+                    <div className="hero-bento-stat">
+                      <span>Terkini</span>
+                      <strong>85,2 kg</strong>
+                    </div>
+                    <div className="hero-bento-stat">
+                      <span>Sumber</span>
+                      <strong>Mandiri &amp; Posbindu</strong>
+                    </div>
+                  </div>
                 </div>
-                <div className="pane-anim" key={tabHero}>
-                  <PreviewPanel tab={tabHero} />
+
+                <div className="hero-bento-row">
+                  <div className="card hero-bento-mini">
+                    <div className="row-between gap-8 mb-10">
+                      <span className="hero-bento-ico">
+                        <Icon name="calendar-check" size={16} />
+                      </span>
+                      <span className="badge badge-primary">Posbindu Aktif</span>
+                    </div>
+                    <h4>Terhubung ke Kelurahan</h4>
+                    <p className="tiny mt-4">
+                      Agenda pemeriksaan rutin &amp; pendampingan kader langsung di lingkungan Anda.
+                    </p>
+                    <span className="hero-bento-meta">Kota Banjarbaru · Gratis warga</span>
+                  </div>
+
+                  <a href="#pratinjau" className="card hero-bento-mini hero-bento-link">
+                    <div className="row-between gap-8 mb-10">
+                      <span className="hero-bento-ico is-accent">
+                        <Icon name="sparkles" size={16} />
+                      </span>
+                      <span className="badge badge-info">3 Tampilan</span>
+                    </div>
+                    <h4>Analisis &amp; Misi Harian</h4>
+                    <p className="tiny mt-4">
+                      Rangkuman perubahan kondisi tubuh &amp; misi kebiasaan sehat bersama kader.
+                    </p>
+                    <span className="hero-bento-cta">
+                      Lihat pratinjau penuh <Icon name="arrow-down" size={14} />
+                    </span>
+                  </a>
                 </div>
               </div>
             </div>
@@ -326,175 +242,205 @@ export default function LandingPage() {
         <div className="container">
           <div className="sec-head center" data-reveal>
             <span className="eyebrow">Fitur</span>
-            <h2 className="h1">Semua yang Anda butuhkan untuk memantau kesehatan</h2>
+            <h2 className="h1">Fitur untuk memantau kesehatan Anda</h2>
             <p className="lead">
-              Fitur dirancang agar masyarakat umum mudah mencatat, memahami, dan menindaklanjuti kondisi kesehatan.
+              Coba kalkulator kesehatan secara langsung tanpa perlu masuk akun, atau kenali layanan SehatKita untuk mencatat dan menjaga kondisi tubuh setiap hari.
             </p>
           </div>
-          <div className="grid grid-4">
-            <div className="feat" data-reveal>
+          <div
+            className="grid grid-4"
+            onPointerMove={(e) => handleGridSpotlightMove(e)}
+            onPointerLeave={(e) => handleGridSpotlightLeave(e)}
+          >
+            <Link href="/kalkulator" className="feat feat-accent feat-clickable" data-reveal="zoom">
+              <span className="feat-ico"><Icon name="calculator" /></span>
+              <h3>Kalkulator Kesehatan</h3>
+              <p>Hitung IMT, berat badan ideal, kebutuhan kalori harian, asupan air minum, detak jantung, serta cek tensi dan gula darah secara instan.</p>
+              <span className="feat-link" style={{ color: "#fff" }}>
+                Hitung sekarang <Icon name="arrow-right" size={15} />
+              </span>
+            </Link>
+            <div className="feat" data-reveal="zoom">
               <span className="feat-ico"><Icon name="file-text" /></span>
               <h3>Rekam Medis</h3>
-              <p>Simpan riwayat berat badan, tensi, gula darah (puasa/2JPP), dan kolesterol dalam satu tempat.</p>
-              <Link href="/rekam-medis" className="feat-link">
-                Lihat riwayat <Icon name="arrow-right" size={15} />
-              </Link>
+              <p>Catat dan simpan riwayat berat badan, tekanan darah, gula darah (puasa maupun setelah makan), serta kolesterol agar mudah dipantau.</p>
             </div>
-            <div className="feat" data-reveal>
-              <span className="feat-ico tone-safe"><Icon name="calculator" /></span>
-              <h3>Kalkulator Kesehatan</h3>
-              <p>Hitung IMT, berat badan ideal, kebutuhan kalori harian, dan asupan air minum dengan cepat.</p>
-              <Link href="/kalkulator" className="feat-link">
-                Coba kalkulator <Icon name="arrow-right" size={15} />
-              </Link>
-            </div>
-            <div className="feat" data-reveal>
+            <div className="feat" data-reveal="zoom">
               <span className="feat-ico tone-warning"><Icon name="sparkles" /></span>
-              <h3>Insight Kesehatan</h3>
-              <p>Analisis otomatis dari data Anda disertai rekomendasi praktis dan pencegahan dini.</p>
-              <Link href="/insight" className="feat-link">
-                Pelajari insight <Icon name="arrow-right" size={15} />
-              </Link>
+              <h3>Analisis Kesehatan</h3>
+              <p>Membaca perubahan data kesehatan Anda secara otomatis disertai saran langkah pencegahan dini dalam bahasa yang mudah dipahami.</p>
             </div>
-            <div className="feat" data-reveal>
+            <div className="feat" data-reveal="zoom">
               <span className="feat-ico tone-orange"><Icon name="send" /></span>
               <h3>Rujukan &amp; Notifikasi</h3>
-              <p>Terhubung ke Puskesmas terdekat dan dapatkan pengingat saat tindak lanjut dibutuhkan.</p>
-              <Link href="/rujukan" className="feat-link">
-                Info rujukan <Icon name="arrow-right" size={15} />
-              </Link>
+              <p>Membantu menghubungkan kondisi yang perlu perhatian medis ke Puskesmas terdekat serta mengirim pengingat saat pemeriksaan lanjutan dibutuhkan.</p>
             </div>
-            <div className="feat" data-reveal>
+            <div className="feat" data-reveal="zoom">
               <span className="feat-ico tone-safe"><Icon name="target" /></span>
               <h3>Target Kesehatan</h3>
-              <p>Tetapkan target berat badan, aktivitas mingguan, dan cairan tubuh lalu pantau progresnya.</p>
-              <Link href="/target-kesehatan" className="feat-link">
-                Atur target <Icon name="arrow-right" size={15} />
-              </Link>
+              <p>Tetapkan sasaran berat badan, target olahraga mingguan, dan kebutuhan minum harian, lalu pantau perkembangannya secara berkala.</p>
             </div>
-            <div className="feat feat-accent" data-reveal>
+            <div className="feat" data-reveal="zoom">
               <span className="feat-ico"><Icon name="trophy" /></span>
-              <h3>Tantangan &amp; Reward</h3>
-              <p>Selesaikan misi sehat, unggah foto dokumentasi, raih verifikasi kader, kumpulkan EXP &amp; badge.</p>
-              <Link href="/program" className="feat-link" style={{ color: "#fff" }}>
-                Jelajahi tantangan <Icon name="arrow-right" size={15} />
-              </Link>
+              <h3>Tantangan &amp; Hadiah</h3>
+              <p>Ikuti misi kebiasaan sehat harian, kirim bukti aktivitas untuk diverifikasi kader, lalu kumpulkan poin dan lencana pencapaian.</p>
             </div>
-            <div className="feat" data-reveal>
+            <div className="feat" data-reveal="zoom">
               <span className="feat-ico tone-warning"><Icon name="building" /></span>
               <h3>Program Posbindu</h3>
-              <p>Ikuti jadwal skrining kelurahan, penyuluhan, dan pemeriksaan kesehatan rutin di wilayah Anda.</p>
-              <Link href="/posbindu" className="feat-link">
-                Lihat jadwal <Icon name="arrow-right" size={15} />
-              </Link>
+              <p>Pantau jadwal pemeriksaan kesehatan rutin, penyuluhan, dan kegiatan Posbindu kelurahan di lingkungan tempat tinggal Anda.</p>
             </div>
-            <div className="feat" data-reveal>
+            <div className="feat" data-reveal="zoom">
               <span className="feat-ico tone-info"><Icon name="bar-chart" /></span>
               <h3>Pemantauan Wilayah</h3>
-              <p>Admin kelurahan memantau kondisi agregat dan tren kesehatan warga secara anonim.</p>
-              <Link href="/peringkat" className="feat-link">
-                Lihat peringkat <Icon name="arrow-right" size={15} />
-              </Link>
+              <p>Menampilkan ringkasan tren kesehatan warga per kelurahan secara menyeluruh untuk mendukung program wilayah tanpa membuka data pribadi.</p>
             </div>
           </div>
         </div>
       </section>
 
       {/* ============ CARA KERJA ============ */}
-      <section className="section" id="cara-kerja" style={{ background: "var(--surface-2)" }}>
+      <section className="section section-alt" id="cara-kerja">
         <div className="container">
           <div className="sec-head center" data-reveal>
             <span className="eyebrow">Cara Kerja</span>
             <h2 className="h1">Mulai dalam beberapa langkah sederhana</h2>
           </div>
-          <div className="grid grid-2" style={{ alignItems: "start" }}>
-            <div className="steps" data-reveal>
+          <div className="grid grid-2 cara-kerja-grid">
+            <div className="steps" data-reveal="left">
               <div className="step"><span className="step-num">1</span><div><h4>Daftar &amp; setujui kebijakan</h4><p>Masyarakat mendaftar dan menyetujui kebijakan penggunaan data.</p></div></div>
               <div className="step"><span className="step-num">2</span><div><h4>Masuk ke dashboard</h4><p>Pengguna masuk dan langsung dapat menggunakan aplikasi.</p></div></div>
               <div className="step"><span className="step-num">3</span><div><h4>Lengkapi profil</h4><p>Lengkapi data profil kapan pun Anda siap.</p></div></div>
               <div className="step"><span className="step-num">4</span><div><h4>Catat hasil pemeriksaan</h4><p>Catat hasil pemeriksaan mandiri atau dari Posbindu.</p></div></div>
             </div>
-            <div className="steps" data-reveal>
-              <div className="step"><span className="step-num">5</span><div><h4>Lihat hasil analisis</h4><p>Sistem menampilkan hasil analisis dari backend secara sederhana.</p></div></div>
-              <div className="step"><span className="step-num">6</span><div><h4>Ikuti program &amp; tantangan</h4><p>Bergabung dengan program kesehatan dan tantangan wilayah.</p></div></div>
-              <div className="step"><span className="step-num">7</span><div><h4>Petugas menindaklanjuti</h4><p>Kader, admin kelurahan, dan fasilitas kesehatan melihat informasi sesuai kewenangannya.</p></div></div>
+            <div className="flex flex-col justify-between gap-20" data-reveal="right">
+              <div className="steps">
+                <div className="step"><span className="step-num">5</span><div><h4>Lihat hasil analisis</h4><p>Sistem menampilkan hasil analisis dan rangkuman kondisi tubuh secara sederhana.</p></div></div>
+                <div className="step"><span className="step-num">6</span><div><h4>Ikuti program &amp; tantangan</h4><p>Bergabung dengan program kesehatan dan tantangan wilayah.</p></div></div>
+                <div className="step"><span className="step-num">7</span><div><h4>Petugas menindaklanjuti</h4><p>Kader, admin kelurahan, dan fasilitas kesehatan melihat informasi sesuai kewenangannya.</p></div></div>
+              </div>
+              <div className="step-cta">
+                <div>
+                  <strong className="text-sm">Siap mencoba langkah pertama?</strong>
+                  <p className="tiny mt-4">Pendaftaran warga gratis dan langsung terhubung ke kelurahan Anda.</p>
+                </div>
+                <div className="row gap-8 wrap">
+                  <Link href="/register" className="btn btn-primary btn-sm">
+                    Daftar Gratis <Icon name="arrow-right" size={14} />
+                  </Link>
+                  <Link href="/bantuan" className="btn btn-outline btn-sm">
+                    Panduan
+                  </Link>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* ============ PREVIEW INTERAKTIF (BESAR) ============ */}
-      <section className="section">
+      <section className="section" id="pratinjau">
         <div className="container">
           <div className="sec-head center" data-reveal>
             <span className="eyebrow">Pratinjau Produk</span>
             <h2 className="h1">Antarmuka yang benar-benar berfungsi</h2>
             <p className="lead">Pilih tab untuk melihat tampilan masing-masing bagian SehatKita.</p>
           </div>
-          <div className="card card-pad-lg" data-reveal>
-            <div className="tabs">
-              {TAB_LABELS.map(([id, label]) => (
-                <button key={id} className={`tab ${tabBig === id ? "active" : ""}`} onClick={() => setTabBig(id)} type="button">
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className="mt-20 pane-anim" key={tabBig}>
-              <PreviewPanel tab={tabBig} />
+          <div className="scroll-scrub" data-scroll-fx>
+            <div className="card card-pad-lg preview-big" data-reveal="zoom">
+              <div className="tabs">
+                {TAB_LABELS.map(([id, label]) => (
+                  <button key={id} className={`tab ${tabPreview === id ? "active" : ""}`} onClick={() => setTabPreview(id)} type="button">
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-20 pane-anim pane-anim-lg" key={tabPreview}>
+                <PreviewPanel tab={tabPreview} />
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* ============ TENTANG ============ */}
-      <section className="section" id="tentang" style={{ background: "var(--surface-2)" }}>
+      <section className="section section-alt" id="tentang">
         <div className="container">
-          <div className="grid grid-2" style={{ gap: 44, alignItems: "center" }}>
-            <div data-reveal>
-              <span className="eyebrow">Tentang</span>
-              <h2 className="h1 mt-12">Mendukung pemantauan PTM di Kota Banjarbaru</h2>
-              <p className="lead mt-16">
-                SehatKita adalah platform monitoring kesehatan Penyakit Tidak Menular (PTM) yang menghubungkan
-                masyarakat, kader Posbindu, kelurahan, dan fasilitas kesehatan. Platform ini membantu deteksi dini
-                faktor risiko, mendorong kebiasaan sehat, dan menyediakan data agregat wilayah untuk pengambilan
-                keputusan program kesehatan.
-              </p>
-              <div className="grid grid-2 mt-24" style={{ gap: 14 }}>
+          <div className="tentang-grid">
+            <div className="tentang-left" data-reveal="left">
+              <div>
+                <span className="eyebrow">Tentang</span>
+                <h2 className="h1 mt-12">Mendukung pemantauan PTM di Kota Banjarbaru</h2>
+                <p className="lead mt-16">
+                  SehatKita adalah platform pemantauan kesehatan yang menghubungkan masyarakat, kader Posbindu,
+                  kelurahan, dan Puskesmas di Kota Banjarbaru. Platform ini membantu deteksi dini risiko penyakit,
+                  mendorong kebiasaan hidup sehat, dan menyediakan ringkasan kondisi warga secara menyeluruh guna
+                  mendukung program kesehatan daerah.
+                </p>
+              </div>
+              <div className="grid grid-2" style={{ gap: 14 }}>
                 <div className="card card-flat" data-reveal>
                   <span className="feat-ico mb-12"><Icon name="map-pin" /></span>
                   <h4 className="h4">Berbasis Wilayah</h4>
-                  <p className="tiny mt-4">Terhubung kelurahan di Kota Banjarbaru.</p>
+                  <p className="tiny mt-4">Terhubung langsung ke kelurahan di Kota Banjarbaru dan jadwal Posbindu.</p>
                 </div>
                 <div className="card card-flat" data-reveal>
                   <span className="feat-ico mb-12"><Icon name="lock" /></span>
                   <h4 className="h4">Privasi Terjaga</h4>
-                  <p className="tiny mt-4">Data individual tidak dibagikan ke role agregat.</p>
+                  <p className="tiny mt-4">Catatan kesehatan pribadi Anda tersimpan terpisah dan tidak pernah dibuka pada laporan wilayah.</p>
                 </div>
               </div>
             </div>
-            <div className="card card-pad-lg card-raised" data-reveal>
-              <div className="alert alert-warning mb-16">
-                <Icon name="alert-triangle" />
-                <div>
-                  <strong>SehatKita bukan alat diagnosis medis.</strong> Hasil analisis bersifat informasi dan tidak
-                  menggantikan pemeriksaan tenaga kesehatan.
+
+            <div className="card card-pad-lg card-raised tentang-panel" data-reveal="right">
+              <div>
+                <div className="alert alert-warning mb-16">
+                  <Icon name="alert-triangle" />
+                  <div>
+                    <strong>SehatKita bukan alat diagnosis medis.</strong> Hasil analisis bersifat informasi dan tidak
+                    menggantikan pemeriksaan tenaga kesehatan.
+                  </div>
+                </div>
+                <h4 className="h4 mb-12">Nilai utama</h4>
+                <ul className="stack" style={{ ["--gap" as string]: "12px" }}>
+                  <li className="row items-start gap-10">
+                    <span className="text-primary"><Icon name="check-circle" size={19} /></span>
+                    <span className="text-sm">Membantu masyarakat memahami perubahan indikator kesehatan dari waktu ke waktu.</span>
+                  </li>
+                  <li className="row items-start gap-10">
+                    <span className="text-primary"><Icon name="check-circle" size={19} /></span>
+                    <span className="text-sm">Mendorong kebiasaan hidup sehat melalui target, program, dan tantangan.</span>
+                  </li>
+                  <li className="row items-start gap-10">
+                    <span className="text-primary"><Icon name="check-circle" size={19} /></span>
+                    <span className="text-sm">Mendukung kader Posbindu dan Puskesmas dengan ringkasan kondisi warga yang akurat dan aman.</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="tentang-role-box">
+                <div className="row-between mb-12">
+                  <h4 className="h4">Tata Kelola &amp; Hak Akses</h4>
+                  <button
+                    type="button"
+                    className="feat-link"
+                    style={{ marginTop: 0, paddingTop: 0, background: "transparent", border: "none", cursor: "pointer" }}
+                    onClick={() => setLegalTopic("privasi")}
+                  >
+                    Kebijakan Privasi <Icon name="arrow-right" size={14} />
+                  </button>
+                </div>
+                <div className="tentang-role-grid">
+                  <div className="tentang-role-item">
+                    <strong>Warga &amp; Kader Posbindu</strong>
+                    <span className="tiny">Pencatatan riwayat, pendampingan sesi, serta verifikasi misi sehat.</span>
+                  </div>
+                  <div className="tentang-role-item">
+                    <strong>Admin Kelurahan &amp; Faskes</strong>
+                    <span className="tiny">Ringkasan statistik wilayah tanpa nama pribadi untuk membantu program Posbindu dan tindak lanjut rujukan.</span>
+                  </div>
                 </div>
               </div>
-              <h4 className="h4 mb-12">Nilai utama</h4>
-              <ul className="stack" style={{ ["--gap" as string]: "12px" }}>
-                <li className="row items-start gap-10">
-                  <span className="text-primary"><Icon name="check-circle" size={19} /></span>
-                  <span className="text-sm">Membantu masyarakat memahami perubahan indikator kesehatan dari waktu ke waktu.</span>
-                </li>
-                <li className="row items-start gap-10">
-                  <span className="text-primary"><Icon name="check-circle" size={19} /></span>
-                  <span className="text-sm">Mendorong kebiasaan hidup sehat melalui target, program, dan tantangan.</span>
-                </li>
-                <li className="row items-start gap-10">
-                  <span className="text-primary"><Icon name="check-circle" size={19} /></span>
-                  <span className="text-sm">Mendukung petugas kesehatan dengan data agregat yang akurat dan aman.</span>
-                </li>
-              </ul>
             </div>
           </div>
         </div>
@@ -502,24 +448,37 @@ export default function LandingPage() {
 
       {/* ============ FAQ ============ */}
       <section className="section" id="faq">
-        <div className="container container-narrow">
-          <div className="sec-head center" data-reveal>
-            <span className="eyebrow">FAQ</span>
-            <h2 className="h1">Pertanyaan yang sering diajukan</h2>
-          </div>
-          <div data-reveal>
-            {FAQ_LANDING.map(([q, a], i) => (
-              <FaqItem key={i} q={q} a={a} open={faqOpen === i} onToggle={() => setFaqOpen(faqOpen === i ? null : i)} />
-            ))}
-          </div>
-          <div className="card mt-20" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }} data-reveal>
-            <div>
-              <strong className="text-sm">Masih butuh bantuan atau panduan langkah?</strong>
-              <p className="tiny mt-4">Buka Pusat Bantuan SehatKita untuk panduan akun, pencatatan, dan kontak resmi.</p>
+        <div className="container">
+          <div className="faq-layout">
+            <div className="faq-aside" data-reveal="left">
+              <div className="sec-head">
+                <span className="eyebrow">FAQ</span>
+                <h2 className="h1">Pertanyaan yang sering diajukan</h2>
+                <p className="lead">
+                  Ringkasan pertanyaan umum seputar akun, pencatatan indikator kesehatan, rujukan, dan privasi data.
+                </p>
+              </div>
+              <div className="card">
+                <strong className="text-sm">Masih butuh bantuan atau panduan langkah?</strong>
+                <p className="tiny mt-6">
+                  Baca panduan lengkap per topik di Pusat Bantuan atau hubungi tim pengelola resmi Kota Banjarbaru.
+                </p>
+                <div className="row gap-8 wrap mt-12">
+                  <Link href="/bantuan" className="btn btn-primary btn-sm">
+                    <Icon name="help-circle" size={15} /> Pusat Bantuan
+                  </Link>
+                  <Link href="/kontak" className="btn btn-outline btn-sm">
+                    Kontak Resmi
+                  </Link>
+                </div>
+              </div>
             </div>
-            <button type="button" className="btn btn-outline btn-sm" onClick={() => setLegal("bantuan")}>
-              <Icon name="help-circle" size={16} /> Pusat Bantuan
-            </button>
+
+            <div data-reveal="right">
+              {FAQ_LANDING.map(([q, a], i) => (
+                <FaqItem key={i} q={q} a={a} open={faqOpen === i} onToggle={() => setFaqOpen(faqOpen === i ? null : i)} />
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -527,76 +486,33 @@ export default function LandingPage() {
       {/* ============ CTA BAND ============ */}
       <section className="section-sm">
         <div className="container">
-          <div className="cta-band" data-reveal>
-            <div>
-              <h2 className="h2">Siap memantau kesehatan Anda?</h2>
-              <p>Bergabung bersama masyarakat Kota Banjarbaru untuk membangun kebiasaan hidup lebih sehat.</p>
-            </div>
-            <div className="row gap-12 wrap">
-              <Link href="/register" className="btn btn-lg">
-                Mulai Sekarang <Icon name="arrow-right" size={18} />
-              </Link>
-              <Link href="/login" className="btn btn-outline btn-lg">Masuk</Link>
+          <div className="scroll-scrub" data-scroll-fx>
+            <div className="cta-band cta-interactive" data-reveal="zoom">
+              <CursorField variant="aside" />
+              <span className="auth-cursor-aura" aria-hidden="true" />
+              <div>
+                <h2 className="h2">Siap memantau kesehatan Anda?</h2>
+                <p>Bergabung bersama masyarakat Kota Banjarbaru untuk membangun kebiasaan hidup lebih sehat.</p>
+              </div>
+              <div className="row gap-12 wrap">
+                <Link href="/register" className="btn btn-lg">
+                  Mulai Sekarang <Icon name="arrow-right" size={18} />
+                </Link>
+                <Link href="/login" className="btn btn-outline btn-lg">Masuk</Link>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* ============ FOOTER ============ */}
-      <footer className="site-footer">
-        <div className="container">
-          <div className="footer-grid">
-            <div className="footer-col">
-              <a href="#beranda" className="brand mb-12">
-                <BrandLockup variant="md" />
-                <span>SehatKita</span>
-              </a>
-              <p className="tiny" style={{ maxWidth: 300 }}>
-                SehatKita membantu masyarakat memantau kesehatan, memahami perubahan indikator kesehatan, membangun
-                kebiasaan sehat, dan mendukung program kesehatan berbasis wilayah.
-              </p>
-              <p className="tiny mt-12">Kota Banjarbaru, Kalimantan Selatan</p>
-            </div>
-            <div className="footer-col">
-              <h4>Navigasi</h4>
-              <a href="#beranda">Beranda</a>
-              <a href="#fitur">Fitur</a>
-              <a href="#cara-kerja">Cara Kerja</a>
-              <a href="#tentang">Tentang</a>
-              <a href="#faq">FAQ</a>
-            </div>
-            <div className="footer-col">
-              <h4>Bantuan</h4>
-              <a href="#" onClick={(e) => { e.preventDefault(); setLegal("bantuan"); }}>Pusat Bantuan</a>
-              <Link href="/kalkulator">Kalkulator Kesehatan</Link>
-              <Link href="/login">Masuk</Link>
-              <Link href="/register">Daftar</Link>
-            </div>
-            <div className="footer-col">
-              <h4>Legal &amp; Kontak</h4>
-              <a href="#" onClick={(e) => { e.preventDefault(); setLegal("privasi"); }}>Kebijakan Privasi</a>
-              <a href="#" onClick={(e) => { e.preventDefault(); setLegal("syarat"); }}>Syarat dan Ketentuan</a>
-              <a href="#" onClick={(e) => { e.preventDefault(); setLegal("kontak"); }}>Kontak Resmi</a>
-            </div>
-          </div>
-          <div className="footer-bottom">
-            <span>© 2026 SehatKita. Hak cipta dilindungi.</span>
-            <span className="tiny">
-              SehatKita bukan alat diagnosis medis dan tidak menggantikan pemeriksaan tenaga kesehatan.
-            </span>
-          </div>
-        </div>
-      </footer>
+      <PublicFooter isLanding />
 
-      {/* Legal modal */}
-      {legal ? (
-        <Modal open={true} onClose={() => setLegal(null)} title="">
-          {LEGAL[legal]}
-          <div className="modal-foot mt-20">
-            <button className="btn btn-primary" onClick={() => setLegal(null)} type="button">Tutup</button>
-          </div>
-        </Modal>
-      ) : null}
+      <LegalInfoModal
+        topic={legalTopic}
+        onChangeTopic={setLegalTopic}
+        onClose={() => setLegalTopic(null)}
+      />
     </div>
   );
 }

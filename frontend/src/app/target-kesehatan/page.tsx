@@ -7,20 +7,21 @@ import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
-import { EmptyState } from "@/components/ui/Empty";
+import { EmptyState, Loading } from "@/components/ui/Empty";
 import { targetKesehatan, ApiError } from "@/lib/api";
-import { LABEL_JENIS_TARGET } from "@/lib/labels";
-import { tanggal } from "@/lib/format";
+import { useMinLoading } from "@/hooks/useMinLoading";
+import { LABEL_JENIS_TARGET, SATUAN_JENIS_TARGET, labelJenisTarget } from "@/lib/labels";
+import { statusTenggatTarget, tanggal } from "@/lib/format";
 import type { TargetKesehatan, TargetKesehatanInput, JenisTarget } from "@/types";
 
 const JENIS_OPTIONS = Object.keys(LABEL_JENIS_TARGET);
 
 const FORM_KOSONG: TargetKesehatanInput = {
   judul: "",
-  jenis_target: "lainnya",
+  jenis_target: "berat_badan",
   nilai_awal: null,
   nilai_target: 0,
-  satuan: "",
+  satuan: SATUAN_JENIS_TARGET.berat_badan,
   tenggat_waktu: null,
   catatan_motivasi: null,
 };
@@ -31,6 +32,7 @@ export default function TargetKesehatanPage() {
   const toast = useToast();
   const [daftar, setDaftar] = useState<TargetKesehatan[]>([]);
   const [loading, setLoading] = useState(true);
+  const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState("");
 
   const [formBuka, setFormBuka] = useState(false);
@@ -76,7 +78,14 @@ export default function TargetKesehatanPage() {
   }, []);
 
   const tercapai = useMemo(() => daftar.filter((t) => t.tercapai).length, [daftar]);
-  const berjalan = useMemo(() => daftar.filter((t) => !t.tercapai).length, [daftar]);
+  const lewatTenggat = useMemo(
+    () => daftar.filter((t) => statusTenggatTarget(t.tenggat_waktu, t.tercapai).status === "lewat").length,
+    [daftar],
+  );
+  const berjalan = useMemo(
+    () => daftar.filter((t) => !t.tercapai).length,
+    [daftar],
+  );
 
   function bukaTambah() {
     setSunting(null);
@@ -93,7 +102,7 @@ export default function TargetKesehatanPage() {
       nilai_awal: t.nilai_awal,
       nilai_target: t.nilai_target,
       satuan: t.satuan,
-      tenggat_waktu: t.tenggat_waktu,
+      tenggat_waktu: t.tenggat_waktu ? t.tenggat_waktu.slice(0, 10) : null,
       catatan_motivasi: t.catatan_motivasi,
     });
     setErrForm({});
@@ -104,6 +113,20 @@ export default function TargetKesehatanPage() {
     setForm((p) => ({ ...p, [kunci]: nilai }));
     setErrForm((p) => ({ ...p, [kunci]: "" }));
   }
+
+  function ubahJenisTarget(jenisBaru: string) {
+    const satuanOtomatis =
+      jenisBaru === "lainnya" ? "" : (SATUAN_JENIS_TARGET[jenisBaru] ?? "");
+    setForm((p) => ({
+      ...p,
+      jenis_target: jenisBaru as JenisTarget,
+      satuan: satuanOtomatis,
+    }));
+    setErrForm((p) => ({ ...p, jenis_target: "", satuan: "" }));
+  }
+
+  const jenisDiDaftar = JENIS_OPTIONS.includes(form.jenis_target);
+  const bisaKetikSatuan = form.jenis_target === "lainnya" || !jenisDiDaftar;
 
   async function simpanForm() {
     const e: ErrForm = {};
@@ -120,7 +143,10 @@ export default function TargetKesehatanPage() {
     const payload: TargetKesehatanInput = {
       judul: form.judul.trim(),
       jenis_target: form.jenis_target as JenisTarget,
-      nilai_awal: form.nilai_awal ? Number(form.nilai_awal) : null,
+      nilai_awal:
+        form.nilai_awal !== null && form.nilai_awal !== undefined && String(form.nilai_awal).trim() !== ""
+          ? Number(form.nilai_awal)
+          : null,
       nilai_target: Number(form.nilai_target),
       satuan: form.satuan.trim(),
       tenggat_waktu: form.tenggat_waktu || null,
@@ -186,7 +212,7 @@ export default function TargetKesehatanPage() {
   }
 
   return (
-    <AppShell noFab>
+    <AppShell noFab roles={["user"]}>
       <div className="row-between mb-16">
         <div>
           <h1 className="h3">Target Kesehatan</h1>
@@ -197,86 +223,105 @@ export default function TargetKesehatanPage() {
         </button>
       </div>
 
-      <div className="grid grid-2 mb-12" style={{ gap: 12 }}>
-        <div className="card card-flat">
-          <div className="tiny">Sedang berjalan</div>
-          <div className="metric-val">{berjalan}</div>
-        </div>
-        <div className="card card-flat">
-          <div className="tiny">Tercapai</div>
-          <div className="metric-val">{tercapai}</div>
-        </div>
+      <div className="summary-strip mb-12">
+        <span className="summary-strip-item">
+          Sedang berjalan: <strong>{berjalan}</strong>
+        </span>
+        <span className="summary-strip-item">
+          Lewat tenggat:{" "}
+          <strong style={lewatTenggat > 0 ? { color: "var(--danger)" } : undefined}>{lewatTenggat}</strong>
+        </span>
+        <span className="summary-strip-item">
+          Tercapai: <strong className="text-safe">{tercapai}</strong>
+        </span>
       </div>
 
       {error && (
-        <div className="card card-flat mb-12" style={{ borderLeft: "4px solid var(--danger)" }}>
-          <div className="row gap-10 items-center">
-            <span className="text-danger">
-              <Icon name="alert-circle" size={18} />
-            </span>
-            <span className="text-sm">{error}</span>
-          </div>
-        </div>
+        <div className="err-msg show mb-12">{error}</div>
       )}
 
-      {loading ? (
-        <div className="card">
-          <p className="tiny center">Memuat…</p>
-        </div>
+      {tampilLoading ? (
+        <Loading variant="list" text="Memuat target kesehatan…" />
       ) : daftar.length === 0 ? (
-        <div className="card card-flat">
-          <EmptyState icon="target" title="Belum ada target" desc="Buat target kesehatan pertamamu." />
-        </div>
+        <EmptyState icon="target" title="Belum ada target" desc="Buat target kesehatan pertamamu." />
       ) : (
-        <div className="grid grid-2" style={{ gap: 12 }}>
-          {daftar.map((t) => (
-            <div className="card card-flat" key={t.id}>
-              <div className="row-between" style={{ alignItems: "flex-start", gap: 12 }}>
-                <div className="flex-1">
-                  <div className="row-between">
-                    <strong className="text-sm">{t.judul}</strong>
-                    <Badge tone={t.tercapai ? "safe" : "warning"}>
-                      {t.tercapai ? "Tercapai" : "Berjalan"}
-                    </Badge>
+        <div className="card card-list">
+          {daftar.map((t) => {
+            const st = statusTenggatTarget(t.tenggat_waktu, t.tercapai);
+            const lewat = st.status === "lewat";
+            const hariIni = st.status === "hari_ini";
+            return (
+              <div
+                className="li"
+                key={t.id}
+                style={{
+                  alignItems: "flex-start",
+                  flexWrap: "wrap",
+                  gap: 12,
+                  borderLeft: lewat ? "3px solid var(--danger)" : "3px solid transparent",
+                }}
+              >
+                <span className="li-ico">
+                  <Icon name="target" size={18} />
+                </span>
+                <div className="li-main" style={{ flex: "1 1 240px" }}>
+                  <div className="row gap-8 wrap" style={{ alignItems: "center" }}>
+                    <strong style={{ margin: 0 }}>{t.judul}</strong>
+                    <Badge tone={st.tone}>{st.label}</Badge>
                   </div>
-                  <div className="tiny mt-4">{LABEL_JENIS_TARGET[t.jenis_target] || t.jenis_target}</div>
-                  <p className="text-sm mt-8">
-                    {t.nilai_awal != null ? `${t.nilai_awal} → ` : ""}
-                    {t.nilai_target} {t.satuan}
-                  </p>
+                  <div className="tiny mt-4">
+                    {labelJenisTarget(t.jenis_target)} ·{" "}
+                    <strong style={{ display: "inline", fontSize: "inherit", color: "var(--text)" }}>
+                      {t.nilai_awal != null ? `${t.nilai_awal} → ` : ""}
+                      {t.nilai_target} {t.satuan}
+                    </strong>
+                  </div>
                   {t.tenggat_waktu ? (
-                    <p className="tiny mt-4">Tenggat: {tanggal(t.tenggat_waktu, "day")}</p>
+                    <div
+                      className="tiny mt-2"
+                      style={
+                        lewat
+                          ? { color: "var(--danger)", fontWeight: 600 }
+                          : hariIni
+                            ? { color: "var(--warning)", fontWeight: 600 }
+                            : undefined
+                      }
+                    >
+                      Tenggat: {tanggal(t.tenggat_waktu, "day")}
+                      {st.catatan ? ` · ${st.catatan}` : ""}
+                    </div>
                   ) : null}
                   {t.catatan_motivasi ? (
-                    <p className="tiny mt-8" style={{ fontStyle: "italic" }}>
+                    <div className="tiny mt-4" style={{ fontStyle: "italic" }}>
                       {t.catatan_motivasi}
-                    </p>
+                    </div>
                   ) : null}
                 </div>
-              </div>
-              <div className="row gap-8 mt-12">
-                {!t.tercapai ? (
-                  <button className="btn btn-sm btn-primary" onClick={() => setSasaran(t)}>
-                    <Icon name="check" size={15} /> Tandai tercapai
+                <div className="row gap-8 wrap" style={{ alignItems: "center" }}>
+                  {!t.tercapai ? (
+                    <button className="btn btn-sm btn-primary" onClick={() => setSasaran(t)}>
+                      <Icon name="check" size={14} /> Tercapai
+                    </button>
+                  ) : (
+                    <button className="btn btn-sm btn-outline" onClick={() => setSasaran(t)}>
+                      <Icon name="refresh" size={14} /> Buka lagi
+                    </button>
+                  )}
+                  <button className="btn btn-sm btn-outline" onClick={() => bukaSunting(t)}>
+                    <Icon name="pencil" size={14} /> Ubah
                   </button>
-                ) : (
-                  <button className="btn btn-sm btn-outline" onClick={() => setSasaran(t)}>
-                    <Icon name="refresh" size={15} /> Buka lagi
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-danger"
+                    onClick={() => setHapusTarget(t)}
+                    aria-label="Hapus target"
+                  >
+                    <Icon name="trash" size={14} /> Hapus
                   </button>
-                )}
-                <button className="btn btn-sm btn-outline" onClick={() => bukaSunting(t)}>
-                  <Icon name="pencil" size={15} /> Edit
-                </button>
-                <button
-                  className="btn btn-sm btn-ghost"
-                  style={{ color: "var(--danger)" }}
-                  onClick={() => setHapusTarget(t)}
-                >
-                  <Icon name="trash" size={15} /> Hapus
-                </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -310,8 +355,11 @@ export default function TargetKesehatanPage() {
               <select
                 className="select"
                 value={form.jenis_target}
-                onChange={(e) => ubah("jenis_target", e.target.value as JenisTarget)}
+                onChange={(e) => ubahJenisTarget(e.target.value)}
               >
+                {!jenisDiDaftar && form.jenis_target ? (
+                  <option value={form.jenis_target}>{labelJenisTarget(form.jenis_target)}</option>
+                ) : null}
                 {JENIS_OPTIONS.map((j) => (
                   <option key={j} value={j}>
                     {LABEL_JENIS_TARGET[j]}
@@ -321,8 +369,11 @@ export default function TargetKesehatanPage() {
             </div>
             <Input
               label="Satuan"
-              placeholder="kg, ml, kali…"
+              placeholder={bisaKetikSatuan ? "Ketik satuan, mis. mmHg, mg/dL…" : "Otomatis"}
+              hint={bisaKetikSatuan ? "Isi manual sesuai target Anda" : "Mengikuti jenis target"}
               value={form.satuan}
+              readOnly={!bisaKetikSatuan}
+              style={!bisaKetikSatuan ? { background: "var(--surface-2)", cursor: "not-allowed" } : undefined}
               onChange={(e) => ubah("satuan", e.target.value)}
               error={errForm.satuan}
               required

@@ -92,3 +92,68 @@ export function inisial(nama?: string | null): string {
 export function gender(g?: string | null): string {
   return g === "L" ? "Laki-laki" : g === "P" ? "Perempuan" : "—";
 }
+
+/** Tanggal hari ini versi zona waktu lokal pengguna (YYYY-MM-DD), bukan UTC. */
+export function todayLocalISO(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+export type StatusTenggatTarget = {
+  status: "selesai" | "lewat" | "hari_ini" | "berjalan";
+  sisaHari: number | null;
+  label: string;
+  tone: "safe" | "danger" | "warning";
+  catatan: string | null;
+};
+
+/** Evaluasi status tenggat target kesehatan relatif terhadap tanggal lokal hari ini. */
+export function statusTenggatTarget(
+  tenggat?: string | null,
+  tercapai?: boolean,
+): StatusTenggatTarget {
+  if (tercapai) {
+    return { status: "selesai", sisaHari: null, label: "Tercapai", tone: "safe", catatan: null };
+  }
+  if (!tenggat) {
+    return { status: "berjalan", sisaHari: null, label: "Berjalan", tone: "warning", catatan: null };
+  }
+  const tgl = tenggat.slice(0, 10);
+  const parts = tgl.split("-").map(Number);
+  const todayParts = todayLocalISO().split("-").map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) {
+    return { status: "berjalan", sisaHari: null, label: "Berjalan", tone: "warning", catatan: null };
+  }
+  const targetUtc = Date.UTC(parts[0], parts[1] - 1, parts[2]);
+  const todayUtc = Date.UTC(todayParts[0], todayParts[1] - 1, todayParts[2]);
+  const sisaHari = Math.round((targetUtc - todayUtc) / 86400000);
+
+  if (sisaHari < 0) {
+    return {
+      status: "lewat",
+      sisaHari,
+      label: "Lewat tenggat",
+      tone: "danger",
+      catatan: `Terlambat ${Math.abs(sisaHari)} hari`,
+    };
+  }
+  if (sisaHari === 0) {
+    return {
+      status: "hari_ini",
+      sisaHari: 0,
+      label: "Tenggat hari ini",
+      tone: "warning",
+      catatan: "Jatuh tempo hari ini",
+    };
+  }
+  return {
+    status: "berjalan",
+    sisaHari,
+    label: "Berjalan",
+    tone: "warning",
+    catatan: `${sisaHari} hari lagi`,
+  };
+}

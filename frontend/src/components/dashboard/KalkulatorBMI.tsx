@@ -20,27 +20,27 @@ function hitungKategori(imt: number): Kategori {
       saran: "Tingkatkan asupan kalori bernutrisi seimbang dan perbanyak sumber protein sehat.",
     };
   }
-  if (imt < 23) {
+  if (imt <= 25.0) {
     return {
       label: "Normal (Ideal)",
       tone: "safe",
-      pesan: "Selamat! Berat badan Anda berada pada kisaran ideal.",
+      pesan: "Selamat! Berat badan Anda berada pada kisaran normal Kemenkes RI.",
       saran: "Pertahankan pola makan bergizi seimbang dan luangkan waktu olahraga rutin 30 menit sehari.",
     };
   }
-  if (imt < 25) {
+  if (imt <= 27.0) {
     return {
-      label: "Kelebihan Berat Badan",
+      label: "Gemuk (Kelebihan Berat)",
       tone: "warning",
-      pesan: "Berat badan sedikit melebihi batas normal.",
+      pesan: "Berat badan melebihi batas normal (gemuk tingkat ringan).",
       saran: "Batasi konsumsi gula, garam, dan makanan berlemak tinggi. Tingkatkan intensitas aktivitas fisik.",
     };
   }
   return {
     label: "Obesitas",
     tone: "danger",
-    pesan: "Berat badan Anda berada dalam kategori obesitas berisiko.",
-    saran: "Disarankan untuk berkonsultasi dengan petugas kesehatan/Posbindu dan mengatur pola makan terukur.",
+    pesan: "Berat badan Anda berada dalam kategori obesitas berisiko PTM.",
+    saran: "Disarankan berkonsultasi dengan kader Posbindu atau dokter Puskesmas serta mengatur pola makan terukur.",
   };
 }
 
@@ -64,9 +64,9 @@ export default function KalkulatorBMI() {
     const imt = b / (meter * meter);
     const kategori = hitungKategori(imt);
 
-    // Rentang berat badan normal (standar Kemenkes RI/Asia Pasifik: IMT 18.5 - 22.9)
+    // Rentang berat badan normal resmi Kemenkes RI (Permenkes No. 41 Tahun 2014: IMT 18.5 - 25.0)
     const beratMin = parseFloat((18.5 * meter * meter).toFixed(1));
-    const beratMax = parseFloat((22.9 * meter * meter).toFixed(1));
+    const beratMax = parseFloat((25.0 * meter * meter).toFixed(1));
 
     let selisih = 0;
     if (b < beratMin) {
@@ -240,10 +240,10 @@ export default function KalkulatorBMI() {
                 background: "var(--surface-3)",
               }}
             >
-              <div style={{ flex: "18.5", background: "var(--warning)" }} title="Kurus (< 18.5)" />
-              <div style={{ flex: "4.4", background: "var(--safe)" }} title="Normal (18.5 - 22.9)" />
-              <div style={{ flex: "2.0", background: "var(--accent)" }} title="Berlebih (23 - 24.9)" />
-              <div style={{ flex: "7.1", background: "var(--danger)" }} title="Obesitas (>= 25)" />
+              <div style={{ flex: "4.5", background: "var(--warning)" }} title="Kurus (< 18,5)" />
+              <div style={{ flex: "6.5", background: "var(--safe)" }} title="Normal (18,5–25,0)" />
+              <div style={{ flex: "2.0", background: "var(--accent)" }} title="Gemuk (> 25,0–27,0)" />
+              <div style={{ flex: "5.0", background: "var(--danger)" }} title="Obesitas (> 27,0)" />
             </div>
 
             {/* Indikator Jarum */}
@@ -276,10 +276,10 @@ export default function KalkulatorBMI() {
 
             {/* Label Skala */}
             <div className="row-between tiny mt-4" style={{ fontSize: "0.6875rem", color: "var(--text-3)" }}>
-              <span>&lt;18.5 Kurus</span>
-              <span>18.5–22.9 Ideal</span>
-              <span>23–24.9 Berlebih</span>
-              <span>≥25 Obesitas</span>
+              <span>&lt;18,5 Kurus</span>
+              <span>18,5–25,0 Ideal</span>
+              <span>&gt;25–27 Gemuk</span>
+              <span>&gt;27 Obesitas</span>
             </div>
           </div>
 
@@ -329,6 +329,9 @@ export default function KalkulatorBMI() {
               {hasil.kategori.saran}
             </p>
           </div>
+          <p className="tiny mt-8" style={{ color: "var(--text-3)" }}>
+            Acuan klasifikasi IMT dewasa: Permenkes RI No. 41 Tahun 2014 tentang Pedoman Gizi Seimbang.
+          </p>
         </div>
       )}
     </div>

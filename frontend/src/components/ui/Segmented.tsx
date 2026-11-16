@@ -1,6 +1,6 @@
 "use client";
 
-export type SegmenItem = { value: string; label: string };
+export type SegmenItem = { value: string; label: string; title?: string };
 
 type Props = {
   items: SegmenItem[];
@@ -13,7 +13,14 @@ export default function Segmented({ items, value, onChange }: Props) {
   return (
     <div className="segment">
       {items.map((s) => (
-        <button key={s.value} className={value === s.value ? "active" : ""} onClick={() => onChange(s.value)}>
+        <button
+          key={s.value}
+          type="button"
+          title={s.title}
+          aria-label={s.title || s.label}
+          className={value === s.value ? "active" : ""}
+          onClick={() => onChange(s.value)}
+        >
           {s.label}
         </button>
       ))}

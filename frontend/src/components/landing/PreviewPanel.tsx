@@ -2,18 +2,14 @@
 
 import Icon from "@/components/ui/Icon";
 import Line from "@/components/charts/Line";
-import Bar from "@/components/charts/Bar";
-import Donut from "@/components/charts/Donut";
 import { angka, desimal, tanggal } from "@/lib/format";
 import {
   CATATAN_DEMO,
-  DISTRIBUSI_IMT_DEMO,
   INSIGHT_DEMO,
   PROGRAM_DEMO,
-  TREN_DEMO,
 } from "@/lib/demo";
 
-export type TabPreview = "rekam" | "insight" | "tantangan" | "kelurahan";
+export type TabPreview = "rekam" | "insight" | "tantangan";
 
 /** Tanggal ISO (n hari lalu) — untuk label grafik demo. */
 function hariLalu(n: number): string {
@@ -109,7 +105,7 @@ function PaneInsight() {
           </div>
         </div>
       ))}
-      <p className="tiny mt-12">Insight dihasilkan oleh rule engine backend, bukan diagnosis dokter.</p>
+      <p className="tiny mt-12">Analisis otomatis dihitung oleh sistem berdasarkan ambang indikator, bukan diagnosis dokter.</p>
     </>
   );
 }
@@ -155,45 +151,10 @@ function PaneTantangan() {
   );
 }
 
-function PaneKelurahan() {
-  const total = DISTRIBUSI_IMT_DEMO.reduce((a, b) => a + b.jumlah, 0);
-  return (
-    <>
-      <div className="demo-banner">
-        <Icon name="alert-triangle" />
-        <span>Data agregat demo. Kelompok dengan jumlah &lt; 5 orang disembunyikan backend.</span>
-      </div>
-      <div className="grid grid-2" style={{ gap: 18, alignItems: "start" }}>
-        <div>
-          <div className="row-between mb-12">
-            <strong className="text-sm">Distribusi Kategori IMT</strong>
-          </div>
-          <div className="chart">
-            <Donut
-              segments={DISTRIBUSI_IMT_DEMO.map((d) => ({ label: d.kategori, value: d.jumlah }))}
-              centerValue={angka(total)}
-              centerLabel="Total tercatat"
-            />
-          </div>
-        </div>
-        <div>
-          <div className="row-between mb-12">
-            <strong className="text-sm">Tren Pencatatan</strong>
-          </div>
-          <div className="chart">
-            <Bar labels={TREN_DEMO.label} values={TREN_DEMO.pencatatan} unit="catatan" height={190} />
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
-
 const PANES: Record<TabPreview, () => React.ReactElement> = {
   rekam: PaneRekam,
   insight: PaneInsight,
   tantangan: PaneTantangan,
-  kelurahan: PaneKelurahan,
 };
 
 /** Isi pratinjau produk sesuai tab terpilih (dipakai di hero & preview besar). */
@@ -204,7 +165,6 @@ export default function PreviewPanel({ tab }: { tab: TabPreview }) {
 
 export const TAB_LABELS: [TabPreview, string][] = [
   ["rekam", "Rekam Medis"],
-  ["insight", "Insight"],
+  ["insight", "Analisis"],
   ["tantangan", "Tantangan"],
-  ["kelurahan", "Dashboard Kelurahan"],
 ];

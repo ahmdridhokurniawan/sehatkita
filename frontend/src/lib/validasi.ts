@@ -29,6 +29,12 @@ export function validAngka(field: string, v?: string | number | null): HasilVali
   const n = Number(v);
   const r = RANGE[field];
   if (r && (n < r[0] || n > r[1])) {
+    if (field === "gula_darah" && n < r[0]) {
+      return {
+        ok: false,
+        msg: `Gula darah harus ${r[0]}–${r[1]} mg/dL (contoh 95 atau 140). Jika alat memakai mmol/L, kalikan 18 lebih dulu.`,
+      };
+    }
     return { ok: false, msg: `${r[2]} harus antara ${r[0]}–${r[1]}.` };
   }
   return { ok: true, value: n };

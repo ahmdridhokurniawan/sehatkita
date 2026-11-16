@@ -3,7 +3,7 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
@@ -11,8 +11,9 @@ import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import { ErrorState, Loading } from "@/components/ui/Empty";
 import { useUser } from "@/hooks/useUser";
+import { useMinLoading } from "@/hooks/useMinLoading";
 import { useToast } from "@/components/ui/Toast";
-import { angka, tanggal } from "@/lib/format";
+import { angka, tanggal, todayLocalISO } from "@/lib/format";
 import { program as programApi, fetchMediaBlobUrl, ApiError } from "@/lib/api";
 import type { Program, PesertaProgram } from "@/types";
 import type { StatusPeserta } from "@/lib/enums";
@@ -34,7 +35,7 @@ const TONE_PESERTA: Record<StatusPeserta, "primary" | "warning" | "safe" | "dang
 };
 
 function statusProgram(mulai: string, selesai: string | null) {
-  const hariIni = new Date().toISOString().slice(0, 10);
+  const hariIni = todayLocalISO();
   const m = (mulai || "").slice(0, 10);
   const s = (selesai || "").slice(0, 10);
   if (m && m > hariIni) return { label: "Akan datang", tone: "warning" as const };
@@ -42,8 +43,28 @@ function statusProgram(mulai: string, selesai: string | null) {
   return { label: "Berjalan", tone: "safe" as const };
 }
 
+const MAKS_FOTO_BUKTI = 5;
+
+type DraftFoto = { file: File; url: string };
+
+function formatUkuranFile(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 /** Komponen gambar terautentikasi untuk bukti foto dokumentasi tantangan. */
-function BuktiFotoThumb({ url, alt, onPreview }: { url: string; alt: string; onPreview?: (src: string) => void }) {
+function BuktiFotoThumb({
+  url,
+  alt,
+  onPreview,
+  inCard = false,
+}: {
+  url: string;
+  alt: string;
+  onPreview?: (src: string) => void;
+  inCard?: boolean;
+}) {
   const [src, setSrc] = useState<string>("");
   const [gagal, setGagal] = useState(false);
 
@@ -70,10 +91,10 @@ function BuktiFotoThumb({ url, alt, onPreview }: { url: string; alt: string; onP
   }, [url]);
 
   if (gagal) {
-    return <span className="tiny text-danger">Foto gagal dimuat.</span>;
+    return <span className="tiny text-danger" style={{ padding: 10 }}>Foto gagal dimuat.</span>;
   }
   if (!src) {
-    return <span className="tiny text-2">Memuat foto dokumentasi…</span>;
+    return <span className="tiny text-2" style={{ padding: 10 }}>Memuat foto…</span>;
   }
 
   return (
@@ -81,17 +102,29 @@ function BuktiFotoThumb({ url, alt, onPreview }: { url: string; alt: string; onP
       type="button"
       onClick={() => onPreview?.(src)}
       style={{
+        display: "block",
         padding: 0,
-        border: "1px solid var(--border)",
-        borderRadius: 10,
+        border: inCard ? "none" : "1px solid var(--border)",
+        borderRadius: inCard ? 0 : 10,
         overflow: "hidden",
         background: "var(--surface-2)",
         cursor: "pointer",
-        maxWidth: 220,
+        width: inCard ? "100%" : undefined,
+        maxWidth: inCard ? undefined : 180,
       }}
       title="Klik untuk perbesar foto dokumentasi"
     >
-      <img src={src} alt={alt} style={{ display: "block", width: "100%", maxHeight: 150, objectFit: "cover" }} />
+      <img
+        src={src}
+        alt={alt}
+        style={{
+          display: "block",
+          width: "100%",
+          height: inCard ? 132 : undefined,
+          maxHeight: inCard ? 132 : 140,
+          objectFit: "cover",
+        }}
+      />
     </button>
   );
 }
@@ -109,16 +142,19 @@ export default function ProgramDetailPage() {
   const [peserta, setPeserta] = useState<PesertaProgram[]>([]);
   const [pesertaLoading, setPesertaLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState("");
   const [proses, setProses] = useState(false);
   const [aksiErr, setAksiErr] = useState("");
   const [tandaiId, setTandaiId] = useState<number | null>(null);
 
-  // State unggah bukti foto warga
-  const [fileBukti, setFileBukti] = useState<File | null>(null);
-  const [previewLocal, setPreviewLocal] = useState<string>("");
+  // State unggah & hapus multi-foto dokumentasi warga
+  const [draftFoto, setDraftFoto] = useState<DraftFoto[]>([]);
+  const draftRef = useRef<DraftFoto[]>([]);
   const [catatanBukti, setCatatanBukti] = useState("");
   const [kirimLoading, setKirimLoading] = useState(false);
+  const [hapusIndex, setHapusIndex] = useState<number | "semua" | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Modal preview foto & modal tolak bukti
   const [fotoModal, setFotoModal] = useState<string | null>(null);
@@ -126,10 +162,14 @@ export default function ProgramDetailPage() {
   const [alasanTolak, setAlasanTolak] = useState("");
 
   useEffect(() => {
+    draftRef.current = draftFoto;
+  }, [draftFoto]);
+
+  useEffect(() => {
     return () => {
-      if (previewLocal) URL.revokeObjectURL(previewLocal);
+      draftRef.current.forEach((d) => URL.revokeObjectURL(d.url));
     };
-  }, [previewLocal]);
+  }, []);
 
   const muat = useCallback(async () => {
     if (!id) return;
@@ -209,44 +249,158 @@ export default function ProgramDetailPage() {
     }
   }
 
-  function pilihFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0] || null;
-    if (previewLocal) URL.revokeObjectURL(previewLocal);
-    if (f) {
-      setFileBukti(f);
-      setPreviewLocal(URL.createObjectURL(f));
-      setAksiErr("");
-    } else {
-      setFileBukti(null);
-      setPreviewLocal("");
+  function batalSemuaDraft() {
+    setDraftFoto((prev) => {
+      prev.forEach((d) => URL.revokeObjectURL(d.url));
+      return [];
+    });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function hapusDraftFoto(idx: number) {
+    setDraftFoto((prev) => {
+      const target = prev[idx];
+      if (target) URL.revokeObjectURL(target.url);
+      return prev.filter((_, i) => i !== idx);
+    });
+  }
+
+  async function pilihFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.currentTarget;
+    const dipilih = Array.from(input.files || []);
+    if (dipilih.length === 0) return;
+
+    const terunggahCount =
+      pSaya?.bukti_foto_urls?.length ?? (pSaya?.bukti_foto_url ? 1 : 0);
+    const sisaSlot = Math.max(0, MAKS_FOTO_BUKTI - terunggahCount - draftFoto.length);
+
+    if (sisaSlot <= 0) {
+      toast.error(`Maksimal ${MAKS_FOTO_BUKTI} foto per tantangan. Hapus foto yang ada terlebih dahulu.`);
+      input.value = "";
+      return;
+    }
+
+    const tipeValid = new Set(["image/jpeg", "image/png", "image/webp"]);
+    const maksBytes = 5 * 1024 * 1024;
+    const ditolak: string[] = [];
+    const valid: DraftFoto[] = [];
+    let terpotongKuota = false;
+
+    try {
+      for (const file of dipilih) {
+        if (valid.length >= sisaSlot) {
+          terpotongKuota = true;
+          break;
+        }
+
+        const ekstensiValid = /\.(jpe?g|png|webp)$/i.test(file.name);
+        if ((file.type && !tipeValid.has(file.type)) || (!file.type && !ekstensiValid)) {
+          ditolak.push(`${file.name} (format harus JPG, PNG, atau WebP)`);
+          continue;
+        }
+
+        const buffer =
+          typeof file.arrayBuffer === "function"
+            ? await file.arrayBuffer()
+            : await new Promise<ArrayBuffer>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as ArrayBuffer);
+                reader.onerror = () => reject(reader.error);
+                reader.readAsArrayBuffer(file);
+              });
+
+        if (buffer.byteLength === 0) {
+          ditolak.push(`${file.name} (berukuran 0 B / file kosong atau belum terunduh)`);
+          continue;
+        }
+        if (buffer.byteLength > maksBytes) {
+          ditolak.push(`${file.name} (melebihi batas 5 MB)`);
+          continue;
+        }
+
+        const safeFile = new File([buffer], file.name, {
+          type: file.type || "image/png",
+          lastModified: file.lastModified,
+        });
+        valid.push({
+          file: safeFile,
+          url: URL.createObjectURL(safeFile),
+        });
+      }
+
+      if (terpotongKuota) {
+        toast.info(`Hanya ${sisaSlot} foto lagi yang bisa ditambahkan (maks. ${MAKS_FOTO_BUKTI} foto).`);
+      }
+
+      if (valid.length > 0) {
+        setDraftFoto((prev) => [...prev, ...valid]);
+      }
+
+      if (ditolak.length > 0) {
+        const pesan = `File tidak dapat ditambahkan: ${ditolak.join("; ")}.`;
+        setAksiErr(pesan);
+        toast.error(pesan);
+      } else {
+        setAksiErr("");
+      }
+    } catch {
+      const pesan = "Gagal membaca file gambar yang dipilih. Pastikan file tersedia di perangkat Anda.";
+      setAksiErr(pesan);
+      toast.error(pesan);
+    } finally {
+      input.value = "";
     }
   }
 
   async function kirimDokumentasi(ev: React.FormEvent) {
     ev.preventDefault();
     if (!program) return;
-    if (!fileBukti) {
-      setAksiErr("Pilih foto dokumentasi penyelesaian tantangan terlebih dahulu.");
+    if (draftFoto.length === 0) {
+      setAksiErr("Pilih minimal 1 foto dokumentasi penyelesaian tantangan terlebih dahulu.");
       return;
     }
     setKirimLoading(true);
     setAksiErr("");
     try {
       const fd = new FormData();
-      fd.append("foto", fileBukti);
+      draftFoto.forEach((item) => fd.append("fotos[]", item.file));
       if (catatanBukti.trim()) fd.append("catatan_bukti", catatanBukti.trim());
       await programApi.kirimBukti(program.id, fd);
       toast.success("Dokumentasi misi berhasil dikirim dan menunggu verifikasi kader/admin.");
-      setFileBukti(null);
-      if (previewLocal) URL.revokeObjectURL(previewLocal);
-      setPreviewLocal("");
+      batalSemuaDraft();
       setCatatanBukti("");
       await muat();
     } catch (err) {
       const apiErr = err as ApiError;
-      setAksiErr(apiErr.message || "Gagal mengirim foto dokumentasi.");
+      const msg = apiErr.message || "Gagal mengirim foto dokumentasi.";
+      setAksiErr(msg);
+      toast.error(msg);
     } finally {
       setKirimLoading(false);
+    }
+  }
+
+  async function hapusDokumentasi(index?: number) {
+    if (!program) return;
+    setHapusIndex(index !== undefined ? index : "semua");
+    setAksiErr("");
+    try {
+      const res = await programApi.hapusBukti(program.id, index);
+      toast.info(
+        index !== undefined
+          ? "Foto dokumentasi terpilih berhasil dihapus."
+          : "Semua foto dokumentasi berhasil dihapus.",
+      );
+      if ((res.bukti_foto_urls?.length ?? 0) === 0) {
+        setCatatanBukti("");
+      }
+      await muat();
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : "Gagal menghapus foto dokumentasi.";
+      setAksiErr(msg);
+      toast.error(msg);
+    } finally {
+      setHapusIndex(null);
     }
   }
 
@@ -265,7 +419,9 @@ export default function ProgramDetailPage() {
       setAlasanTolak("");
       await muatPeserta();
     } catch (err) {
-      setAksiErr(err instanceof ApiError ? err.message : "Gagal memverifikasi peserta");
+      const msg = err instanceof ApiError ? err.message : "Gagal memverifikasi peserta";
+      setAksiErr(msg);
+      toast.error(msg);
     } finally {
       setTandaiId(null);
     }
@@ -282,6 +438,12 @@ export default function ProgramDetailPage() {
   const st = program ? statusProgram(program.mulai, program.selesai) : null;
   const pSaya = program?.peserta_saya;
   const statusSaya = (pSaya?.status || program?.status_saya) as StatusPeserta | undefined;
+  const daftarFotoSaya = pSaya?.bukti_foto_urls?.length
+    ? pSaya.bukti_foto_urls
+    : pSaya?.bukti_foto_url
+      ? [pSaya.bukti_foto_url]
+      : [];
+  const sisaKuotaFoto = Math.max(0, MAKS_FOTO_BUKTI - daftarFotoSaya.length - draftFoto.length);
   const persen = program && program.target_peserta
     ? Math.min(100, Math.round((program.jumlah_peserta / program.target_peserta) * 100))
     : 0;
@@ -292,16 +454,20 @@ export default function ProgramDetailPage() {
         <Icon name="chevron-left" size={16} /> Kembali ke Daftar Tantangan
       </Link>
 
-      {loading ? <Loading /> : null}
-      {!loading && error ? <ErrorState message={error} onRetry={muat} /> : null}
+      {tampilLoading ? <Loading /> : null}
+      {!tampilLoading && error ? <ErrorState message={error} onRetry={muat} /> : null}
 
-      {program && st ? (
+      {!tampilLoading && program && st ? (
         <>
           <div className="card">
             <div className="row-between mb-8" style={{ gap: 8, alignItems: "flex-start" }}>
               <div>
                 <div className="row gap-8 wrap mb-6">
-                  <Badge tone="primary">{LABEL_JENIS[program.jenis] || program.jenis}</Badge>
+                  <Badge tone="primary">
+                    {program.jenis === "lainnya" && program.kategori_aktivitas
+                      ? `Lainnya · ${program.kategori_aktivitas}`
+                      : LABEL_JENIS[program.jenis] || program.jenis}
+                  </Badge>
                   <Badge tone={st.tone}>{st.label}</Badge>
                   {statusSaya && statusSaya !== "berhenti" ? (
                     <Badge tone={TONE_PESERTA[statusSaya] || "primary"}>
@@ -426,15 +592,65 @@ export default function ProgramDetailPage() {
                 </div>
               ) : null}
 
-              {pSaya?.bukti_foto_url ? (
+              {daftarFotoSaya.length > 0 ? (
                 <div className="mt-12">
-                  <div className="tiny mb-6 fw-600">Dokumentasi Terunggah Saat Ini:</div>
-                  <BuktiFotoThumb
-                    url={pSaya.bukti_foto_url}
-                    alt="Foto bukti penyelesaian misi"
-                    onPreview={(src) => setFotoModal(src)}
-                  />
-                  {pSaya.catatan_bukti ? <p className="tiny mt-6">Catatan Anda: “{pSaya.catatan_bukti}”</p> : null}
+                  <div className="row-between mb-8 wrap gap-8">
+                    <div className="tiny fw-600">
+                      Dokumentasi Terunggah Saat Ini ({daftarFotoSaya.length}/{MAKS_FOTO_BUKTI}):
+                    </div>
+                    {statusSaya !== "selesai" && daftarFotoSaya.length > 1 ? (
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="sm"
+                        icon="trash"
+                        loading={hapusIndex === "semua"}
+                        onClick={() => hapusDokumentasi()}
+                      >
+                        Hapus Semua Foto
+                      </Button>
+                    ) : null}
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                    {daftarFotoSaya.map((url, idx) => (
+                      <div
+                        key={url}
+                        style={{
+                          width: 176,
+                          border: "1px solid var(--border)",
+                          borderRadius: 12,
+                          overflow: "hidden",
+                          background: "var(--surface)",
+                          display: "flex",
+                          flexDirection: "column",
+                        }}
+                      >
+                        <BuktiFotoThumb
+                          url={url}
+                          alt={`Foto bukti misi ${idx + 1}`}
+                          onPreview={(src) => setFotoModal(src)}
+                          inCard
+                        />
+                        <div style={{ padding: 8, display: "grid", gap: 6 }}>
+                          <span className="tiny text-2 fw-600">Foto #{idx + 1}</span>
+                          {statusSaya !== "selesai" ? (
+                            <Button
+                              type="button"
+                              variant="danger"
+                              size="sm"
+                              block
+                              icon="trash"
+                              loading={hapusIndex === idx || hapusIndex === "semua"}
+                              onClick={() => hapusDokumentasi(idx)}
+                            >
+                              Hapus Foto
+                            </Button>
+                          ) : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {pSaya?.catatan_bukti ? <p className="tiny mt-8">Catatan Anda: “{pSaya.catatan_bukti}”</p> : null}
                 </div>
               ) : null}
 
@@ -442,33 +658,144 @@ export default function ProgramDetailPage() {
                 <form onSubmit={kirimDokumentasi} className="mt-16" style={{ display: "grid", gap: 12 }}>
                   <div className="field">
                     <label className="label" htmlFor="foto-bukti">
-                      {pSaya?.bukti_foto_url ? "Unggah Ulang Foto Dokumentasi" : "Pilih Foto Dokumentasi"}{" "}
-                      <span className="req">*</span>
+                      {daftarFotoSaya.length > 0 ? "Tambah Foto Dokumentasi" : "Pilih Foto Dokumentasi"}{" "}
+                      <span className="opt">(bisa lebih dari 1, maks. {MAKS_FOTO_BUKTI} foto)</span>
                     </label>
                     <input
+                      ref={fileInputRef}
                       id="foto-bukti"
-                      className="input"
                       type="file"
+                      multiple
                       accept="image/jpeg,image/png,image/webp"
+                      disabled={sisaKuotaFoto === 0}
                       onChange={pilihFile}
+                      style={{
+                        position: "absolute",
+                        width: 1,
+                        height: 1,
+                        opacity: 0,
+                        overflow: "hidden",
+                        pointerEvents: "none",
+                      }}
                     />
-                    <div className="hint">Format JPG, PNG, atau WebP (maks. 5 MB).</div>
+                    <div
+                      style={{
+                        border: "1.5px dashed var(--border)",
+                        borderRadius: 12,
+                        padding: "14px 16px",
+                        background: "var(--surface-2)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span
+                          style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: 10,
+                            background: "var(--primary-weak, rgba(46, 125, 50, 0.1))",
+                            color: "var(--primary)",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <Icon name="camera" size={20} />
+                        </span>
+                        <div>
+                          <div className="tiny fw-600">
+                            {sisaKuotaFoto === 0
+                              ? `Kuota maksimal ${MAKS_FOTO_BUKTI} foto sudah penuh`
+                              : draftFoto.length > 0
+                                ? `${draftFoto.length} foto dipilih — siap dikirim atau tambah lagi`
+                                : "Belum ada foto dipilih (bisa pilih beberapa sekaligus)"}
+                          </div>
+                          <div className="tiny text-2">
+                            {sisaKuotaFoto > 0
+                              ? `JPG, PNG, atau WebP (maks. 5 MB/foto) • Sisa kuota: ${sisaKuotaFoto} foto`
+                              : "Hapus salah satu foto di atas jika ingin mengganti."}
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant={draftFoto.length > 0 ? "outline" : "primary"}
+                        size="sm"
+                        icon={draftFoto.length > 0 ? "plus" : "upload"}
+                        disabled={sisaKuotaFoto === 0}
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        {draftFoto.length > 0 ? "Tambah Foto" : "Pilih Foto"}
+                      </Button>
+                    </div>
                   </div>
 
-                  {previewLocal ? (
+                  {draftFoto.length > 0 ? (
                     <div>
-                      <div className="tiny mb-4 fw-600">Pratinjau Foto:</div>
-                      <img
-                        src={previewLocal}
-                        alt="Pratinjau foto dokumentasi"
-                        style={{
-                          maxWidth: 260,
-                          maxHeight: 180,
-                          borderRadius: 10,
-                          border: "1px solid var(--border)",
-                          objectFit: "cover",
-                        }}
-                      />
+                      <div className="row-between mb-8 wrap gap-8">
+                        <div className="tiny fw-600">
+                          Pratinjau Foto Siap Kirim ({draftFoto.length} foto):
+                        </div>
+                        {draftFoto.length > 1 ? (
+                          <Button type="button" variant="danger" size="sm" icon="trash" onClick={batalSemuaDraft}>
+                            Hapus Semua Pilihan
+                          </Button>
+                        ) : null}
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                        {draftFoto.map((item, idx) => (
+                          <div
+                            key={item.url}
+                            style={{
+                              width: 176,
+                              border: "1px solid var(--border)",
+                              borderRadius: 12,
+                              overflow: "hidden",
+                              background: "var(--surface)",
+                              display: "flex",
+                              flexDirection: "column",
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => setFotoModal(item.url)}
+                              style={{ padding: 0, border: "none", background: "var(--surface-2)", cursor: "pointer" }}
+                              title="Klik untuk perbesar pratinjau"
+                            >
+                              <img
+                                src={item.url}
+                                alt={`Pratinjau ${item.file.name}`}
+                                style={{ display: "block", width: "100%", height: 132, objectFit: "cover" }}
+                              />
+                            </button>
+                            <div style={{ padding: 8, display: "grid", gap: 6 }}>
+                              <div
+                                className="tiny fw-600"
+                                title={item.file.name}
+                                style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
+                              >
+                                {item.file.name}
+                              </div>
+                              <span className="tiny text-2">{formatUkuranFile(item.file.size)}</span>
+                              <Button
+                                type="button"
+                                variant="danger"
+                                size="sm"
+                                block
+                                icon="trash"
+                                onClick={() => hapusDraftFoto(idx)}
+                              >
+                                Hapus
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ) : null}
 
@@ -487,8 +814,12 @@ export default function ProgramDetailPage() {
                     />
                   </div>
 
-                  <Button type="submit" icon="upload" loading={kirimLoading}>
-                    {pSaya?.bukti_foto_url ? "Perbarui & Kirim Dokumentasi" : "Kirim Dokumentasi Misi"}
+                  <Button type="submit" icon="upload" loading={kirimLoading} disabled={draftFoto.length === 0}>
+                    {draftFoto.length > 0
+                      ? `Kirim ${draftFoto.length} Foto Dokumentasi`
+                      : daftarFotoSaya.length > 0
+                        ? "Tambah & Kirim Dokumentasi"
+                        : "Kirim Dokumentasi Misi"}
                   </Button>
                 </form>
               ) : null}
@@ -507,7 +838,7 @@ export default function ProgramDetailPage() {
               </div>
 
               {pesertaLoading ? (
-                <p className="tiny center">Memuat peserta…</p>
+                <Loading variant="list" text="Memuat peserta…" />
               ) : peserta.length === 0 ? (
                 <p className="tiny center" style={{ padding: "12px 0" }}>
                   Belum ada peserta terdaftar.
@@ -517,6 +848,11 @@ export default function ProgramDetailPage() {
                   {peserta.map((p) => {
                     const selesai = p.status === "selesai";
                     const stP = p.status as StatusPeserta;
+                    const fotoPeserta = p.bukti_foto_urls?.length
+                      ? p.bukti_foto_urls
+                      : p.bukti_foto_url
+                        ? [p.bukti_foto_url]
+                        : [];
                     return (
                       <div
                         key={p.user_id}
@@ -538,13 +874,18 @@ export default function ProgramDetailPage() {
                           </Badge>
                         </div>
 
-                        {p.bukti_foto_url ? (
-                          <div style={{ display: "grid", gap: 6 }}>
-                            <BuktiFotoThumb
-                              url={p.bukti_foto_url}
-                              alt={`Dokumentasi ${p.name}`}
-                              onPreview={(src) => setFotoModal(src)}
-                            />
+                        {fotoPeserta.length > 0 ? (
+                          <div style={{ display: "grid", gap: 8 }}>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+                              {fotoPeserta.map((url, idx) => (
+                                <BuktiFotoThumb
+                                  key={url}
+                                  url={url}
+                                  alt={`Dokumentasi ${p.name} #${idx + 1}`}
+                                  onPreview={(src) => setFotoModal(src)}
+                                />
+                              ))}
+                            </div>
                             {p.catatan_bukti ? (
                               <p className="tiny">
                                 <strong>Catatan peserta:</strong> {p.catatan_bukti}
@@ -575,7 +916,7 @@ export default function ProgramDetailPage() {
                             {p.bukti_foto_url && p.status !== "ditolak" ? (
                               <Button
                                 size="sm"
-                                variant="outline"
+                                variant="danger"
                                 onClick={() => {
                                   setTolakTarget(p);
                                   setAlasanTolak("");

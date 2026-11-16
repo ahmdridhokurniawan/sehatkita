@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
+import type { BentoAccent } from "@/components/dashboard/BentoDashboard";
 
 const PANDUAN = [
   {
@@ -11,133 +12,296 @@ const PANDUAN = [
     judul: "Hipertensi (Tekanan Darah Tinggi)",
     ikon: "heart-pulse",
     ringkas:
-      "Tekanan darah di atas 140/90 mmHg yang menetap. Pantau rutin, kurangi garam, dan konsultasi bila perlu tindakan.",
+      "Tekanan darah 140/90 mmHg atau lebih yang terjadi berulang. Pantau rutin, kurangi garam, dan periksa ke fasilitas kesehatan bila tinggi.",
     poin: [
-      "Ukur tensi di waktu yang sama tiap hari, dalam keadaan duduk tenang.",
-      "Batasi garam jadi <5 gram (1 sendok teh) per hari.",
-      "Olahraga ringan 30 menit, minimal 5 hari/minggu.",
-      "Jangan hentikan obat tanpa sepengetahuan tenaga kesehatan.",
+      "Ukur tekanan darah di waktu yang sama setiap hari dalam posisi duduk tenang minimal 5 menit.",
+      "Batasi garam kurang dari 5 gram (sekitar 1 sendok teh) per hari.",
+      "Lakukan aktivitas fisik ringan seperti jalan kaki 30 menit, minimal 5 hari seminggu.",
+      "Jangan menghentikan obat tekanan darah tanpa persetujuan dokter atau petugas kesehatan.",
     ],
   },
   {
     kode: "diabetes",
-    judul: "Gula Darah / Diabetes",
+    judul: "Gula Darah Tinggi & Diabetes",
     ikon: "droplet",
     ringkas:
-      "Gula darah puasa ≥126 mg/dL menandakan diabetes. Kendalikan pola makan dan aktivitas fisik.",
+      "Gula darah puasa ≥ 126 mg/dL atau 2 jam setelah makan ≥ 200 mg/dL menandakan diabetes. Jaga pola makan dan cek gula darah berkala.",
     poin: [
-      "Batasi gula tambahan dan makanan/minuman manis.",
-      "Utamakan karbohidrat kompleks dan serat (biji-bijian, sayur).",
-      "Cek gula darah sesuai jadwal skrining.",
-      "Jaga berat badan ideal; turunkan berat bila berlebih.",
+      "Kurangi gula tambahan, minuman kemasan manis, serta camilan tinggi tepung.",
+      "Utamakan makanan berserat seperti sayur, buah segar, dan karbohidrat kompleks.",
+      "Lakukan pemeriksaan gula darah secara berkala sesuai anjuran Posbindu atau puskesmas.",
+      "Jaga berat badan tetap ideal agar kerja hormon insulin lebih optimal.",
     ],
   },
   {
     kode: "imt",
-    judul: "Berat Badan & IMT",
+    judul: "Berat Badan & Indeks Massa Tubuh (IMT)",
     ikon: "activity",
     ringkas:
-      "IMT = berat (kg) / tinggi² (m). IMT 18,5–22,9 masuk kisaran normal bagi orang Indonesia.",
+      "IMT dihitung dari berat badan (kg) dibagi tinggi badan kuadrat (m²). Menurut Permenkes RI No. 41 Tahun 2014, kisaran normal orang dewasa Indonesia adalah 18,5–25,0.",
     poin: [
-      "Gunakan kalkulator IMT di dashboard untuk memantau.",
-      "Penurunan berat 5–10% sudah berdampak pada tekanan darah dan gula.",
-      "Kombinasikan pola makan sehat dengan aktivitas fisik.",
+      "Klasifikasi Kemenkes RI: Kurus (< 18,5), Normal (18,5–25,0), Gemuk (> 25,0–27,0), dan Obesitas (> 27,0).",
+      "Gunakan menu Kalkulator untuk menghitung IMT, berat ideal, dan kebutuhan kalori harian.",
+      "Menurunkan 5–10% berat badan berlebih sudah membantu menurunkan tekanan darah dan gula darah.",
+      "Kombinasikan porsi makan gizi seimbang dengan gerak aktif harian dan cukup minum air.",
     ],
   },
   {
     kode: "rujukan",
-    judul: "Rujukan",
+    judul: "Rujukan ke Fasilitas Kesehatan",
     ikon: "send",
     ringkas:
-      "Rujukan adalah pengalihan layanan dari Posbindu/faskes pertama ke layanan lanjutan sesuai indikasi.",
+      "Rujukan adalah pengalihan layanan dari Posbindu atau kader ke puskesmas/rumah sakit agar warga berisiko mendapat pemeriksaan dokter.",
     poin: [
-      "Bawa surat rujukan saat datang ke faskes tujuan.",
-      "Ikuti jadwal tindak lanjut yang diberikan tenaga kesehatan.",
-      "Sampaikan keluhan dan riwayat yang relevan saat pemeriksaan.",
+      "Simpan atau cetak surat rujukan dari menu Rujukan saat hendak berobat ke faskes tujuan.",
+      "Datang sesuai jadwal tindak lanjut yang diarahkan oleh kader atau petugas kesehatan.",
+      "Sampaikan keluhan, obat yang sedang diminum, dan riwayat kesehatan keluarga saat diperiksa.",
     ],
   },
 ];
 
-const ISTILAH = [
-  { istilah: "Sistol", definisi: "Tekanan di pembuluh darah saat jantung memompa darah ke tubuh — angka atas pada pengukuran (mis. 120 dari 120/80)." },
-  { istilah: "Diastol", definisi: "Tekanan di pembuluh darah saat jantung relaksasi/istirahat sejenak sebelum memompa lagi — angka bawah (mis. 80 dari 120/80)." },
-  { istilah: "Tekanan darah", definisi: "Kekuatan darah mendorong dinding pembuluh darah, ditulis sebagai sistol/diastol (mis. 120/80 mmHg)." },
-  { istilah: "IMT (Indeks Massa Tubuh)", definisi: "Angka perbandingan berat badan terhadap tinggi badan: berat (kg) dibagi tinggi kuadrat (m²). Normal orang Indonesia 18,5–22,9." },
-  { istilah: "Gula darah puasa", definisi: "Kadar gula darah yang diukur setelah berpuasa minimal 8 jam. Normal di bawah 100 mg/dL; diabetes bila 126 mg/dL ke atas." },
-  { istilah: "Kolesterol total", definisi: "Jumlah seluruh lemak (kolesterol) di dalam darah. Normal di bawah 200 mg/dL; lebih tinggi menambah risiko penyakit jantung." },
-  { istilah: "Asam urat", definisi: "Zat sisa metabolisme yang bila terlalu tinggi bisa mengendap di sendi dan menyebabkan nyeri. Normal pria di bawah 7 mg/dL, wanita di bawah 6 mg/dL." },
-  { istilah: "Lingkar perut", definisi: "Ukuran keliling pinggang. Berisiko bila 90 cm ke atas pada pria, atau 80 cm ke atas pada wanita (standar Asia)." },
+const ISTILAH: { istilah: string; definisi: string; accent: BentoAccent }[] = [
+  {
+    istilah: "PTM (Penyakit Tidak Menular)",
+    definisi:
+      "Penyakit kronis yang tidak menular antarorang namun perlu dicegah sejak dini, seperti hipertensi, diabetes, jantung, dan stroke.",
+    accent: "primary",
+  },
+  {
+    istilah: "Posbindu",
+    definisi:
+      "Pos Pembinaan Terpadu — kegiatan pemeriksaan kesehatan rutin warga di tingkat kelurahan oleh kader untuk memantau faktor risiko PTM.",
+    accent: "safe",
+  },
+  {
+    istilah: "Skrining",
+    definisi:
+      "Pemeriksaan kesehatan awal (tensi, gula darah, berat badan, lingkar perut) untuk mendeteksi risiko penyakit sebelum muncul gejala berat.",
+    accent: "info",
+  },
+  {
+    istilah: "Faskes (Fasilitas Kesehatan)",
+    definisi:
+      "Tempat pelayanan kesehatan seperti puskesmas, klinik, atau rumah sakit tujuan pemeriksaan lanjutan dan rujukan.",
+    accent: "accent",
+  },
+  {
+    istilah: "Sistol",
+    definisi:
+      "Angka atas pada hasil tensi (batas normal skrining Kemenkes RI < 130 mmHg), menunjukkan tekanan saat jantung memompa darah.",
+    accent: "primary",
+  },
+  {
+    istilah: "Diastol",
+    definisi:
+      "Angka bawah pada hasil tensi (batas normal skrining Kemenkes RI < 85 mmHg), menunjukkan tekanan pembuluh darah saat jantung beristirahat.",
+    accent: "info",
+  },
+  {
+    istilah: "Prehipertensi (Normal-Tinggi)",
+    definisi:
+      "Tahap peringatan dini tekanan darah (130–139 / 85–89 mmHg pada ambang skrining Kemenkes RI/PERHI): belum hipertensi, tetapi berisiko naik bila tidak dijaga.",
+    accent: "warning",
+  },
+  {
+    istilah: "Prediabetes",
+    definisi:
+      "Kadar gula darah di atas normal (puasa 100–125 mg/dL), namun belum setinggi diabetes. Pola makan & olahraga bisa mencegahnya berkembang.",
+    accent: "warning",
+  },
+  {
+    istilah: "IMT (Indeks Massa Tubuh)",
+    definisi:
+      "Angka perbandingan berat badan terhadap tinggi badan: berat (kg) dibagi tinggi kuadrat (m²). Menurut Permenkes No. 41/2014: normal 18,5–25,0; gemuk > 25,0–27,0; obesitas > 27,0.",
+    accent: "safe",
+  },
+  {
+    istilah: "Gula Darah Puasa & 2 Jam PP",
+    definisi:
+      "Gula darah puasa diukur setelah tidak makan minimal 8 jam (normal < 100 mg/dL). 2 Jam PP berarti diukur 2 jam setelah makan (normal < 140 mg/dL).",
+    accent: "info",
+  },
+  {
+    istilah: "Kolesterol Total & Asam Urat",
+    definisi:
+      "Kolesterol total normal < 200 mg/dL. Asam urat pada ambang skrining Posbindu normal < 7 mg/dL (pria < 7 mg/dL, wanita < 6 mg/dL); kadar tinggi memicu nyeri sendi.",
+    accent: "accent",
+  },
+  {
+    istilah: "Lingkar Perut",
+    definisi:
+      "Ukuran keliling pinggang untuk deteksi obesitas sentral sesuai Permenkes No. 71 Tahun 2015: batas aman < 90 cm (pria) dan < 80 cm (wanita).",
+    accent: "warning",
+  },
+  {
+    istilah: "Poin Sehat (EXP) & Lencana",
+    definisi:
+      "Penghargaan poin aktivitas ketika warga mengikuti tantangan hidup sehat. Poin dipakai untuk klasemen keaktifan, bukan ukuran kondisi medis.",
+    accent: "primary",
+  },
+  {
+    istilah: "Ringkasan Wilayah (Data Agregat)",
+    definisi:
+      "Rekap statistik gabungan kondisi kesehatan suatu kelurahan tanpa menampilkan nama atau identitas perorangan demi menjaga privasi warga.",
+    accent: "safe",
+  },
 ];
 
+const WARNA_ACCENT: Record<BentoAccent, string> = {
+  primary: "var(--primary)",
+  safe: "var(--safe)",
+  warning: "var(--warning)",
+  accent: "var(--accent)",
+  danger: "var(--danger)",
+  info: "var(--info)",
+};
+
 export default function PanduanPage() {
-  const [terbuka, setTerbuka] = useState<string | null>(PANDUAN[0].kode);
+  const [terbuka, setTerbuka] = useState<string | null>(null);
+  const [cariIstilah, setCariIstilah] = useState("");
+
+  const istilahTersaring = useMemo(() => {
+    const q = cariIstilah.trim().toLowerCase();
+    if (!q) return ISTILAH;
+    return ISTILAH.filter(
+      (i) =>
+        i.istilah.toLowerCase().includes(q) ||
+        i.definisi.toLowerCase().includes(q),
+    );
+  }, [cariIstilah]);
 
   return (
-    <AppShell>
-      <div className="mt-16">
+    <AppShell noFab>
+      <div className="row-between wrap gap-12 mb-16">
+        <div>
+          <h1 className="h3">Panduan Kesehatan</h1>
+          <p className="tiny">
+            Penjelasan praktis pencegahan PTM dan arti istilah kesehatan/aplikasi dalam bahasa sehari-hari.
+          </p>
+        </div>
+        <Badge tone="primary">{PANDUAN.length} topik · {ISTILAH.length} istilah</Badge>
+      </div>
+
+      <div className="app-section-title">
+        <h2>Topik Utama</h2>
+        <span className="tiny">Pilih topik untuk melihat langkah praktisnya</span>
+      </div>
+
+      <div className="card mt-12" style={{ padding: 0, overflow: "hidden" }}>
+        {PANDUAN.map((p, idx) => {
+          const aktif = terbuka === p.kode;
+          return (
+            <div
+              key={p.kode}
+              style={{
+                borderBottom: idx < PANDUAN.length - 1 ? "1px solid var(--border)" : "none",
+                borderLeft: aktif ? "3px solid var(--primary)" : "3px solid transparent",
+              }}
+            >
+              <button
+                type="button"
+                aria-expanded={aktif}
+                className="li li-hover"
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  background: "transparent",
+                  border: "none",
+                  padding: "10px 14px",
+                  minHeight: "unset",
+                  color: "var(--text)",
+                  cursor: "pointer",
+                  alignItems: "flex-start",
+                }}
+                onClick={() => setTerbuka(aktif ? null : p.kode)}
+              >
+                <span className="li-ico" style={{ width: 32, height: 32, borderRadius: 9 }}>
+                  <Icon name={p.ikon} size={16} />
+                </span>
+                <span className="li-main">
+                  <strong>{p.judul}</strong>
+                  <span style={{ display: "block", marginTop: 2, lineHeight: 1.4 }}>{p.ringkas}</span>
+                </span>
+                <Icon name={aktif ? "chevron-up" : "chevron-down"} size={16} className="shrink-0" />
+              </button>
+              {aktif && (
+                <div style={{ padding: "8px 14px 12px 58px", borderTop: "1px dashed var(--border)" }}>
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+                    {p.poin.map((t, i) => (
+                      <li key={i} className="tiny" style={{ display: "flex", alignItems: "flex-start", gap: 8, color: "var(--text)", lineHeight: 1.45 }}>
+                        <span style={{ color: "var(--primary)", fontWeight: 700, flexShrink: 0 }}>•</span>
+                        <span>{t}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <section className="mt-20">
         <div className="app-section-title">
-          <h2>Panduan Kesehatan</h2>
-          <span className="tiny">Materi edukasi untuk warga</span>
+          <h2>Kamus Istilah SehatKita</h2>
+          <span className="tiny">Penjelasan singkat istilah medis dan menu di aplikasi</span>
         </div>
 
-        <div className="mt-12" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {PANDUAN.map((p) => {
-            const aktif = terbuka === p.kode;
-            return (
-              <div key={p.kode} className="card">
-                <button
-                  type="button"
-                  className="row-between"
-                  style={{ width: "100%", textAlign: "left" }}
-                  onClick={() => setTerbuka(aktif ? null : p.kode)}
-                >
-                  <span className="row" style={{ gap: 12 }}>
-                    <span className="li-ico">
-                      <Icon name={p.ikon} size={18} />
-                    </span>
-                    <span>
-                      <strong className="text-sm">{p.judul}</strong>
-                      <span className="tiny" style={{ display: "block" }}>{p.ringkas}</span>
-                    </span>
-                  </span>
-                  <Icon name={aktif ? "chevron-up" : "chevron-down"} size={16} />
-                </button>
-                {aktif && (
-                  <div className="mt-12">
-                    <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-                      {p.poin.map((t, i) => (
-                        <li key={i} className="row" style={{ gap: 8 }}>
-                          <Badge tone="primary">✓</Badge>
-                          <span className="tiny">{t}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+        <div className="input-icon mt-12">
+          <Icon name="search" size={18} />
+          <input
+            className="input"
+            type="search"
+            placeholder="Cari istilah (mis. PTM, Sistol, IMT, Skrining, EXP)…"
+            value={cariIstilah}
+            onChange={(e) => setCariIstilah(e.target.value)}
+          />
         </div>
 
-        <div className="mt-16">
-          <div className="app-section-title">
-            <h2>Definisi Istilah</h2>
-            <span className="tiny">Pengertian istilah medis yang muncul di aplikasi</span>
+        {istilahTersaring.length === 0 ? (
+          <div className="card card-flat mt-12">
+            <p className="tiny center">Tidak ada istilah yang cocok dengan “{cariIstilah}”.</p>
           </div>
-          <div className="mt-12" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
-            {ISTILAH.map((i) => (
-              <div key={i.istilah} className="card" style={{ padding: "14px 16px" }}>
-                <strong className="text-sm" style={{ color: "var(--primary)" }}>{i.istilah}</strong>
-                <span className="tiny" style={{ display: "block", marginTop: 6 }}>{i.definisi}</span>
+        ) : (
+          <div className="card mt-12" style={{ padding: 0, overflow: "hidden" }}>
+            {istilahTersaring.map((item) => (
+              <div
+                key={item.istilah}
+                className="li"
+                style={{
+                  padding: "10px 14px",
+                  minHeight: "unset",
+                  alignItems: "flex-start",
+                  gap: 10,
+                }}
+              >
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    background: WARNA_ACCENT[item.accent],
+                    marginTop: 6,
+                    flexShrink: 0,
+                  }}
+                />
+                <div className="li-main">
+                  <strong>{item.istilah}</strong>
+                  <span style={{ display: "block", marginTop: 2, lineHeight: 1.45 }}>{item.definisi}</span>
+                </div>
               </div>
             ))}
           </div>
-        </div>
+        )}
+      </section>
 
-        <p className="tiny mt-16">
-          <Icon name="shield" size={13} /> Panduan ini bersifat edukatif dan tidak menggantikan
-          pemeriksaan tenaga kesehatan.
-        </p>
+      <div
+        className="tiny mt-20 mb-16"
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, textAlign: "center" }}
+      >
+        <Icon name="shield" size={14} className="shrink-0" />
+        <span>Panduan ini bersifat edukatif dan tidak menggantikan pemeriksaan dokter atau tenaga kesehatan.</span>
       </div>
     </AppShell>
   );

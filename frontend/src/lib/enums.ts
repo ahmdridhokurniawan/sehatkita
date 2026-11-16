@@ -34,7 +34,7 @@ export type JenisKelamin = (typeof JENIS_KELAMIN)[keyof typeof JENIS_KELAMIN];
 export const STATUS_RUJUKAN = {
   BARU: "baru",
   DIHUBUNGI: "dihubungi",
-  TERTANGANI: "tertangani",
+  SELESAI: "selesai",
   DITOLAK: "ditolak",
 } as const;
 export type StatusRujukan = (typeof STATUS_RUJUKAN)[keyof typeof STATUS_RUJUKAN];

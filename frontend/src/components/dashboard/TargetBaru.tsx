@@ -6,6 +6,8 @@ import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/Toast";
 import { targetKesehatan, ApiError } from "@/lib/api";
+import { statusTenggatTarget, tanggal } from "@/lib/format";
+import { SATUAN_JENIS_TARGET, labelJenisTarget } from "@/lib/labels";
 import type { TargetKesehatan, TargetKesehatanInput, JenisTarget } from "@/types";
 
 const JENIS: { kode: JenisTarget; label: string; ikon: string }[] = [
@@ -19,8 +21,7 @@ const JENIS: { kode: JenisTarget; label: string; ikon: string }[] = [
 ];
 
 function LabelJenis({ jenis }: { jenis: string }) {
-  const ditemukan = JENIS.find((j) => j.kode === jenis);
-  return <>{ditemukan?.label || jenis.replace(/_/g, " ")}</>;
+  return <>{labelJenisTarget(jenis)}</>;
 }
 
 export default function TargetBaru() {
@@ -138,7 +139,7 @@ export default function TargetBaru() {
                   title={t.tercapai ? "Batalkan" : "Tandai tercapai"}
                   onClick={() => toggleCapai(t)}
                   style={{
-                    border: "2px solid var(--border)",
+                    border: t.tercapai ? "2px solid var(--primary)" : "2px solid var(--border-strong)",
                     background: t.tercapai ? "var(--primary)" : "transparent",
                     width: 22,
                     height: 22,
@@ -148,21 +149,37 @@ export default function TargetBaru() {
                   }}
                 >
                   {t.tercapai ? (
-                    <span style={{ color: "#fff", display: "inline-flex" }}>
+                    <span style={{ color: "var(--on-primary)", display: "inline-flex" }}>
                       <Icon name="check" size={14} />
                     </span>
                   ) : null}
                 </button>
                 <div className="li-main">
-                  <div className="row" style={{ gap: 6 }}>
-                    <strong className="text-sm">{t.judul}</strong>
-                    {t.tercapai ? <Badge tone="safe">Tercapai 🎉</Badge> : null}
-                  </div>
-                  <span className="tiny">
-                    <LabelJenis jenis={t.jenis_target} /> · {t.nilai_awal != null ? `${t.nilai_awal} → ` : ""}
-                    {t.nilai_target} {t.satuan}
-                    {t.tenggat_waktu ? ` · target ${t.tenggat_waktu.slice(0, 10)}` : ""}
-                  </span>
+                  {(() => {
+                    const st = statusTenggatTarget(t.tenggat_waktu, t.tercapai);
+                    return (
+                      <>
+                        <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+                          <strong className="text-sm">{t.judul}</strong>
+                          {t.tercapai ? <Badge tone="safe">Tercapai 🎉</Badge> : null}
+                          {!t.tercapai && st.status === "lewat" ? (
+                            <Badge tone="danger">
+                              {st.label}
+                              {st.catatan ? ` · ${st.catatan}` : ""}
+                            </Badge>
+                          ) : null}
+                          {!t.tercapai && st.status === "hari_ini" ? (
+                            <Badge tone="warning">{st.label}</Badge>
+                          ) : null}
+                        </div>
+                        <span className="tiny">
+                          <LabelJenis jenis={t.jenis_target} /> · {t.nilai_awal != null ? `${t.nilai_awal} → ` : ""}
+                          {t.nilai_target} {t.satuan}
+                          {t.tenggat_waktu ? ` · tenggat ${tanggal(t.tenggat_waktu, "short")}` : ""}
+                        </span>
+                      </>
+                    );
+                  })()}
                   {t.catatan_motivasi ? (
                     <span className="tiny" style={{ display: "block", marginTop: 4, fontStyle: "italic" }}>
                       &ldquo;{t.catatan_motivasi}&rdquo;
@@ -199,11 +216,11 @@ export default function TargetBaru() {
                   </button>
                   <button
                     type="button"
-                    className="btn btn-ghost btn-sm text-danger"
+                    className="btn btn-danger btn-sm"
                     aria-label="Hapus"
                     onClick={() => setHapusId(t.id)}
                   >
-                    <Icon name="trash" size={15} />
+                    <Icon name="trash" size={14} /> Hapus
                   </button>
                 </div>
               </div>
@@ -260,7 +277,10 @@ function TargetForm({
     judul: sunting?.judul || "",
     jenis_target: sunting?.jenis_target || ("berat_badan" as JenisTarget | string),
     nilai_target: sunting ? String(sunting.nilai_target) : "",
-    satuan: sunting?.satuan || "kg",
+    satuan:
+      sunting?.satuan ??
+      SATUAN_JENIS_TARGET[(sunting?.jenis_target as string) || "berat_badan"] ??
+      "",
     nilai_awal: sunting?.nilai_awal != null ? String(sunting.nilai_awal) : "",
     tenggat_waktu: sunting?.tenggat_waktu ? sunting.tenggat_waktu.slice(0, 10) : "",
     catatan_motivasi: sunting?.catatan_motivasi || "",
@@ -273,11 +293,22 @@ function TargetForm({
     setErr((p) => ({ ...p, [kunci]: "" }));
   };
 
+  const ubahJenisTarget = (jenisBaru: string) => {
+    const satuanOtomatis =
+      jenisBaru === "lainnya" ? "" : (SATUAN_JENIS_TARGET[jenisBaru] ?? "");
+    setForm((p) => ({ ...p, jenis_target: jenisBaru, satuan: satuanOtomatis }));
+    setErr((p) => ({ ...p, jenis_target: "", satuan: "" }));
+  };
+
+  const jenisDiDaftar = JENIS.some((j) => j.kode === form.jenis_target);
+  const bisaKetikSatuan = form.jenis_target === "lainnya" || !jenisDiDaftar;
+
   const kirim = async () => {
     const e: Record<string, string> = {};
     if (!form.judul.trim()) e.judul = "Judul wajib diisi.";
     if (!form.nilai_target.trim()) e.nilai_target = "Nilai target wajib diisi.";
-    else if (Number.isNaN(Number(form.nilai_target))) e.nilai_target = "Harus berupa angka.";
+    else if (Number.isNaN(Number(form.nilai_target)) || Number(form.nilai_target) <= 0)
+      e.nilai_target = "Nilai target wajib lebih dari 0.";
     if (!form.satuan.trim()) e.satuan = "Satuan wajib diisi.";
     setErr(e);
     if (Object.keys(e).length > 0) return;
@@ -358,8 +389,11 @@ function TargetForm({
               id="jenis_target"
               className="select"
               value={form.jenis_target}
-              onChange={(e) => ubah("jenis_target", e.target.value)}
+              onChange={(e) => ubahJenisTarget(e.target.value)}
             >
+              {!jenisDiDaftar && form.jenis_target ? (
+                <option value={form.jenis_target}>{labelJenisTarget(form.jenis_target)}</option>
+              ) : null}
               {JENIS.map((j) => (
                 <option key={j.kode} value={j.kode}>{j.label}</option>
               ))}
@@ -370,10 +404,15 @@ function TargetForm({
             <input
               id="satuan"
               className={"input" + (err.satuan ? " is-error" : "")}
-              placeholder="kg, cm, ml, kali…"
+              placeholder={bisaKetikSatuan ? "Ketik satuan, mis. mmHg, mg/dL…" : "Otomatis"}
               value={form.satuan}
+              readOnly={!bisaKetikSatuan}
+              style={!bisaKetikSatuan ? { background: "var(--surface-2)", cursor: "not-allowed" } : undefined}
               onChange={(e) => ubah("satuan", e.target.value)}
             />
+            <div className="hint">
+              {bisaKetikSatuan ? "Isi manual sesuai target Anda" : "Mengikuti jenis target"}
+            </div>
             {err.satuan ? <div className="err-msg show">{err.satuan}</div> : null}
           </div>
         </div>

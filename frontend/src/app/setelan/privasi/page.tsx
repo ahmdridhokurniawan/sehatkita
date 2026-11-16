@@ -48,28 +48,38 @@ export default function SetelanPrivasiPage() {
   }, []);
 
   async function simpanPreferensi() {
+    if (!consentAktif) {
+      setPesan({
+        tone: "err",
+        teks: "Berikan persetujuan data terlebih dahulu di bagian Persetujuan Data di bawah.",
+      });
+      return;
+    }
     if (!profil || !profil.profil_lengkap) {
       setPesan({
         tone: "err",
-        teks: "Lengkapi profil dulu di menu Profil — PUT /profil wajib mengirim seluruh field (§5.2).",
+        teks: "Lengkapi data diri Anda di menu Profil terlebih dahulu sebelum mengubah pengaturan peringkat.",
       });
       return;
     }
     try {
       setSimpan(true);
+      const riwayatTerpilih = profil.riwayat_keluarga.filter((v) => v !== "tidak_ada");
       const p = await profilApi.update({
         tgl_lahir: profil.tgl_lahir as string,
         jenis_kelamin: profil.jenis_kelamin as string,
         tinggi_cm: profil.tinggi_cm as number,
         tingkat_aktivitas: profil.tingkat_aktivitas as string,
         merokok: Boolean(profil.merokok),
-        riwayat_keluarga: profil.riwayat_keluarga,
+        riwayat_keluarga: riwayatTerpilih.length ? riwayatTerpilih : ["tidak_ada"],
         tampil_di_peringkat: tampil,
       });
       setProfil(p);
+      await refreshUser();
       setPesan({ tone: "ok", teks: "Preferensi privasi tersimpan." });
     } catch (err) {
-      setPesan({ tone: "err", teks: (err as ApiError).message });
+      const apiErr = err as ApiError;
+      setPesan({ tone: "err", teks: apiErr.errors?.consent?.[0] || apiErr.message });
     } finally {
       setSimpan(false);
     }
@@ -111,16 +121,9 @@ export default function SetelanPrivasiPage() {
       </div>
 
       {pesan && (
-        <div
-          className="card card-flat mb-12"
-          style={{ borderLeft: `4px solid var(--${pesan.tone === "ok" ? "safe" : "danger"})` }}
-        >
-          <div className="row gap-10 items-center">
-            <span className={pesan.tone === "ok" ? "text-safe" : "text-danger"}>
-              <Icon name={pesan.tone === "ok" ? "check-circle" : "alert-circle"} size={18} />
-            </span>
-            <span className="text-sm">{pesan.teks}</span>
-          </div>
+        <div className={`alert ${pesan.tone === "ok" ? "alert-success" : "alert-danger"} mb-12`}>
+          <Icon name={pesan.tone === "ok" ? "check-circle" : "alert-circle"} size={18} />
+          <div>{pesan.teks}</div>
         </div>
       )}
 
@@ -134,7 +137,7 @@ export default function SetelanPrivasiPage() {
             <div>
               <div className="text-sm fw-600">Tampilkan nama saya di peringkat</div>
               <div className="tiny">
-                Bila dimatikan, kamu tetap ikut peringkat tetapi tampil sebagai &quot;Peserta anonim&quot;.
+                Bila dimatikan, Anda tetap ikut peringkat tetapi tampil sebagai &quot;Peserta anonim&quot;.
               </div>
             </div>
           }
@@ -148,16 +151,16 @@ export default function SetelanPrivasiPage() {
             {simpan ? "Menyimpan…" : "Simpan Preferensi"}
           </Button>
         </div>
-      </div>
 
-      <div className="card mt-16">
+        <div className="divider" />
+
         <div className="app-section-title mb-12">
           <h2>Persetujuan Data</h2>
         </div>
 
         <p className="text-sm mb-12">
-          Tanpa persetujuan, kamu tidak bisa mencatat kesehatan baru dan data kamu dikeluarkan dari agregat
-          kelurahan. Data lama tetap tersimpan untuk audit.
+          Tanpa persetujuan, Anda tidak bisa mencatat kesehatan baru dan data Anda dikeluarkan dari ringkasan data
+          kelurahan (tanpa nama pribadi). Data lama tetap tersimpan untuk audit.
         </p>
 
         <div className="row gap-8">
@@ -194,7 +197,7 @@ export default function SetelanPrivasiPage() {
         }
       >
         <p className="text-sm">
-          Setelah persetujuan dicabut, kamu tidak bisa mencatat data kesehatan baru sampai memberikan izin lagi. Data
+          Setelah persetujuan dicabut, Anda tidak bisa mencatat data kesehatan baru sampai memberikan izin lagi. Data
           lama tetap tersimpan aman untuk kebutuhan audit.
         </p>
       </Modal>

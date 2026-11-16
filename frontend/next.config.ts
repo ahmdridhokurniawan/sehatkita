@@ -18,6 +18,7 @@ const target = (process.env.API_PROXY_TARGET ?? "http://pm-monitoring.test").rep
 );
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ["sehatkita.test"],
   // Proxy Next.js punya batas tunggu bawaan 30 detik. Login memanggil bcrypt
   // dan di laptop ini butuh 10-48 detik (CPU lambat + Docker bind mount),
   // sehingga proxy memutus koneksi lebih dulu: "socket hang up" / ECONNRESET,

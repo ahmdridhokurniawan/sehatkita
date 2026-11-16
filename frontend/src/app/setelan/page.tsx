@@ -29,8 +29,10 @@ export default function SetelanPage() {
   const [konfirmasiKeluar, setKonfirmasiKeluar] = useState(false);
 
   async function handleLogout() {
+    const logoutReq = auth.logout();
+    clearUserCache();
     try {
-      await auth.logout();
+      await logoutReq;
     } catch (err) {
       console.error("Logout error:", err);
     } finally {
@@ -49,7 +51,7 @@ export default function SetelanPage() {
         </div>
       </div>
 
-      <div className="card" style={{ display: "grid", gap: 0 }}>
+      <div className="card">
         {SETELAN_MENU.map((item, idx) => (
           <Link
             key={item.href}
@@ -71,9 +73,9 @@ export default function SetelanPage() {
             </span>
           </Link>
         ))}
-      </div>
 
-      <div className="card mt-16">
+        <div className="divider" />
+
         <div className="app-section-title mb-12">
           <h2>Tentang</h2>
         </div>

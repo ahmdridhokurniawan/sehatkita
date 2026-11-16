@@ -5,16 +5,69 @@ import Link from "next/link";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
-import { EmptyState } from "@/components/ui/Empty";
-import { admin as adminApi, ApiError } from "@/lib/api";
-import { relatif } from "@/lib/format";
-import type { User, AdminStatistik, LogAudit } from "@/types";
+import {
+  GlassyAgendaDate,
+  GlassyDashboardSkeleton,
+  GlassyKpiGrid,
+  GlassyProgressRing,
+  type GlassyKpiItem,
+} from "@/components/dashboard/GlassyWidgets";
+import { admin as adminApi, pengaduanApi, ApiError } from "@/lib/api";
+import { angka, relatif } from "@/lib/format";
+import { useMinLoading } from "@/hooks/useMinLoading";
+import { LABEL_ROLE, LABEL_STATUS_RUJUKAN, LABEL_STATUS_PROGRAM } from "@/lib/labels";
+import type { User, AdminStatistik, LogAudit, Pengaduan, StatusPengaduan } from "@/types";
 
-export default function DashboardSuperAdmin({ user }: { user: User }) {
+type TabPanel = "audit" | "tinjauan" | "distribusi";
+type ModeDistribusi = "role" | "rujukan" | "program";
+
+const LABEL_PENGADUAN: Record<StatusPengaduan, string> = {
+  menunggu: "Menunggu",
+  diproses: "Diproses",
+  selesai: "Selesai",
+  ditolak: "Ditolak",
+};
+
+const TONE_PENGADUAN: Record<StatusPengaduan, "warning" | "info" | "safe" | "danger"> = {
+  menunggu: "warning",
+  diproses: "info",
+  selesai: "safe",
+  ditolak: "danger",
+};
+
+const PALET_DIST = ["var(--c-1)", "var(--c-2)", "var(--c-3)", "var(--c-4)", "var(--c-5)", "var(--c-6)"];
+
+const LABEL_AKSI_AUDIT: Record<string, string> = {
+  baca_data_individu: "Baca Data Individu",
+  ubah_data_individu: "Ubah Data Individu",
+  verifikasi_setujui_catatan: "Setujui Catatan",
+  verifikasi_tolak_catatan: "Tolak Catatan",
+  ubah_status_rujukan: "Ubah Status Rujukan",
+};
+
+function formatAksiAudit(aksi: string): string {
+  if (LABEL_AKSI_AUDIT[aksi]) return LABEL_AKSI_AUDIT[aksi];
+  return aksi
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (ch) => ch.toUpperCase());
+}
+
+function formatNamaModel(model: string): string {
+  const pendek = model.split("\\").pop() || model;
+  return pendek.replace(/([a-z])([A-Z])/g, "$1 $2");
+}
+
+export default function DashboardSuperAdmin({ user: _user }: { user: User }) {
+  void _user;
   const [stats, setStats] = useState<AdminStatistik | null>(null);
   const [log, setLog] = useState<LogAudit[]>([]);
+  const [pengaduan, setPengaduan] = useState<Pengaduan[]>([]);
+  const [perluVerifikasi, setPerluVerifikasi] = useState(0);
   const [loading, setLoading] = useState(true);
+  const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState<string | null>(null);
+  const [tabPanel, setTabPanel] = useState<TabPanel>("audit");
+  const [modeGrafik, setModeGrafik] = useState<ModeDistribusi>("role");
 
   useEffect(() => {
     let batal = false;
@@ -22,11 +75,18 @@ export default function DashboardSuperAdmin({ user }: { user: User }) {
     (async () => {
       try {
         setLoading(true);
-        // §15 — hanya super_admin yang boleh akses kedua endpoint ini.
-        const [s, l] = await Promise.all([adminApi.statistik(), adminApi.logAudit.list({})]);
+        // §15 — endpoint khusus super_admin & daftar pengaduan lintas kelurahan.
+        const [s, l, verif, aduan] = await Promise.all([
+          adminApi.statistik(),
+          adminApi.logAudit.list({ per_page: 5 }),
+          adminApi.verifikasi.list({ per_page: 4 }).catch(() => ({ data: [], meta: null })),
+          pengaduanApi.list().catch(() => [] as Pengaduan[]),
+        ]);
         if (batal) return;
         setStats(s);
         setLog(l);
+        setPerluVerifikasi(verif.meta?.total ?? verif.data.length);
+        setPengaduan(aduan);
         setError(null);
       } catch (err) {
         if (batal) return;
@@ -41,166 +101,395 @@ export default function DashboardSuperAdmin({ user }: { user: User }) {
     };
   }, []);
 
+  if (tampilLoading) {
+    return (
+      <AppShell greet="Halo Super Admin">
+        <GlassyDashboardSkeleton label="Memuat dashboard sistem…" />
+      </AppShell>
+    );
+  }
+
+  const totalCatatan = stats?.total_catatan ?? 0;
+  const rasioTerverifikasi =
+    totalCatatan > 0
+      ? Math.max(0, Math.min(100, Math.round(((totalCatatan - perluVerifikasi) / totalCatatan) * 100)))
+      : 100;
+  const statusIntegritas: { label: string; warn: boolean } =
+    perluVerifikasi > 0
+      ? { label: `Waspada · ${angka(perluVerifikasi)} perlu cek`, warn: true }
+      : { label: "Semua catatan tervalidasi", warn: false };
+
+  const mapDistribusi = (sumber: Record<string, number> | undefined, kamus: Record<string, string>) =>
+    Object.entries(sumber ?? {}).map(([k, total]) => ({ label: kamus[k] ?? k, value: total }));
+
+  const panelDistribusi: Record<
+    ModeDistribusi,
+    { unit: string; emptyText: string; items: { label: string; value: number }[] }
+  > = {
+    role: {
+      unit: "akun",
+      emptyText: "Belum ada data peran pengguna.",
+      items: mapDistribusi(stats?.users_by_role, LABEL_ROLE),
+    },
+    rujukan: {
+      unit: "rujukan",
+      emptyText: "Belum ada data status rujukan.",
+      items: mapDistribusi(stats?.rujukan_by_status, LABEL_STATUS_RUJUKAN as Record<string, string>),
+    },
+    program: {
+      unit: "tantangan",
+      emptyText: "Belum ada data status tantangan.",
+      items: mapDistribusi(stats?.program_by_status, LABEL_STATUS_PROGRAM as Record<string, string>),
+    },
+  };
+  const distribusi = panelDistribusi[modeGrafik];
+  const totalDistribusi = distribusi.items.reduce((acc, item) => acc + item.value, 0) || 1;
+
+  const aduanMenunggu = pengaduan.filter((p) => p.status === "menunggu").length;
+  const aduanTerbaru = pengaduan.slice(0, 3);
+  const totalTinjauan = aduanMenunggu + perluVerifikasi;
+
+  const kpiItems: GlassyKpiItem[] = [
+    {
+      id: "pengguna",
+      title: "Total Pengguna",
+      subtitle: `${angka(stats?.total_wilayah ?? 0)} wilayah binaan`,
+      value: angka(stats?.total_users ?? 0),
+      icon: "users",
+      pillText: `+${angka(stats?.new_users_7d ?? 0)} baru`,
+      pillTone: "safe",
+      sparkPath: "M2 20 C 14 19, 20 12, 32 14 C 42 16, 50 6, 64 4",
+      sparkColor: "var(--primary)",
+      href: "/admin/pengguna",
+    },
+    {
+      id: "catatan",
+      title: "Catatan Kesehatan",
+      subtitle: `${rasioTerverifikasi}% tervalidasi`,
+      value: angka(totalCatatan),
+      icon: "clipboard",
+      pillText: `+${angka(stats?.new_catatan_7d ?? 0)} (7 hari)`,
+      pillTone: "safe",
+      sparkPath: "M2 18 C 14 14, 24 18, 36 10 C 46 5, 54 9, 64 3",
+      sparkColor: "var(--safe)",
+      href: "/admin/statistik",
+    },
+    {
+      id: "rujukan",
+      title: "Total Rujukan",
+      subtitle: "Seluruh kelurahan",
+      value: angka(stats?.total_rujukan ?? 0),
+      icon: "send",
+      pillText: `+${angka(stats?.new_rujukan_7d ?? 0)} baru`,
+      accent: "danger",
+      sparkPath: "M2 16 C 14 18, 22 8, 34 11 C 46 14, 54 6, 64 7",
+      href: "/admin/statistik",
+    },
+    {
+      id: "audit",
+      title: "Log Audit Sistem",
+      subtitle: "Jejak akses terkawal",
+      value: angka(stats?.total_audit_logs_7d ?? 0),
+      icon: "shield-check",
+      pillText: aduanMenunggu > 0 ? `${angka(aduanMenunggu)} aduan` : "7 hari terakhir",
+      pillTone: aduanMenunggu > 0 ? "warning" : "info",
+      sparkPath: "M2 19 C 12 16, 22 10, 34 12 C 44 14, 54 8, 64 5",
+      sparkColor: "var(--info)",
+      href: "/admin/log-audit",
+    },
+  ];
+
   return (
     <AppShell greet="Halo Super Admin">
-      {/* Ringkasan sistem — angka dari GET /admin/statistik */}
-      <section>
-        <div className="app-section-title">
-          <h2>Statistik Sistem</h2>
-          <Link href="/admin/statistik">Detail</Link>
-        </div>
-        <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
-          <div className="metric">
-            <span className="metric-name">
-              <Icon name="map-pin" size={14} /> Wilayah
-            </span>
-            <span className="metric-val">{loading ? "—" : stats?.total_wilayah ?? 0}</span>
-            <div className="tiny mt-4">Kecamatan + kelurahan</div>
-          </div>
-          <div className="metric">
-            <span className="metric-name">
-              <Icon name="home" size={14} /> Faskes
-            </span>
-            <span className="metric-val">{loading ? "—" : stats?.total_faskes ?? 0}</span>
-            <div className="tiny mt-4">Terdaftar</div>
-          </div>
-          <div className="metric">
-            <span className="metric-name">
-              <Icon name="users" size={14} /> Pengguna
-            </span>
-            <span className="metric-val">{loading ? "—" : stats?.total_users ?? 0}</span>
-            <div className="tiny mt-4">Baru 7 hari: {stats?.new_users_7d ?? 0}</div>
-          </div>
-          <div className="metric">
-            <span className="metric-name">
-              <Icon name="clipboard" size={14} /> Pencatatan
-            </span>
-            <span className="metric-val">{loading ? "—" : stats?.total_catatan ?? 0}</span>
-            <div className="tiny mt-4">Baru 7 hari: {stats?.new_catatan_7d ?? 0}</div>
-          </div>
-        </div>
-      </section>
-
       {error ? (
-        <div className="alert alert-danger mt-16">
-          <Icon name="alert-circle" />
+        <div className="alert alert-danger">
+          <Icon name="alert-circle" size={18} />
           <div>{error}</div>
         </div>
       ) : null}
 
-      {/* Master data — halaman /admin/* */}
-      <section>
-        <div className="app-section-title">
-          <h2>Master Data</h2>
+      {/* HEADER RINGKAS */}
+      <div className="gv-head">
+        <div>
+          <h1 className="gv-head-title">Ringkasan Sistem</h1>
+          <p className="gv-head-sub">
+            {angka(stats?.total_wilayah ?? 0)} wilayah · {angka(stats?.total_faskes ?? 0)} faskes aktif ·{" "}
+            {angka(stats?.total_audit_logs_7d ?? 0)} aktivitas audit 7 hari terakhir
+          </p>
         </div>
-        <div className="card mt-12">
-          <Link href="/admin/pengguna" className="li">
-            <span className="li-ico" style={{ background: "var(--primary-050)", color: "var(--primary)" }}>
-              <Icon name="users" size={18} />
-            </span>
-            <div className="li-main">
-              <strong>Manajemen Pengguna</strong>
-              <span className="tiny">Kelola akun, role, dan penugasan kader</span>
-            </div>
-            <Icon name="chevron-right" size={18} />
-          </Link>
-          <Link href="/admin/faskes" className="li">
-            <span className="li-ico" style={{ background: "var(--success-bg)", color: "var(--success)" }}>
-              <Icon name="home" size={18} />
-            </span>
-            <div className="li-main">
-              <strong>Manajemen Faskes</strong>
-              <span className="tiny">Puskesmas, klinik, rumah sakit</span>
-            </div>
-            <Icon name="chevron-right" size={18} />
-          </Link>
-          <Link href="/admin/indikator" className="li">
-            <span className="li-ico" style={{ background: "var(--danger-bg)", color: "var(--danger)" }}>
-              <Icon name="settings" size={18} />
-            </span>
-            <div className="li-main">
-              <strong>Indikator &amp; Ambang Kategori</strong>
-              <span className="tiny">Atur indikator, interval skrining, dan ambang risiko</span>
-            </div>
-            <Icon name="chevron-right" size={18} />
-          </Link>
-          <Link href="/peringkat" className="li">
-            <span className="li-ico" style={{ background: "rgba(212, 175, 55, 0.16)", color: "#D4AF37" }}>
-              <Icon name="trophy" size={18} />
-            </span>
-            <div className="li-main">
-              <strong>Peringkat Kelurahan</strong>
-              <span className="tiny">Klasemen EXP warga &amp; pencapaian tantangan</span>
-            </div>
-            <Icon name="chevron-right" size={18} />
-          </Link>
-          <Link href="/admin/log-audit" className="li">
-            <span className="li-ico" style={{ background: "var(--muted-bg)", color: "var(--muted)" }}>
-              <Icon name="shield" size={18} />
-            </span>
-            <div className="li-main">
-              <strong>Log Audit</strong>
-              <span className="tiny">Jejak akses data individu oleh super admin</span>
-            </div>
-            <Icon name="chevron-right" size={18} />
-          </Link>
-        </div>
-      </section>
 
-      {/* Aktivitas terbaru — GET /admin/log-audit */}
-      <section>
-        <div className="app-section-title">
-          <h2>Aktivitas Terbaru</h2>
-          <Link href="/admin/log-audit">Lihat semua</Link>
+        <div className="gv-head-actions">
+          <Link href="/admin/log-audit" className="btn btn-sm btn-outline" style={{ borderRadius: 999 }}>
+            <Icon name="activity" size={14} /> Log Audit
+          </Link>
+          <Link href="/admin/pengguna" className="btn btn-sm btn-primary" style={{ borderRadius: 999 }}>
+            <Icon name="users" size={14} /> Kelola Pengguna
+          </Link>
         </div>
-        <div className="card mt-12">
-          {loading ? (
-            <EmptyState title="Memuat..." desc="Mengambil log audit dari server." />
-          ) : log.length ? (
-            log.slice(0, 5).map((l) => (
-              <div className="li" key={l.id}>
-                <span className="li-ico" style={{ background: "var(--primary-050)", color: "var(--primary)" }}>
-                  <Icon name="activity" size={18} />
-                </span>
-                <div className="li-main">
-                  <strong className="text-sm">{l.aksi}</strong>
-                  <span className="tiny">
-                    {l.pengguna?.name || "Sistem"} · {l.model}
-                    {l.model_id ? ` #${l.model_id}` : ""}
-                  </span>
-                </div>
-                <div className="li-side">
-                  <span className="tiny">{relatif(l.created_at)}</span>
-                </div>
+      </div>
+
+      {/* BARIS 1 — HERO GRADIENT + PANEL TINJAUAN GLASSY V24 */}
+      <div className="gv-top-grid">
+        <section className={`gv-hero${perluVerifikasi > 0 ? " is-warning" : ""}`}>
+          <div className="gv-hero-main">
+            <span className="gv-hero-badge">
+              <i className={`gv-hero-dot${statusIntegritas.warn ? " is-warn" : ""}`} />
+              <span>{statusIntegritas.label}</span>
+            </span>
+
+            <div>
+              <h2 className="gv-hero-title">
+                {perluVerifikasi > 0
+                  ? `${angka(perluVerifikasi)} catatan perlu verifikasi`
+                  : "Platform berjalan stabil & tervalidasi"}
+              </h2>
+              <p className="gv-hero-desc">
+                {angka(totalCatatan)} catatan kesehatan tercatat bersama{" "}
+                {angka(stats?.total_program_participants ?? 0)} peserta tantangan di seluruh wilayah.
+              </p>
+            </div>
+
+            <div className="gv-hero-metrics">
+              <div className="gv-hero-metric">
+                <strong>{stats?.avg_imt != null ? angka(stats.avg_imt, 1) : "—"}</strong>
+                <span>Rata-rata IMT (kg/m²)</span>
               </div>
-            ))
-          ) : (
-            <EmptyState title="Belum ada aktivitas tercatat" desc="Log audit akan muncul saat super admin mengakses data individu." />
-          )}
-        </div>
-      </section>
-
-      <section>
-        <div className="app-section-title">
-          <h2>Status Layanan</h2>
-        </div>
-        <div className="card mt-12">
-          <div className="li">
-            <span className="li-ico" style={{ background: "var(--success-bg)", color: "var(--success)" }}>
-              <Icon name="check-circle" size={18} />
-            </span>
-            <div className="li-main">
-              <strong>API Backend</strong>
-              <span className="tiny">{error ? "Gagal terhubung" : "Merender data nyata"}</span>
+              <div className="gv-hero-metric">
+                <strong>
+                  {stats?.avg_sistol != null && stats?.avg_diastol != null
+                    ? `${angka(stats.avg_sistol, 0)}/${angka(stats.avg_diastol, 0)}`
+                    : "—"}
+                </strong>
+                <span>Rata-rata Tensi (mmHg)</span>
+              </div>
+              <div className="gv-hero-metric">
+                <strong>{angka(stats?.total_program ?? 0)}</strong>
+                <span>Tantangan Aktif</span>
+              </div>
             </div>
-            <Badge tone={error ? "danger" : "safe"}>{error ? "Gangguan" : "Aktif"}</Badge>
-          </div>
-        </div>
-      </section>
 
-      <p className="tiny center mt-8 mb-16">
-        <Icon name="lock" size={13} /> Akses terbatas: dashboard ini hanya untuk Super Admin. Semua aktivitas dicatat.
-      </p>
+            <div className="gv-hero-actions">
+              <Link href="/admin/statistik" className="gv-btn-solid">
+                Statistik Lengkap <Icon name="chevron-right" size={14} />
+              </Link>
+              <Link href="/admin/verifikasi" className="gv-btn-glass">
+                <Icon name="shield-check" size={14} /> Verifikasi Catatan
+              </Link>
+            </div>
+          </div>
+
+          <GlassyProgressRing
+            percent={rasioTerverifikasi}
+            centerLabel="tervalidasi"
+            caption={`${angka(stats?.total_wilayah ?? 0)} wilayah · ${angka(stats?.total_faskes ?? 0)} faskes`}
+            ariaLabel={`Catatan tervalidasi ${rasioTerverifikasi}%`}
+          />
+        </section>
+
+        <section className="gv-agenda">
+          <div className="gv-agenda-head">
+            <GlassyAgendaDate />
+            <Badge tone={totalTinjauan > 0 ? "warning" : "safe"}>
+              {totalTinjauan > 0 ? `${angka(totalTinjauan)} perlu tinjau` : "Semua aman"}
+            </Badge>
+          </div>
+
+          <div className="gv-tab-strip" role="tablist" aria-label="Panel ringkas sistem">
+            {(
+              [
+                ["audit", "Log Audit"],
+                ["tinjauan", "Tinjauan"],
+                ["distribusi", "Distribusi"],
+              ] as const
+            ).map(([kunci, label]) => (
+              <button
+                key={kunci}
+                type="button"
+                role="tab"
+                aria-selected={tabPanel === kunci}
+                className={`gv-tab-btn${tabPanel === kunci ? " is-active" : ""}`}
+                onClick={() => setTabPanel(kunci)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="gv-agenda-body">
+            {tabPanel === "audit" ? (
+              log.length === 0 ? (
+                <p className="tiny center py-16">Belum ada aktivitas audit tercatat.</p>
+              ) : (
+                <div className="sa-feed">
+                  {log.slice(0, 4).map((l) => (
+                    <Link key={l.id} href="/admin/log-audit" className="sa-feed-item">
+                      <span className="sa-feed-ico">
+                        <Icon name="activity" size={15} />
+                      </span>
+                      <div className="sa-feed-main">
+                        <strong>{formatAksiAudit(l.aksi)}</strong>
+                        <span>
+                          {l.pengguna?.name || "Sistem"} · {formatNamaModel(l.model)}
+                        </span>
+                      </div>
+                      <span className="sa-feed-time">{relatif(l.created_at)}</span>
+                    </Link>
+                  ))}
+                </div>
+              )
+            ) : tabPanel === "tinjauan" ? (
+              <div className="sa-feed">
+                <Link href="/admin/verifikasi" className="sa-row">
+                  <span
+                    className="sa-feed-ico"
+                    style={{
+                      background: perluVerifikasi > 0 ? "var(--warning-bg)" : "var(--safe-bg)",
+                      color: perluVerifikasi > 0 ? "var(--warning)" : "var(--safe)",
+                    }}
+                  >
+                    <Icon name="shield-check" size={15} />
+                  </span>
+                  <div className="sa-feed-main">
+                    <strong>Verifikasi Catatan</strong>
+                    <span>Pemeriksaan di luar ambang batas Kemenkes RI</span>
+                  </div>
+                  <Badge tone={perluVerifikasi > 0 ? "warning" : "safe"}>
+                    {perluVerifikasi > 0 ? `${angka(perluVerifikasi)} cek` : "Aman"}
+                  </Badge>
+                </Link>
+
+                {aduanTerbaru.length === 0 ? (
+                  <Link href="/admin/pengaduan" className="sa-row">
+                    <span className="sa-feed-ico" style={{ background: "var(--safe-bg)", color: "var(--safe)" }}>
+                      <Icon name="check-circle" size={15} />
+                    </span>
+                    <div className="sa-feed-main">
+                      <strong>Tidak ada pengaduan tertunda</strong>
+                      <span>Semua laporan warga sudah ditinjau</span>
+                    </div>
+                    <Icon name="chevron-right" size={15} />
+                  </Link>
+                ) : (
+                  aduanTerbaru.map((p) => (
+                    <Link key={p.id} href="/admin/pengaduan" className="sa-row">
+                      <span className="sa-feed-ico" style={{ background: "var(--info-bg)", color: "var(--info)" }}>
+                        <Icon name="alert-circle" size={15} />
+                      </span>
+                      <div className="sa-feed-main">
+                        <strong>{p.judul}</strong>
+                        <span>
+                          {p.pengguna?.name || "Warga"} · {relatif(p.created_at)}
+                        </span>
+                      </div>
+                      <Badge tone={TONE_PENGADUAN[p.status]}>{LABEL_PENGADUAN[p.status]}</Badge>
+                    </Link>
+                  ))
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="chip-row">
+                  {(
+                    [
+                      ["role", "Peran"],
+                      ["rujukan", "Rujukan"],
+                      ["program", "Tantangan"],
+                    ] as const
+                  ).map(([kunci, label]) => (
+                    <button
+                      key={kunci}
+                      type="button"
+                      className={`chip${modeGrafik === kunci ? " is-active" : ""}`}
+                      onClick={() => setModeGrafik(kunci)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {distribusi.items.length === 0 ? (
+                  <p className="tiny center py-16">{distribusi.emptyText}</p>
+                ) : (
+                  <div className="sa-dist-list">
+                    {distribusi.items.slice(0, 4).map((item, idx) => {
+                      const persen = Math.round((item.value / totalDistribusi) * 100);
+                      const warna = PALET_DIST[idx % PALET_DIST.length];
+                      return (
+                        <div key={item.label} className="sa-dist-row">
+                          <div className="sa-dist-top">
+                            <span className="sa-dist-label">
+                              <i className="sa-dist-dot" style={{ background: warna }} />
+                              {item.label}
+                            </span>
+                            <span className="sa-dist-val">
+                              {angka(item.value)} {distribusi.unit} · <em>{persen}%</em>
+                            </span>
+                          </div>
+                          <div className="sa-dist-track" aria-hidden="true">
+                            <div
+                              className="sa-dist-fill"
+                              style={{
+                                width: `${persen}%`,
+                                minWidth: item.value > 0 ? 6 : 0,
+                                background: warna,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="gv-agenda-foot">
+            <span className="row gap-6 items-center">
+              <Icon name="check-circle" size={14} className={error ? "text-danger" : "text-safe"} />
+              <span>Status Sistem: {error ? "Gangguan" : "Normal"}</span>
+            </span>
+            <Link
+              href={
+                tabPanel === "audit"
+                  ? "/admin/log-audit"
+                  : tabPanel === "tinjauan"
+                    ? "/admin/pengaduan"
+                    : "/admin/statistik"
+              }
+              className="bento-sec-action"
+            >
+              Lihat semua <Icon name="chevron-right" size={14} />
+            </Link>
+          </div>
+        </section>
+      </div>
+
+      {/* BARIS 2 — 4 KPI GLASS CARDS + SPARKLINE SVG */}
+      <GlassyKpiGrid items={kpiItems} />
+
+      {/* STRIP PINTASAN MASTER DATA (1 BARIS DATAR) */}
+      <div className="gv-quick-bar">
+        <div className="gv-quick-links">
+          <Link href="/admin" className="gv-quick-pill">
+            <Icon name="shield" size={13} /> Panel Admin
+          </Link>
+          <Link href="/admin/pengguna" className="gv-quick-pill">
+            <Icon name="users" size={13} /> Kelola Pengguna
+          </Link>
+          <Link href="/admin/faskes" className="gv-quick-pill">
+            <Icon name="home" size={13} /> Kelola Faskes ({angka(stats?.total_faskes ?? 0)})
+          </Link>
+          <Link href="/admin/indikator" className="gv-quick-pill">
+            <Icon name="settings" size={13} /> Indikator &amp; Ambang
+          </Link>
+          <Link href="/peringkat" className="gv-quick-pill">
+            <Icon name="trophy" size={13} /> Peringkat Kelurahan
+          </Link>
+        </div>
+        <span className="tiny">
+          <Icon name="lock" size={12} /> Akses terbatas Super Admin · tercatat otomatis ke log audit
+        </span>
+      </div>
     </AppShell>
   );
 }

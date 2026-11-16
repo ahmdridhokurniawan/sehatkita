@@ -73,6 +73,8 @@ export interface Faskes {
   alamat: string;
   telepon: string;
   wilayah_id: number;
+  lat?: number | null;
+  lng?: number | null;
 }
 /* ============================================================
  * §4 — Auth & Pengguna
@@ -104,6 +106,7 @@ export interface ProfilRingkas {
 export interface User {
   id: number;
   name: string;
+  nik?: string | null;
   email: string;
   role: Role;
   wilayah_id: number;
@@ -153,6 +156,7 @@ export interface CatatanKesehatan {
   kategori_kolesterol: StatusKesehatan | null;
   kategori_asam_urat: StatusKesehatan | null;
   status_kesehatan: StatusKesehatan | null;
+  skor_risiko?: number | null;
   perlu_verifikasi: boolean;
   // Relasi
   dicatat_oleh: { id: number; name: string } | null;
@@ -160,6 +164,7 @@ export interface CatatanKesehatan {
   pengguna?: {
     id: number;
     name: string;
+    nik?: string | null;
     email?: string;
     wilayah_id?: number;
     wilayah?: { id: number; nama: string } | null;
@@ -206,8 +211,12 @@ export interface IndikatorTerkini {
   diastol: number | null;
   kategori_tensi: StatusKesehatan | null;
   gula_darah: number | null;
+  jenis_gula_darah?: JenisGulaDarah | null;
+  kategori_gula_darah?: StatusKesehatan | null;
   kolesterol: number | null;
+  kategori_kolesterol?: StatusKesehatan | null;
   asam_urat: number | null;
+  kategori_asam_urat?: StatusKesehatan | null;
   lingkar_perut: number | null;
   dicatat_pada: string;
   sumber: Sumber;
@@ -272,6 +281,7 @@ export type Tren = RekamMedis;
 export interface RekamMedisQuery {
   indikator: string;
   periode: "1m" | "3m" | "6m" | "1y";
+  user_id?: number;
   /** §23 — pencarian teks (opsional) */
   search?: string;
 }
@@ -300,7 +310,7 @@ export interface RekapRujukan {
   /** §9.1 — hanya status dengan jumlah ≥ 5; `total` TIDAK dikirim (suppression). */
   baru?: number;
   dihubungi?: number;
-  tertangani?: number;
+  selesai?: number;
   ditolak?: number;
 }
 export interface TrenKelurahan {
@@ -308,7 +318,7 @@ export interface TrenKelurahan {
   total_pencatatan: number;
 }
 export interface DashboardKelurahan {
-  wilayah: { id: number; nama: string };
+  wilayah: { id: number | null; nama: string };
   periode: string;
   total_peserta: number;
   total_pengguna_aktif: number;
@@ -337,8 +347,9 @@ export interface SesiPosbindu {
   wilayah_id: number;
   tanggal: string;
   lokasi: string;
-  kader: { id: number; name: string };
+  kader: { id: number; name: string } | null;
   catatan: string | null;
+  status?: "akan_datang" | "berlangsung" | "selesai" | string;
   jumlah_peserta: number;
   hadir: number;
 }
@@ -377,6 +388,7 @@ export interface Rujukan {
   id: number;
   /** §11.2 — admin_kelurahan menerima bentuk TEREDAKSI (field ini absen). */
   user_id?: number;
+  user?: { id: number; name: string; nik?: string | null } | null;
   faskes: { id: number; nama: string };
   alasan?: string;
   status: StatusRujukan;
@@ -399,6 +411,36 @@ export interface RujukanQuery extends ListQuery {
   dari?: string;
   sampai?: string;
 }
+export interface SuratRujukan {
+  id: number;
+  nomor_surat: string;
+  tanggal_rujukan: string;
+  tanggal_cetak: string;
+  status: StatusRujukan;
+  otomatis: boolean;
+  indikator?: string | null;
+  alasan: string;
+  catatan?: string | null;
+  pasien: {
+    id?: number | null;
+    name?: string | null;
+    nik?: string | null;
+    jenis_kelamin?: "L" | "P" | null;
+    tgl_lahir?: string | null;
+    usia?: number | null;
+    wilayah?: string | null;
+  };
+  faskes: {
+    id?: number | null;
+    nama?: string | null;
+    jenis?: string | null;
+    alamat?: string | null;
+    telepon?: string | null;
+  };
+  dibuat_oleh?: { id: number; name: string; role: string } | null;
+  ditangani_oleh?: { id: number; name: string; role: string } | null;
+  disclaimer: string;
+}
 /* ============================================================
  * §12 / §25 / §30 — Program (Tantangan & Reward)
  * ============================================================ */
@@ -406,6 +448,7 @@ export interface PesertaSaya {
   id: number;
   status: StatusPeserta;
   bukti_foto_url?: string | null;
+  bukti_foto_urls?: string[];
   catatan_bukti?: string | null;
   dikirim_pada?: string | null;
   catatan_verifikasi?: string | null;
@@ -414,10 +457,12 @@ export interface PesertaSaya {
 }
 export interface Program {
   id: number;
+  wilayah_id?: number | null;
   judul: string;
   deskripsi?: string | null;
   kriteria_misi?: string | null;
   jenis: JenisProgram;
+  kategori_aktivitas?: string | null;
   target_peserta: number;
   jumlah_peserta: number;
   mulai: string;
@@ -445,6 +490,7 @@ export interface ProgramInput {
   deskripsi?: string | null;
   kriteria_misi?: string | null;
   jenis: JenisProgram;
+  kategori_aktivitas?: string | null;
   target_peserta?: number;
   mulai: string;
   selesai?: string;
@@ -466,6 +512,7 @@ export interface PesertaProgram {
   email?: string;
   status: StatusPeserta;
   bukti_foto_url?: string | null;
+  bukti_foto_urls?: string[];
   catatan_bukti?: string | null;
   dikirim_pada?: string | null;
   catatan_verifikasi?: string | null;
@@ -551,24 +598,28 @@ export interface Indikator {
   id: number;
   kode: string;
   nama: string;
-  satuan: string;
-  kelompok: string;
+  satuan: string | null;
+  kelompok: string | null;
+  interval_skrining_hari?: number | null;
 }
 export interface AmbangKategori {
   id: number;
-  indikator: { kode: string; nama: string; satuan: string };
+  indikator_id?: number;
+  indikator: { kode: string; nama: string; satuan: string } | null;
+  jenis_gula_darah?: "puasa" | "2jam_pp" | null;
+  memicu_rujukan?: boolean;
   batas_min: number;
-  batas_max: number;
+  batas_max: number | null;
   kategori: string;
   status: StatusKesehatan;
   skor: number;
 }
-/** Blok §23 — hasil pencarian warga oleh petugas (autocomplete NIK) */
+/** Blok §23 — hasil pencarian warga oleh petugas (autocomplete nama / NIK) */
 export interface WargaCari {
   id: number;
   name: string;
-  nik: string;
-  wilayah_id: number;
+  nik: string | null;
+  wilayah_id: number | null;
   wilayah: string | null;
 }
 export interface AdminPengguna {
@@ -577,17 +628,21 @@ export interface AdminPengguna {
   nik?: string | null;
   email: string;
   role: Role;
-  wilayah_id: number;
+  wilayah_id: number | null;
+  kader_id?: number | null;
   wilayah?: { id: number; nama: string };
   aktif?: boolean;
 }
 export interface AdminPenggunaInput {
   name: string;
-  nik?: string;
+  nik?: string | null;
   email: string;
   role: Role;
-  wilayah_id: number;
+  wilayah_id: number | null;
+  kader_id?: number | null;
   password?: string;
+  aktif?: boolean;
+  alasan_mutasi?: string;
 }
 export interface LogAudit {
   id: number;

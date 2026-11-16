@@ -6,6 +6,7 @@ import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
 import { pengaduanApi, ApiError } from "@/lib/api";
+import { useMinLoading } from "@/hooks/useMinLoading";
 import { tanggal } from "@/lib/format";
 import type { Pengaduan, KategoriPengaduan, StatusPengaduan } from "@/types";
 import "./pengaduan.css";
@@ -35,6 +36,7 @@ const STATUS_TONE: Record<StatusPengaduan, "warning" | "info" | "safe" | "danger
 export default function HalamanPengaduan() {
   const [list, setList] = useState<Pengaduan[]>([]);
   const [loading, setLoading] = useState(true);
+  const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState<string | null>(null);
 
   const [judul, setJudul] = useState("");
@@ -215,7 +217,7 @@ export default function HalamanPengaduan() {
           <span className="tiny">{list.length} pengaduan</span>
         </div>
 
-        {loading ? (
+        {tampilLoading ? (
           <Loading text="Memuat data pengaduan…" />
         ) : error ? (
           <ErrorState message={error} onRetry={muat} />
@@ -226,31 +228,32 @@ export default function HalamanPengaduan() {
             desc="Anda belum pernah mengirim pengaduan. Kirimkan pengaduan melalui formulir di atas bila mengalami kendala."
           />
         ) : (
-          <div className="pengaduan-list mt-12">
+          <div className="card card-list mt-12">
             {list.map((p) => (
-              <article key={p.id} className="card card-flat" style={{ border: "1px solid var(--border)" }}>
-                <div className="row-between mb-8">
-                  <div className="row gap-8 items-center">
+              <article
+                key={p.id}
+                className="li"
+                style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}
+              >
+                <div className="row-between wrap gap-8">
+                  <div className="row gap-8 items-center wrap">
                     <Badge tone={STATUS_TONE[p.status]}>{STATUS_LABEL[p.status]}</Badge>
                     <span className="badge">{kategoriLabel(p.kategori)}</span>
                   </div>
                   <span className="tiny text-3">{tanggal(p.created_at, "long")}</span>
                 </div>
-                <h3 className="text-sm fw-700" style={{ fontSize: "1.05rem" }}>
+                <h3 className="text-sm fw-700" style={{ fontSize: "1.02rem" }}>
                   {p.judul}
                 </h3>
-                <p className="tiny mt-6" style={{ lineHeight: 1.6, color: "var(--text)" }}>
+                <p className="tiny" style={{ lineHeight: 1.6, color: "var(--text)" }}>
                   {p.isi}
                 </p>
 
                 {p.tanggapan ? (
                   <div
-                    className="mt-12"
+                    className="flat-sub mt-4"
                     style={{
-                      background: "var(--surface-2)",
                       borderLeft: "4px solid var(--primary)",
-                      borderRadius: "0 var(--radius-sm) var(--radius-sm) 0",
-                      padding: "12px 14px",
                     }}
                   >
                     <div className="row gap-6 items-center">
@@ -264,7 +267,7 @@ export default function HalamanPengaduan() {
                     </p>
                   </div>
                 ) : (
-                  <div className="row gap-6 mt-8 items-center">
+                  <div className="row gap-6 items-center">
                     <span className="text-3">
                       <Icon name="clock" size={13} />
                     </span>

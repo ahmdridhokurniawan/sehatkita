@@ -1,13 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
+import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
+import { useToast } from "@/components/ui/Toast";
 import { rujukan as rujukanApi, ApiError } from "@/lib/api";
 import { tanggal, angka } from "@/lib/format";
+import { useMinLoading } from "@/hooks/useMinLoading";
 import type { Rujukan } from "@/types";
 import type { StatusRujukan } from "@/lib/enums";
 
@@ -18,31 +21,52 @@ import type { StatusRujukan } from "@/lib/enums";
 
 const LABEL_STATUS: Record<StatusRujukan, string> = {
   baru: "Baru",
-  dihubungi: "Dihubungi",
-  tertangani: "Tertangani",
+  dihubungi: "Diproses",
+  selesai: "Selesai",
   ditolak: "Ditolak",
 };
 
 const TONE_STATUS: Record<StatusRujukan, "safe" | "warning" | "danger"> = {
   baru: "danger",
   dihubungi: "warning",
-  tertangani: "safe",
+  selesai: "safe",
   ditolak: "danger",
 };
 
-const URUTAN: StatusRujukan[] = ["baru", "dihubungi", "tertangani", "ditolak"];
+const URUTAN: StatusRujukan[] = ["baru", "dihubungi", "selesai", "ditolak"];
+
+const META_STATUS: Record<StatusRujukan, { icon: string; color: string; bg: string }> = {
+  baru: { icon: "bell", color: "var(--danger)", bg: "var(--danger-bg)" },
+  dihubungi: { icon: "clock", color: "var(--warning)", bg: "var(--warning-bg)" },
+  selesai: { icon: "check-circle", color: "var(--safe)", bg: "var(--safe-bg)" },
+  ditolak: { icon: "alert-circle", color: "var(--danger)", bg: "var(--danger-bg)" },
+};
+
+function opsiLanjut(status: StatusRujukan): StatusRujukan[] {
+  if (status === "baru") return ["dihubungi", "selesai", "ditolak"];
+  if (status === "dihubungi") return ["selesai", "ditolak"];
+  return [];
+}
 
 export default function RujukanKelurahanPage() {
+  const toast = useToast();
   const [daftar, setDaftar] = useState<Rujukan[]>([]);
   const [filterStatus, setFilterStatus] = useState<StatusRujukan | null>(null);
   const [cari, setCari] = useState("");
   const [loading, setLoading] = useState(true);
+  const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState("");
+
+  const [ubahItem, setUbahItem] = useState<Rujukan | null>(null);
+  const [statusBaru, setStatusBaru] = useState<StatusRujukan>("dihubungi");
+  const [catatanStatus, setCatatanStatus] = useState("");
+  const [ubahErr, setUbahErr] = useState("");
+  const [menyimpan, setMenyimpan] = useState(false);
 
   const muat = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await rujukanApi.list();
+      const data = await rujukanApi.list({ per_page: 100 });
       setDaftar(data);
       setError("");
     } catch (err) {
@@ -55,7 +79,7 @@ export default function RujukanKelurahanPage() {
   useEffect(() => {
     let aktif = true;
     rujukanApi
-      .list()
+      .list({ per_page: 100 })
       .then((data) => {
         if (!aktif) return;
         setDaftar(data);
@@ -72,8 +96,40 @@ export default function RujukanKelurahanPage() {
     };
   }, []);
 
+  function bukaModalStatus(r: Rujukan) {
+    const opsi = opsiLanjut(r.status);
+    if (!opsi.length) return;
+    setUbahItem(r);
+    setStatusBaru(opsi[0]);
+    setCatatanStatus("");
+    setUbahErr("");
+  }
+
+  async function simpanStatus() {
+    if (!ubahItem) return;
+    setUbahErr("");
+    if (statusBaru === "ditolak" && !catatanStatus.trim()) {
+      setUbahErr("Catatan alasan penolakan wajib diisi.");
+      return;
+    }
+    setMenyimpan(true);
+    try {
+      await rujukanApi.updateStatus(ubahItem.id, {
+        status: statusBaru,
+        catatan: catatanStatus.trim() || undefined,
+      });
+      toast.success("Status rujukan diperbarui.", { title: "Berhasil" });
+      setUbahItem(null);
+      await muat();
+    } catch (err) {
+      setUbahErr(err instanceof ApiError ? err.message : "Gagal memperbarui status");
+    } finally {
+      setMenyimpan(false);
+    }
+  }
+
   const jumlahPerStatus = useMemo(() => {
-    const hasil: Record<string, number> = { baru: 0, dihubungi: 0, tertangani: 0, ditolak: 0 };
+    const hasil: Record<string, number> = { baru: 0, dihubungi: 0, selesai: 0, ditolak: 0 };
     for (const r of daftar) hasil[r.status] = (hasil[r.status] ?? 0) + 1;
     return hasil;
   }, [daftar]);
@@ -96,26 +152,58 @@ export default function RujukanKelurahanPage() {
       <section>
         <div className="app-section-title">
           <h2>Status Rujukan</h2>
-          <span className="tiny">Data warga disembunyikan sesuai §11.2</span>
+          <span className="tiny">Nama &amp; NIK warga disamarkan untuk menjaga privasi</span>
         </div>
-        <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
-          {URUTAN.map((s) => (
-            <div
-              key={s}
-              className="card card-flat li-hover"
-              style={{
-                cursor: "pointer",
-                border: filterStatus === s ? "1px solid var(--primary)" : "1px solid var(--border)",
-                background: filterStatus === s ? "var(--primary-050)" : "transparent",
-              }}
-              onClick={() => setFilterStatus(filterStatus === s ? null : s)}
-            >
-              <div className="row-between">
-                <span className="tiny fw-600">{LABEL_STATUS[s]}</span>
-                <Badge tone={TONE_STATUS[s]}>{angka(jumlahPerStatus[s] ?? 0)}</Badge>
-              </div>
-            </div>
-          ))}
+        <div className="grid-balanced-4 mt-12">
+          {URUTAN.map((s) => {
+            const aktif = filterStatus === s;
+            const meta = META_STATUS[s];
+            return (
+              <button
+                type="button"
+                key={s}
+                className="card card-flat li-hover"
+                style={{
+                  cursor: "pointer",
+                  textAlign: "left",
+                  padding: "14px 16px",
+                  border: aktif ? `1.5px solid ${meta.color}` : "1px solid var(--border)",
+                  borderTop: `3px solid ${meta.color}`,
+                  background: aktif ? "var(--surface-2)" : "var(--surface)",
+                  display: "grid",
+                  gap: 8,
+                }}
+                onClick={() => setFilterStatus(aktif ? null : s)}
+              >
+                <div className="row-between" style={{ gap: 8 }}>
+                  <span className="tiny fw-600" style={{ color: "var(--text-2)" }}>
+                    {LABEL_STATUS[s]}
+                  </span>
+                  <span
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 8,
+                      background: meta.bg,
+                      color: meta.color,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <Icon name={meta.icon} size={15} />
+                  </span>
+                </div>
+                <div style={{ fontSize: "1.5rem", fontWeight: 700, lineHeight: 1.1 }}>
+                  {angka(jumlahPerStatus[s] ?? 0)}
+                </div>
+                <span className="tiny text-2">
+                  {aktif ? "Filter aktif · klik untuk batal" : "Klik untuk saring"}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -150,7 +238,7 @@ export default function RujukanKelurahanPage() {
           />
         </div>
 
-        {loading ? (
+        {tampilLoading ? (
           <Loading />
         ) : error ? (
           <ErrorState message={error} onRetry={muat} />
@@ -184,13 +272,24 @@ export default function RujukanKelurahanPage() {
                 </span>
                 <div className="li-main">
                   <strong>{r.faskes?.nama ?? "Faskes"}</strong>
-                  <span className="tiny">
+                  <div className="tiny">
                     {r.otomatis ? "Rujukan otomatis sistem" : "Rujukan manual"}
-                    {r.indikator ? ` • ${r.indikator}` : ""}
-                  </span>
-                  <span className="tiny">Dibuat: {tanggal(r.created_at, "short")}</span>
+                    {r.indikator ? ` · ${r.indikator}` : ""}
+                  </div>
+                  <div className="tiny text-2">Dibuat: {tanggal(r.created_at, "short")}</div>
                 </div>
-                <Badge tone={TONE_STATUS[r.status]}>{LABEL_STATUS[r.status]}</Badge>
+                <div className="row gap-8" style={{ alignItems: "center" }}>
+                  <Badge tone={TONE_STATUS[r.status]}>{LABEL_STATUS[r.status]}</Badge>
+                  {opsiLanjut(r.status).length > 0 ? (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline"
+                      onClick={() => bukaModalStatus(r)}
+                    >
+                      Ubah
+                    </button>
+                  ) : null}
+                </div>
               </div>
             ))}
           </div>
@@ -222,19 +321,19 @@ export default function RujukanKelurahanPage() {
           </div>
           <div className="li">
             <div className="li-main">
-              <strong>Tertangani</strong>
+              <strong>Selesai</strong>
               <span className="tiny">Sudah ditindaklanjuti</span>
             </div>
-            <strong>{angka(jumlahPerStatus.tertangani ?? 0)}</strong>
+            <strong>{angka(jumlahPerStatus.selesai ?? 0)}</strong>
           </div>
           <div className="li">
             <div className="li-main">
-              <strong>Persentase Tertangani</strong>
+              <strong>Persentase Selesai</strong>
               <span className="tiny">Dari total rujukan</span>
             </div>
             <strong>
               {daftar.length
-                ? Math.round(((jumlahPerStatus.tertangani ?? 0) / daftar.length) * 100)
+                ? Math.round(((jumlahPerStatus.selesai ?? 0) / daftar.length) * 100)
                 : 0}
               %
             </strong>
@@ -246,6 +345,60 @@ export default function RujukanKelurahanPage() {
         <Icon name="info" size={13} /> Rujukan dimonitor untuk memastikan masyarakat mendapat
         penanganan tepat.
       </p>
+
+      <Modal
+        open={ubahItem !== null}
+        onClose={() => setUbahItem(null)}
+        title="Ubah Status Rujukan"
+        footer={
+          <div className="row-between" style={{ width: "100%" }}>
+            <button type="button" className="btn btn-outline" onClick={() => setUbahItem(null)}>
+              Batal
+            </button>
+            <Button onClick={simpanStatus} loading={menyimpan}>
+              Simpan Status
+            </Button>
+          </div>
+        }
+      >
+        {ubahItem ? (
+          <>
+            <p className="tiny mb-12">{ubahItem.faskes?.nama || "Faskes"}</p>
+            <div>
+              <label className="label" htmlFor="kel-status-baru">
+                Status baru
+              </label>
+              <select
+                id="kel-status-baru"
+                className="select"
+                value={statusBaru}
+                onChange={(e) => setStatusBaru(e.target.value as StatusRujukan)}
+              >
+                {opsiLanjut(ubahItem.status).map((s) => (
+                  <option key={s} value={s}>
+                    {LABEL_STATUS[s]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="mt-12">
+              <label className="label" htmlFor="kel-status-catatan">
+                Catatan {statusBaru === "ditolak" ? "(wajib saat menolak)" : "(opsional)"}
+              </label>
+              <textarea
+                id="kel-status-catatan"
+                className="input"
+                rows={3}
+                maxLength={500}
+                placeholder="Tambahkan catatan tindak lanjut…"
+                value={catatanStatus}
+                onChange={(e) => setCatatanStatus(e.target.value)}
+              />
+            </div>
+            {ubahErr ? <div className="err-msg show mt-8">{ubahErr}</div> : null}
+          </>
+        ) : null}
+      </Modal>
     </AppShell>
   );
 }

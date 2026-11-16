@@ -48,28 +48,34 @@ class DashboardWilayahController extends Controller
         $user = $request->user();
         $this->wajibPeran($user, ['admin_kelurahan', 'super_admin'], 'Akses ditolak');
 
-        // Kunci cakupan wilayah bagi admin kelurahan atau ambil parameter super admin
+        // Kunci cakupan wilayah bagi admin kelurahan atau ambil parameter opsional super admin
+        $wilayahId = null;
+        $wilayahInfo = ['id' => null, 'nama' => 'Semua Kelurahan'];
+
         if ($user->role === 'admin_kelurahan') {
-            $wilayahId = $user->wilayah_id;
+            if (! $user->wilayah_id) {
+                abort(422, 'Akun admin kelurahan belum memiliki wilayah penugasan.');
+            }
+            $wilayahId = (int) $user->wilayah_id;
         } else {
-            $wilayahId = $request->query('wilayah_id');
+            $param = $request->query('wilayah_id');
+            if ($param !== null && $param !== '' && $param !== 'semua') {
+                $wilayahId = (int) $param;
+            }
         }
 
-        if (! $wilayahId) {
-            abort(422, $user->role === 'admin_kelurahan'
-                ? 'Akun admin kelurahan belum memiliki wilayah penugasan.'
-                : 'wilayah_id wajib untuk super_admin');
+        if ($wilayahId !== null) {
+            $wilayah = Wilayah::find($wilayahId);
+            abort_unless($wilayah, 404, 'Wilayah tidak ditemukan');
+            // Pastikan dashboard kelurahan tidak menerima ID wilayah tingkat kecamatan (§9.1)
+            abort_unless($wilayah->tipe === 'kelurahan', 422, 'wilayah_id harus berupa kelurahan.');
+            $wilayahInfo = ['id' => $wilayah->id, 'nama' => $wilayah->nama];
         }
-
-        $wilayah = Wilayah::find($wilayahId);
-        abort_unless($wilayah, 404, 'Wilayah tidak ditemukan');
-        // Pastikan dashboard kelurahan tidak menerima ID wilayah tingkat kecamatan (§9.1)
-        abort_unless($wilayah->tipe === 'kelurahan', 422, 'wilayah_id harus berupa kelurahan.');
 
         [$periode, $tglMulai] = $this->parsePeriode($request->query('periode'));
 
         // Hitung total peserta yang telah menyetujui kebijakan
-        $populasi = Pengguna::where('wilayah_id', $wilayahId)
+        $populasi = Pengguna::when($wilayahId !== null, fn ($q) => $q->where('wilayah_id', $wilayahId))
             ->where('role', 'user')
             ->whereNotNull('consent_at')
             ->where('aktif', true);
@@ -90,7 +96,7 @@ class DashboardWilayahController extends Controller
         $usia    = $this->saringKelompok($this->kelompokUsia($wilayahId));
 
         $rujukan = Rujukan::whereHas('pengguna', fn ($q) => $q
-                ->where('wilayah_id', $wilayahId)
+                ->when($wilayahId !== null, fn ($sub) => $sub->where('wilayah_id', $wilayahId))
                 ->where('role', 'user')
                 ->where('aktif', true)
                 ->whereNotNull('consent_at'))
@@ -111,7 +117,7 @@ class DashboardWilayahController extends Controller
             || $rujukanSaring['disembunyikan'];
 
         return [
-            'wilayah' => ['id' => $wilayah->id, 'nama' => $wilayah->nama],
+            'wilayah' => $wilayahInfo,
             'periode' => $periode,
             'total_peserta'               => $totalPeserta,
             'total_pengguna_aktif'        => $aktifCount,
@@ -132,11 +138,11 @@ class DashboardWilayahController extends Controller
     }
 
     // Hitung sebaran kategori IMT dari catatan terakhir setiap warga yang menyetujui privasi
-    private function distribusiImt(int $wilayahId, $tglMulai): array
+    private function distribusiImt(?int $wilayahId, $tglMulai): array
     {
         $terakhir = DB::table('catatan_kesehatan as ck')
             ->join('pengguna as p', 'ck.user_id', '=', 'p.id')
-            ->where('p.wilayah_id', $wilayahId)
+            ->when($wilayahId !== null, fn ($q) => $q->where('p.wilayah_id', $wilayahId))
             ->where('p.role', 'user')
             ->where('p.aktif', true)
             ->whereNotNull('p.consent_at')
@@ -184,11 +190,11 @@ class DashboardWilayahController extends Controller
     }
 
     // Hitung distribusi faktor riwayat penyakit keluarga
-    private function distribusiRiwayatKeluarga(int $wilayahId): array
+    private function distribusiRiwayatKeluarga(?int $wilayahId): array
     {
         $rows = DB::table('pengguna as p')
             ->join('profil as pr', 'p.id', '=', 'pr.user_id')
-            ->where('p.wilayah_id', $wilayahId)
+            ->when($wilayahId !== null, fn ($q) => $q->where('p.wilayah_id', $wilayahId))
             ->where('p.role', 'user')
             ->where('p.aktif', true)
             ->whereNotNull('p.consent_at')
@@ -218,11 +224,11 @@ class DashboardWilayahController extends Controller
     }
 
     // Hitung sebaran demografi kelompok usia 5 tahunan
-    private function kelompokUsia(int $wilayahId): array
+    private function kelompokUsia(?int $wilayahId): array
     {
         $lahir = DB::table('pengguna as p')
             ->join('profil as pr', 'p.id', '=', 'pr.user_id')
-            ->where('p.wilayah_id', $wilayahId)
+            ->when($wilayahId !== null, fn ($q) => $q->where('p.wilayah_id', $wilayahId))
             ->where('p.role', 'user')
             ->where('p.aktif', true)
             ->whereNotNull('p.consent_at')
@@ -245,11 +251,11 @@ class DashboardWilayahController extends Controller
     }
 
     // Hitung tren jumlah pencatatan kesehatan bulanan di wilayah kelurahan
-    private function tren(int $wilayahId, $tglMulai)
+    private function tren(?int $wilayahId, $tglMulai)
     {
         return DB::table('catatan_kesehatan as ck')
             ->join('pengguna as p', 'ck.user_id', '=', 'p.id')
-            ->where('p.wilayah_id', $wilayahId)
+            ->when($wilayahId !== null, fn ($q) => $q->where('p.wilayah_id', $wilayahId))
             ->where('p.role', 'user')
             ->where('p.aktif', true)
             ->whereNotNull('p.consent_at')

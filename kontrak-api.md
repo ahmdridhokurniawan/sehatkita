@@ -1,6 +1,6 @@
 # Kontrak API — Sistem Monitoring Kesehatan PTM (Skala Kecamatan)
 
-**Versi 1.7.0** · 2026-11-12 · Base URL `http://sehatkita.test/api/v1` · Laravel + Sanctum (token) · FE: SPA/desktop
+**Versi 1.8.4** · 2026-11-15 · Base URL `http://sehatkita.test/api/v1` · Laravel + Sanctum (token) · FE: SPA/desktop
 
 > **Aturan pakai dokumen ini:**
 >
@@ -588,14 +588,14 @@ Insight berbasis aturan (if-then, bukan ML), **dihitung saat dibaca dan tidak me
 
 **Ambang & kategori** — isi tabel `ambang_kategori` (seed awal; admin dapat mengubah, §15). Notasi `[min, max)`: batas bawah termasuk, batas atas tidak, **tanpa celah dan tanpa tumpang tindih**.
 
-> ⚠️ Angka klinis di bawah adalah **asumsi seeder** (mengacu pada klasifikasi umum) dan **wajib divalidasi tenaga kesehatan/pembimbing** sebelum dipakai.
+> Ambang batas mengacu pada pedoman **Kemenkes RI / PERHI** (Permenkes RI No. 41 Tahun 2014 untuk IMT; Permenkes RI No. 71 Tahun 2015 & PERHI untuk skrining PTM).
 
 | Indikator                    | Rentang        | Kategori          | Skor             | `memicu_rujukan` |
 | ---------------------------- | -------------- | ----------------- | ---------------- | ---------------- |
 | `imt` (kg/m²)                | < 18,5         | `kurus`           | 1                | tidak            |
 |                              | \[18,5 ; 25,0) | `normal`          | 0                | tidak            |
-|                              | \[25,0 ; 30,0) | `gemuk`           | 1                | tidak            |
-|                              | ≥ 30,0         | `obesitas`        | 2                | tidak            |
+|                              | \[25,0 ; 27,0) | `gemuk`           | 1                | tidak            |
+|                              | ≥ 27,0         | `obesitas`        | 2                | tidak            |
 | `sistol` (mmHg)              | < 120          | `normal`          | 0                | tidak            |
 |                              | \[120 ; 140)   | `perlu_perhatian` | 1                | tidak            |
 |                              | \[140 ; 180)   | `tinggi`          | 2                | tidak            |
@@ -667,7 +667,7 @@ Log `perlu_verifikasi = true` tidak dipakai. Contoh konsisten dengan §7.2/§8.1
 
 ### 9.1 GET `/dashboard/kelurahan` (admin_kelurahan, super_admin)
 
-**Selalu agregat.** `admin_kelurahan` terkunci ke wilayahnya (`wilayah_id` lain → 404); `super_admin` boleh `?wilayah_id=3`. Query: `?periode=3m&wilayah_id=3`.
+**Selalu agregat.** `admin_kelurahan` terkunci ke wilayahnya (`wilayah_id` lain → 404); `super_admin` boleh memilih `?wilayah_id=3` atau mengosongkannya / `?wilayah_id=semua` untuk agregat seluruh kelurahan (`wilayah: { id: null, nama: "Semua Kelurahan" }`). Query: `?periode=3m&wilayah_id=3`.
 
 **200** `data`:
 
@@ -973,7 +973,7 @@ Modul ini adalah **tantangan/penyuluhan** (mis. push-up) dengan reward EXP, leve
 
 ### 12.1 GET `/program` (auth)
 
-Query: `?status=berjalan&search=`. `status` dihitung dari `mulai`/`selesai`. `diikuti` dan `status_saya` hanya bermakna untuk role `user` (selain itu `false` dan `null`).
+Query: `?status=berjalan&search=`. `status` dihitung dari `mulai`/`selesai`. Urutan default menempatkan program yang belum selesai di atas (`berjalan` → `akan_datang` → `selesai`; bagi role `user`, program yang sudah diselesaikan oleh dirinya ikut turun ke kelompok bawah). `diikuti` dan `status_saya` hanya bermakna untuk role `user` (selain itu `false` dan `null`).
 
 ```json
 [
@@ -998,7 +998,7 @@ Query: `?status=berjalan&search=`. `status` dihitung dari `mulai`/`selesai`. `di
 
 ### 12.2 POST `/program` (admin_kelurahan, super_admin)
 
-Body: `wilayah_id`, `judul`, `jenis`, `kategori_aktivitas`, `target_peserta`, `mulai`, `selesai`, `exp_reward` (default 50), `badge_reward` (opsional).
+Body: `wilayah_id`, `judul` (wajib), `jenis` (`olahraga | edukasi | pemeriksaan | lainnya`), `kategori_aktivitas` (**wajib** saat `jenis: "lainnya"`, maks. 50 karakter; opsional untuk jenis lain), `target_peserta` (opsional), `mulai` (wajib), `selesai` (**wajib**, tenggat >= `mulai`), `exp_reward` (**wajib**, integer `1..10000`), `badge_reward` (opsional).
 - `super_admin`: boleh mengirim `wilayah_id: null` atau `0` untuk program yang berlaku **se-Kota Banjarbaru**.
 - `admin_kelurahan`: otomatis terkunci ke `wilayah_id` kelurahan miliknya.
 **201** objek program.
@@ -1009,7 +1009,7 @@ Detail satu program. Mengembalikan objek program lengkap beserta flag `diikuti` 
 
 ### 12.4 PUT `/program/{id}` (admin_kelurahan, super_admin)
 
-Mengubah data program (judul, kuota, tanggal, exp_reward). `admin_kelurahan` hanya dapat mengubah program milik kelurahannya sendiri. **200** objek program terbaru.
+Mengubah data program (`judul`, `kuota`, `mulai`, `selesai`, `exp_reward`, `kategori_aktivitas`, dll). Aturan konsisten dengan §12.2 (`selesai` dan `exp_reward >= 1` tidak boleh dikosongkan; bila `jenis` menjadi `"lainnya"`, `kategori_aktivitas` wajib terisi). `admin_kelurahan` hanya dapat mengubah program milik kelurahannya sendiri. **200** objek program terbaru.
 
 ### 12.5 DELETE `/program/{id}` (admin_kelurahan, super_admin)
 
@@ -1033,9 +1033,9 @@ Ikut program. **201** `data`: `{"status":"terdaftar"}`. Sudah terdaftar → 422.
 
 ### 12.7b Bukti Foto Dokumentasi Tantangan (`/program/{id}/bukti`)
 
-- **POST `/program/{id}/bukti`** (`user`, multipart `foto` `jpg/jpeg/png/webp` maks. `5 MB`, `catatan_bukti` opsional maks. 500): Mengunggah/mengganti foto dokumentasi misi. Status peserta berubah menjadi `menunggu_verifikasi`. Ditolak **422** bila misi sudah `selesai`.
-- **DELETE `/program/{id}/bukti`** (`user`): Menghapus foto dokumentasi yang sudah diunggah sebelum misi berstatus `selesai`, membersihkan file penyimpanan & catatan verifikasi, dan mengembalikan status peserta ke `terdaftar`. **200** `data`: objek `peserta_saya` terbaru (`bukti_foto_url: null`, `status: "terdaftar"`). Bila misi sudah `selesai` → **422**.
-- **GET `/program/{id}/bukti/{pesertaId}`** (`user` pemilik, `kader`/`admin_kelurahan` wilayah terkait, `super_admin`): Mengambil file foto dokumentasi terautentikasi.
+- **POST `/program/{id}/bukti`** (`user`, multipart `foto` atau `fotos[]` `jpg/jpeg/png/webp` maks. `5 MB`/file, total maks. **5 foto** per peserta, `catatan_bukti` opsional maks. 500): Mengunggah/menambahkan foto dokumentasi misi. Status peserta berubah menjadi `menunggu_verifikasi`. Ditolak **422** bila misi sudah `selesai` atau total foto > 5. Respons mengembalikan `bukti_foto_url` (foto utama) dan `bukti_foto_urls` (`string[]`).
+- **DELETE `/program/{id}/bukti`** (`user`, query opsional `?index=0`): Menghapus satu foto pada indeks tertentu (bila `index` diisi) atau seluruh foto dokumentasi (bila `index` dikosongkan) sebelum misi berstatus `selesai`. Bila seluruh foto habis terhapus, status peserta kembali ke `terdaftar` serta file & catatan verifikasi dibersihkan. Bila misi sudah `selesai` → **422**.
+- **GET `/program/{id}/bukti/{pesertaId}`** (`user` pemilik, `kader`/`admin_kelurahan` wilayah terkait, `super_admin`, query opsional `?index=0`): Mengambil file foto dokumentasi terautentikasi berdasarkan indeks foto.
 
 ### 12.8 GET `/peringkat` (auth)
 
@@ -1196,8 +1196,8 @@ Butuh role `super_admin`.
 | PUT/DELETE | `/admin/indikator/{id}`                     | Ubah / hapus indikator                                                                         |
 | GET/POST   | `/admin/ambang-kategori`                    | Daftar / tambah ambang                                                                         |
 | PUT/DELETE | `/admin/ambang-kategori/{id}`               | Ubah / hapus ambang                                                                            |
-| GET/POST   | `/admin/pengguna`                           | Daftar (filter role) / buat akun kader atau admin kelurahan (`nik`, `name`, `email`)           |
-| PUT        | `/admin/pengguna/{id}`                      | Ubah data/role/wilayah/nik; **mutasi `wilayah_id` otomatis reset `kader_id` ke `null`**        |
+| GET/POST   | `/admin/pengguna`                           | Daftar (filter role) / buat akun pengguna (`name`, `email`; `nik` khusus role `user`)          |
+| PUT        | `/admin/pengguna/{id}`                      | Ubah data/role/wilayah/nik (`nik` otomatis `null` jika non-`user`); **mutasi `wilayah_id` otomatis reset `kader_id` ke `null`** |
 | DELETE     | `/admin/pengguna/{id}`                      | Nonaktifkan: `aktif = false` dan semua token dicabut                                           |
 | GET/POST   | `/admin/faskes`                             | Daftar / tambah faskes (`nama`, `jenis`, `alamat`, `telepon`, `wilayah_id`, `lat`, `lng`)      |
 | PUT/DELETE | `/admin/faskes/{id}`                        | Ubah / hapus faskes (`lat` -90..90, `lng` -180..180 opsional)                                  |
@@ -1413,3 +1413,6 @@ Bagian ini bukan kontrak API.
 | 1.7.1 | 2026-11-14 | **Penyelarasan Kontrak & Penguatan Audit Lintas Role:**<br>**(1)** Enum `faskes.jenis` diselaraskan ke nilai aktual DB & controller (`puskesmas`, `klinik`, `rumah_sakit`, `lainnya`) serta dokumentasi koordinat opsional `lat`/`lng` di `/admin/faskes`.<br>**(2)** Bentuk `ambang_kategori` (§15) menyertakan field aktual `status` (`normal`, `perlu_perhatian`, `berisiko`).<br>**(3)** `GET /posbindu/sesi` bagi `kader` menampilkan sesi wilayah yang ditugaskan kepadanya atau belum bertuan (`kader_id = null`); `cari-nik` dibatasi hanya `kader` (scope binaan) & `super_admin`.<br>**(4)** Response `rujukan` non-`admin_kelurahan` menyertakan objek `user` (`id`, `name`, `nik`) dan menolak transisi keluar dari status final (`tertangani`/`ditolak`); response `program` menyertakan `wilayah_id` serta mengisolasi `admin_kelurahan` pada program kota dan mencegah double-EXP dari status final `selesai`. | BE |
 | 1.8.0 | 2026-11-14 | **Surat Rujukan & Penyelarasan Status Rujukan:**<br>**(1)** Endpoint baru `GET /rujukan/{id}/surat` (§11.4) mengembalikan data terstruktur & HTML cetak A4 Surat Pengantar Rujukan.<br>**(2)** Enum `status_rujukan` diganti dari `tertangani` menjadi `selesai` (`baru`, `dihubungi`, `selesai`, `ditolak`). | BE |
 | 1.8.1 | 2026-11-14 | **Hapus Foto Bukti Tantangan & Perbaikan Penolakan Tanpa Catatan:**<br>**(1)** Endpoint baru `DELETE /program/{id}/bukti` (§12.7b) mengizinkan role `user` menghapus foto dokumentasi sebelum misi berstatus `selesai`.<br>**(2)** `PATCH /program/{id}/peserta` saat status `ditolak` aman menerima payload tanpa `catatan_verifikasi`. | BE |
+| 1.8.2 | 2026-11-14 | **Wajib Reward EXP, Tenggat Selesai, & Kategori Kustom di Program (§12.2 & §12.4):**<br>`POST /program` dan `PUT /program/{id}` mewajibkan `selesai` (`>= mulai`), `exp_reward` (`1..10000`), serta `kategori_aktivitas` apabila `jenis = "lainnya"`. | BE |
+| 1.8.3 | 2026-11-15 | **Pencarian Warga via Nama atau NIK & NIK Khusus Warga:**<br>**(1)** `GET /pengguna/cari-nik` (`kader` & `super_admin`) kini menerima pencarian **nama warga** (min. 2 huruf) maupun **awalan NIK** (min. 3 digit) lewat parameter `nik` atau `q` dengan scope binaan tetap berlaku.<br>**(2)** Master pengguna (`/admin/pengguna`) memastikan kolom `nik` otomatis `null` untuk akun non-`user` (`admin_kelurahan`, `kader`, `super_admin`). | BE |
+| 1.8.4 | 2026-11-15 | **Penyelarasan Ambang IMT ke Standar Resmi Kemenkes RI (Permenkes No. 41 Tahun 2014):**<br>Tabel `ambang_kategori` untuk indikator `imt` (§8.3 & `IndikatorSeeder`) disesuaikan menjadi `< 18,5` (`kurus`), `[18,5 ; 25,0)` (`normal`), `[25,0 ; 27,0)` (`gemuk`), dan `≥ 27,0` (`obesitas`) menggantikan ambang WHO global (`25–30` / `≥ 30`). | BE |

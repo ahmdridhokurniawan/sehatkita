@@ -32,7 +32,7 @@ class PenggunaWilayahSeeder extends Seeder
                 ['email' => "admin.{$slug}@sehatkita.test"],
                 [
                     'name'            => "Admin {$w->nama}",
-                    'nik'             => sprintf('637204100185%04d', $seq),
+                    'nik'             => null,
                     'password'        => $password,
                     'role'            => 'admin_kelurahan',
                     'wilayah_id'      => $w->id,
@@ -47,7 +47,7 @@ class PenggunaWilayahSeeder extends Seeder
                 ['email' => "kader.{$slug}@sehatkita.test"],
                 [
                     'name'            => "Kader {$w->nama}",
-                    'nik'             => sprintf('637204200190%04d', $seq),
+                    'nik'             => null,
                     'password'        => $password,
                     'role'            => 'kader',
                     'wilayah_id'      => $w->id,
@@ -63,7 +63,7 @@ class PenggunaWilayahSeeder extends Seeder
             ['email' => 'superadmin@sehatkita.test'],
             [
                 'name'            => 'Super Admin Dinkes',
-                'nik'             => '6372000101850001',
+                'nik'             => null,
                 'password'        => $password,
                 'role'            => 'super_admin',
                 'wilayah_id'      => null,
@@ -75,17 +75,17 @@ class PenggunaWilayahSeeder extends Seeder
 
         // Kader tambahan di kelurahan padat (untuk demonstrasi penugasan banyak kader di Super Admin)
         $kaderTambahan = [
-            ['Loktabat Utara', 'kader2.loktabatutara@sehatkita.test', 'Kader Posbindu Mawar (LU)', '6372042002920001'],
-            ['Guntung Paikat', 'kader2.guntungpaikat@sehatkita.test', 'Kader Posbindu Melati (GP)', '6372052002930002'],
+            ['Loktabat Utara', 'kader2.loktabatutara@sehatkita.test', 'Kader Posbindu Mawar (LU)'],
+            ['Guntung Paikat', 'kader2.guntungpaikat@sehatkita.test', 'Kader Posbindu Melati (GP)'],
         ];
-        foreach ($kaderTambahan as [$namaKel, $emailKader, $namaKader, $nikKader]) {
+        foreach ($kaderTambahan as [$namaKel, $emailKader, $namaKader]) {
             $wil = $kelurahan->firstWhere('nama', $namaKel);
             if ($wil) {
                 Pengguna::updateOrCreate(
                     ['email' => $emailKader],
                     [
                         'name'            => $namaKader,
-                        'nik'             => $nikKader,
+                        'nik'             => null,
                         'password'        => $password,
                         'role'            => 'kader',
                         'wilayah_id'      => $wil->id,

@@ -51,6 +51,7 @@ import type {
   Rujukan,
   RujukanInput,
   RujukanQuery,
+  SuratRujukan,
   SesiPosbindu,
   SesiPosbinduDetail,
   SesiPosbinduInput,
@@ -104,6 +105,7 @@ export function clearToken(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem("sehatkita_user_snapshot");
 }
 /* ============================================================
  * Error khusus API
@@ -286,6 +288,7 @@ export const auth = {
   /** §4.1 POST /auth/register */
   register: (payload: {
     name: string;
+    nik?: string;
     email: string;
     password: string;
     password_confirmation: string;
@@ -295,7 +298,25 @@ export const auth = {
   login: (payload: { email: string; password: string; device_name?: string }) =>
     request<AuthData>("/auth/login", { method: "POST", body: payload, auth: false }),
   /** §4.3 POST /auth/logout */
-  logout: () => request<null>("/auth/logout", { method: "POST" }),
+  logout: async () => {
+    const token = getToken();
+    // Bersihkan token lokal seketika agar pengguna tidak terlihat masih masuk
+    // apabila server lambat merespons atau navigasi langsung terjadi.
+    clearToken();
+    if (!token) return null;
+    try {
+      await kirim(buildUrl("/auth/logout"), {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+    } catch {
+      // Sesi lokal sudah dibersihkan meski server gagal / token sudah mati.
+    }
+    return null;
+  },
   /** §4.4 GET /auth/me */
   me: () => request<User>("/auth/me"),
 };
@@ -418,12 +439,12 @@ export const posbindu = {
     request<KunjunganPosbindu[]>("/posbindu/kunjungan", { query }),
 };
 /* ============================================================
- * §23 — Pencarian warga (petugas) — autocomplete NIK
+ * §23 — Pencarian warga (petugas) — autocomplete nama / NIK
  * ============================================================ */
 export const pengguna = {
   /**
-   * GET /pengguna/cari-nik?nik=xxx (kader / admin_kelurahan / super_admin)
-   * Minimal 3 digit NIK. Hasil maksimal 10, hanya yang punya NIK.
+   * GET /pengguna/cari-nik?nik=xxx (kader / super_admin)
+   * Mendukung pencarian nama warga (min. 2 huruf) atau awalan NIK (min. 3 digit). Hasil maksimal 10.
    */
   cariNik: (nik: string) => request<WargaCari[]>("/pengguna/cari-nik", { query: { nik } }),
 };
@@ -438,6 +459,8 @@ export const rujukan = {
   /** §11.3 PATCH status */
   updateStatus: (id: number, payload: { status: string; catatan?: string }) =>
     request<Rujukan>(`/rujukan/${id}/status`, { method: "PATCH", body: payload }),
+  /** §11.4 GET surat pengantar rujukan */
+  surat: (id: number) => request<SuratRujukan>(`/rujukan/${id}/surat`),
 };
 /* ============================================================
  * §12.6 — Notifikasi Telegram
@@ -465,6 +488,11 @@ export const program = {
   detail: (id: number) => request<Program>(`/program/${id}`),
   /** §12.2 POST (admin_kelurahan / super_admin) */
   create: (payload: ProgramInput) => request<Program>("/program", { method: "POST", body: payload }),
+  /** §12.2 PUT/PATCH (admin_kelurahan / super_admin) */
+  update: (id: number, payload: Partial<ProgramInput> & { status?: string }) =>
+    request<Program>(`/program/${id}`, { method: "PUT", body: payload }),
+  /** §12.2 DELETE (admin_kelurahan / super_admin) */
+  hapus: (id: number) => request<null>(`/program/${id}`, { method: "DELETE" }),
   /** §12.3 POST peserta (user ikut program) */
   ikut: (id: number) =>
     request<{ status: string }>(`/program/${id}/peserta`, { method: "POST" }),
@@ -474,6 +502,12 @@ export const program = {
   /** Unggah foto dokumentasi penyelesaian misi tantangan */
   kirimBukti: (id: number, payload: FormData) =>
     request<PesertaSaya>(`/program/${id}/bukti`, { method: "POST", body: payload }),
+  /** Hapus foto dokumentasi tantangan milik warga sebelum diverifikasi selesai */
+  hapusBukti: (id: number, index?: number) =>
+    request<PesertaSaya>(
+      index !== undefined ? `/program/${id}/bukti?index=${index}` : `/program/${id}/bukti`,
+      { method: "DELETE" },
+    ),
   /** §12.6 GET daftar peserta  */
   peserta: (id: number) =>
     request<PesertaProgram[]>(`/program/${id}/peserta`),
@@ -539,7 +573,10 @@ export const laporan = {
  * ============================================================ */
 export const admin = {
   indikator: {
-    list: (query?: { search?: string }) => request<Indikator[]>("/admin/indikator", { query }),
+    list: (query?: { search?: string; page?: number; per_page?: number }) =>
+      request<Indikator[]>("/admin/indikator", { query }),
+    listPaged: (query?: { search?: string; page?: number; per_page?: number }) =>
+      requestPaged<Indikator>("/admin/indikator", { query }),
     create: (payload: Partial<Indikator>) =>
       request<Indikator>("/admin/indikator", { method: "POST", body: payload }),
     update: (id: number, payload: Partial<Indikator>) =>
@@ -547,8 +584,10 @@ export const admin = {
     hapus: (id: number) => request<null>(`/admin/indikator/${id}`, { method: "DELETE" }),
   },
   ambangKategori: {
-    list: (query?: { search?: string }) =>
+    list: (query?: { search?: string; page?: number; per_page?: number; kode?: string; indikator_id?: number }) =>
       request<AmbangKategori[]>("/admin/ambang-kategori", { query }),
+    listPaged: (query?: { search?: string; page?: number; per_page?: number; kode?: string; indikator_id?: number }) =>
+      requestPaged<AmbangKategori>("/admin/ambang-kategori", { query }),
     create: (payload: Partial<AmbangKategori>) =>
       request<AmbangKategori>("/admin/ambang-kategori", { method: "POST", body: payload }),
     update: (id: number, payload: Partial<AmbangKategori>) =>
@@ -556,8 +595,10 @@ export const admin = {
     hapus: (id: number) => request<null>(`/admin/ambang-kategori/${id}`, { method: "DELETE" }),
   },
   pengguna: {
-    list: (query?: { role?: string; search?: string }) =>
+    list: (query?: { role?: string; wilayah_id?: number; search?: string; page?: number; per_page?: number }) =>
       request<AdminPengguna[]>("/admin/pengguna", { query }),
+    listPaged: (query?: { role?: string; wilayah_id?: number; search?: string; page?: number; per_page?: number }) =>
+      requestPaged<AdminPengguna>("/admin/pengguna", { query }),
     create: (payload: AdminPenggunaInput) =>
       request<AdminPengguna>("/admin/pengguna", { method: "POST", body: payload }),
     update: (id: number, payload: Partial<AdminPenggunaInput>) =>
@@ -566,7 +607,10 @@ export const admin = {
     riwayatWilayah: (id: number) => request<RiwayatWilayah[]>(`/admin/pengguna/${id}/riwayat-wilayah`),
   },
   faskes: {
-    list: (query?: { search?: string }) => request<Faskes[]>("/admin/faskes", { query }),
+    list: (query?: { search?: string; jenis?: string; wilayah_id?: number; page?: number; per_page?: number }) =>
+      request<Faskes[]>("/admin/faskes", { query }),
+    listPaged: (query?: { search?: string; jenis?: string; wilayah_id?: number; page?: number; per_page?: number }) =>
+      requestPaged<Faskes>("/admin/faskes", { query }),
     create: (payload: Partial<Faskes>) =>
       request<Faskes>("/admin/faskes", { method: "POST", body: payload }),
     update: (id: number, payload: Partial<Faskes>) =>
@@ -574,7 +618,10 @@ export const admin = {
     hapus: (id: number) => request<null>(`/admin/faskes/${id}`, { method: "DELETE" }),
   },
   logAudit: {
-    list: (query?: { search?: string }) => request<LogAudit[]>("/admin/log-audit", { query }),
+    list: (query?: { search?: string; aksi?: string; page?: number; per_page?: number }) =>
+      request<LogAudit[]>("/admin/log-audit", { query }),
+    listPaged: (query?: { search?: string; aksi?: string; page?: number; per_page?: number }) =>
+      requestPaged<LogAudit>("/admin/log-audit", { query }),
   },
   statistik: () => request<AdminStatistik>("/admin/statistik"),
   /** §S3 — unduh CSV stream. Mengembalikan Blob untuk di-download. */

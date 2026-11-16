@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useUser } from "@/hooks/useUser";
+import AppShell from "@/components/app/AppShell";
 import { EmptyState } from "@/components/ui/Empty";
 import DashboardUser from "@/components/dashboard/DashboardUser";
 import DashboardKader from "@/components/dashboard/DashboardKader";
@@ -21,9 +22,9 @@ export default function DashboardPage() {
     }
   }, [user, loading, router]);
 
-  // Masih memuat data user
+  // Masih memuat data user — sidebar tetap tampil, loading hanya di area konten AppShell
   if (loading || !user) {
-    return <EmptyState title="Memuat..." desc="Mohon tunggu..." />;
+    return <AppShell noFab>{null}</AppShell>;
   }
 
   // Render dashboard sesuai role

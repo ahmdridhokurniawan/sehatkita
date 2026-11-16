@@ -88,8 +88,8 @@ export const LABEL_INDIKATOR: Record<string, string> = {
 /** Tulisan untuk status rujukan (§11) */
 export const LABEL_STATUS_RUJUKAN: Record<StatusRujukan, string> = {
   baru: "Baru",
-  dihubungi: "Dihubungi",
-  tertangani: "Tertangani",
+  dihubungi: "Diproses",
+  selesai: "Selesai",
   ditolak: "Ditolak",
 };
 
@@ -151,3 +151,64 @@ export const LABEL_JENIS_TARGET: Record<string, string> = {
   aktivitas: "Aktivitas",
   lainnya: "Lainnya",
 };
+
+/** Satuan baku untuk setiap jenis target kesehatan (kosong jika "lainnya" agar bisa diketik bebas). */
+export const SATUAN_JENIS_TARGET: Record<string, string> = {
+  berat_badan: "kg",
+  tinggi_badan: "cm",
+  massa_otot: "kg",
+  lingkar_perut: "cm",
+  air_minum: "ml",
+  aktivitas: "kali",
+  lainnya: "",
+};
+
+const LABEL_JENIS_TAMBAHAN: Record<string, string> = {
+  tekanan_darah: "Tekanan darah",
+  gula_darah: "Gula darah",
+  kolesterol: "Kolesterol",
+  asam_urat: "Asam urat",
+};
+
+/** Terjemahkan kode jenis target menjadi label terbaca. */
+export function labelJenisTarget(kode: string): string {
+  return (
+    LABEL_JENIS_TARGET[kode] ||
+    LABEL_JENIS_TAMBAHAN[kode] ||
+    kode.replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase())
+  );
+}
+
+/** Label peran pengguna untuk ditampilkan pada UI profil & topbar. */
+export const LABEL_ROLE: Record<string, string> = {
+  user: "Peserta Warga",
+  kader: "Kader Posbindu",
+  admin_kelurahan: "Admin Kelurahan",
+  super_admin: "Super Admin Kota",
+};
+
+const LABEL_KATEGORI_MAP: Record<string, string> = {
+  kurus: "Kurus",
+  normal: "Normal",
+  gemuk: "Gemuk",
+  obesitas: "Obesitas",
+  perlu_perhatian: "Perlu Perhatian",
+  prehipertensi: "Prehipertensi",
+  tinggi: "Tinggi",
+  krisis: "Krisis",
+  prediabetes: "Prediabetes",
+  diabetes: "Diabetes",
+  berisiko: "Berisiko",
+  hipertensi_derajat_1: "Hipertensi Derajat 1",
+  hipertensi_derajat_2: "Hipertensi Derajat 2",
+};
+
+/** Terjemahkan kode kategori hasil hitung server (snake_case) menjadi label terbaca. */
+export function labelKategoriIndikator(kode?: string | null): string {
+  if (!kode) return "";
+  const kunci = kode.toLowerCase();
+  if (LABEL_KATEGORI_MAP[kunci]) return LABEL_KATEGORI_MAP[kunci];
+  return kode
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}

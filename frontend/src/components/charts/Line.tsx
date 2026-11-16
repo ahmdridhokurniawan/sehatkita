@@ -85,7 +85,14 @@ export default function Line({ labels, series, unit = "", yDecimals = 0, height 
   const skip = Math.ceil(labels.length / 7) || 1;
   const xLabel = labels.map((lb, i) =>
     i % skip !== 0 && i !== labels.length - 1 ? null : (
-      <text key={`x${i}`} x={X(i)} y={height - 12} textAnchor="middle" fontSize={11} fill="var(--text-2)">
+      <text
+        key={`x${i}`}
+        x={X(i)}
+        y={height - 12}
+        textAnchor={i === 0 ? "start" : i === labels.length - 1 ? "end" : "middle"}
+        fontSize={11}
+        fill="var(--text-2)"
+      >
         {lb}
       </text>
     ),

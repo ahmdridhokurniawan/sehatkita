@@ -1,4 +1,4 @@
-import { clearToken, getToken, setToken } from "./api";
+import { auth, clearToken, getToken, setToken } from "./api";
 
 describe("api token storage", () => {
   beforeEach(() => {
@@ -34,6 +34,15 @@ describe("api token storage", () => {
 
     expect(localStorage.getItem("sehatkita_token")).toBeNull();
     expect(sessionStorage.getItem("sehatkita_token")).toBeNull();
+    expect(getToken()).toBeNull();
+  });
+
+  it("auth.logout menghapus token lokal seketika", async () => {
+    setToken("active-token");
+    global.fetch = jest.fn().mockResolvedValueOnce({ ok: true, status: 204 });
+
+    await auth.logout();
+
     expect(getToken()).toBeNull();
   });
 });

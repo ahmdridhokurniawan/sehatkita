@@ -145,13 +145,34 @@ class DashboardWilayahTest extends TestCase
         $this->assertSame(0, $data['total_peserta']);
     }
 
-    public function test_super_admin_wajib_sebut_wilayah(): void
+    public function test_super_admin_dapat_agregat_semua_kelurahan(): void
     {
-        $admin = $this->pengguna('super_admin');
+        $lain = Wilayah::create([
+            'kode' => '63.72.04.1001',
+            'nama' => 'Loktabat Utara',
+            'tipe' => 'kelurahan',
+        ]);
 
-        $this->asUser($admin)
+        $admin = $this->pengguna('super_admin', ['wilayah_id' => null]);
+        $this->wargaDenganProfil(now()->subYears(30)->toDateString());
+        $this->pengguna('user', ['wilayah_id' => $lain->id]);
+
+        $dataDashboard = $this->asUser($admin)
             ->getJson('/api/v1/dashboard/kelurahan')
-            ->assertStatus(422);
+            ->assertOk()
+            ->json('data');
+
+        $this->assertNull($dataDashboard['wilayah']['id']);
+        $this->assertSame('Semua Kelurahan', $dataDashboard['wilayah']['nama']);
+        $this->assertSame(2, $dataDashboard['total_peserta']);
+
+        $dataLaporan = $this->asUser($admin)
+            ->getJson('/api/v1/laporan/kelurahan?wilayah_id=semua')
+            ->assertOk()
+            ->json('data');
+
+        $this->assertSame(2, $dataLaporan['total_peserta']);
+        $this->assertArrayHasKey('disclaimer', $dataLaporan);
     }
 
     public function test_kader_tidak_boleh_dashboard_kelurahan(): void

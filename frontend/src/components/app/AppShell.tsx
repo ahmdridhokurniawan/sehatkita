@@ -1,20 +1,166 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
 import { BrandLockup } from "@/components/ui/BrandLogo";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import Modal from "@/components/ui/Modal";
+import { GlassyDashboardSkeleton } from "@/components/dashboard/GlassyWidgets";
 import { useUser, clearUserCache } from "@/hooks/useUser";
 import { auth as authApi, clearToken } from "@/lib/api";
 import { inisial } from "@/lib/format";
+import type { User } from "@/types";
 
-type NavItem = { href: string; icon: string; label: string; short?: string };
+type NavItem = { href: string; icon: string; label: string; short?: string; desc: string };
+
+type SidebarPreview = {
+  id: string;
+  label: string;
+  desc: string;
+  icon: string;
+  aktif?: boolean;
+  path: string;
+  x: number;
+  y: number;
+};
+
+type ShellMeta = {
+  active: boolean;
+  noFab: boolean;
+  hasFab: boolean;
+  rolesKey: string;
+};
+
+const DEFAULT_SHELL_META: ShellMeta = {
+  active: false,
+  noFab: false,
+  hasFab: false,
+  rolesKey: "",
+};
+
+const APP_ROUTE_PREFIXES = [
+  "/dashboard",
+  "/rekam-medis",
+  "/target-kesehatan",
+  "/program",
+  "/peringkat",
+  "/insight",
+  "/pengaduan",
+  "/laporan",
+  "/posbindu",
+  "/rujukan",
+  "/profil",
+  "/setelan",
+  "/admin",
+  "/unauthorized",
+];
+
+function apakahRuteApp(pathname: string): boolean {
+  if (!pathname) return false;
+  return APP_ROUTE_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
+/* ------------------------------------------------------------
+ * Store eksternal frame shell (tanpa setState di dalam effect):
+ * Halaman di dalam AppFrameProvider mendaftarkan opsi FAB & guard peran
+ * sehingga sidebar + topbar tetap terpisah section dan tidak ikut reload.
+ * ------------------------------------------------------------ */
+let shellMetaState: ShellMeta = DEFAULT_SHELL_META;
+let shellOwnerId: string | null = null;
+let shellFabHandler: (() => void) | undefined;
+const shellListeners = new Set<() => void>();
+
+function beritahuShell(): void {
+  shellListeners.forEach((cb) => cb());
+}
+
+function langgananShellFrame(cb: () => void): () => void {
+  shellListeners.add(cb);
+  return () => {
+    shellListeners.delete(cb);
+  };
+}
+
+function bacaShellFrame(): ShellMeta {
+  return shellMetaState;
+}
+
+function getServerShellFrame(): ShellMeta {
+  return DEFAULT_SHELL_META;
+}
+
+function aturShellFrame(ownerId: string, next: ShellMeta, onFab?: () => void): void {
+  shellOwnerId = ownerId;
+  shellFabHandler = onFab;
+  if (
+    shellMetaState.active === next.active &&
+    shellMetaState.noFab === next.noFab &&
+    shellMetaState.hasFab === next.hasFab &&
+    shellMetaState.rolesKey === next.rolesKey
+  ) {
+    return;
+  }
+  shellMetaState = next;
+  beritahuShell();
+}
+
+function lepasShellFrame(ownerId: string): void {
+  if (shellOwnerId !== ownerId) return;
+  shellOwnerId = null;
+  shellFabHandler = undefined;
+  if (!shellMetaState.active) return;
+  shellMetaState = DEFAULT_SHELL_META;
+  beritahuShell();
+}
+
+const AppFrameContext = createContext(false);
 
 const SIDEBAR_KEY = "sehatkita_sidebar_collapsed";
 const SIDEBAR_EVENT = "sehatkita-sidebar-toggle";
+const SIDEBAR_SCROLL_KEY = "sehatkita_sidebar_scroll";
+const SASIRANGAN_CYCLE_MS = 26000;
+let sidebarScrollMem = 0;
+let sasiranganEpoch = 0;
+let previewTimerId: number | null = null;
+
+function bacaScrollSidebar(): number {
+  if (typeof window === "undefined") return 0;
+  try {
+    const raw = window.sessionStorage.getItem(SIDEBAR_SCROLL_KEY);
+    if (raw !== null) {
+      const n = Number(raw);
+      if (Number.isFinite(n) && n >= 0) return n;
+    }
+  } catch {
+    // abaikan jika sessionStorage tidak tersedia
+  }
+  return sidebarScrollMem;
+}
+
+function simpanScrollSidebar(top: number): void {
+  const aman = Math.max(0, Math.round(top));
+  sidebarScrollMem = aman;
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(SIDEBAR_SCROLL_KEY, String(aman));
+  } catch {
+    // abaikan jika sessionStorage tidak tersedia
+  }
+}
 
 function bacaSidebarCiut(): boolean {
   if (typeof window === "undefined") return false;
@@ -39,57 +185,184 @@ function langgananSidebar(cb: () => void): () => void {
 }
 
 const NAV_UTAMA: NavItem[] = [
-  { href: "/dashboard", icon: "home", label: "Beranda" },
-  { href: "/rekam-medis", icon: "clipboard", label: "Rekam Medis", short: "Rekam" },
-  { href: "/target-kesehatan", icon: "target", label: "Target Kesehatan", short: "Target" },
-  { href: "/kalkulator", icon: "calculator", label: "Kalkulator", short: "Hitung" },
-  { href: "/program", icon: "award", label: "Tantangan" },
-  { href: "/peringkat", icon: "trophy", label: "Peringkat" },
-  { href: "/insight", icon: "zap", label: "History" },
-  { href: "/insight/panduan", icon: "file-text", label: "Panduan" },
-  { href: "/pengaduan", icon: "alert-circle", label: "Pengaduan" },
+  { href: "/dashboard", icon: "home", label: "Beranda", desc: "Ringkasan kondisi PTM, skor kesehatan & statistik utama" },
+  { href: "/rekam-medis", icon: "clipboard", label: "Rekam Medis", short: "Rekam", desc: "Riwayat pengukuran tensi, gula darah, IMT & grafik tren" },
+  { href: "/target-kesehatan", icon: "target", label: "Target Kesehatan", short: "Target", desc: "Atur target kesehatan harian & pantau capaian Anda" },
+  { href: "/kalkulator?app=1", icon: "calculator", label: "Kalkulator", desc: "Hitung IMT, estimasi risiko PTM & cek status instan" },
+  { href: "/program", icon: "award", label: "Tantangan", desc: "Program tantangan hidup sehat untuk mengumpulkan poin" },
+  { href: "/peringkat", icon: "trophy", label: "Peringkat", desc: "Papan peringkat warga aktif & capaian poin kesehatan" },
+  { href: "/insight", icon: "zap", label: "Peringatan Dini", short: "Peringatan", desc: "Peringatan dini kondisi risiko & saran tindak lanjut personal" },
+  { href: "/insight/panduan", icon: "file-text", label: "Panduan", desc: "Panduan ambang batas indikator PTM & edukasi kesehatan" },
+  { href: "/pengaduan", icon: "alert-circle", label: "Pengaduan", desc: "Kirim laporan kendala, saran atau pengaduan layanan" },
 ];
 
 const NAV_DATA: NavItem[] = [
-  { href: "/laporan", icon: "bar-chart", label: "Laporan" },
-  { href: "/posbindu", icon: "activity", label: "Posbindu" },
-  { href: "/rujukan", icon: "send", label: "Rujukan" },
+  { href: "/laporan", icon: "bar-chart", label: "Laporan", desc: "Rekapitulasi cakupan skrining & laporan data PTM wilayah" },
+  { href: "/posbindu", icon: "activity", label: "Posbindu", desc: "Jadwal kegiatan Posbindu & pencatatan pemeriksaan warga" },
+  { href: "/rujukan", icon: "send", label: "Rujukan", desc: "Kelola tindak lanjut & rujukan kasus berisiko tinggi" },
 ];
 
-const NAV_AKUN: NavItem[] = [{ href: "/profil", icon: "user", label: "Profil" }];
+const NAV_AKUN: NavItem[] = [
+  { href: "/profil", icon: "user", label: "Profil", desc: "Kelola data diri, riwayat keluarga & pengaturan akun" },
+];
 
-const NAV_ADMIN: NavItem[] = [{ href: "/admin", icon: "shield", label: "Admin" }];
+const NAV_ADMIN: NavItem[] = [
+  { href: "/admin", icon: "shield", label: "Admin", desc: "Panel administrasi pengguna, wilayah & ambang indikator" },
+];
 
-type Props = {
+type AmbientKind = "pulse" | "shield" | "sasirangan";
+
+const AMBIENT_MOTIFS: { kind: AmbientKind; left: string; size: number; duration: string; delay: string }[] = [
+  { kind: "pulse", left: "8%", size: 96, duration: "42s", delay: "0s" },
+  { kind: "sasirangan", left: "23%", size: 74, duration: "54s", delay: "-14s" },
+  { kind: "shield", left: "40%", size: 108, duration: "48s", delay: "-30s" },
+  { kind: "pulse", left: "60%", size: 82, duration: "58s", delay: "-20s" },
+  { kind: "sasirangan", left: "76%", size: 98, duration: "45s", delay: "-36s" },
+  { kind: "shield", left: "89%", size: 68, duration: "52s", delay: "-9s" },
+];
+
+function AmbientMotif({ kind }: { kind: AmbientKind }) {
+  if (kind === "pulse") {
+    return (
+      <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <path
+          d="M32 52C32 52 10 38.5 10 22.8C10 15.6 15.6 10 22.5 10C26.7 10 30.4 12.1 32 15.3C33.6 12.1 37.3 10 41.5 10C48.4 10 54 15.6 54 22.8C54 38.5 32 52 32 52Z"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M17 29H24L27.5 21L31.5 36L35.5 25L38.5 29H47"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+  if (kind === "shield") {
+    return (
+      <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <path
+          d="M32 7L51 13.8V30.4C51 43.2 42.4 51.8 32 56.5C21.6 51.8 13 43.2 13 30.4V13.8L32 7Z"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M32 22V39M23.5 30.5H40.5"
+          stroke="currentColor"
+          strokeWidth="2.6"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+      <circle cx="32" cy="32" r="22" stroke="currentColor" strokeWidth="2.2" />
+      <path
+        d="M16 33H24L28 23L33 41L37.5 28L41 33H48"
+        stroke="currentColor"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+type FrameProps = {
   children: React.ReactNode;
-  /** Sapaan di topbar, mis. "Halo" */
-  greet?: string;
-  /** Sembunyikan tombol FAB */
+  user: User | null;
+  loading: boolean;
   noFab?: boolean;
-  /** Aksi tombol FAB */
   onFab?: () => void;
-  /** Batasi halaman ke role tertentu; role lain diarahkan ke /unauthorized */
   roles?: string[];
 };
 
-/**
- * Shell aplikasi — sidebar (desktop), drawer + bottom nav (mobile).
- * Navigasi dikelompokkan supaya tombol tidak menumpuk.
- */
-export default function AppShell({ children, noFab, onFab, roles }: Props) {
+function AppFrameView({ children, user, loading, noFab, onFab, roles }: FrameProps) {
   const router = useRouter();
-  const pathname = usePathname();
-  const { user, loading } = useUser();
+  const pathname = usePathname() || "";
   const [keluar, setKeluar] = useState(false);
   const [konfirmasiKeluar, setKonfirmasiKeluar] = useState(false);
   const [drawerPath, setDrawerPath] = useState<string | null>(null);
+  const [cariMenu, setCariMenu] = useState("");
+  const [cariFokus, setCariFokus] = useState(false);
+  const [pendingHref, setPendingHref] = useState<{ from: string; to: string } | null>(null);
+  const [preview, setPreview] = useState<SidebarPreview | null>(null);
+  const sidebarRef = useRef<HTMLElement | null>(null);
+  const appBodyRef = useRef<HTMLElement | null>(null);
+  const sidebarNavRef = useRef<HTMLElement | null>(null);
+
+  const aturSidebarNavRef = useCallback((el: HTMLElement | null) => {
+    sidebarNavRef.current = el;
+    if (el) {
+      const tersimpan = bacaScrollSidebar();
+      if (tersimpan > 0) el.scrollTop = tersimpan;
+    }
+  }, []);
+
   const drawer = drawerPath === pathname;
+  const targetPending = pendingHref && pendingHref.from === pathname ? pendingHref.to : null;
   const ciut = useSyncExternalStore(langgananSidebar, bacaSidebarCiut, () => false);
+  const tampilPreview = ciut && preview && preview.path === pathname ? preview : null;
+
+  const tutupPreview = useCallback(() => {
+    if (previewTimerId !== null) {
+      window.clearTimeout(previewTimerId);
+      previewTimerId = null;
+    }
+    setPreview(null);
+  }, []);
+
+  const jadwalPreview = useCallback(
+    (el: HTMLElement, item: { id: string; label: string; desc: string; icon: string; aktif?: boolean }) => {
+      if (!ciut || typeof window === "undefined" || window.innerWidth <= 980) return;
+      if (previewTimerId !== null) {
+        window.clearTimeout(previewTimerId);
+      }
+      const rect = el.getBoundingClientRect();
+      const x = Math.round(rect.right + 12);
+      const y = Math.round(Math.max(54, Math.min(window.innerHeight - 54, rect.top + rect.height / 2)));
+      const jedaMs = preview ? 95 : 320;
+      previewTimerId = window.setTimeout(() => {
+        setPreview({
+          ...item,
+          path: pathname,
+          x,
+          y,
+        });
+        previewTimerId = null;
+      }, jedaMs);
+    },
+    [ciut, pathname, preview],
+  );
+
+  useEffect(() => {
+    return () => {
+      if (previewTimerId !== null) {
+        window.clearTimeout(previewTimerId);
+        previewTimerId = null;
+      }
+    };
+  }, []);
+
+  useLayoutEffect(() => {
+    const el = sidebarRef.current;
+    if (!el) return;
+    if (!sasiranganEpoch) sasiranganEpoch = Date.now();
+    const offsetMs = (Date.now() - sasiranganEpoch) % SASIRANGAN_CYCLE_MS;
+    el.style.setProperty("--sasirangan-delay", `-${offsetMs}ms`);
+  }, []);
 
   async function handleLogout() {
     setKeluar(true);
+    const logoutReq = authApi.logout();
+    clearUserCache();
     try {
-      await authApi.logout();
+      await logoutReq;
     } catch {
       // token mungkin sudah mati — tetap bersihkan lokal
     } finally {
@@ -98,87 +371,255 @@ export default function AppShell({ children, noFab, onFab, roles }: Props) {
       router.replace("/login");
     }
   }
+
   useEffect(() => {
     if (!loading && !user) router.replace("/login");
   }, [loading, user, router]);
 
-  const roleTidakCocok = Boolean(roles && user && !roles.includes(user.role));
+  const roleTidakCocok = Boolean(roles && roles.length > 0 && user && !roles.includes(user.role));
 
   useEffect(() => {
     if (roleTidakCocok) router.replace("/unauthorized");
   }, [roleTidakCocok, router]);
 
-  const nama = user?.name || "Pengguna";
+  const nama = user?.name || (loading ? "" : "Pengguna");
   const wilayah = user?.wilayah?.nama || "";
   const role = user?.role || "";
 
-  // Susun menu sesuai peran
+  useEffect(() => {
+    const nav = sidebarNavRef.current;
+    if (!nav) return;
+    const tersimpan = bacaScrollSidebar();
+    if (tersimpan > 0) {
+      nav.scrollTop = tersimpan;
+      return;
+    }
+    const aktifEl = nav.querySelector<HTMLElement>(".snav.active");
+    aktifEl?.scrollIntoView({ block: "nearest" });
+  }, [pathname, role, loading, ciut]);
+
+  // Susun menu secara eksplisit per role; jika role belum diketahui (SSR/cold boot),
+  // tampilkan placeholder netral agar sidebar tidak berkedip ke menu role default.
   const grup: { judul: string; items: NavItem[] }[] = [];
   if (role === "super_admin") {
-    grup.push({ judul: "Menu", items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[2], NAV_UTAMA[3], NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[6]] });
+    grup.push({
+      judul: "Menu",
+      items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[3], NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[7]],
+    });
     grup.push({ judul: "Data & Laporan", items: [NAV_DATA[0], NAV_DATA[1], NAV_DATA[2]] });
-    grup.push({ judul: "Administrasi", items: NAV_ADMIN });
+    grup.push({
+      judul: "Administrasi",
+      items: [
+        ...NAV_ADMIN,
+        {
+          href: "/admin/pengaduan",
+          icon: "alert-circle",
+          label: "Pengaduan",
+          desc: "Tinjau & tindak lanjuti laporan pengaduan warga",
+        },
+      ],
+    });
     grup.push({ judul: "Akun", items: NAV_AKUN });
   } else if (role === "admin_kelurahan") {
-    // Admin kelurahan tidak boleh lihat rekam medis individual (privasi, backend 403).
-    // Hanya dashboard + konten agregat.
-    grup.push({ judul: "Menu", items: [NAV_UTAMA[0], NAV_UTAMA[2], NAV_UTAMA[3], NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[6]] });
-    grup.push({ judul: "Data & Laporan", items: [NAV_DATA[0], NAV_DATA[1], NAV_DATA[2]] });
-    grup.push({ judul: "Layanan", items: [{ href: "/admin/pengaduan", icon: "alert-circle", label: "Pengaduan" }] });
+    grup.push({
+      judul: "Menu",
+      items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[3], NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[7]],
+    });
+    grup.push({
+      judul: "Data & Laporan",
+      items: [
+        NAV_DATA[0],
+        NAV_DATA[1],
+        {
+          href: "/rujukan/kelurahan",
+          icon: "send",
+          label: "Rujukan",
+          desc: "Pantau daftar rujukan PTM wilayah kelurahan (identitas warga disamarkan)",
+        },
+      ],
+    });
+    grup.push({
+      judul: "Layanan",
+      items: [
+        {
+          href: "/admin/pengaduan",
+          icon: "alert-circle",
+          label: "Pengaduan",
+          desc: "Tinjau & tindak lanjuti pengaduan layanan warga",
+        },
+      ],
+    });
     grup.push({ judul: "Akun", items: NAV_AKUN });
   } else if (role === "kader") {
-    grup.push({ judul: "Menu", items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[2], NAV_UTAMA[3], NAV_UTAMA[4]] });
+    grup.push({
+      judul: "Menu",
+      items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[3], NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[7]],
+    });
     grup.push({ judul: "Data & Laporan", items: [NAV_DATA[1], NAV_DATA[2]] });
     grup.push({ judul: "Akun", items: NAV_AKUN });
-  } else {
-    grup.push({ judul: "Menu", items: NAV_UTAMA });
+  } else if (role === "user") {
+    grup.push({ judul: "Menu", items: [...NAV_UTAMA, NAV_DATA[2]] });
     grup.push({ judul: "Akun", items: NAV_AKUN });
   }
 
-  // Nav bawah hanya 4 item paling penting (mobile)
-  const navBawah = grup[0].items.slice(0, 3).concat(grup[grup.length - 1].items[0]);
+  const navBawah =
+    grup.length >= 2
+      ? grup[0].items.slice(0, 3).concat(grup[grup.length - 1].items[0])
+      : [];
+  const semuaMenu = grup.flatMap((g) => g.items);
+  const hasilMenu = cariMenu.trim()
+    ? semuaMenu.filter((m) =>
+        m.label.toLowerCase().includes(cariMenu.trim().toLowerCase()),
+      )
+    : [];
 
-  const aktif = (href: string) =>
-    pathname === href ||
-    (href !== "/dashboard" && href !== "/insight" && pathname.startsWith(href + "/"));
+  const ROLE_TEKS: Record<string, string> = {
+    user: "Peserta Warga",
+    kader: "Kader Posbindu",
+    admin_kelurahan: "Admin Kelurahan",
+    super_admin: "Super Admin Kota",
+  };
+  const subTopbar = role
+    ? `${ROLE_TEKS[role] || "Pengguna"}${wilayah ? ` · ${wilayah}` : ""}`
+    : "Memuat sesi…";
 
-  if (loading || !user || roleTidakCocok) {
-    return (
-      <div className="dash app-dash" aria-busy="true" aria-label="Memuat halaman">
-        <aside className="dash-skel-sidebar" aria-hidden="true">
-          <div className="skeleton" style={{ height: 42, width: "80%" }} />
-          <div className="skeleton mt-12" style={{ height: 34, width: "100%" }} />
-          <div className="skeleton" style={{ height: 34, width: "92%" }} />
-          <div className="skeleton" style={{ height: 34, width: "88%" }} />
-          <div className="skeleton" style={{ height: 34, width: "95%" }} />
-          <div className="skeleton" style={{ height: 34, width: "84%" }} />
-          <div className="skeleton" style={{ height: 52, width: "100%", marginTop: "auto" }} />
-        </aside>
-        <main className="dash-skel-main">
-          <div className="skeleton" style={{ height: 112, borderRadius: 20 }} />
-          <div className="dash-skel-kpis">
-            <div className="skeleton" style={{ height: 96, borderRadius: 16 }} />
-            <div className="skeleton" style={{ height: 96, borderRadius: 16 }} />
-            <div className="skeleton" style={{ height: 96, borderRadius: 16 }} />
-            <div className="skeleton" style={{ height: 96, borderRadius: 16 }} />
-          </div>
-          <div className="dash-skel-charts">
-            <div className="skeleton" style={{ height: 240, borderRadius: 18 }} />
-            <div className="skeleton" style={{ height: 240, borderRadius: 18 }} />
-          </div>
-        </main>
-      </div>
+  const aktif = (href: string) => {
+    const base = href.split("?")[0];
+    if (pathname === base) return true;
+    if (base === "/dashboard" || base === "/insight") return false;
+    if (!pathname.startsWith(base + "/")) return false;
+    return !semuaMenu.some((m) => {
+      const b = m.href.split("?")[0];
+      return b.length > base.length && (pathname === b || pathname.startsWith(b + "/"));
+    });
+  };
+
+  const sedangMemuat = loading || !user || roleTidakCocok;
+
+  useEffect(() => {
+    if (sedangMemuat) return;
+    const root = appBodyRef.current;
+    if (!root || typeof window === "undefined") return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) return;
+    if (typeof IntersectionObserver === "undefined") return;
+
+    const STORY_SEL = [
+      ".app-story-stage > .row-between",
+      ".app-story-stage > .page-head",
+      ".app-story-stage > .card",
+      ".app-story-stage > .endpoint-note",
+      ".app-story-stage > div:not(.grid):not(.grid-2):not(.grid-3):not(.grid-4):not(.bento-sec):not(.modal-backdrop)",
+      ".app-story-stage .bento-sec-head",
+      ".app-story-stage .bento-kpi-grid > *",
+      ".app-story-stage .bento-mid-grid > *",
+      ".app-story-stage .bento-history-row",
+      ".app-story-stage .grid > .card",
+      ".app-story-stage .grid > .metric",
+      ".app-story-stage .grid > .stat",
+      ".app-story-stage .li",
+    ].join(", ");
+
+    const processed = new WeakSet<Element>();
+    const pending = new Set<HTMLElement>();
+    let rafId = 0;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        let wave = 0;
+        for (const entry of entries) {
+          const el = entry.target as HTMLElement;
+          if (entry.isIntersecting) {
+            el.style.setProperty("--story-delay", `${Math.min(wave, 4) * 30}ms`);
+            el.classList.remove("story-wait");
+            el.classList.add("story-in");
+            pending.delete(el);
+            io.unobserve(el);
+            wave += 1;
+          }
+        }
+      },
+      { threshold: 0.05, rootMargin: "0px 0px -4% 0px" },
     );
-  }
+
+    const scan = () => {
+      const vh = window.innerHeight || 800;
+      const batas = vh * 0.94;
+      const nodes = Array.from(root.querySelectorAll<HTMLElement>(STORY_SEL));
+      let waveVisible = 0;
+
+      for (const el of nodes) {
+        if (processed.has(el)) continue;
+        if (
+          el.closest(
+            ".modal-backdrop, .toast, .lottie-loading, .loading-skel, .gv-skel-hero, [aria-busy='true']",
+          )
+        ) {
+          continue;
+        }
+        if (el.parentElement?.closest(".story-item")) continue;
+        processed.add(el);
+
+        el.dataset.storyDir = "up";
+        el.classList.add("story-item");
+
+        const top = el.getBoundingClientRect().top;
+        if (top <= batas) {
+          el.style.setProperty("--story-delay", `${Math.min(waveVisible, 4) * 30}ms`);
+          el.classList.add("story-in");
+          waveVisible += 1;
+        } else {
+          el.classList.add("story-wait");
+          pending.add(el);
+          io.observe(el);
+        }
+      }
+    };
+
+    const scheduleScan = () => {
+      if (rafId) window.cancelAnimationFrame(rafId);
+      rafId = window.requestAnimationFrame(scan);
+    };
+
+    const onScroll = () => {
+      if (pending.size === 0) return;
+      const batas = (window.innerHeight || 800) * 0.94;
+      let wave = 0;
+      for (const el of Array.from(pending)) {
+        if (el.getBoundingClientRect().top <= batas) {
+          el.style.setProperty("--story-delay", `${Math.min(wave, 4) * 30}ms`);
+          el.classList.remove("story-wait");
+          el.classList.add("story-in");
+          pending.delete(el);
+          io.unobserve(el);
+          wave += 1;
+        }
+      }
+    };
+
+    scan();
+    const mo = new MutationObserver(scheduleScan);
+    mo.observe(root, { childList: true, subtree: true });
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => {
+      if (rafId) window.cancelAnimationFrame(rafId);
+      mo.disconnect();
+      io.disconnect();
+      window.removeEventListener("scroll", onScroll);
+    };
+  }, [pathname, sedangMemuat]);
 
   return (
-    <div className={`dash app-dash ${ciut ? "collapsed" : ""} ${drawer ? "drawer-open" : ""}`}>
+    <div
+      className={`dash app-dash ${ciut ? "collapsed" : ""} ${drawer ? "drawer-open" : ""}`}
+      aria-busy={sedangMemuat || undefined}
+    >
       <a href="#appBody" className="skip-link">
         Lewati ke konten utama
       </a>
 
-      {/* ============ SIDEBAR ============ */}
-      <aside className="sidebar">
+      {/* ============ SIDEBAR (section terpisah dari konten) ============ */}
+      <aside className="sidebar" ref={sidebarRef}>
         <div className="sidebar-brand">
           <BrandLockup variant="sm" />
           <div className="txt">
@@ -188,8 +629,29 @@ export default function AppShell({ children, noFab, onFab, roles }: Props) {
             type="button"
             className="btn btn-icon btn-sm btn-ghost sidebar-collapse-btn"
             aria-label={ciut ? "Perluas sidebar" : "Ciutkan sidebar"}
-            title={ciut ? "Perluas sidebar" : "Ciutkan sidebar"}
-            onClick={() => simpanSidebarCiut(!ciut)}
+            title={ciut ? undefined : "Ciutkan sidebar"}
+            onClick={() => {
+              tutupPreview();
+              simpanSidebarCiut(!ciut);
+            }}
+            onMouseEnter={(e) =>
+              jadwalPreview(e.currentTarget, {
+                id: "__toggle__",
+                label: "Perluas Sidebar",
+                desc: "Tampilkan kembali nama lengkap seluruh menu navigasi",
+                icon: "panel-left",
+              })
+            }
+            onMouseLeave={tutupPreview}
+            onFocus={(e) =>
+              jadwalPreview(e.currentTarget, {
+                id: "__toggle__",
+                label: "Perluas Sidebar",
+                desc: "Tampilkan kembali nama lengkap seluruh menu navigasi",
+                icon: "panel-left",
+              })
+            }
+            onBlur={tutupPreview}
           >
             <Icon name="panel-left" size={17} />
           </button>
@@ -203,74 +665,272 @@ export default function AppShell({ children, noFab, onFab, roles }: Props) {
           </button>
         </div>
 
-        <nav className="sidebar-nav">
-          {grup.map((g, gi) => (
-            <div className={`nav-group${g.items.length === 1 && gi > 0 ? " nav-group-tight" : ""}`} key={g.judul}>
-              {g.items.length > 1 ? <div className="nav-group-title">{g.judul}</div> : null}
-              {g.items.map((n) => (
-                <Link key={n.href} href={n.href} className={`snav ${aktif(n.href) ? "active" : ""}`}>
-                  <Icon name={n.icon} size={19} />
-                  <span>{n.label}</span>
-                </Link>
-              ))}
+        <nav
+          ref={aturSidebarNavRef}
+          className="sidebar-nav"
+          onScroll={(e) => {
+            simpanScrollSidebar(e.currentTarget.scrollTop);
+            tutupPreview();
+          }}
+        >
+          {grup.length === 0 ? (
+            <div className="snav-skel-list" aria-hidden="true">
+              <div className="snav-skel-item" />
+              <div className="snav-skel-item" />
+              <div className="snav-skel-item short" />
+              <div className="snav-skel-item" />
+              <div className="snav-skel-item short" />
+              <div className="snav-skel-item" />
+              <div className="snav-skel-item short" />
             </div>
-          ))}
+          ) : (
+            grup.map((g, gi) => (
+              <div
+                className={`nav-group${g.items.length === 1 && gi > 0 ? " nav-group-tight" : ""}`}
+                key={g.judul}
+              >
+                {g.items.length > 1 ? <div className="nav-group-title">{g.judul}</div> : null}
+                {g.items.map((n) => {
+                  const sedangAktif = targetPending ? targetPending === n.href : aktif(n.href);
+                  return (
+                    <Link
+                      key={n.href}
+                      href={n.href}
+                      className={`snav ${sedangAktif ? "active" : ""}`}
+                      aria-label={ciut ? n.label : undefined}
+                      onClick={() => {
+                        if (sidebarNavRef.current) {
+                          simpanScrollSidebar(sidebarNavRef.current.scrollTop);
+                        }
+                        if (n.href.split("?")[0] !== pathname) {
+                          setPendingHref({ from: pathname, to: n.href });
+                        }
+                        tutupPreview();
+                      }}
+                      onMouseEnter={(e) =>
+                        jadwalPreview(e.currentTarget, {
+                          id: n.href,
+                          label: n.label,
+                          desc: n.desc,
+                          icon: n.icon,
+                          aktif: sedangAktif,
+                        })
+                      }
+                      onMouseLeave={tutupPreview}
+                      onFocus={(e) =>
+                        jadwalPreview(e.currentTarget, {
+                          id: n.href,
+                          label: n.label,
+                          desc: n.desc,
+                          icon: n.icon,
+                          aktif: sedangAktif,
+                        })
+                      }
+                      onBlur={tutupPreview}
+                    >
+                      <Icon name={n.icon} size={19} />
+                      <span className="snav-label">{n.label}</span>
+                      <span className="snav-short">{n.short || n.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ))
+          )}
         </nav>
 
         <div className="sidebar-foot">
-          <Link href="/profil" className="user-chip">
-            <span className="avatar">{inisial(nama)}</span>
-            <div className="who">
-              <strong>{nama}</strong>
-              <span>{wilayah || role}</span>
-            </div>
-            {role !== "user" ? (
-              <span className="sidebar-role-pill">{role.replace("_", " ")}</span>
-            ) : null}
-          </Link>
-          <div className="sidebar-foot-acts mt-8">
+          <div className="sidebar-foot-acts">
             <button
               type="button"
-              className="btn btn-sm btn-outline sidebar-logout-btn"
-              onClick={() => setKonfirmasiKeluar(true)}
+              className="btn btn-sm sidebar-logout-btn"
+              onClick={() => {
+                tutupPreview();
+                setKonfirmasiKeluar(true);
+              }}
               disabled={keluar}
-              title="Keluar"
+              aria-label="Keluar"
+              title={ciut ? undefined : "Keluar"}
+              onMouseEnter={(e) =>
+                jadwalPreview(e.currentTarget, {
+                  id: "__logout__",
+                  label: "Keluar",
+                  desc: "Akhiri sesi akun Anda pada perangkat ini",
+                  icon: "log-out",
+                })
+              }
+              onMouseLeave={tutupPreview}
+              onFocus={(e) =>
+                jadwalPreview(e.currentTarget, {
+                  id: "__logout__",
+                  label: "Keluar",
+                  desc: "Akhiri sesi akun Anda pada perangkat ini",
+                  icon: "log-out",
+                })
+              }
+              onBlur={tutupPreview}
             >
               <Icon name="log-out" size={16} /> <span>{keluar ? "Keluar…" : "Keluar"}</span>
             </button>
-            <ThemeToggle className="sidebar-theme-btn" />
           </div>
         </div>
       </aside>
       <div className="dash-scrim" onClick={() => setDrawerPath(null)} />
 
-      {/* ============ KONTEN ============ */}
+      {tampilPreview ? (
+        <div
+          key={tampilPreview.id}
+          className={`snav-preview${tampilPreview.aktif ? " is-active" : ""}${tampilPreview.id === "__logout__" ? " is-danger" : ""}`}
+          role="tooltip"
+          style={{ top: tampilPreview.y, left: tampilPreview.x }}
+        >
+          <span className="snav-preview-arrow" aria-hidden="true" />
+          <div className="snav-preview-ico" aria-hidden="true">
+            <Icon name={tampilPreview.icon} size={18} />
+          </div>
+          <div className="snav-preview-body">
+            <div className="snav-preview-head">
+              <strong>{tampilPreview.label}</strong>
+              {tampilPreview.aktif ? <span className="snav-preview-pill">Aktif</span> : null}
+            </div>
+            <p>{tampilPreview.desc}</p>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ============ KONTEN (hanya section ini yang memuat / berganti) ============ */}
       <div className="dash-main">
-        <div className="viora-rain" aria-hidden="true">
-          <span /><span /><span /><span /><span /><span />
+        <div className="sehat-ambient" aria-hidden="true">
+          {AMBIENT_MOTIFS.map((m, idx) => (
+            <span
+              key={idx}
+              style={{
+                left: m.left,
+                width: m.size,
+                height: m.size,
+                animationDuration: m.duration,
+                animationDelay: m.delay,
+              }}
+            >
+              <AmbientMotif kind={m.kind} />
+            </span>
+          ))}
         </div>
 
-        <main className="app-body" id="appBody">
-          {children}
+        <header className="app-topbar no-print">
+          <div className="app-topbar-left">
+            <h1 className="app-topbar-title">{nama ? `Halo, ${nama}` : "Halo"}</h1>
+            <span className="app-topbar-sub">
+              <Icon name="map-pin" size={13} /> {subTopbar}
+            </span>
+          </div>
+
+          <div className="app-topbar-tools">
+            <div className="app-topbar-search">
+              <span className="app-topbar-search-ico">
+                <Icon name="search" size={16} />
+              </span>
+              <input
+                type="search"
+                className="app-topbar-search-input"
+                placeholder="Cari menu cepat…"
+                aria-label="Cari menu cepat"
+                value={cariMenu}
+                onFocus={() => setCariFokus(true)}
+                onBlur={() => setTimeout(() => setCariFokus(false), 160)}
+                onChange={(e) => setCariMenu(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && hasilMenu.length > 0) {
+                    setCariMenu("");
+                    setCariFokus(false);
+                    router.push(hasilMenu[0].href);
+                  }
+                }}
+              />
+              {cariFokus && cariMenu.trim() !== "" ? (
+                <div className="app-topbar-dropdown" role="listbox">
+                  {hasilMenu.length > 0 ? (
+                    hasilMenu.slice(0, 6).map((item) => (
+                      <button
+                        key={item.href}
+                        type="button"
+                        className="app-topbar-drop-item"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setCariMenu("");
+                          setCariFokus(false);
+                          router.push(item.href);
+                        }}
+                      >
+                        <Icon name={item.icon} size={15} />
+                        <span>{item.label}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="tiny" style={{ padding: "8px 10px" }}>
+                      Menu tidak ditemukan.
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+
+            <Link
+              href="/insight/panduan"
+              className="app-topbar-pill"
+              title="Panduan Kesehatan"
+              aria-label="Panduan Kesehatan"
+            >
+              <Icon name="help-circle" size={18} />
+            </Link>
+            <ThemeToggle className="app-topbar-pill" />
+            <Link href="/profil" className="app-topbar-avatar" title="Profil & Pengaturan">
+              <span className="ava-dot">{inisial(nama || "P")}</span>
+              <span className="ava-label">{(nama || "Profil").split(" ")[0]}</span>
+            </Link>
+          </div>
+        </header>
+
+        <main
+          className={`app-body${targetPending ? " is-navigating" : ""}`}
+          id="appBody"
+          ref={appBodyRef}
+        >
+          {sedangMemuat ? (
+            <GlassyDashboardSkeleton label="Memuat halaman…" />
+          ) : (
+            <div className="app-story-stage" style={{ display: "contents" }}>
+              {children}
+            </div>
+          )}
         </main>
       </div>
 
-      {/* FAB hanya muncul kalau memang ada aksinya. Dulu halaman tanpa
-          `onFab` tetap menampilkan tombol "+" yang mati saat diklik, dan di
-          layar kecil tombol itu menutupi sudut kartu. */}
-      {!noFab && onFab ? (
+      {!sedangMemuat && !noFab && onFab ? (
         <button className="fab" aria-label="Catat kesehatan" onClick={onFab} type="button">
           <Icon name="plus" size={26} />
         </button>
       ) : null}
 
       <nav className="bottom-nav">
-        {navBawah.map((n) => (
-          <Link key={n.href} href={n.href} className={aktif(n.href) ? "active" : ""}>
-            <Icon name={n.icon} size={22} />
-            <span>{n.short || n.label}</span>
-          </Link>
-        ))}
+        {navBawah.map((n) => {
+          const bawahAktif = targetPending ? targetPending === n.href : aktif(n.href);
+          return (
+            <Link
+              key={n.href}
+              href={n.href}
+              className={bawahAktif ? "active" : ""}
+              onClick={() => {
+                if (n.href.split("?")[0] !== pathname) {
+                  setPendingHref({ from: pathname, to: n.href });
+                }
+              }}
+            >
+              <Icon name={n.icon} size={22} />
+              <span>{n.short || n.label}</span>
+            </Link>
+          );
+        })}
         <button
           type="button"
           className={drawer ? "active" : ""}
@@ -295,7 +955,12 @@ export default function AppShell({ children, noFab, onFab, roles }: Props) {
             >
               Batal
             </button>
-            <button type="button" className="btn btn-danger" onClick={handleLogout} disabled={keluar}>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={handleLogout}
+              disabled={keluar}
+            >
               {keluar ? "Keluar…" : "Ya, keluar"}
             </button>
           </>
@@ -304,5 +969,104 @@ export default function AppShell({ children, noFab, onFab, roles }: Props) {
         <p className="tiny">Apakah kamu yakin ingin keluar dari akun ini?</p>
       </Modal>
     </div>
+  );
+}
+
+/**
+ * Provider root untuk mempertahankan sidebar & topbar tetap terpasang (persisten)
+ * lintas perpindahan halaman maupun Suspense loading.tsx.
+ */
+export function AppFrameProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname() || "";
+  const frameMeta = useSyncExternalStore(
+    langgananShellFrame,
+    bacaShellFrame,
+    getServerShellFrame,
+  );
+  const { user, loading } = useUser();
+
+  const aktif = apakahRuteApp(pathname) || frameMeta.active;
+  const roles = frameMeta.rolesKey ? frameMeta.rolesKey.split(",") : undefined;
+  const onFab = useCallback(() => {
+    shellFabHandler?.();
+  }, []);
+
+  return (
+    <AppFrameContext.Provider value={true}>
+      {aktif ? (
+        <AppFrameView
+          user={user}
+          loading={loading}
+          noFab={frameMeta.noFab}
+          onFab={frameMeta.hasFab ? onFab : undefined}
+          roles={roles}
+        >
+          {children}
+        </AppFrameView>
+      ) : (
+        children
+      )}
+    </AppFrameContext.Provider>
+  );
+}
+
+type Props = {
+  children: React.ReactNode;
+  /** Sapaan di topbar, mis. "Halo" */
+  greet?: string;
+  /** Sembunyikan tombol FAB */
+  noFab?: boolean;
+  /** Aksi tombol FAB */
+  onFab?: () => void;
+  /** Batasi halaman ke role tertentu; role lain diarahkan ke /unauthorized */
+  roles?: string[];
+};
+
+/**
+ * Shell aplikasi — bila berada di dalam AppFrameProvider, hanya mendaftarkan opsi
+ * halaman ke frame persisten sehingga sidebar tidak pernah ikut ter-render ulang.
+ */
+export default function AppShell({ children, noFab, onFab, roles }: Props) {
+  const hasProvider = useContext(AppFrameContext);
+  const { user, loading } = useUser();
+  const ownerId = useId();
+  const rolesKey = roles ? roles.join(",") : "";
+  const hasFab = Boolean(onFab);
+
+  useLayoutEffect(() => {
+    if (!hasProvider) return;
+    aturShellFrame(
+      ownerId,
+      {
+        active: true,
+        noFab: Boolean(noFab),
+        hasFab,
+        rolesKey,
+      },
+      onFab,
+    );
+  }, [hasProvider, ownerId, noFab, hasFab, rolesKey, onFab]);
+
+  useLayoutEffect(() => {
+    if (!hasProvider) return;
+    return () => {
+      lepasShellFrame(ownerId);
+    };
+  }, [hasProvider, ownerId]);
+
+  if (hasProvider) {
+    return <>{children}</>;
+  }
+
+  return (
+    <AppFrameView
+      user={user}
+      loading={loading}
+      noFab={noFab}
+      onFab={onFab}
+      roles={roles}
+    >
+      {children}
+    </AppFrameView>
   );
 }

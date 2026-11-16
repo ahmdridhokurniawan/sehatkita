@@ -25,10 +25,11 @@ class IndikatorSeeder extends Seeder
                 'kelompok'               => 'antropometri',
                 'interval_skrining_hari' => 30,
                 'ambang'                 => [
+                    // Ambang IMT dewasa sesuai Permenkes RI No. 41 Tahun 2014 (Pedoman Gizi Seimbang)
                     [null, 0,    18.5, 'kurus',    'perlu_perhatian', 1, false],
                     [null, 18.5, 25,   'normal',   'normal',          0, false],
-                    [null, 25,   30,   'gemuk',    'perlu_perhatian', 1, false],
-                    [null, 30,   null, 'obesitas', 'berisiko',        2, false],
+                    [null, 25,   27,   'gemuk',    'perlu_perhatian', 1, false],
+                    [null, 27,   null, 'obesitas', 'berisiko',        2, false],
                 ],
             ],
             [

@@ -12,9 +12,9 @@ Periksa `git config user.name` / `git config user.email` serta konteks prompt us
   - Jika fitur UI butuh endpoint/kolom/validasi baru di backend, **hentikan perubahan kode pada `frontend/`** dan laporkan daftar kebutuhan API ke user agar dikerjakan oleh PIC Backend (Ridho).
   - Saat commit, pastikan hanya men-stage `frontend/` (`git add frontend/`).
 
-- **Jika user adalah Ridho (`ahmdridhokurniawan`) atau sedang mengerjakan tugas Backend (`backend/`):**
-  - **HANYA BOLEH** mengubah file di dalam `backend/` dan dokumentasi `kontrak-api.md` (kecuali file aturan bersama seperti `AGENTS.md` / `CLAUDE.md` atas permintaan eksplisit).
-  - **DILARANG KERAS** mengubah file aplikasi di `frontend/`.
+- **Jika user adalah Ridho (`ahmdridhokurniawan` / `ahmdridhokrniawan`) atau sedang mengerjakan tugas Backend (`backend/`):**
+  - Boleh mengubah file di dalam `backend/`, dokumentasi `kontrak-api.md`, dan file aturan bersama (`AGENTS.md` / `CLAUDE.md` atas permintaan eksplisit).
+  - Juga boleh mengubah atau memindahkan file di dalam `frontend/` apabila diminta dan disetujui secara eksplisit oleh pengguna.
 
 ## 2. Protokol Wajib Sebelum Eksekusi (Baca Kontrak & Audit)
 

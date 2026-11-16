@@ -276,6 +276,11 @@ class AdminMasterController extends Controller
             'kader_id'   => 'nullable|exists:pengguna,id',
         ]);
 
+        if ($data['role'] !== 'user') {
+            $data['nik'] = null;
+            $data['kader_id'] = null;
+        }
+
         $this->pastikanKaderSah($data['kader_id'] ?? null, isset($data['wilayah_id']) ? (int) $data['wilayah_id'] : null);
 
         $pengguna = Pengguna::create($data);
@@ -343,6 +348,12 @@ class AdminMasterController extends Controller
                 ? ($data['wilayah_id'] === null ? null : (int) $data['wilayah_id'])
                 : ($pengguna->wilayah_id === null ? null : (int) $pengguna->wilayah_id);
             $this->pastikanKaderSah((int) $data['kader_id'], $wilayahEfektif);
+        }
+
+        $roleEfektif = $data['role'] ?? $pengguna->role;
+        if ($roleEfektif !== 'user') {
+            $data['nik'] = null;
+            $data['kader_id'] = null;
         }
 
         $pengguna->update($data);

@@ -2,10 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import AppShell from "@/components/app/AppShell";
+import TombolKembaliAdmin from "@/components/admin/TombolKembaliAdmin";
+import Icon from "@/components/ui/Icon";
 import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
-import { EmptyState, ErrorState } from "@/components/ui/Empty";
+import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
 import { pengaduanApi, ApiError } from "@/lib/api";
+import { useMinLoading } from "@/hooks/useMinLoading";
 import { tanggal } from "@/lib/format";
 import type { Pengaduan, StatusPengaduan } from "@/types";
 import "./pengaduan.css";
@@ -33,6 +36,7 @@ const PENGOLAHAN: { kode: Exclude<StatusPengaduan, "menunggu">; label: string }[
 export default function HalamanAdminPengaduan() {
   const [list, setList] = useState<Pengaduan[]>([]);
   const [loading, setLoading] = useState(true);
+  const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>("");
 
@@ -100,9 +104,12 @@ export default function HalamanAdminPengaduan() {
 
   return (
     <AppShell roles={["admin_kelurahan", "super_admin"]}>
+      <TombolKembaliAdmin hanyaSuperAdmin />
       <div className="page-head">
-        <h1>Pengaduan Warga</h1>
-        <p className="muted">Tindak lanjuti keluhan warga di wilayahmu.</p>
+        <div>
+          <h1>Pengaduan Warga</h1>
+          <p className="muted">Tindak lanjuti keluhan warga di wilayahmu.</p>
+        </div>
       </div>
 
       <div className="row gap-8 mb-12">
@@ -121,8 +128,8 @@ export default function HalamanAdminPengaduan() {
         ))}
       </div>
 
-      {loading ? (
-        <EmptyState title="Memuat…" />
+      {tampilLoading ? (
+        <Loading variant="list" text="Memuat pengaduan…" />
       ) : error ? (
         <ErrorState message={error} onRetry={muat} />
       ) : list.length === 0 ? (
@@ -140,12 +147,17 @@ export default function HalamanAdminPengaduan() {
               </div>
               <h3 className="text-sm fw-600 mt-8">{p.judul}</h3>
               <p className="pengaduan-isi">{p.isi}</p>
-              <div className="row-between mt-8">
+              <div className="row-between mt-8" style={{ alignItems: "center", gap: 12 }}>
                 <span className="tiny muted">
                   {p.pengguna?.name ?? "—"} · {p.kategori}
                 </span>
-                <button type="button" className="link-btn" onClick={() => buka(p)}>
-                  Tanggapi
+                <button
+                  type="button"
+                  className={`btn btn-sm ${p.status === "menunggu" ? "btn-primary" : "btn-outline"}`}
+                  onClick={() => buka(p)}
+                >
+                  <Icon name="edit" size={14} />
+                  {p.tanggapan ? "Ubah Tanggapan" : "Tanggapi"}
                 </button>
               </div>
             </article>

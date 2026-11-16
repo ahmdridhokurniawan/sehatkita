@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import Modal from "@/components/ui/Modal";
 import Icon from "@/components/ui/Icon";
 import { useToast } from "@/components/ui/Toast";
@@ -63,6 +64,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
   const toast = useToast();
   const { user } = useUser();
   const petugas = user?.role === "kader" || user?.role === "admin_kelurahan" || user?.role === "super_admin";
+  const tanpaPersetujuan = Boolean(user?.role === "user" && !user.consent_at);
 
   const [waktu, setWaktu] = useState(nowLocal);
   const [sumber, setSumber] = useState("");
@@ -79,12 +81,14 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
   const [simpan, setSimpan] = useState(false);
 
   /* Sumber yang boleh dipilih (mengikuti aturan backend `tentukanPemilik`):
-     - user / admin_kelurahan: hanya "mandiri" (tercatat atas nama sendiri)
+     - user: hanya "mandiri"
+     - admin_kelurahan: read-only (tidak boleh mencatat)
      - kader: hanya "kader" (butuh warga + sesi posbindu)
      - super_admin: ketiganya */
   const sumberTersedia = useMemo(() => {
     if (user?.role === "super_admin") return SUMBER;
     if (user?.role === "kader") return SUMBER.filter((s) => s.v === "kader");
+    if (user?.role === "admin_kelurahan") return [];
     return SUMBER.filter((s) => s.v === "mandiri");
   }, [user?.role]);
 
@@ -136,11 +140,24 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
     const bagian = bersih.split(".");
     if (bagian.length > 2) bersih = bagian[0] + "." + bagian.slice(1).join("");
     setAngka((prev) => ({ ...prev, [id]: bersih }));
-    setErr((prev) => ({ ...prev, [id]: "" }));
-    if (id === "gula_darah" && bersih.trim() !== "" && !jenisGula) {
-      setJenisGula("puasa");
-      setErr((prev) => ({ ...prev, jenis_gula_darah: "" }));
+
+    if (id === "gula_darah") {
+      if (bersih.trim() === "") {
+        setJenisGula("");
+        setErr((prev) => ({ ...prev, gula_darah: "", jenis_gula_darah: "" }));
+        return;
+      }
+      if (!jenisGula) setJenisGula("puasa");
+      const cek = validAngka("gula_darah", bersih);
+      setErr((prev) => ({
+        ...prev,
+        gula_darah: cek.ok ? "" : cek.msg || "",
+        jenis_gula_darah: "",
+      }));
+      return;
     }
+
+    setErr((prev) => ({ ...prev, [id]: "" }));
   }
 
   async function kirim() {
@@ -211,7 +228,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
         }
         setErr(map);
       }
-      toast.warning(apiErr.message || "Gagal menyimpan catatan.");
+      toast.warning(apiErr.errors?.consent?.[0] || apiErr.message || "Gagal menyimpan catatan.");
     } finally {
       setSimpan(false);
     }
@@ -239,13 +256,27 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
             <button className="btn btn-outline" onClick={onClose} type="button">
               Batal
             </button>
-            <button className="btn btn-primary" onClick={kirim} disabled={simpan} type="button">
+            <button className="btn btn-primary" onClick={kirim} disabled={simpan || tanpaPersetujuan} type="button">
               {simpan ? "Menyimpan…" : "Simpan Catatan"}
             </button>
           </div>
         </div>
       }
     >
+      {(tanpaPersetujuan || err.consent) ? (
+        <div className="alert alert-warning" style={{ marginBottom: 14 }}>
+          <Icon name="alert-circle" size={18} />
+          <div className="text-xs">
+            <b>Persetujuan data belum aktif.</b>{" "}
+            {err.consent || "Anda tidak bisa menyimpan catatan baru sebelum mengaktifkan persetujuan data."}
+            {" "}
+            <Link href="/setelan/privasi" onClick={onClose} style={{ fontWeight: 700, textDecoration: "underline" }}>
+              Buka Pengaturan Privasi
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
       <fieldset className="form-section">
         <legend>
           <span className="n">1</span> Waktu &amp; Sumber
@@ -354,7 +385,13 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
           <span className="n">3</span> Pemeriksaan Laboratorium
         </legend>
         <div className="grid grid-2" style={{ gap: 12 }}>
-          <AngkaField f={FIELD_ANGKA[4]} value={angka[FIELD_ANGKA[4].id] || ""} err={err[FIELD_ANGKA[4].id]} onChange={ubahAngka} />
+          <AngkaField
+            f={FIELD_ANGKA[4]}
+            value={angka[FIELD_ANGKA[4].id] || ""}
+            err={err[FIELD_ANGKA[4].id]}
+            extraHint="Umumnya 70–200+ mg/dL (bukan mmol/L)"
+            onChange={ubahAngka}
+          />
           <div className="field">
             <label className="label" htmlFor="jenis_gula_darah">
               Jenis gula darah{" "}
@@ -375,7 +412,20 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
                 </button>
               ))}
             </div>
+            <div className="hint">
+              {jenisGula === "2jam_pp"
+                ? "Dicek 2 jam setelah makan. Normal < 140 mg/dL · Tinggi ≥ 200 mg/dL."
+                : "Puasa: tidak makan/minum manis min. 8 jam. Normal < 100 mg/dL · Tinggi ≥ 126 mg/dL."}
+            </div>
             {err.jenis_gula_darah ? <div className="err-msg show">{err.jenis_gula_darah}</div> : null}
+          </div>
+        </div>
+        <div className="alert alert-info mt-12" style={{ marginBottom: 14 }}>
+          <Icon name="info" size={16} />
+          <div className="text-xs">
+            <b>Panduan Gula Darah:</b> Pilih <b>Puasa</b> jika belum makan/minum manis minimal 8 jam (air putih boleh).
+            Pilih <b>2 Jam Setelah Makan</b> jika dicek 2 jam sesudah makan — atau saat cek <b>sewaktu (tidak puasa)</b>.
+            Jika alat cek Anda menampilkan satuan <b>mmol/L</b> (mis. 5.5), kalikan <b>18</b> dulu agar menjadi <b>mg/dL</b>.
           </div>
         </div>
         <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
@@ -467,11 +517,13 @@ function AngkaField({
   f,
   value,
   err,
+  extraHint,
   onChange,
 }: {
   f: { id: string; label: string; satuan: string; ph: string };
   value: string;
   err?: string;
+  extraHint?: string;
   onChange: (id: string, v: string) => void;
 }) {
   const r = RANGE[f.id];
@@ -496,6 +548,7 @@ function AngkaField({
       {r ? (
         <div className="hint">
           Rentang {r[0]}–{r[1]} {f.satuan}
+          {extraHint ? ` · ${extraHint}` : ""}
         </div>
       ) : null}
       {err ? <div className="err-msg show">{err}</div> : null}

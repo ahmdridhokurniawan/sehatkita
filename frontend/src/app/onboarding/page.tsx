@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import LegalInfoModal, { type LegalTopic } from "@/components/landing/LegalInfoModal";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
@@ -11,10 +12,18 @@ import {
   RIWAYAT_KELUARGA_OPTIONS,
 } from "@/lib/session";
 import { profil, persetujuan, ApiError } from "@/lib/api";
-import { clearUserCache } from "@/hooks/useUser";
+import { todayLocalISO } from "@/lib/format";
+import { useUser, clearUserCache } from "@/hooks/useUser";
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { user, loading: loadingUser } = useUser();
+
+  useEffect(() => {
+    if (!loadingUser && !user) {
+      router.replace("/login");
+    }
+  }, [loadingUser, user, router]);
 
   // ── Data diri ──
   const [tglLahir, setTglLahir] = useState("");
@@ -26,6 +35,7 @@ export default function OnboardingPage() {
 
   // ── Persetujuan ──
   const [setuju, setSetuju] = useState(false);
+  const [legalTopic, setLegalTopic] = useState<LegalTopic | null>(null);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [alert, setAlert] = useState("");
@@ -37,15 +47,15 @@ export default function OnboardingPage() {
     );
   }
 
-  // Validasi di sisi frontend (sama aturannya dengan kontrak §5.2)
+  // Validasi di sisi frontend (selaras dengan backend ProfilController)
   function validasi(): boolean {
     const err: Record<string, string> = {};
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const todayStr = todayLocalISO();
 
     if (!tglLahir) {
       err.tglLahir = "Tanggal lahir wajib diisi.";
-    } else if (tglLahir > todayStr) {
-      err.tglLahir = "Tanggal lahir tidak boleh lebih besar dari hari ini.";
+    } else if (tglLahir >= todayStr) {
+      err.tglLahir = "Tanggal lahir harus sebelum hari ini.";
     }
 
     if (!jenisKelamin) err.jenisKelamin = "Pilih jenis kelamin.";
@@ -54,8 +64,8 @@ export default function OnboardingPage() {
       err.tinggiCm = "Tinggi badan wajib diisi.";
     } else {
       const n = Number(tinggiCm);
-      if (Number.isNaN(n) || n < 50 || n > 250) {
-        err.tinggiCm = "Tinggi badan harus antara 50–250 cm.";
+      if (Number.isNaN(n) || n < 120 || n > 220) {
+        err.tinggiCm = "Tinggi badan harus antara 120–220 cm.";
       }
     }
 
@@ -77,6 +87,11 @@ export default function OnboardingPage() {
     setLoading(true);
 
     try {
+      // §5.3 POST /persetujuan WAJIB dijalankan sebelum PUT /profil (backend tolak 422 jika consent_at masih null)
+      await persetujuan.setuju("1.0");
+
+      const riwayatTerpilih = riwayat.filter((v) => v !== "tidak_ada");
+
       // §5.2 PUT /profil — kirim seluruh field
       await profil.update({
         tgl_lahir: tglLahir,
@@ -84,12 +99,9 @@ export default function OnboardingPage() {
         tinggi_cm: Number(tinggiCm),
         tingkat_aktivitas: aktivitas,
         merokok,
-        riwayat_keluarga: riwayat,
+        riwayat_keluarga: riwayatTerpilih.length ? riwayatTerpilih : ["tidak_ada"],
         tampil_di_peringkat: false,
       });
-
-      // §5.3 POST /persetujuan
-      await persetujuan.setuju("1.0");
 
       clearUserCache();
 
@@ -97,15 +109,31 @@ export default function OnboardingPage() {
     } catch (err) {
       const apiErr = err as ApiError;
       if (apiErr.errors) {
+        const keyMap: Record<string, string> = {
+          tgl_lahir: "tglLahir",
+          jenis_kelamin: "jenisKelamin",
+          tinggi_cm: "tinggiCm",
+          tingkat_aktivitas: "aktivitas",
+          consent: "setuju",
+          setuju: "setuju",
+        };
         const map: Record<string, string> = {};
         for (const [key, msgs] of Object.entries(apiErr.errors)) {
-          map[key] = msgs[0] ?? "Nilai tidak valid";
+          map[keyMap[key] ?? key] = msgs[0] ?? "Nilai tidak valid";
         }
         setErrors(map);
       }
       setAlert(apiErr.message || "Gagal menyimpan data. Coba lagi.");
       setLoading(false);
     }
+  }
+
+  if (loadingUser || !user) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
+        <p className="text-sm text-slate-500">Memeriksa sesi akun…</p>
+      </main>
+    );
   }
 
   return (
@@ -140,7 +168,7 @@ export default function OnboardingPage() {
             label="Tanggal Lahir"
             name="tgl_lahir"
             type="date"
-            max={new Date().toISOString().slice(0, 10)}
+            max={todayLocalISO()}
             value={tglLahir}
             onChange={(e) => setTglLahir(e.target.value)}
             error={errors.tglLahir}
@@ -162,8 +190,8 @@ export default function OnboardingPage() {
             label="Tinggi Badan (cm)"
             name="tinggi_cm"
             type="number"
-            min={50}
-            max={250}
+            min={120}
+            max={220}
             placeholder="170"
             value={tinggiCm}
             onChange={(e) => setTinggiCm(e.target.value)}
@@ -215,7 +243,19 @@ export default function OnboardingPage() {
 
           {/* Persetujuan */}
           <Checkbox
-            label="Saya menyetujui kebijakan privasi SehatKita dan bersedia data kesehatan saya digunakan untuk pemantauan."
+            label={
+              <>
+                Saya menyetujui{" "}
+                <button
+                  type="button"
+                  className="auth-inline-link"
+                  onClick={() => setLegalTopic("privasi")}
+                >
+                  kebijakan privasi SehatKita
+                </button>{" "}
+                dan bersedia data kesehatan saya digunakan untuk pemantauan.
+              </>
+            }
             name="setuju"
             checked={setuju}
             onChange={(e) => setSetuju(e.target.checked)}
@@ -231,6 +271,12 @@ export default function OnboardingPage() {
           © 2026 SehatKita — Monitoring Kesehatan PTM
         </p>
       </div>
+
+      <LegalInfoModal
+        topic={legalTopic}
+        onChangeTopic={setLegalTopic}
+        onClose={() => setLegalTopic(null)}
+      />
     </main>
   );
 }

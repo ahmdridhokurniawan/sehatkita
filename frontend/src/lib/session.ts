@@ -54,7 +54,7 @@ export function tandaiOnboardingSelesai(email: string): void {
   }
 }
 
-/** Pilihan riwayat penyakit keluarga (§5 — array of string) */
+/** Pilihan riwayat penyakit keluarga (§5 — sesuai ENUM_RIWAYAT backend) */
 export const RIWAYAT_KELUARGA_OPTIONS = [
   { value: "hipertensi", label: "Hipertensi (darah tinggi)" },
   { value: "diabetes", label: "Diabetes (gula darah)" },
@@ -62,6 +62,8 @@ export const RIWAYAT_KELUARGA_OPTIONS = [
   { value: "stroke", label: "Stroke" },
   { value: "kolesterol", label: "Kolesterol tinggi" },
   { value: "asma", label: "Asma" },
+  { value: "kanker", label: "Kanker" },
+  { value: "ginjal", label: "Gangguan ginjal" },
 ] as const;
 
 const PROFIL_KEY = "sehatkita_profil";

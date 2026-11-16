@@ -3,98 +3,135 @@
 import Link from "next/link";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
+import Badge from "@/components/ui/Badge";
 import GrafikRingkas from "@/components/admin/GrafikRingkas";
 
-const ADMIN_MENU = [
+const ADMIN_MENU: {
+  href: string;
+  icon: string;
+  label: string;
+  desc: string;
+  tag: string;
+}[] = [
   {
     href: "/admin/pengguna",
     icon: "users",
-    label: "Pengguna",
-    desc: "Kelola akun kader & admin kelurahan",
+    label: "Kelola Pengguna",
+    desc: "Kelola akun warga, kader posbindu, dan admin kelurahan.",
+    tag: "Master",
   },
   {
     href: "/admin/faskes",
     icon: "hospital",
-    label: "Fasilitas Kesehatan",
-    desc: "Daftar & kelola faskes rujukan",
+    label: "Kelola Faskes",
+    desc: "Atur daftar fasilitas kesehatan, alamat, dan titik peta rujukan.",
+    tag: "Master",
   },
   {
     href: "/admin/indikator",
     icon: "activity",
-    label: "Indikator Kesehatan",
-    desc: "Atur indikator & ambang batas kategori",
+    label: "Indikator & Ambang",
+    desc: "Atur parameter cek kesehatan dan batas normal maupun berisiko.",
+    tag: "Klinis",
   },
   {
     href: "/admin/statistik",
     icon: "line-chart",
     label: "Statistik Sistem",
-    desc: "Angka keseluruhan sistem",
+    desc: "Ringkasan gabungan lintas kelurahan se-kota tanpa nama pribadi.",
+    tag: "Analitik",
   },
   {
     href: "/admin/pengaduan",
     icon: "alert-circle",
-    label: "Pengaduan",
-    desc: "Kelola pengaduan warga",
+    label: "Pengaduan Warga",
+    desc: "Tinjau dan beri tanggapan atas keluhan layanan warga.",
+    tag: "Layanan",
   },
   {
     href: "/admin/verifikasi",
     icon: "check-circle",
     label: "Verifikasi Catatan",
-    desc: "Setujui / tolak catatan ber-flag",
+    desc: "Setujui atau tolak catatan di luar ambang batas yang perlu cek ulang.",
+    tag: "Moderasi",
   },
   {
     href: "/peringkat",
     icon: "trophy",
     label: "Peringkat Kelurahan",
-    desc: "Pantau klasemen EXP tantangan & juara warga",
+    desc: "Pantau klasemen poin aktivitas dan keaktifan warga per wilayah.",
+    tag: "Tantangan",
   },
   {
     href: "/admin/log-audit",
     icon: "file-text",
     label: "Log Audit",
-    desc: "Riwayat aktivitas sistem",
+    desc: "Riwayat akses data individu dan perubahan penting oleh admin.",
+    tag: "Keamanan",
   },
 ];
 
 export default function AdminPage() {
   return (
     <AppShell noFab roles={["super_admin"]}>
-      <div className="row-between mb-16">
+      <div className="gv-head">
         <div>
-          <h1 className="h3">Admin Dashboard</h1>
-          <p className="tiny">Kelola master data: pengguna, faskes, indikator, dan log audit.</p>
+          <h1 className="gv-head-title">Panel Admin</h1>
+          <p className="gv-head-sub">
+            Kelola pengguna, faskes, ambang klinis, verifikasi catatan, dan audit aktivitas kota.
+          </p>
+        </div>
+
+        <div className="gv-head-actions">
+          <Badge tone="primary">Super Admin · {ADMIN_MENU.length} Modul</Badge>
         </div>
       </div>
 
       <GrafikRingkas />
 
-      <div className="card" style={{ display: "grid", gap: 0 }}>
-        {ADMIN_MENU.map((item, idx) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className="li"
-            style={{
-              borderBottom: idx < ADMIN_MENU.length - 1 ? "1px solid var(--border)" : "none",
-            }}
-          >
-            <span className="li-ico">
-              <Icon name={item.icon} size={18} />
-            </span>
-            <div className="li-main">
-              <strong className="text-sm">{item.label}</strong>
-              <span className="tiny">{item.desc}</span>
-            </div>
-            <span className="li-side">
-              <Icon name="chevron-right" size={18} />
-            </span>
-          </Link>
-        ))}
-      </div>
+      <section aria-labelledby="judul-menu-admin">
+        <div className="row-between wrap gap-8 mb-12">
+          <div>
+            <h2 id="judul-menu-admin" className="sa-panel-title">Menu Administrasi</h2>
+            <p className="sa-panel-sub">Pilih modul pengelolaan master data, layanan, dan pemantauan sistem</p>
+          </div>
+          <Badge tone="default">{ADMIN_MENU.length} modul</Badge>
+        </div>
 
-      <p className="tiny center mt-16 mb-16">
-        <Icon name="shield" size={13} /> Hanya super admin yang dapat mengubah master data.
-      </p>
+        <div className="adm-menu-grid">
+          {ADMIN_MENU.map((item, idx) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="adm-menu-card"
+              style={{ animationDelay: `${idx * 35}ms` }}
+            >
+              <div className="gv-kpi-top">
+                <span className="gv-kpi-ico">
+                  <Icon name={item.icon} size={17} />
+                </span>
+                <Badge tone="default">{item.tag}</Badge>
+              </div>
+              <div>
+                <h3 className="adm-menu-title">{item.label}</h3>
+                <p className="adm-menu-desc">{item.desc}</p>
+              </div>
+              <span className="adm-menu-foot">
+                Buka modul <Icon name="chevron-right" size={14} />
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <div className="gv-quick-bar">
+        <span className="tiny">
+          <Icon name="shield" size={13} /> Hanya Super Admin yang dapat mengubah master data dan konfigurasi sistem.
+        </span>
+        <Link href="/dashboard" className="gv-quick-pill">
+          <Icon name="home" size={13} /> Kembali ke Beranda
+        </Link>
+      </div>
     </AppShell>
   );
 }

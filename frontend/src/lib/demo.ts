@@ -76,14 +76,14 @@ export const INSIGHT_DEMO = [
 /** FAQ landing (porting dari landing.js) */
 export const FAQ_LANDING: [string, string][] = [
   ["Apa itu SehatKita?", "SehatKita adalah platform monitoring kesehatan Penyakit Tidak Menular (PTM) yang membantu masyarakat Kota Banjarbaru memantau kondisi kesehatan, memahami perubahan indikator, dan mengikuti program kesehatan wilayah."],
-  ["Apakah SehatKita menggantikan dokter?", "Tidak. SehatKita bukan alat diagnosis medis. Semua insight bersifat informasi dan tidak menggantikan pemeriksaan atau nasihat tenaga kesehatan profesional."],
+  ["Apakah SehatKita menggantikan dokter?", "Tidak. SehatKita bukan alat diagnosis medis. Semua analisis kesehatan bersifat informasi dan tidak menggantikan pemeriksaan atau nasihat tenaga kesehatan profesional."],
   ["Bagaimana cara mencatat kesehatan?", "Buka menu Rekam Medis lalu tekan tombol Catat Kesehatan. Isi waktu, sumber, dan hasil pengukuran yang Anda miliki. Hanya waktu dan sumber yang wajib diisi; pengukuran lain opsional."],
   ["Apakah profil wajib dilengkapi saat login?", "Tidak. Setelah masuk Anda langsung dapat menggunakan aplikasi. Lengkapi profil kapan pun Anda siap melalui halaman Lengkapi Profil."],
-  ["Bagaimana insight kesehatan ditentukan?", "Insight dihitung oleh rule engine di backend berdasarkan data yang Anda catat dan ambang kategori yang berlaku. Frontend hanya menampilkan hasil dari backend."],
-  ["Bagaimana proses rujukan?", "Saat hasil pemeriksaan memerlukan tindak lanjut, sistem dapat membuat rujukan ke fasilitas kesehatan. Anda dapat memantau statusnya (baru, dihubungi, tertangani, ditolak)."],
-  ["Bagaimana tantangan dan reward bekerja?", "Anda dapat mengikuti tantangan kesehatan wilayah. Progres dan reward (badge, level) diberikan berdasarkan partisipasi nyata dan diverifikasi backend — bukan karena tombol diklik."],
-  ["Siapa yang dapat melihat data kesehatan?", "Data kesehatan individual hanya dapat diakses oleh Anda sendiri dan petugas berwenang sesuai izin. Admin kelurahan hanya melihat data agregat wilayah, bukan catatan pribadi."],
-  ["Bagaimana memperbaiki catatan yang salah?", "Catatan kesehatan bersifat append-only dan tidak dapat diedit. Anda dapat menghapus catatan yang salah (dengan konfirmasi) lalu membuat catatan baru yang benar."],
+  ["Bagaimana analisis kesehatan ditentukan?", "Analisis kesehatan dihitung otomatis berdasarkan angka pemeriksaan yang Anda catat dan batas acuan kesehatan yang berlaku untuk membantu deteksi dini."],
+  ["Bagaimana proses rujukan?", "Saat hasil pemeriksaan memerlukan tindak lanjut medis, sistem atau kader dapat membuat rujukan ke Puskesmas terdekat dan Anda bisa memantau status penanganannya."],
+  ["Bagaimana tantangan dan poin bekerja?", "Anda dapat mengikuti tantangan hidup sehat di wilayah Anda. Poin dan lencana pencapaian diberikan setelah aktivitas nyata Anda diperiksa dan disetujui kader."],
+  ["Siapa yang dapat melihat data kesehatan?", "Catatan kesehatan pribadi hanya bisa dilihat oleh Anda sendiri serta petugas berwenang di wilayah Anda. Pengelola daerah hanya melihat statistik keseluruhan warga tanpa nama pribadi."],
+  ["Bagaimana memperbaiki catatan yang salah?", "Catatan yang sudah tersimpan dikunci agar riwayat tidak berubah-ubah. Jika ada salah ketik, cukup hapus catatan yang keliru lalu buat catatan baru dengan angka yang benar."],
 ];
 
 /** Akun demo (prototipe) — untuk mengisi cepat form login. */
@@ -148,7 +148,7 @@ export type RujukanDemo = {
   id: number;
   nama?: string;
   faskes: string;
-  status: "baru" | "dihubungi" | "tertangani" | "ditolak";
+  status: "baru" | "dihubungi" | "selesai" | "ditolak";
   alasan: string;
   dibuat_pada: string;
   wilayah?: string;
@@ -221,5 +221,5 @@ export const NOTIFIKASI_DEMO: NotifikasiDemo[] = [
 /** Daftar rujukan (untuk halaman rujukan / riwayat). */
 export const RUJUKAN_DEMO: RujukanDemo[] = [
   { id: 1, nama: "Budi Santoso", faskes: "Puskesmas Banjarbaru Utara", status: "baru", alasan: "Tekanan darah tinggi berulang", dibuat_pada: hariLalu(2), wilayah: "Loktabat Utara" },
-  { id: 2, nama: "Budi Santoso", faskes: "Puskesmas Cempaka", status: "tertangani", alasan: "Kolesterol tinggi", dibuat_pada: hariLalu(14), wilayah: "Loktabat Utara" },
+  { id: 2, nama: "Budi Santoso", faskes: "Puskesmas Cempaka", status: "selesai", alasan: "Kolesterol tinggi", dibuat_pada: hariLalu(14), wilayah: "Loktabat Utara" },
 ];

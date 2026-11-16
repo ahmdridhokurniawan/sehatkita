@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import AppShell from "@/components/app/AppShell";
+import TombolKembaliAdmin from "@/components/admin/TombolKembaliAdmin";
 import Icon from "@/components/ui/Icon";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
 import { useUser } from "@/hooks/useUser";
+import { useMinLoading } from "@/hooks/useMinLoading";
 import { program as programApi, wilayah as wilayahApi, ApiError } from "@/lib/api";
 import type { Peringkat, Wilayah } from "@/types";
 
@@ -25,6 +27,7 @@ export default function PeringkatPage() {
   const { user, loading: loadingUser } = useUser();
   const [data, setData] = useState<Peringkat | null>(null);
   const [loading, setLoading] = useState(true);
+  const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState("");
 
   // super_admin tidak punya wilayah sendiri — wajib pilih kelurahan.
@@ -92,6 +95,7 @@ export default function PeringkatPage() {
 
   return (
     <AppShell noFab>
+      <TombolKembaliAdmin hanyaSuperAdmin />
       <div className="row-between mb-16">
         <div>
           <h1 className="h3">Peringkat Kelurahan</h1>
@@ -120,7 +124,7 @@ export default function PeringkatPage() {
         ) : null}
       </div>
 
-      {loading ? (
+      {tampilLoading ? (
         <Loading />
       ) : error ? (
         <ErrorState message={error} onRetry={muat} />
@@ -182,7 +186,7 @@ export default function PeringkatPage() {
                       className="li-ico"
                       style={
                         juara
-                          ? { background: juara.warna, color: "#fff", fontWeight: 800 }
+                          ? { background: juara.warna, color: "#141B0B", fontWeight: 800 }
                           : { fontWeight: 800 }
                       }
                       title={juara ? juara.label : `Peringkat ${b.rank}`}
@@ -212,7 +216,7 @@ export default function PeringkatPage() {
                       </div>
                       <span className="tiny">Level {b.level_gamifikasi}</span>
                     </div>
-                    <div className="li-side">
+                    <div className="li-side" style={{ display: "inline-flex", alignItems: "baseline", gap: 4 }}>
                       <strong className="text-sm">{b.exp_total}</strong>
                       <span className="tiny">EXP</span>
                     </div>
@@ -222,10 +226,17 @@ export default function PeringkatPage() {
             )}
           </div>
 
-          <p className="tiny center mt-16 mb-16">
-            <Icon name="shield" size={13} /> Nama hanya tampil bila Anda mengaktifkan
-            &quot;Tampilkan nama di peringkat&quot; pada menu Profil.
-          </p>
+          <div
+            className="tiny mt-16 mb-16"
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, textAlign: "center" }}
+          >
+            <Icon name="shield" size={14} className="shrink-0" />
+            <span>
+              {user?.role === "user"
+                ? 'Demi privasi, nama Anda disamarkan menjadi "Peserta anonim" kecuali opsi "Tampilkan nama di peringkat" diaktifkan pada menu Profil.'
+                : 'Demi privasi, peserta yang tidak mengaktifkan "Tampilkan nama di peringkat" pada profilnya akan ditampilkan sebagai "Peserta anonim".'}
+            </span>
+          </div>
         </>
       )}
     </AppShell>

@@ -5,33 +5,47 @@ import Link from "next/link";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
-import { EmptyState } from "@/components/ui/Empty";
-import { tanggal } from "@/lib/format";
+import Bar from "@/components/charts/Bar";
+import {
+  GlassyAgendaDate,
+  GlassyDashboardSkeleton,
+  GlassyKpiGrid,
+  GlassyProgressRing,
+  buildSparklinePath,
+  type GlassyKpiItem,
+} from "@/components/dashboard/GlassyWidgets";
+import { tanggal, angka, todayLocalISO } from "@/lib/format";
+import { useMinLoading } from "@/hooks/useMinLoading";
 import { posbindu, rujukan, ApiError } from "@/lib/api";
 import type { User, SesiPosbindu, Rujukan } from "@/types";
 
+type TabPanel = "rujukan" | "posbindu" | "grafik";
+
 const LABEL_STATUS_RUJUKAN: Record<string, string> = {
   baru: "Baru",
-  dihubungi: "Dihubungi",
-  tertangani: "Tertangani",
+  dihubungi: "Diproses",
+  selesai: "Selesai",
   ditolak: "Ditolak",
 };
 
 const TONE_STATUS_RUJUKAN: Record<string, "warning" | "primary" | "safe" | "danger"> = {
   baru: "warning",
   dihubungi: "primary",
-  tertangani: "safe",
+  selesai: "safe",
   ditolak: "danger",
 };
 
 function bulanSekarang(iso: string) {
-  return iso?.slice(0, 7) === new Date().toISOString().slice(0, 7);
+  return iso?.slice(0, 7) === todayLocalISO().slice(0, 7);
 }
 
-export default function DashboardKader({ user }: { user: User }) {
+export default function DashboardKader({ user: _user }: { user: User }) {
+  void _user;
   const [sesi, setSesi] = useState<SesiPosbindu[]>([]);
   const [daftarRujukan, setDaftarRujukan] = useState<Rujukan[]>([]);
+  const [tabPanel, setTabPanel] = useState<TabPanel>("rujukan");
   const [loading, setLoading] = useState(true);
+  const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -41,9 +55,7 @@ export default function DashboardKader({ user }: { user: User }) {
       try {
         setLoading(true);
         const [s, r] = await Promise.all([
-          // §10.1 — kader hanya menerima sesi miliknya.
           posbindu.sesiList({}),
-          // §11.2 — kader menerima rujukan warga binaannya (tidak teredaksi).
           rujukan.list({}),
         ]);
         if (batal) return;
@@ -52,7 +64,7 @@ export default function DashboardKader({ user }: { user: User }) {
         setError(null);
       } catch (err) {
         if (batal) return;
-        setError((err as ApiError).message || "Gagal memuat dashboard kader");
+        setError((err as ApiError).message || "Gagal memuat beranda kader");
       } finally {
         if (!batal) setLoading(false);
       }
@@ -64,122 +76,321 @@ export default function DashboardKader({ user }: { user: User }) {
     };
   }, []);
 
+  if (tampilLoading) {
+    return (
+      <AppShell greet="Halo Kader">
+        <GlassyDashboardSkeleton label="Memuat beranda kader…" />
+      </AppShell>
+    );
+  }
+
+  const hariIni = todayLocalISO();
   const sesiBulanIni = sesi.filter((s) => bulanSekarang(s.tanggal));
   const hadirBulanIni = sesiBulanIni.reduce((n, s) => n + (s.hadir || 0), 0);
-  const sesiAkanDatang = sesi.filter((s) => s.tanggal >= new Date().toISOString().slice(0, 10)).length;
+  const pesertaBulanIni = sesiBulanIni.reduce((n, s) => n + (s.jumlah_peserta || 0), 0);
+  const sesiAkanDatangList = sesi.filter((s) => s.tanggal >= hariIni);
+  const sesiBerikutnya = sesiAkanDatangList[0] ?? sesi[0] ?? null;
+
+  const totalHadir = sesi.reduce((n, s) => n + (s.hadir || 0), 0);
+  const totalPeserta = sesi.reduce((n, s) => n + (s.jumlah_peserta || 0), 0);
+  const rasioHadir = totalPeserta > 0 ? Math.round((totalHadir / totalPeserta) * 100) : 0;
+
   const rujukanTerbuka = daftarRujukan.filter((r) => r.status === "baru" || r.status === "dihubungi");
+  const rujukanSelesai = daftarRujukan.filter((r) => r.status === "selesai");
+  const sesiGrafik = sesi.slice(0, 7).reverse();
+
+  const sparkHadir = buildSparklinePath(
+    sesiGrafik.map((s) => s.hadir || 0),
+    "M2 18 C 14 14, 24 18, 36 10 C 46 6, 54 9, 64 4",
+  );
+  const sparkPeserta = buildSparklinePath(
+    sesiGrafik.map((s) => s.jumlah_peserta || 0),
+    "M2 20 C 14 19, 20 12, 32 14 C 42 16, 50 6, 64 5",
+  );
+
+  const kpiItems: GlassyKpiItem[] = [
+    {
+      id: "kehadiran",
+      title: "Rasio Kehadiran",
+      subtitle: `${angka(totalHadir)} dari ${angka(totalPeserta)} warga`,
+      value: `${rasioHadir}%`,
+      icon: "users",
+      pillText: rasioHadir >= 70 ? "Target tercapai" : "Perlu dorongan",
+      pillTone: rasioHadir >= 70 ? "safe" : "warning",
+      sparkPath: sparkHadir,
+      href: "/posbindu",
+    },
+    {
+      id: "sesi-bulan",
+      title: "Sesi Bulan Ini",
+      subtitle: `${angka(hadirBulanIni)} hadir · ${angka(pesertaBulanIni)} terdaftar`,
+      value: angka(sesiBulanIni.length),
+      icon: "calendar",
+      pillText: `${angka(sesi.length)} total sesi`,
+      pillTone: "info",
+      sparkPath: sparkPeserta,
+      sparkColor: "var(--primary)",
+      href: "/posbindu",
+    },
+    {
+      id: "rujukan",
+      title: "Rujukan Terbuka",
+      subtitle: `${angka(rujukanSelesai.length)} selesai ditindak`,
+      value: angka(rujukanTerbuka.length),
+      icon: "send",
+      pillText: rujukanTerbuka.length > 0 ? "Perlu tindak lanjut" : "Semua selesai",
+      pillTone: rujukanTerbuka.length > 0 ? "danger" : "safe",
+      accent: rujukanTerbuka.length > 0 ? "danger" : "safe",
+      sparkPath: "M2 16 C 14 18, 22 9, 34 11 C 46 14, 54 6, 64 7",
+      href: "/rujukan",
+    },
+    {
+      id: "mendatang",
+      title: "Sesi Mendatang",
+      subtitle: sesiBerikutnya ? `Berikutnya ${tanggal(sesiBerikutnya.tanggal, "short")}` : "Belum terjadwal",
+      value: angka(sesiAkanDatangList.length),
+      icon: "calendar-check",
+      pillText: sesiAkanDatangList.length > 0 ? "Terjadwal" : "Buat jadwal",
+      pillTone: "info",
+      sparkPath: "M2 19 C 12 16, 22 10, 34 12 C 44 14, 54 8, 64 5",
+      href: "/posbindu",
+    },
+  ];
+
+  const heroWarn = rujukanTerbuka.length > 0 && sesiAkanDatangList.length === 0;
 
   return (
     <AppShell greet="Halo Kader">
-      {/* Ringkasan aktivitas — dihitung dari API, bukan angka demo */}
-      <section>
-        <div className="app-section-title">
-          <h2>Aktivitas Bulan Ini</h2>
-        </div>
-        <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
-          <div className="metric">
-            <span className="metric-name">
-              <Icon name="calendar" size={14} /> Sesi
-            </span>
-            <span className="metric-val">{loading ? "—" : sesiBulanIni.length}</span>
-            <div className="tiny mt-4">Sesi Posbindu bulan ini</div>
-          </div>
-          <div className="metric">
-            <span className="metric-name">
-              <Icon name="users" size={14} /> Kehadiran
-            </span>
-            <span className="metric-val">{loading ? "—" : hadirBulanIni}</span>
-            <div className="tiny mt-4">Peserta hadir bulan ini</div>
-          </div>
-          <div className="metric">
-            <span className="metric-name">
-              <Icon name="calendar-check" size={14} /> Terjadwal
-            </span>
-            <span className="metric-val">{loading ? "—" : sesiAkanDatang}</span>
-            <div className="tiny mt-4">Sesi akan datang</div>
-          </div>
-          <div className="metric">
-            <span className="metric-name">
-              <Icon name="alert-circle" size={14} /> Rujukan
-            </span>
-            <span className="metric-val">{loading ? "—" : rujukanTerbuka.length}</span>
-            <div className="tiny mt-4">Perlu tindak lanjut</div>
-          </div>
-        </div>
-      </section>
-
       {error ? (
-        <div className="alert alert-danger mt-16">
-          <Icon name="alert-circle" />
+        <div className="alert alert-danger">
+          <Icon name="alert-circle" size={18} />
           <div>{error}</div>
         </div>
       ) : null}
 
-      {/* Sesi terbaru */}
-      <section>
-        <div className="app-section-title">
-          <h2>Sesi Posbindu</h2>
-          <Link href="/posbindu">Kelola</Link>
+      {/* HEADER RINGKAS */}
+      <div className="gv-head">
+        <div>
+          <h1 className="gv-head-title">Ringkasan Kader Posbindu</h1>
+          <p className="gv-head-sub">
+            {angka(sesi.length)} total sesi tercatat · {angka(rujukanTerbuka.length)} rujukan perlu tindak lanjut
+          </p>
         </div>
-        <div className="card mt-12">
-          {loading ? (
-            <EmptyState title="Memuat..." desc="Mengambil data sesi dari server." />
-          ) : sesi.length ? (
-            sesi.slice(0, 5).map((s) => (
-              <div className="li" key={s.id}>
-                <span className="li-ico" style={{ background: "var(--primary-050)", color: "var(--primary)" }}>
-                  <Icon name="calendar-check" size={18} />
-                </span>
-                <div className="li-main">
-                  <strong>{tanggal(s.tanggal, "day")}</strong>
-                  <span className="tiny">{s.lokasi}</span>
-                </div>
-                <div className="li-side">
-                  <div className="tiny">
-                    {s.hadir}/{s.jumlah_peserta} peserta
-                  </div>
-                </div>
-              </div>
-            ))
-          ) : (
-            <EmptyState title="Belum ada sesi" desc="Sesi Posbindu yang ditugaskan kepada Anda akan tampil di sini." />
-          )}
-        </div>
-      </section>
 
-      {/* Rujukan warga binaan — §11.2 */}
-      <section>
-        <div className="app-section-title">
-          <h2>Rujukan Perlu Tindak Lanjut</h2>
-          <Link href="/rujukan">Daftar lengkap</Link>
+        <div className="gv-head-actions">
+          <Link href="/rujukan" className="btn btn-sm btn-outline" style={{ borderRadius: 999 }}>
+            <Icon name="send" size={14} /> Daftar Rujukan
+          </Link>
+          <Link href="/posbindu" className="btn btn-sm btn-primary" style={{ borderRadius: 999 }}>
+            <Icon name="calendar-check" size={14} /> Kelola Posbindu
+          </Link>
         </div>
-        {rujukanTerbuka.length ? (
-          <div className="card mt-12">
-            {rujukanTerbuka.map((r) => (
-              <div className="li" key={r.id}>
-                <span className="li-ico" style={{ color: "var(--danger)" }}>
-                  <Icon name="alert-triangle" size={18} />
-                </span>
-                <div className="li-main">
-                  <strong>{r.faskes?.nama || "Faskes"}</strong>
-                  <span className="tiny">{r.alasan || "Tanpa alasan tertulis"}</span>
-                </div>
-                <Badge tone={TONE_STATUS_RUJUKAN[r.status] || "primary"}>
-                  {LABEL_STATUS_RUJUKAN[r.status] || r.status}
-                </Badge>
+      </div>
+
+      {/* BARIS 1 — HERO KEHADIRAN + PANEL AGENDA POSBINDU GLASSY V24 */}
+      <div className="gv-top-grid">
+        <section className={`gv-hero${heroWarn ? " is-warning" : ""}`}>
+          <div className="gv-hero-main">
+            <span className="gv-hero-badge">
+              <i className={`gv-hero-dot${rujukanTerbuka.length > 0 ? " is-warn" : ""}`} />
+              <span>
+                {rujukanTerbuka.length > 0
+                  ? `${angka(rujukanTerbuka.length)} rujukan perlu tindak lanjut`
+                  : "Semua rujukan binaan aman"}
+              </span>
+            </span>
+
+            <div>
+              <h2 className="gv-hero-title">
+                {sesiBerikutnya
+                  ? `Sesi berikutnya: ${tanggal(sesiBerikutnya.tanggal, "short")}`
+                  : "Belum ada jadwal Posbindu terbaru"}
+              </h2>
+              <p className="gv-hero-desc">
+                {sesiBerikutnya?.lokasi
+                  ? `Lokasi di ${sesiBerikutnya.lokasi} · ${angka(hadirBulanIni)} dari ${angka(pesertaBulanIni)} warga hadir bulan ini.`
+                  : "Pantau kehadiran warga di setiap sesi Posbindu dan tindak lanjuti rujukan aktif secara berkala."}
+              </p>
+            </div>
+
+            <div className="gv-hero-metrics">
+              <div className="gv-hero-metric">
+                <strong>{angka(sesi.length)}</strong>
+                <span>Total Sesi</span>
               </div>
+              <div className="gv-hero-metric">
+                <strong>{angka(hadirBulanIni)}</strong>
+                <span>Hadir Bulan Ini</span>
+              </div>
+              <div className="gv-hero-metric">
+                <strong>{angka(rujukanSelesai.length)}</strong>
+                <span>Rujukan Selesai</span>
+              </div>
+            </div>
+
+            <div className="gv-hero-actions">
+              <Link href="/posbindu" className="gv-btn-solid">
+                Kelola Posbindu <Icon name="chevron-right" size={14} />
+              </Link>
+              <Link href="/rujukan" className="gv-btn-glass">
+                <Icon name="send" size={14} /> Tindak Lanjut Rujukan
+              </Link>
+            </div>
+          </div>
+
+          <GlassyProgressRing
+            percent={rasioHadir}
+            centerLabel="kehadiran"
+            caption={`${angka(totalHadir)}/${angka(totalPeserta)} warga`}
+            ariaLabel={`Rasio Kehadiran Posbindu ${rasioHadir}%`}
+          />
+        </section>
+
+        <section className="gv-agenda">
+          <div className="gv-agenda-head">
+            <GlassyAgendaDate />
+            <Badge tone={rujukanTerbuka.length > 0 ? "warning" : "safe"}>
+              {rujukanTerbuka.length > 0 ? `${angka(rujukanTerbuka.length)} terbuka` : "Aman"}
+            </Badge>
+          </div>
+
+          <div className="gv-tab-strip" role="tablist" aria-label="Panel ringkas kader">
+            {(
+              [
+                ["rujukan", "Rujukan"],
+                ["posbindu", "Posbindu"],
+                ["grafik", "Grafik Hadir"],
+              ] as const
+            ).map(([kunci, label]) => (
+              <button
+                key={kunci}
+                type="button"
+                role="tab"
+                aria-selected={tabPanel === kunci}
+                className={`gv-tab-btn${tabPanel === kunci ? " is-active" : ""}`}
+                onClick={() => setTabPanel(kunci)}
+              >
+                {label}
+              </button>
             ))}
           </div>
-        ) : (
-          <div className="card card-flat mt-12">
-            <EmptyState title={loading ? "Memuat..." : "Tidak ada rujukan terbuka"} desc="Semua rujukan sudah ditindaklanjuti." />
-          </div>
-        )}
-      </section>
 
-      <p className="tiny center mt-8 mb-16">
-        <Icon name="shield" size={13} /> Data peserta Anda aman dan hanya dapat diakses oleh yang berwenang.
-      </p>
+          <div className="gv-agenda-body">
+            {tabPanel === "rujukan" ? (
+              rujukanTerbuka.length === 0 ? (
+                <div className="sa-feed">
+                  <Link href="/rujukan" className="sa-row">
+                    <span className="sa-feed-ico" style={{ background: "var(--safe-bg)", color: "var(--safe)" }}>
+                      <Icon name="check-circle" size={16} />
+                    </span>
+                    <div className="sa-feed-main">
+                      <strong>Tidak ada rujukan terbuka</strong>
+                      <span>Semua rujukan warga binaan sudah ditindaklanjuti</span>
+                    </div>
+                    <Icon name="chevron-right" size={16} />
+                  </Link>
+                </div>
+              ) : (
+                <div className="sa-feed">
+                  {rujukanTerbuka.slice(0, 4).map((r) => {
+                    const tone = TONE_STATUS_RUJUKAN[r.status] || "warning";
+                    return (
+                      <Link key={r.id} href="/rujukan" className="sa-feed-item">
+                        <span
+                          className="sa-feed-ico"
+                          style={{
+                            background: tone === "warning" ? "var(--warning-bg)" : "var(--primary-050)",
+                            color: tone === "warning" ? "var(--warning)" : "var(--primary)",
+                          }}
+                        >
+                          <Icon name="alert-triangle" size={15} />
+                        </span>
+                        <div className="sa-feed-main">
+                          <strong>{r.user?.name || "Warga Binaan"}</strong>
+                          <span>
+                            {r.faskes?.nama || "Fasilitas Kesehatan"} · {r.alasan || "Perlu tindak lanjut"}
+                          </span>
+                        </div>
+                        <Badge tone={tone}>{LABEL_STATUS_RUJUKAN[r.status] || r.status}</Badge>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )
+            ) : tabPanel === "posbindu" ? (
+              sesi.length === 0 ? (
+                <p className="tiny center py-16">Belum ada sesi Posbindu yang ditugaskan.</p>
+              ) : (
+                <div className="sa-feed">
+                  {sesi.slice(0, 4).map((s) => (
+                    <Link key={s.id} href="/posbindu" className="sa-row">
+                      <span className="sa-feed-ico" style={{ background: "var(--warning-bg)", color: "var(--warning)" }}>
+                        <Icon name="calendar-check" size={15} />
+                      </span>
+                      <div className="sa-feed-main">
+                        <strong>{s.lokasi || "Lokasi Posbindu"}</strong>
+                        <span>
+                          {tanggal(s.tanggal, "day")} · {angka(s.hadir)} hadir dari {angka(s.jumlah_peserta)} peserta
+                        </span>
+                      </div>
+                      <Badge tone={s.hadir > 0 ? "safe" : "info"}>
+                        {angka(s.hadir)}/{angka(s.jumlah_peserta)}
+                      </Badge>
+                    </Link>
+                  ))}
+                </div>
+              )
+            ) : sesiGrafik.length > 0 ? (
+              <Bar
+                labels={sesiGrafik.map((s) => tanggal(s.tanggal, "short"))}
+                values={sesiGrafik.map((s) => s.hadir || 0)}
+                unit="peserta"
+                height={170}
+              />
+            ) : (
+              <p className="tiny center py-16">Belum ada riwayat kehadiran untuk ditampilkan.</p>
+            )}
+          </div>
+
+          <div className="gv-agenda-foot">
+            <span className="row gap-6 items-center">
+              <Icon name="map-pin" size={14} className="text-primary" />
+              <span>
+                {sesiBerikutnya
+                  ? `${tanggal(sesiBerikutnya.tanggal, "short")} · ${sesiBerikutnya.lokasi}`
+                  : "Belum ada lokasi sesi"}
+              </span>
+            </span>
+            <Link href={tabPanel === "rujukan" ? "/rujukan" : "/posbindu"} className="bento-sec-action">
+              Lihat semua <Icon name="chevron-right" size={14} />
+            </Link>
+          </div>
+        </section>
+      </div>
+
+      {/* BARIS 2 — 4 KPI GLASS CARDS + SPARKLINE SVG */}
+      <GlassyKpiGrid items={kpiItems} />
+
+      {/* STRIP PINTASAN KERJA KADER (1 BARIS DATAR) */}
+      <div className="gv-quick-bar">
+        <div className="gv-quick-links">
+          <Link href="/posbindu" className="gv-quick-pill">
+            <Icon name="calendar-check" size={13} /> Kelola Posbindu ({angka(sesi.length)})
+          </Link>
+          <Link href="/rujukan" className="gv-quick-pill">
+            <Icon name="send" size={13} /> Daftar Rujukan ({angka(rujukanTerbuka.length)} aktif)
+          </Link>
+          <Link href="/rekam-medis" className="gv-quick-pill">
+            <Icon name="clipboard" size={13} /> Rekam Medis
+          </Link>
+          <Link href="/peringkat" className="gv-quick-pill">
+            <Icon name="trophy" size={13} /> Peringkat Kelurahan
+          </Link>
+        </div>
+        <span className="tiny">
+          <Icon name="shield" size={12} /> Data peserta binaan aman &amp; hanya dapat diakses petugas berwenang
+        </span>
+      </div>
     </AppShell>
   );
 }

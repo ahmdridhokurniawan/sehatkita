@@ -56,7 +56,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               {t.title ? <div className="toast-title">{t.title}</div> : null}
               <div className="toast-desc">{t.msg}</div>
             </div>
-            <button className="toast-close" onClick={() => setItems((p) => p.filter((x) => x.id !== t.id))} aria-label="Tutup">
+            <button type="button" className="toast-close" onClick={() => setItems((p) => p.filter((x) => x.id !== t.id))} aria-label="Tutup">
               <Icon name="x" size={16} />
             </button>
           </div>

@@ -15,16 +15,45 @@ export function temaSaatIni(): Mode {
   return (document.documentElement.getAttribute("data-theme") as Mode) || "light";
 }
 
+type TransitionDoc = Document & {
+  startViewTransition?: (callback: () => void) => unknown;
+};
+
 export function terapkanTema(mode: Mode): void {
   if (typeof document === "undefined") return;
-  document.documentElement.setAttribute("data-theme", mode);
+  const root = document.documentElement;
+  root.classList.add("theme-switching");
+  root.setAttribute("data-theme", mode);
   document.dispatchEvent(new CustomEvent("themechange", { detail: { mode } }));
+
+  if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        root.classList.remove("theme-switching");
+      });
+    });
+  } else {
+    root.classList.remove("theme-switching");
+  }
 }
 
 export function gantiTema(): Mode {
   const next: Mode = temaSaatIni() === "dark" ? "light" : "dark";
   if (typeof window !== "undefined") window.localStorage.setItem(THEME_KEY, next);
-  terapkanTema(next);
+
+  const kurangiGerak =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const doc = typeof document !== "undefined" ? (document as TransitionDoc) : undefined;
+
+  if (!kurangiGerak && doc && typeof doc.startViewTransition === "function") {
+    doc.startViewTransition(() => {
+      terapkanTema(next);
+    });
+  } else {
+    terapkanTema(next);
+  }
   return next;
 }
 

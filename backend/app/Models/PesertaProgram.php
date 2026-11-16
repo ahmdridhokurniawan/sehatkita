@@ -15,7 +15,8 @@ class PesertaProgram extends Model
         'program_id',        // program yang diikuti
         'user_id',           // user yang mendaftar
         'status',            // terdaftar | menunggu_verifikasi | selesai | ditolak | berhenti
-        'bukti_foto',        // path foto dokumentasi bukti penyelesaian misi
+        'bukti_foto',        // path foto dokumentasi bukti penyelesaian misi (utama/pertama)
+        'bukti_foto_daftar', // daftar path semua foto bukti (JSON array, maks. 5 foto)
         'catatan_bukti',     // catatan singkat peserta saat unggah bukti
         'dikirim_pada',      // waktu peserta mengirim bukti
         'catatan_verifikasi',// catatan kader/admin saat menyetujui/menolak
@@ -24,10 +25,11 @@ class PesertaProgram extends Model
         'selesai_pada',      // kapan selesai (opsional)
     ];
 
-    // Cast tipe kolom timestamp.
+    // Cast tipe kolom timestamp dan array daftar foto bukti.
     protected function casts(): array
     {
         return [
+            'bukti_foto_daftar' => 'array',
             'dikirim_pada'      => 'datetime',
             'diverifikasi_pada' => 'datetime',
             'selesai_pada'      => 'datetime',

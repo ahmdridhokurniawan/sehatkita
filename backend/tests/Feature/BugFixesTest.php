@@ -573,9 +573,13 @@ class BugFixesTest extends TestCase
         $resSesi = $this->asUser($kaderA)->getJson('/api/v1/posbindu/sesi')->assertOk();
         $this->assertCount(1, $resSesi->json('data'));
 
-        // Autocomplete NIK kader A tidak boleh membocorkan warga binaan kader B
+        // Autocomplete NIK & nama warga: kader A tidak boleh membocorkan warga binaan kader B
         $resNik = $this->asUser($kaderA)->getJson('/api/v1/pengguna/cari-nik?nik=637205')->assertOk();
         $this->assertSame([$wargaA->id], collect($resNik->json('data'))->pluck('id')->all());
+
+        $kataNama = substr($wargaA->name, 0, 5);
+        $resNama = $this->asUser($kaderA)->getJson('/api/v1/pengguna/cari-nik?nik=' . urlencode($kataNama))->assertOk();
+        $this->assertSame([$wargaA->id], collect($resNama->json('data'))->pluck('id')->all());
 
         $faskes = Faskes::create([
             'wilayah_id' => $this->kelurahanA->id,

@@ -8,6 +8,7 @@ import { BrandLockup } from "@/components/ui/BrandLogo";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import Modal from "@/components/ui/Modal";
 import AuthAside from "@/components/auth/AuthAside";
+import LegalInfoModal, { type LegalTopic } from "@/components/landing/LegalInfoModal";
 import { auth, setToken, ApiError } from "@/lib/api";
 import { clearUserCache } from "@/hooks/useUser";
 
@@ -24,11 +25,13 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [lupa, setLupa] = useState(false);
   const [tersalin, setTersalin] = useState(false);
+  const [legalTopic, setLegalTopic] = useState<LegalTopic | null>(null);
 
   function validasi(): boolean {
     const err: Err = {};
-    if (!email) err.email = "Email wajib diisi.";
-    else if (!/^\S+@\S+\.\S+$/.test(email)) err.email = "Format email tidak valid.";
+    const emailBersih = email.trim();
+    if (!emailBersih) err.email = "Email wajib diisi.";
+    else if (!/^\S+@\S+\.\S+$/.test(emailBersih)) err.email = "Format email tidak valid.";
     if (!password) {
       err.password = "Password wajib diisi.";
     } else if (password.length < 8) {
@@ -45,7 +48,7 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const res = await auth.login({ email, password, device_name: "web-app" });
+      const res = await auth.login({ email: email.trim(), password, device_name: "web-app" });
 
       // Simpan token di localStorage (ingat saya) atau sessionStorage (hanya sesi browser ini)
       setToken(res.token, ingat);
@@ -81,30 +84,49 @@ export default function LoginPage() {
         judul="Kenali Kondisi Tubuhmu. Cegah Risiko Sejak Dini."
         teks="Masuk untuk memantau riwayat kesehatan, mengikuti program kelurahan, dan membangun kebiasaan hidup lebih sehat."
         fitur={[
-          ["file-text", "Catat & pantau indikator kesehatan"],
-          ["sparkles", "Dapatkan insight dari data Anda"],
-          ["award", "Ikuti tantangan kesehatan wilayah"],
-          ["shield-check", "Data terlindungi & sesuai izin"],
+          {
+            icon: "file-text",
+            tag: "Pemantauan Rutin",
+            title: "Catat & pantau indikator kesehatan",
+            desc: "Berat badan, tekanan darah, gula darah, dan kolesterol tersimpan rapi di satu tempat.",
+          },
+          {
+            icon: "sparkles",
+            tag: "Insight Klinis",
+            title: "Analisis status kesehatan otomatis",
+            desc: "Lihat zona hijau, kuning, dan merah sesuai ambang resmi Kemenkes RI.",
+          },
+          {
+            icon: "award",
+            tag: "Program Kelurahan",
+            title: "Tantangan sehat & jadwal Posbindu",
+            desc: "Terhubung langsung dengan kader wilayah dan agenda posbindu setempat.",
+          },
+          {
+            icon: "shield-check",
+            tag: "Privasi Terjaga",
+            title: "Data terlindungi & kontrol penuh Anda",
+            desc: "Riwayat pribadi hanya diakses sesuai izin persetujuan pengguna.",
+          },
         ]}
       />
 
       <main className="auth-main">
         <div className="auth-card">
           <div className="auth-topbar">
-            <Link href="/" className="auth-mobile-brand" aria-label="Beranda SehatKita">
-              <BrandLockup variant="sm" />
-              <div className="txt">
-                SehatKita
-                <small>Kota Banjarbaru</small>
-              </div>
+            <Link href="/" className="btn btn-sm btn-outline auth-back-btn">
+              <Icon name="arrow-left" size={16} /> Kembali
             </Link>
-            <div className="auth-actions">
-              <Link href="/" className="btn btn-sm btn-outline">
-                <Icon name="arrow-left" size={16} /> Kembali
-              </Link>
-              <ThemeToggle />
-            </div>
+            <ThemeToggle />
           </div>
+
+          <Link href="/" className="auth-mobile-brand" aria-label="Beranda SehatKita">
+            <BrandLockup variant="sm" />
+            <div className="txt">
+              SehatKita
+              <small>Kota Banjarbaru</small>
+            </div>
+          </Link>
 
           <div className="auth-head">
             <span className="auth-aside-badge">
@@ -194,12 +216,27 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="center tiny mt-20">
+          <p className="center tiny mt-20 auth-foot-note">
             Belum punya akun?{" "}
             <Link href="/register" className="text-primary fw-700">
               Daftar sekarang
             </Link>
           </p>
+
+          <div className="auth-legal-links" aria-label="Informasi hukum dan bantuan">
+            <button type="button" className="auth-legal-btn" onClick={() => setLegalTopic("privasi")}>
+              Kebijakan Privasi
+            </button>
+            <button type="button" className="auth-legal-btn" onClick={() => setLegalTopic("syarat")}>
+              Syarat &amp; Ketentuan
+            </button>
+            <button type="button" className="auth-legal-btn" onClick={() => setLegalTopic("medis")}>
+              Catatan Penting
+            </button>
+            <button type="button" className="auth-legal-btn" onClick={() => setLegalTopic("kontak")}>
+              Kontak Resmi
+            </button>
+          </div>
         </div>
       </main>
 
@@ -220,8 +257,8 @@ export default function LoginPage() {
         }
       >
         <p className="text-sm">
-          Reset password mandiri lewat email belum tersedia pada API saat ini. Untuk keamanan akun warga, pemulihan
-          dilakukan oleh petugas kelurahan atau super admin.
+          Reset kata sandi mandiri lewat email belum tersedia saat ini. Untuk keamanan akun warga, pemulihan akun dibantu
+          langsung oleh petugas kelurahan atau pengelola sistem.
         </p>
         <div className="alert alert-info mt-12">
           <Icon name="info" size={18} />
@@ -231,6 +268,12 @@ export default function LoginPage() {
           </div>
         </div>
       </Modal>
+
+      <LegalInfoModal
+        topic={legalTopic}
+        onChangeTopic={setLegalTopic}
+        onClose={() => setLegalTopic(null)}
+      />
     </div>
   );
 }

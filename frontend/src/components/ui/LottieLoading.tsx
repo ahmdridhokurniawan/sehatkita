@@ -1,34 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Lottie } from "lottie-react";
+import loadingAnimation from "../../../public/lottie/loading.json";
 
-export default function LottieLoading({ label = "Memuat…" }: { label?: string }) {
-  const [animasi, setAnimasi] = useState<unknown>(null);
+type LottieLoadingProps = {
+  label?: string;
+  compact?: boolean;
+};
 
-  useEffect(() => {
-    let aktif = true;
-    fetch("/lottie/loading.json")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (aktif) setAnimasi(data);
-      })
-      .catch(() => {
-        if (aktif) setAnimasi(null);
-      });
-    return () => {
-      aktif = false;
-    };
-  }, []);
+/** Indikator loading Lottie bersama dengan rasio proporsional dan pewarnaan adaptif tema. */
+export default function LottieLoading({ label = "Memuat…", compact = false }: LottieLoadingProps) {
+  const width = compact ? 64 : 116;
+  const height = compact ? 50 : 92;
 
   return (
-    <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-2)" }}>
-      <div style={{ width: 90, height: 90, margin: "0 auto", display: "grid", placeItems: "center" }}>
-        {animasi ? <Lottie src={animasi as object} autoplay loop /> : <span className="spinner" />}
+    <div
+      className={compact ? "lottie-loading is-compact" : "lottie-loading"}
+      style={
+        compact
+          ? { textAlign: "center", color: "var(--text)" }
+          : { textAlign: "center", padding: "72px 20px", color: "var(--text-2)" }
+      }
+    >
+      <div
+        className="lottie-themed"
+        style={{ width, height, margin: "0 auto", display: "grid", placeItems: "center" }}
+      >
+        <Lottie src={loadingAnimation} autoplay loop style={{ width: "100%", height: "100%" }} />
       </div>
-      <p className="tiny" style={{ marginTop: 8 }}>
-        {label}
-      </p>
+      {label ? (
+        <p className="tiny" style={{ marginTop: compact ? 6 : 10, fontWeight: compact ? 600 : 500 }}>
+          {label}
+        </p>
+      ) : null}
     </div>
   );
 }
