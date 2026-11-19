@@ -5,56 +5,52 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+// Menyimpan data pribadi warga seperti tanggal lahir, tinggi badan, dan kebiasaan harian.
 class Profil extends Model
 {
-    // Tanpa ini Eloquent menebak tabel "profils".
     protected $table = 'profil';
 
-    // Primary key tabel ini `user_id` (bukan `id`) dan tidak auto-increment.
     protected $primaryKey = 'user_id';
+
     public $incrementing = false;
+
     protected $keyType = 'int';
 
-    // Kolom yang boleh diisi massal (form onboarding user).
-    // user_id WAJIB ada: ini primary key sekaligus FK ke pengguna.
     protected $fillable = [
-        'user_id',                    // primary key + FK ke pengguna (wajib saat create)
-        'tgl_lahir',                  // tanggal lahir → untuk hitung umur (kelompok usia)
-        'jenis_kelamin',             // L | P
-        'tinggi_cm',                 // tinggi badan, dipakai menghitung IMT
-        'tingkat_aktivitas',         // ringan | sedang | berat
-        'merokok',                   // true = perokok
-        'riwayat_keluarga',          // JSON array, mis. ["hipertensi","diabetes"]
-        'tampil_di_peringkat',       // kontrak §5.2: nama tampil di peringkat
-        'bb_target_kg',              // target berat badan (progress dashboard)
-        'bb_awal_kg',                // read-only: server isi saat target pertama diset
+        'user_id',
+        'tgl_lahir',
+        'jenis_kelamin',
+        'tinggi_cm',
+        'tingkat_aktivitas',
+        'merokok',
+        'riwayat_keluarga',
+        'tampil_di_peringkat',
+        'bb_target_kg',
+        'bb_awal_kg',
         'target_aktivitas_per_minggu',
         'target_air_ml',
     ];
 
     protected $appends = ['usia'];
 
-    // Cast tipe kolom.
     protected function casts(): array
     {
         return [
-            'tgl_lahir'                  => 'date',
-            'tinggi_cm'                  => 'decimal:2',
-            'bb_target_kg'               => 'decimal:2',
-            'bb_awal_kg'                 => 'decimal:2',
-            'merokok'                    => 'boolean',
-            'tampil_di_peringkat'        => 'boolean',
-            'riwayat_keluarga'           => 'array',   // JSON → dibaca sebagai array PHP
+            'tgl_lahir' => 'date',
+            'tinggi_cm' => 'decimal:2',
+            'bb_target_kg' => 'decimal:2',
+            'bb_awal_kg' => 'decimal:2',
+            'merokok' => 'boolean',
+            'tampil_di_peringkat' => 'boolean',
+            'riwayat_keluarga' => 'array',
         ];
     }
 
-    // Relasi: profil ini milik user mana (1:1 terbalik).
     public function pengguna(): BelongsTo
     {
         return $this->belongsTo(Pengguna::class, 'user_id');
     }
 
-    // Usia bulat tahun dihitung dari tanggal lahir
     public function getUsiaAttribute(): ?int
     {
         return $this->tgl_lahir ? (int) $this->tgl_lahir->diffInYears(now()) : null;

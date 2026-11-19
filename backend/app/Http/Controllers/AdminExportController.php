@@ -8,29 +8,27 @@ use App\Models\Rujukan;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-// Controller ekspor data rekapitulasi kesehatan ke format CSV untuk super admin
+// Mengunduh rekap data catatan kesehatan, Posbindu, dan rujukan dalam bentuk file tabel.
 class AdminExportController extends Controller
 {
-    // Streaming unduhan CSV sesuai tipe data pilihan (catatan, posbindu, atau rujukan)
     public function export(Request $request): StreamedResponse
     {
         $this->wajibPeran($request->user(), ['super_admin'], 'Hanya super admin.');
 
-        $tipe     = $request->query('tipe', 'catatan');
-        $namaFile = 'sehatkita_export_' . $tipe . '_' . date('Ymd_His') . '.csv';
+        $tipe = $request->query('tipe', 'catatan');
+        $namaFile = 'sehatkita_export_'.$tipe.'_'.date('Ymd_His').'.csv';
 
-        // Catat aktivitas ekspor data individu oleh super_admin ke tabel log_audit
         $modelAudit = match ($tipe) {
             'posbindu' => KunjunganPosbindu::class,
-            'rujukan'  => Rujukan::class,
-            default    => CatatanKesehatan::class,
+            'rujukan' => Rujukan::class,
+            default => CatatanKesehatan::class,
         };
         $this->catatAudit($request->user(), 'baca_data_individu', $modelAudit, null);
 
         return response()->stream(function () use ($tipe, $request) {
             $handle = fopen('php://output', 'w');
-            // Sisipkan UTF-8 BOM agar karakter terbaca rapi saat dibuka di Microsoft Excel
-            fputs($handle, "\xEF\xBB\xBF");
+
+            fwrite($handle, "\xEF\xBB\xBF");
 
             if ($tipe === 'posbindu') {
                 $this->exportPosbindu($handle, $request);
@@ -42,13 +40,12 @@ class AdminExportController extends Controller
 
             fclose($handle);
         }, 200, [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"{$namaFile}\"",
-            'Cache-Control'       => 'no-store, no-cache',
+            'Cache-Control' => 'no-store, no-cache',
         ]);
     }
 
-    // Ekspor seluruh catatan kesehatan terverifikasi beserta ringkasan risiko ke CSV
     private function exportCatatanKesehatan($handle, Request $request): void
     {
         fputcsv($handle, [
@@ -68,7 +65,7 @@ class AdminExportController extends Controller
             $wId = (int) $request->wilayah_id;
             $query->where(function ($q) use ($wId) {
                 $q->where('wilayah_id', $wId)
-                  ->orWhereHas('pengguna', fn ($sub) => $sub->where('wilayah_id', $wId));
+                    ->orWhereHas('pengguna', fn ($sub) => $sub->where('wilayah_id', $wId));
             });
         }
 
@@ -153,7 +150,6 @@ class AdminExportController extends Controller
         });
     }
 
-    // Netralkan awalan karakter rumus spreadsheet agar sel teks CSV tidak memicu CSV formula injection
     private function amanCsv(mixed $nilai): string
     {
         if ($nilai === null || $nilai === '') {
@@ -162,7 +158,7 @@ class AdminExportController extends Controller
 
         $teks = (string) $nilai;
         if (preg_match('/^[=+\-@\t\r]/', $teks) === 1) {
-            return "'" . $teks;
+            return "'".$teks;
         }
 
         return $teks;

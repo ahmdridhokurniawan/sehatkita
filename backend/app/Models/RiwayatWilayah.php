@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-// Model pencatatan riwayat perpindahan wilayah / mutasi kelurahan warga (U12)
+// Menyimpan riwayat perpindahan kelurahan tempat tinggal warga.
 class RiwayatWilayah extends Model
 {
     protected $table = 'riwayat_wilayah';

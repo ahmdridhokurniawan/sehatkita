@@ -22,59 +22,47 @@ use App\Http\Controllers\TelegramController;
 use App\Http\Controllers\WilayahController;
 use Illuminate\Support\Facades\Route;
 
-// Batasi parameter ID numerik di seluruh rute API agar input invalid menghasilkan 404, bukan 500 TypeError
+// Daftar alamat layanan yang menghubungkan tampilan aplikasi dengan fitur-fitur di belakang layar.
 Route::prefix('v1')->whereNumber(['id', 'pesertaId', 'catatan_kesehatan'])->group(function () {
 
-    // Rute Publik
     Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
     Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1')->name('login');
     Route::get('/wilayah', [WilayahController::class, 'index']);
     Route::post('/telegram/webhook', [TelegramController::class, 'webhook']);
 
-    // Rute Terproteksi Sanctum
     Route::middleware('auth:sanctum')->group(function () {
 
-        // Autentikasi
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
 
-        // Persetujuan kebijakan
         Route::post('/persetujuan', [AuthController::class, 'consent']);
         Route::delete('/persetujuan', [AuthController::class, 'revokeConsent']);
 
-        // Profil
         Route::get('/profil', [ProfilController::class, 'show']);
         Route::put('/profil', [ProfilController::class, 'update']);
 
-        // Integrasi Bot Telegram
         Route::get('/telegram/status', [TelegramController::class, 'status']);
         Route::post('/telegram/putuskan', [TelegramController::class, 'putuskan']);
 
-        // Faskes & detail wilayah terotorisasi
         Route::get('/wilayah/{id}', [WilayahController::class, 'show']);
         Route::get('/faskes', [FaskesController::class, 'index']);
 
-        // Catatan kesehatan
         Route::get('/catatan-kesehatan', [CatatanKesehatanController::class, 'index']);
         Route::post('/catatan-kesehatan', [CatatanKesehatanController::class, 'store']);
         Route::get('/catatan-kesehatan/{catatan_kesehatan}', [CatatanKesehatanController::class, 'show']);
         Route::delete('/catatan-kesehatan/{catatan_kesehatan}', [CatatanKesehatanController::class, 'destroy']);
 
-        // Insight & ambang indikator
         Route::get('/insight', [InsightController::class, 'index']);
         Route::get('/insight/ambang', [InsightController::class, 'ambang']);
 
-        // Tren kesehatan & rekam medis
         Route::get('/tren', [RekamMedisController::class, 'index']);
         Route::get('/rekam-medis', [RekamMedisController::class, 'index']);
 
-        // Rujukan
         Route::post('/rujukan', [RujukanController::class, 'store']);
         Route::get('/rujukan', [RujukanController::class, 'index']);
         Route::get('/rujukan/{id}/surat', [RujukanController::class, 'surat']);
         Route::patch('/rujukan/{id}/status', [RujukanController::class, 'updateStatus']);
 
-        // Posbindu
         Route::get('/posbindu/sesi', [PosbinduController::class, 'indexSesi']);
         Route::post('/posbindu/sesi', [PosbinduController::class, 'storeSesi']);
         Route::get('/posbindu/sesi/{id}', [PosbinduController::class, 'showSesi']);
@@ -85,7 +73,6 @@ Route::prefix('v1')->whereNumber(['id', 'pesertaId', 'catatan_kesehatan'])->grou
         Route::get('/posbindu/peserta/cari-nik', [PosbinduController::class, 'cariNik']);
         Route::get('/pengguna/cari-nik', [PosbinduController::class, 'cariNik']);
 
-        // Program kesehatan & peringkat
         Route::get('/program', [ProgramController::class, 'index']);
         Route::post('/program', [ProgramController::class, 'store']);
         Route::get('/program/{id}', [ProgramController::class, 'show']);
@@ -99,32 +86,27 @@ Route::prefix('v1')->whereNumber(['id', 'pesertaId', 'catatan_kesehatan'])->grou
         Route::get('/program/{id}/bukti/{pesertaId}', [ProgramController::class, 'lihatBukti']);
         Route::get('/peringkat', [PeringkatController::class, 'index']);
 
-        // Target & refleksi
         Route::get('/target', [TargetRefleksiController::class, 'target']);
         Route::put('/target', [TargetRefleksiController::class, 'simpanTarget']);
         Route::get('/refleksi', [TargetRefleksiController::class, 'refleksi']);
         Route::post('/refleksi', [TargetRefleksiController::class, 'simpanRefleksi']);
 
-        // Target dinamis warga
         Route::get('/target-kesehatan', [TargetKesehatanController::class, 'index']);
         Route::post('/target-kesehatan', [TargetKesehatanController::class, 'store']);
         Route::put('/target-kesehatan/{id}', [TargetKesehatanController::class, 'update']);
         Route::patch('/target-kesehatan/{id}/capai', [TargetKesehatanController::class, 'capai']);
         Route::delete('/target-kesehatan/{id}', [TargetKesehatanController::class, 'destroy']);
 
-        // Pengaduan warga
         Route::get('/pengaduan', [PengaduanController::class, 'index']);
         Route::post('/pengaduan', [PengaduanController::class, 'store']);
         Route::get('/pengaduan/{id}', [PengaduanController::class, 'show']);
         Route::patch('/pengaduan/{id}/tanggapi', [PengaduanController::class, 'tanggapi']);
 
-        // Dashboard & laporan
         Route::get('/dashboard/pribadi', [DashboardController::class, 'pribadi']);
         Route::get('/dashboard/kelurahan', [DashboardWilayahController::class, 'dashboardKelurahan']);
         Route::get('/laporan/pribadi', [DashboardWilayahController::class, 'laporanPribadi']);
         Route::get('/laporan/kelurahan', [DashboardWilayahController::class, 'laporanKelurahan']);
 
-        // Modul Master Admin
         Route::prefix('admin')->group(function () {
             Route::get('/statistik', [AdminStatistikController::class, 'index']);
             Route::get('/export', [AdminExportController::class, 'export']);
@@ -152,7 +134,6 @@ Route::prefix('v1')->whereNumber(['id', 'pesertaId', 'catatan_kesehatan'])->grou
 
             Route::get('/log-audit', [AdminMasterController::class, 'indexLogAudit']);
 
-            // Verifikasi data catatan kesehatan
             Route::get('/catatan-kesehatan/perlu-verifikasi', [CatatanKesehatanController::class, 'perluVerifikasiList']);
             Route::patch('/catatan-kesehatan/{id}/verifikasi', [CatatanKesehatanController::class, 'verifikasi']);
         });

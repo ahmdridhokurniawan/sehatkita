@@ -7,21 +7,17 @@ use App\Models\Pengguna;
 use App\Services\HealthCalculatorService;
 use Illuminate\Http\Request;
 
-/**
- * Series indikator untuk grafik. Kontrak §8.2.
- * Path resmi tetap `/tren` (§20: rename ke /rekam-medis dibatalkan);
- * `/rekam-medis` dipertahankan sebagai alias agar FE lama tidak pecah.
- */
+// Menampilkan riwayat dan perkembangan angka pemeriksaan kesehatan warga dari waktu ke waktu.
 class RekamMedisController extends Controller
 {
     private const SATUAN = [
-        'bb_kg'         => 'kg',
-        'imt'           => 'kg/m2',
-        'sistol'        => 'mmHg',
-        'diastol'       => 'mmHg',
-        'gula_darah'    => 'mg/dL',
-        'kolesterol'    => 'mg/dL',
-        'asam_urat'     => 'mg/dL',
+        'bb_kg' => 'kg',
+        'imt' => 'kg/m2',
+        'sistol' => 'mmHg',
+        'diastol' => 'mmHg',
+        'gula_darah' => 'mg/dL',
+        'kolesterol' => 'mg/dL',
+        'asam_urat' => 'mg/dL',
         'lingkar_perut' => 'cm',
     ];
 
@@ -29,12 +25,10 @@ class RekamMedisController extends Controller
         private HealthCalculatorService $kalkulator
     ) {}
 
-    // Ambil rangkaian data grafik tren indikator berdasarkan periode yang dipilih
     public function index(Request $request)
     {
         $user = $request->user();
 
-        // Kader dan super admin boleh melihat grafik tren warga binaan melalui user_id
         $target = $user;
         if ($request->filled('user_id') && (int) $request->user_id !== (int) $user->id) {
             if (! in_array($user->role, ['kader', 'super_admin'], true)) {
@@ -58,7 +52,6 @@ class RekamMedisController extends Controller
         [$periode, $tglMulai] = $this->parsePeriode($request->query('periode'));
         $sejak = $tglMulai->startOfDay();
 
-        // §8.2 — log `perlu_verifikasi` dilewati; with('pengguna.profil') hindari N+1.
         $catatan = CatatanKesehatan::query()
             ->where('user_id', $target->id)
             ->where('dicatat_pada', '>=', $sejak)
@@ -71,7 +64,7 @@ class RekamMedisController extends Controller
         $series = [];
 
         foreach ($diminta as $kode) {
-            // §8.2 — satu titik per hari = nilai log terakhir hari itu.
+
             $perHari = [];
 
             foreach ($catatan as $c) {
@@ -91,25 +84,21 @@ class RekamMedisController extends Controller
 
             $series[] = [
                 'indikator' => $kode,
-                'satuan'    => self::SATUAN[$kode],
-                'titik'     => $titik,
+                'satuan' => self::SATUAN[$kode],
+                'titik' => $titik,
             ];
         }
 
         return response()->json([
             'success' => true,
             'message' => 'OK',
-            'data'    => [
+            'data' => [
                 'periode' => $periode,
-                'series'  => $series,
+                'series' => $series,
             ],
         ]);
     }
 
-    /**
-     * Nilai satu indikator dari satu catatan.
-     * IMT tidak ada di tabel -> dihitung dari bb_kg + tinggi profil.
-     */
     private function nilai(string $kode, CatatanKesehatan $c): ?float
     {
         if ($kode === 'imt') {

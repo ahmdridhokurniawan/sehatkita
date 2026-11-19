@@ -210,69 +210,6 @@ const NAV_ADMIN: NavItem[] = [
   { href: "/admin", icon: "shield", label: "Admin", desc: "Panel administrasi pengguna, wilayah & ambang indikator" },
 ];
 
-type AmbientKind = "pulse" | "shield" | "sasirangan";
-
-const AMBIENT_MOTIFS: { kind: AmbientKind; left: string; size: number; duration: string; delay: string }[] = [
-  { kind: "pulse", left: "8%", size: 96, duration: "42s", delay: "0s" },
-  { kind: "sasirangan", left: "23%", size: 74, duration: "54s", delay: "-14s" },
-  { kind: "shield", left: "40%", size: 108, duration: "48s", delay: "-30s" },
-  { kind: "pulse", left: "60%", size: 82, duration: "58s", delay: "-20s" },
-  { kind: "sasirangan", left: "76%", size: 98, duration: "45s", delay: "-36s" },
-  { kind: "shield", left: "89%", size: 68, duration: "52s", delay: "-9s" },
-];
-
-function AmbientMotif({ kind }: { kind: AmbientKind }) {
-  if (kind === "pulse") {
-    return (
-      <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-        <path
-          d="M32 52C32 52 10 38.5 10 22.8C10 15.6 15.6 10 22.5 10C26.7 10 30.4 12.1 32 15.3C33.6 12.1 37.3 10 41.5 10C48.4 10 54 15.6 54 22.8C54 38.5 32 52 32 52Z"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M17 29H24L27.5 21L31.5 36L35.5 25L38.5 29H47"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-    );
-  }
-  if (kind === "shield") {
-    return (
-      <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-        <path
-          d="M32 7L51 13.8V30.4C51 43.2 42.4 51.8 32 56.5C21.6 51.8 13 43.2 13 30.4V13.8L32 7Z"
-          stroke="currentColor"
-          strokeWidth="2.4"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M32 22V39M23.5 30.5H40.5"
-          stroke="currentColor"
-          strokeWidth="2.6"
-          strokeLinecap="round"
-        />
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
-      <circle cx="32" cy="32" r="22" stroke="currentColor" strokeWidth="2.2" />
-      <path
-        d="M16 33H24L28 23L33 41L37.5 28L41 33H48"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 type FrameProps = {
   children: React.ReactNode;
   user: User | null;
@@ -403,8 +340,12 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
   const grup: { judul: string; items: NavItem[] }[] = [];
   if (role === "super_admin") {
     grup.push({
-      judul: "Menu",
-      items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[3], NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[7]],
+      judul: "Pemantauan",
+      items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[3]],
+    });
+    grup.push({
+      judul: "Program & Edukasi",
+      items: [NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[7]],
     });
     grup.push({ judul: "Data & Laporan", items: [NAV_DATA[0], NAV_DATA[1], NAV_DATA[2]] });
     grup.push({
@@ -422,8 +363,12 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
     grup.push({ judul: "Akun", items: NAV_AKUN });
   } else if (role === "admin_kelurahan") {
     grup.push({
-      judul: "Menu",
-      items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[3], NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[7]],
+      judul: "Pemantauan",
+      items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[3]],
+    });
+    grup.push({
+      judul: "Program & Edukasi",
+      items: [NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[7]],
     });
     grup.push({
       judul: "Data & Laporan",
@@ -442,6 +387,13 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
       judul: "Layanan",
       items: [
         {
+          href: "/admin/verifikasi",
+          icon: "check-circle",
+          label: "Verifikasi Data",
+          short: "Verifikasi",
+          desc: "Setujui atau tolak catatan kesehatan anomali warga kelurahan",
+        },
+        {
           href: "/admin/pengaduan",
           icon: "alert-circle",
           label: "Pengaduan",
@@ -452,13 +404,28 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
     grup.push({ judul: "Akun", items: NAV_AKUN });
   } else if (role === "kader") {
     grup.push({
-      judul: "Menu",
-      items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[3], NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[7]],
+      judul: "Pemantauan",
+      items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[3]],
+    });
+    grup.push({
+      judul: "Program & Edukasi",
+      items: [NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[7]],
     });
     grup.push({ judul: "Data & Laporan", items: [NAV_DATA[1], NAV_DATA[2]] });
     grup.push({ judul: "Akun", items: NAV_AKUN });
   } else if (role === "user") {
-    grup.push({ judul: "Menu", items: [...NAV_UTAMA, NAV_DATA[2]] });
+    grup.push({
+      judul: "Pemantauan",
+      items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[2], NAV_UTAMA[3]],
+    });
+    grup.push({
+      judul: "Program & Edukasi",
+      items: [NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[6], NAV_UTAMA[7]],
+    });
+    grup.push({
+      judul: "Layanan",
+      items: [NAV_UTAMA[8], NAV_DATA[2]],
+    });
     grup.push({ judul: "Akun", items: NAV_AKUN });
   }
 
@@ -551,7 +518,7 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
         if (processed.has(el)) continue;
         if (
           el.closest(
-            ".modal-backdrop, .toast, .lottie-loading, .loading-skel, .gv-skel-hero, [aria-busy='true']",
+            ".modal-backdrop, .toast, .loading-skel, .gv-skel-hero, [aria-busy='true']",
           )
         ) {
           continue;
@@ -728,7 +695,9 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
                       }
                       onBlur={tutupPreview}
                     >
-                      <Icon name={n.icon} size={19} />
+                      <span className="snav-ico" aria-hidden="true">
+                        <Icon name={n.icon} size={17} />
+                      </span>
                       <span className="snav-label">{n.label}</span>
                       <span className="snav-short">{n.short || n.label}</span>
                     </Link>
@@ -800,23 +769,6 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
 
       {/* ============ KONTEN (hanya section ini yang memuat / berganti) ============ */}
       <div className="dash-main">
-        <div className="sehat-ambient" aria-hidden="true">
-          {AMBIENT_MOTIFS.map((m, idx) => (
-            <span
-              key={idx}
-              style={{
-                left: m.left,
-                width: m.size,
-                height: m.size,
-                animationDuration: m.duration,
-                animationDelay: m.delay,
-              }}
-            >
-              <AmbientMotif kind={m.kind} />
-            </span>
-          ))}
-        </div>
-
         <header className="app-topbar no-print">
           <div className="app-topbar-left">
             <h1 className="app-topbar-title">{nama ? `Halo, ${nama}` : "Halo"}</h1>
@@ -945,7 +897,14 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
       <Modal
         open={konfirmasiKeluar}
         onClose={() => setKonfirmasiKeluar(false)}
-        title="Keluar"
+        className="modal-logout"
+        size="sm"
+        title={
+          <span className="logout-modal-heading">
+            <span className="logout-modal-icon"><Icon name="log-out" size={21} /></span>
+            <span className="logout-modal-title">Keluar</span>
+          </span>
+        }
         footer={
           <>
             <button
@@ -960,13 +919,20 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
               className="btn btn-danger"
               onClick={handleLogout}
               disabled={keluar}
+              aria-busy={keluar}
             >
+              <Icon name="log-out" size={16} />
               {keluar ? "Keluar…" : "Ya, keluar"}
             </button>
           </>
         }
       >
-        <p className="tiny">Apakah kamu yakin ingin keluar dari akun ini?</p>
+        <div className="logout-modal-copy">
+          <p>Apakah kamu yakin ingin keluar dari akun ini?</p>
+          <p className="logout-modal-note">
+            <Icon name="lock" size={14} /> Kamu perlu masuk lagi untuk mengakses akun.
+          </p>
+        </div>
       </Modal>
     </div>
   );

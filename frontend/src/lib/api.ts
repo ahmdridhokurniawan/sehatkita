@@ -55,8 +55,6 @@ import type {
   SesiPosbindu,
   SesiPosbinduDetail,
   SesiPosbinduInput,
-  Target,
-  TargetInput,
   TargetKesehatan,
   TargetKesehatanInput,
   Pengaduan,
@@ -396,10 +394,6 @@ export const dashboard = {
 export const rekamMedis = {
   get: (query: RekamMedisQuery) => request<RekamMedis>("/tren", { query }),
 };
-/** @deprecated — pakai `rekamMedis`. Nama lama dipertahankan agar import tidak pecah. */
-export const tren = {
-  get: (query: RekamMedisQuery) => request<RekamMedis>("/tren", { query }),
-};
 export const insight = {
   /** §8.3 GET /insight (+ §29 filter `level`) */
   list: (query?: InsightQuery) => request<Insight[]>("/insight", { query }),
@@ -531,12 +525,8 @@ export async function fetchMediaBlobUrl(pathOrUrl: string): Promise<string> {
   return URL.createObjectURL(blob);
 }
 /* ============================================================
- * §13 — Target & Refleksi
+ * §13 — Target Kesehatan
  * ============================================================ */
-export const target = {
-  /** §13.1 PUT */
-  set: (payload: TargetInput) => request<Target>("/target", { method: "PUT", body: payload }),
-};
 /** §13.4 — CRUD target kesehatan dinamis /target-kesehatan */
 export const targetKesehatan = {
   list: (query?: { tercapai?: boolean }) =>
@@ -551,11 +541,6 @@ export const targetKesehatan = {
       body: { tercapai },
     }),
   hapus: (id: number) => request<null>(`/target-kesehatan/${id}`, { method: "DELETE" }),
-};
-export const refleksi = {
-  /** §13.2 POST */
-  create: (payload: { minggu: string; catatan: string }) =>
-    request<import("@/types").Refleksi>("/refleksi", { method: "POST", body: payload }),
 };
 /* ============================================================
  * §14 — Laporan

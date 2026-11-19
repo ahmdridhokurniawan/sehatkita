@@ -24,22 +24,22 @@ type Props = {
 const ASIDE_PALETTE: [number, number, number][] = [
   [203, 232, 131], // lime lembut
   [124, 224, 184], // emerald tenang
-  [126, 208, 228], // aqua lembut
-  [248, 166, 118], // peach hangat
+  [143, 212, 139], // sage lembut
+  [226, 251, 206], // mint terang
 ];
 
 const HERO_PALETTE_LIGHT: [number, number, number][] = [
-  [101, 128, 44],  // olive utama
+  [7, 102, 83],    // emerald utama
   [54, 158, 126],  // sage emerald
-  [234, 116, 68],  // coral lembut
-  [134, 170, 56],  // lime moss
+  [42, 97, 81],    // hijau teduh
+  [120, 179, 156], // mint lembut
 ];
 
 const HERO_PALETTE_DARK: [number, number, number][] = [
   [192, 224, 122], // soft lime
   [112, 218, 180], // mint lembut
-  [248, 154, 108], // coral lembut
-  [128, 206, 230], // aqua
+  [143, 212, 139], // sage lembut
+  [226, 251, 206], // mint terang
 ];
 
 const ASIDE_WAVES: WaveSpec[] = [

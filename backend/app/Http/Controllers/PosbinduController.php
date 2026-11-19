@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
-// Controller pengelolaan sesi dan pencatatan kunjungan Posbindu
+// Mengurus jadwal kegiatan Posbindu, pencatatan kunjungan, dan pencarian warga lewat NIK.
 class PosbinduController extends Controller
 {
     public function __construct(
@@ -24,9 +24,9 @@ class PosbinduController extends Controller
     ) {}
 
     private const ROLE_ADMIN = ['admin_kelurahan', 'super_admin'];
+
     private const ROLE_PETUGAS = ['kader', 'admin_kelurahan', 'super_admin'];
 
-    // Ambil daftar sesi Posbindu sesuai wilayah tugas petugas
     public function indexSesi(Request $request)
     {
         $user = $request->user();
@@ -39,7 +39,6 @@ class PosbinduController extends Controller
                 'kunjungan as hadir' => fn ($q) => $q->where('hadir', true),
             ]);
 
-        // Admin kelurahan melihat sesi kelurahannya; kader melihat sesi miliknya atau sesi kelurahannya yang belum ditugaskan ke kader lain (§10.1)
         if ($user->role === 'admin_kelurahan') {
             $query->where('wilayah_id', $user->wilayah_id);
         } elseif ($user->role === 'kader') {
@@ -63,28 +62,26 @@ class PosbinduController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'OK',
-            'data'    => $list->getCollection()->map(fn ($s) => $this->bentukSesi($s))->values(),
-            'meta'    => $this->metaPaginasi($list),
+            'data' => $list->getCollection()->map(fn ($s) => $this->bentukSesi($s))->values(),
+            'meta' => $this->metaPaginasi($list),
         ]);
     }
 
-    // Buat jadwal sesi Posbindu baru sesuai wilayah admin
     public function storeSesi(Request $request)
     {
         $user = $request->user();
         $this->hanyaAdmin($user);
 
-        // Admin kelurahan otomatis dikunci ke kelurahannya sendiri
         if ($user->role === 'admin_kelurahan') {
             $request->merge(['wilayah_id' => $user->wilayah_id]);
         }
 
         $data = $request->validate([
             'wilayah_id' => 'required|exists:wilayah,id',
-            'tanggal'    => 'required|date',
-            'lokasi'     => 'required|string|max:150',
-            'kader_id'   => 'nullable|exists:pengguna,id',
-            'catatan'    => 'nullable|string',
+            'tanggal' => 'required|date',
+            'lokasi' => 'required|string|max:150',
+            'kader_id' => 'nullable|exists:pengguna,id',
+            'catatan' => 'nullable|string',
         ]);
 
         $this->validasiKaderWilayah($data['kader_id'] ?? null, (int) $data['wilayah_id']);
@@ -97,19 +94,18 @@ class PosbinduController extends Controller
             (int) $sesi->wilayah_id,
             'Jadwal Sesi Posbindu Baru',
             "Telah dijadwalkan pemeriksaan kesehatan Posbindu di kelurahan Anda.\n"
-            . "Tanggal: {$tanggalLabel}\n"
-            . "Lokasi: {$sesi->lokasi}{$catatanTambahan}\n\n"
-            . 'Jangan lupa hadir untuk memantau tekanan darah, gula darah, dan kondisi kesehatan Anda!'
+            ."Tanggal: {$tanggalLabel}\n"
+            ."Lokasi: {$sesi->lokasi}{$catatanTambahan}\n\n"
+            .'Jangan lupa hadir untuk memantau tekanan darah, gula darah, dan kondisi kesehatan Anda!'
         );
 
         return response()->json([
             'success' => true,
             'message' => 'Sesi Posbindu berhasil dibuat',
-            'data'    => $this->bentukSesi($sesi->load('kader:id,name')),
+            'data' => $this->bentukSesi($sesi->load('kader:id,name')),
         ], 201);
     }
 
-    // Tampilkan detail sesi beserta daftar hadir peserta Posbindu
     public function showSesi(Request $request, int $id)
     {
         $user = $request->user();
@@ -127,7 +123,6 @@ class PosbinduController extends Controller
             abort_unless((int) $sesi->wilayah_id === (int) $user->wilayah_id, 403, 'Sesi ini bukan wilayah Anda.');
         }
 
-        // Kader tidak boleh melihat detail sesi milik kader lain dan daftar pesertanya disaring ke warga binaannya (§10.3)
         if ($user->role === 'kader' && $sesi->kader_id !== null && (int) $sesi->kader_id !== (int) $user->id) {
             return $this->responTidakDitemukan('Sesi Posbindu tidak ditemukan');
         }
@@ -138,34 +133,33 @@ class PosbinduController extends Controller
                 ->filter(fn ($k) => $user->role !== 'kader' || ($k->pengguna && $this->dalamBinaan($user, $k->pengguna)))
                 ->map(fn ($k) => [
                     'kunjungan_id' => $k->id,
-                    'user_id'      => $k->user_id,
-                    'name'         => $k->pengguna?->name,
-                    'hadir'        => (bool) $k->hadir,
-                    'dicatat'      => $k->catatan_kesehatan_id !== null,
+                    'user_id' => $k->user_id,
+                    'name' => $k->pengguna?->name,
+                    'hadir' => (bool) $k->hadir,
+                    'dicatat' => $k->catatan_kesehatan_id !== null,
                 ])
                 ->values();
 
         return response()->json([
             'success' => true,
             'message' => 'OK',
-            'data'    => [
-                'id'             => $sesi->id,
-                'wilayah_id'     => $sesi->wilayah_id,
-                'tanggal'        => $sesi->tanggal?->toDateString(),
-                'lokasi'         => $sesi->lokasi,
-                'catatan'        => $sesi->catatan,
-                'status'         => $sesi->status,
+            'data' => [
+                'id' => $sesi->id,
+                'wilayah_id' => $sesi->wilayah_id,
+                'tanggal' => $sesi->tanggal?->toDateString(),
+                'lokasi' => $sesi->lokasi,
+                'catatan' => $sesi->catatan,
+                'status' => $sesi->status,
                 'jumlah_peserta' => $sesi->kunjungan->count(),
-                'hadir'          => $sesi->kunjungan->where('hadir', true)->count(),
-                'kader'          => $sesi->kader
+                'hadir' => $sesi->kunjungan->where('hadir', true)->count(),
+                'kader' => $sesi->kader
                     ? ['id' => $sesi->kader->id, 'name' => $sesi->kader->name]
                     : null,
-                'peserta'        => $daftarPeserta,
+                'peserta' => $daftarPeserta,
             ],
         ]);
     }
 
-    // Perbarui jadwal atau status sesi Posbindu di wilayah admin
     public function updateSesi(Request $request, int $id)
     {
         $user = $request->user();
@@ -181,11 +175,11 @@ class PosbinduController extends Controller
         }
 
         $data = $request->validate([
-            'tanggal'  => 'sometimes|date',
-            'lokasi'   => 'sometimes|string|max:150',
+            'tanggal' => 'sometimes|date',
+            'lokasi' => 'sometimes|string|max:150',
             'kader_id' => 'sometimes|nullable|exists:pengguna,id',
-            'catatan'  => 'sometimes|nullable|string',
-            'status'   => ['sometimes', Rule::in(['akan_datang', 'berjalan', 'selesai'])],
+            'catatan' => 'sometimes|nullable|string',
+            'status' => ['sometimes', Rule::in(['akan_datang', 'berjalan', 'selesai'])],
         ]);
 
         if (array_key_exists('kader_id', $data)) {
@@ -197,15 +191,14 @@ class PosbinduController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Sesi Posbindu diubah',
-            'data'    => $this->bentukSesi($sesi->load('kader:id,name')),
+            'data' => $this->bentukSesi($sesi->load('kader:id,name')),
         ]);
     }
 
-    // Catat kehadiran dan hasil pemeriksaan peserta Posbindu
     public function storePeserta(Request $request, int $id)
     {
         $user = $request->user();
-        // Sesuai kontrak §10.5 & §16, pencatatan peserta/pemeriksaan hanya boleh oleh kader atau super_admin
+
         $this->wajibPeran($user, ['kader', 'super_admin'], 'Hanya kader atau super admin yang boleh mencatat pemeriksaan peserta Posbindu.');
 
         $sesi = SesiPosbindu::find($id);
@@ -222,26 +215,26 @@ class PosbinduController extends Controller
 
         $data = $request->validate([
             'user_id' => 'required|exists:pengguna,id',
-            'hadir'   => 'required|boolean',
-            'catatan_kesehatan'                  => 'nullable|array',
-            'catatan_kesehatan.bb_kg'            => 'nullable|numeric|gt:0|max:500',
-            'catatan_kesehatan.tinggi_cm'        => 'nullable|numeric|min:50|max:250',
-            'catatan_kesehatan.sistol'           => 'nullable|integer|gt:0|max:400',
-            'catatan_kesehatan.diastol'          => 'nullable|integer|gt:0|max:300',
-            'catatan_kesehatan.gula_darah'       => 'nullable|integer|gt:0|max:1500',
+            'hadir' => 'required|boolean',
+            'catatan_kesehatan' => 'nullable|array',
+            'catatan_kesehatan.bb_kg' => 'nullable|numeric|gt:0|max:500',
+            'catatan_kesehatan.tinggi_cm' => 'nullable|numeric|min:50|max:250',
+            'catatan_kesehatan.sistol' => 'nullable|integer|gt:0|max:400',
+            'catatan_kesehatan.diastol' => 'nullable|integer|gt:0|max:300',
+            'catatan_kesehatan.gula_darah' => 'nullable|integer|gt:0|max:1500',
             'catatan_kesehatan.jenis_gula_darah' => 'nullable|in:puasa,2jam_pp',
-            'catatan_kesehatan.kolesterol'       => 'nullable|integer|gt:0|max:1500',
-            'catatan_kesehatan.asam_urat'        => 'nullable|numeric|gt:0|max:50',
-            'catatan_kesehatan.lingkar_perut'    => 'nullable|numeric|gt:0|max:300',
-            'catatan_kesehatan.tidur_jam'        => 'nullable|numeric|min:0|max:24',
-            'catatan_kesehatan.merokok'          => 'nullable|boolean',
-            'catatan_kesehatan.konsumsi_manis'   => 'nullable|in:jarang,sering,setiap_hari',
-            'catatan_kesehatan.catatan'          => 'nullable|string',
+            'catatan_kesehatan.kolesterol' => 'nullable|integer|gt:0|max:1500',
+            'catatan_kesehatan.asam_urat' => 'nullable|numeric|gt:0|max:50',
+            'catatan_kesehatan.lingkar_perut' => 'nullable|numeric|gt:0|max:300',
+            'catatan_kesehatan.tidur_jam' => 'nullable|numeric|min:0|max:24',
+            'catatan_kesehatan.merokok' => 'nullable|boolean',
+            'catatan_kesehatan.konsumsi_manis' => 'nullable|in:jarang,sering,setiap_hari',
+            'catatan_kesehatan.catatan' => 'nullable|string',
         ]);
 
         if (! empty($data['catatan_kesehatan'])) {
             $rawCk = $data['catatan_kesehatan'];
-            $ukur  = ['bb_kg', 'sistol', 'diastol', 'gula_darah', 'kolesterol', 'asam_urat', 'lingkar_perut', 'tidur_jam'];
+            $ukur = ['bb_kg', 'sistol', 'diastol', 'gula_darah', 'kolesterol', 'asam_urat', 'lingkar_perut', 'tidur_jam'];
             if (! collect($ukur)->contains(fn ($k) => isset($rawCk[$k]) && $rawCk[$k] !== null)) {
                 throw ValidationException::withMessages([
                     'catatan_kesehatan.pengukuran' => ['Minimal satu pengukuran harus diisi.'],
@@ -306,21 +299,20 @@ class PosbinduController extends Controller
                 $snapshot = $this->kalkulator->snapshot($rawCk, $tinggiEfektif);
 
                 $isi = array_merge($rawCk, $snapshot, [
-                    'user_id'          => $warga->id,
-                    'wilayah_id'       => $warga->wilayah_id ?? $sesi->wilayah_id,
-                    'dicatat_oleh'     => $user->id,
-                    'dicatat_pada'     => $sesi->tanggal,
-                    'sumber'           => 'kader',
+                    'user_id' => $warga->id,
+                    'wilayah_id' => $warga->wilayah_id ?? $sesi->wilayah_id,
+                    'dicatat_oleh' => $user->id,
+                    'dicatat_pada' => $sesi->tanggal,
+                    'sumber' => 'kader',
                     'sesi_posbindu_id' => $sesi->id,
                     'perlu_verifikasi' => $this->kalkulator->perluVerifikasi($rawCk),
                 ]);
 
                 $ck = CatatanKesehatan::create($isi);
                 $ck->status_kesehatan = $this->kalkulator->statusKesehatan($ck);
-                $ck->skor_risiko      = $this->kalkulator->skorRisiko($ck);
+                $ck->skor_risiko = $this->kalkulator->skorRisiko($ck);
                 $ck->save();
 
-                // Buat rujukan faskes otomatis jika nilai terverifikasi wajar namun berisiko kritis
                 if (! $ck->perlu_verifikasi) {
                     $this->rujukanOtomatis->buatDariCatatan($ck, $warga);
                 }
@@ -328,15 +320,15 @@ class PosbinduController extends Controller
                 $catatanKesehatanId = $ck->id;
                 $catatanRingkas = [
                     'status' => $ck->status_kesehatan,
-                    'skor'   => $ck->skor_risiko,
+                    'skor' => $ck->skor_risiko,
                 ];
             }
 
             $kunjungan = KunjunganPosbindu::create([
-                'sesi_id'              => $sesi->id,
-                'user_id'              => $data['user_id'],
-                'hadir'                => $data['hadir'],
-                'dicatat_oleh'         => $user->id,
+                'sesi_id' => $sesi->id,
+                'user_id' => $data['user_id'],
+                'hadir' => $data['hadir'],
+                'dicatat_oleh' => $user->id,
                 'catatan_kesehatan_id' => $catatanKesehatanId,
             ]);
             $kunjunganId = $kunjungan->id;
@@ -351,25 +343,24 @@ class PosbinduController extends Controller
                 $warga,
                 'Hasil Pemeriksaan Posbindu Tercatat',
                 "Halo {$warga->name},\n"
-                . "Hasil pemeriksaan Posbindu Anda ({$tanggalSesi} di {$sesi->lokasi}) sudah dicatat oleh kader.\n"
-                . "Status kesehatan: {$statusLabel}{$skorInfo}\n\n"
-                . 'Lihat rincian lengkapnya di menu Riwayat Kesehatan pada aplikasi SehatKita.'
+                ."Hasil pemeriksaan Posbindu Anda ({$tanggalSesi} di {$sesi->lokasi}) sudah dicatat oleh kader.\n"
+                ."Status kesehatan: {$statusLabel}{$skorInfo}\n\n"
+                .'Lihat rincian lengkapnya di menu Riwayat Kesehatan pada aplikasi SehatKita.'
             );
         }
 
         return response()->json([
             'success' => true,
             'message' => 'Peserta ditambahkan',
-            'data'    => [
-                'kunjungan_id'         => $kunjunganId,
-                'user_id'              => $data['user_id'],
-                'hadir'                => (bool) $data['hadir'],
+            'data' => [
+                'kunjungan_id' => $kunjunganId,
+                'user_id' => $data['user_id'],
+                'hadir' => (bool) $data['hadir'],
                 'catatan_kesehatan_id' => $catatanKesehatanId,
             ],
         ], 201);
     }
 
-    // Tampilkan riwayat kunjungan Posbindu sesuai peran dan binaan pengguna (§10.6)
     public function indexKunjungan(Request $request)
     {
         $user = $request->user();
@@ -401,19 +392,18 @@ class PosbinduController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'OK',
-            'data'    => $list->getCollection()->map(fn ($k) => [
-                'kunjungan_id'         => $k->id,
-                'sesi_id'              => $k->sesi_id,
-                'tanggal'              => $k->sesi?->tanggal?->toDateString(),
-                'lokasi'               => $k->sesi?->lokasi,
-                'hadir'                => (bool) $k->hadir,
+            'data' => $list->getCollection()->map(fn ($k) => [
+                'kunjungan_id' => $k->id,
+                'sesi_id' => $k->sesi_id,
+                'tanggal' => $k->sesi?->tanggal?->toDateString(),
+                'lokasi' => $k->sesi?->lokasi,
+                'hadir' => (bool) $k->hadir,
                 'catatan_kesehatan_id' => $k->catatan_kesehatan_id,
             ])->values(),
             'meta' => $this->metaPaginasi($list),
         ]);
     }
 
-    // Hapus jadwal sesi Posbindu jika berada di wilayah tugas admin
     public function destroySesi(Request $request, int $id)
     {
         $this->hanyaAdmin($request->user());
@@ -443,35 +433,32 @@ class PosbinduController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Sesi Posbindu dihapus',
-            'data'    => null,
+            'data' => null,
         ]);
     }
 
-    // Format ringkasan satu sesi Posbindu untuk daftar maupun detail
     private function bentukSesi(SesiPosbindu $s): array
     {
         return [
-            'id'             => $s->id,
-            'wilayah_id'     => $s->wilayah_id,
-            'tanggal'        => $s->tanggal?->toDateString(),
-            'lokasi'         => $s->lokasi,
-            'status'         => $s->status ?? 'akan_datang',
-            'kader'          => $s->kader
+            'id' => $s->id,
+            'wilayah_id' => $s->wilayah_id,
+            'tanggal' => $s->tanggal?->toDateString(),
+            'lokasi' => $s->lokasi,
+            'status' => $s->status ?? 'akan_datang',
+            'kader' => $s->kader
                 ? ['id' => $s->kader->id, 'name' => $s->kader->name]
                 : null,
-            'catatan'        => $s->catatan,
+            'catatan' => $s->catatan,
             'jumlah_peserta' => (int) ($s->jumlah_peserta ?? 0),
-            'hadir'          => (int) ($s->hadir ?? 0),
+            'hadir' => (int) ($s->hadir ?? 0),
         ];
     }
 
-    // Batasi pengelolaan jadwal sesi hanya untuk admin kelurahan atau super admin
     private function hanyaAdmin($user): void
     {
         $this->wajibPeran($user, self::ROLE_ADMIN, 'Hanya admin kelurahan atau super admin yang boleh mengelola sesi Posbindu.');
     }
 
-    // Pastikan kader_id pada sesi benar-benar akun ber-role kader aktif di wilayah sesi
     private function validasiKaderWilayah(mixed $kaderId, int $wilayahId): void
     {
         if ($kaderId === null || $kaderId === '') {
@@ -486,13 +473,11 @@ class PosbinduController extends Controller
         }
     }
 
-    // Batasi akses Posbindu hanya untuk kader atau admin
     private function hanyaPetugas($user): void
     {
         $this->wajibPeran($user, self::ROLE_PETUGAS, 'Hanya kader atau admin kelurahan yang berhak mengelola Posbindu.');
     }
 
-    // Cari warga aktif berdasarkan awalan NIK (min. 3 digit) atau nama warga (min. 2 huruf) untuk autocomplete
     public function cariNik(Request $request)
     {
         $user = $request->user();
@@ -506,7 +491,7 @@ class PosbinduController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Ketik minimal 3 digit NIK',
-                'data'    => [],
+                'data' => [],
             ]);
         }
 
@@ -514,7 +499,7 @@ class PosbinduController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Ketik minimal 2 huruf nama atau 3 digit NIK',
-                'data'    => [],
+                'data' => [],
             ]);
         }
 
@@ -540,17 +525,17 @@ class PosbinduController extends Controller
         $hasil = $query->limit(10)
             ->get()
             ->map(fn ($p) => [
-                'id'         => $p->id,
-                'name'       => $p->name,
-                'nik'        => $p->nik,
+                'id' => $p->id,
+                'name' => $p->name,
+                'nik' => $p->nik,
                 'wilayah_id' => $p->wilayah_id,
-                'wilayah'    => $p->wilayah?->nama,
+                'wilayah' => $p->wilayah?->nama,
             ]);
 
         return response()->json([
             'success' => true,
             'message' => 'OK',
-            'data'    => $hasil,
+            'data' => $hasil,
         ]);
     }
 }

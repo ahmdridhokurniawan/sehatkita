@@ -11,15 +11,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
-// Controller analitik dan laporan agregat kesehatan tingkat kelurahan
+// Menyajikan ringkasan dan laporan kesehatan gabungan per kelurahan tanpa menampilkan identitas warga.
 class DashboardWilayahController extends Controller
 {
     public function __construct(private HealthCalculatorService $kalkulator) {}
 
-    // Batas minimum sel agar identitas warga tetap anonim dalam agregat
     private const MIN_SEL = 5;
 
-    // Data agregat statistik dashboard kelurahan
     public function dashboardKelurahan(Request $request)
     {
         $data = $this->agregat($request);
@@ -27,7 +25,6 @@ class DashboardWilayahController extends Controller
         return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
     }
 
-    // Laporan agregat kesehatan kelurahan
     public function laporanKelurahan(Request $request)
     {
         $data = $this->agregat($request);
@@ -36,19 +33,16 @@ class DashboardWilayahController extends Controller
         return response()->json(['success' => true, 'message' => 'OK', 'data' => $data]);
     }
 
-    // Laporan ringkasan kesehatan pribadi
     public function laporanPribadi(Request $request)
     {
         return app(DashboardController::class)->laporanPribadi($request);
     }
 
-    // Kalkulasi agregat anonim indikator kesehatan per wilayah kelurahan
     private function agregat(Request $request): array
     {
         $user = $request->user();
         $this->wajibPeran($user, ['admin_kelurahan', 'super_admin'], 'Akses ditolak');
 
-        // Kunci cakupan wilayah bagi admin kelurahan atau ambil parameter opsional super admin
         $wilayahId = null;
         $wilayahInfo = ['id' => null, 'nama' => 'Semua Kelurahan'];
 
@@ -67,14 +61,13 @@ class DashboardWilayahController extends Controller
         if ($wilayahId !== null) {
             $wilayah = Wilayah::find($wilayahId);
             abort_unless($wilayah, 404, 'Wilayah tidak ditemukan');
-            // Pastikan dashboard kelurahan tidak menerima ID wilayah tingkat kecamatan (§9.1)
+
             abort_unless($wilayah->tipe === 'kelurahan', 422, 'wilayah_id harus berupa kelurahan.');
             $wilayahInfo = ['id' => $wilayah->id, 'nama' => $wilayah->nama];
         }
 
         [$periode, $tglMulai] = $this->parsePeriode($request->query('periode'));
 
-        // Hitung total peserta yang telah menyetujui kebijakan
         $populasi = Pengguna::when($wilayahId !== null, fn ($q) => $q->where('wilayah_id', $wilayahId))
             ->where('role', 'user')
             ->whereNotNull('consent_at')
@@ -89,17 +82,17 @@ class DashboardWilayahController extends Controller
             ->where('perlu_verifikasi', false);
 
         $totalPencatatan = (clone $logSah)->count();
-        $aktifCount      = (clone $logSah)->distinct()->count('user_id');
+        $aktifCount = (clone $logSah)->distinct()->count('user_id');
 
-        $imt     = $this->saringKelompok($this->distribusiImt($wilayahId, $tglMulai));
+        $imt = $this->saringKelompok($this->distribusiImt($wilayahId, $tglMulai));
         $riwayat = $this->saringKelompok($this->distribusiRiwayatKeluarga($wilayahId));
-        $usia    = $this->saringKelompok($this->kelompokUsia($wilayahId));
+        $usia = $this->saringKelompok($this->kelompokUsia($wilayahId));
 
         $rujukan = Rujukan::whereHas('pengguna', fn ($q) => $q
-                ->when($wilayahId !== null, fn ($sub) => $sub->where('wilayah_id', $wilayahId))
-                ->where('role', 'user')
-                ->where('aktif', true)
-                ->whereNotNull('consent_at'))
+            ->when($wilayahId !== null, fn ($sub) => $sub->where('wilayah_id', $wilayahId))
+            ->where('role', 'user')
+            ->where('aktif', true)
+            ->whereNotNull('consent_at'))
             ->where('created_at', '>=', $tglMulai)
             ->selectRaw('status, COUNT(*) AS total')
             ->groupBy('status')
@@ -119,25 +112,24 @@ class DashboardWilayahController extends Controller
         return [
             'wilayah' => $wilayahInfo,
             'periode' => $periode,
-            'total_peserta'               => $totalPeserta,
-            'total_pengguna_aktif'        => $aktifCount,
-            'total_pencatatan'            => $totalPencatatan,
-            'distribusi_imt'              => collect($imt['tampil'])
+            'total_peserta' => $totalPeserta,
+            'total_pengguna_aktif' => $aktifCount,
+            'total_pencatatan' => $totalPencatatan,
+            'distribusi_imt' => collect($imt['tampil'])
                 ->map(fn ($n, $k) => ['kategori' => $k, 'jumlah' => $n])->values(),
             'distribusi_riwayat_keluarga' => collect($riwayat['tampil'])
                 ->map(fn ($n, $f) => ['faktor' => $f, 'jumlah' => $n])->values(),
-            'distribusi_kelompok_usia'    => collect($usia['tampil'])
+            'distribusi_kelompok_usia' => collect($usia['tampil'])
                 ->map(fn ($n, $k) => ['kelompok' => $k, 'jumlah' => $n])->values(),
-            'rujukan'                     => $rujukanSaring['tampil'],
+            'rujukan' => $rujukanSaring['tampil'],
             'kepatuhan_pencatatan_persen' => $totalPeserta > 0
                 ? (int) round($aktifCount / $totalPeserta * 100)
                 : 0,
-            'tren'                        => $this->tren($wilayahId, $tglMulai),
-            'ada_data_disembunyikan'      => $disembunyikan,
+            'tren' => $this->tren($wilayahId, $tglMulai),
+            'ada_data_disembunyikan' => $disembunyikan,
         ];
     }
 
-    // Hitung sebaran kategori IMT dari catatan terakhir setiap warga yang menyetujui privasi
     private function distribusiImt(?int $wilayahId, $tglMulai): array
     {
         $terakhir = DB::table('catatan_kesehatan as ck')
@@ -173,14 +165,14 @@ class DashboardWilayahController extends Controller
                 continue;
             }
 
-            $dinamis  = $this->kalkulator->kategori('imt', $imt)['kategori'] ?? null;
+            $dinamis = $this->kalkulator->kategori('imt', $imt)['kategori'] ?? null;
             $kategori = isset($mentah[$dinamis ?? ''])
                 ? $dinamis
                 : match (true) {
                     $imt < 18.5 => 'kurus',
-                    $imt < 25   => 'normal',
-                    $imt < 30   => 'gemuk',
-                    default     => 'obesitas',
+                    $imt < 25 => 'normal',
+                    $imt < 30 => 'gemuk',
+                    default => 'obesitas',
                 };
 
             $mentah[$kategori]++;
@@ -189,7 +181,6 @@ class DashboardWilayahController extends Controller
         return $mentah;
     }
 
-    // Hitung distribusi faktor riwayat penyakit keluarga
     private function distribusiRiwayatKeluarga(?int $wilayahId): array
     {
         $rows = DB::table('pengguna as p')
@@ -223,7 +214,6 @@ class DashboardWilayahController extends Controller
         return $mentah;
     }
 
-    // Hitung sebaran demografi kelompok usia 5 tahunan
     private function kelompokUsia(?int $wilayahId): array
     {
         $lahir = DB::table('pengguna as p')
@@ -239,9 +229,9 @@ class DashboardWilayahController extends Controller
         $hitung = [];
 
         foreach ($lahir as $tgl) {
-            $umur  = (int) Carbon::parse($tgl)->diffInYears($hariIni);
+            $umur = (int) Carbon::parse($tgl)->diffInYears($hariIni);
             $dasar = intdiv($umur, 5) * 5;
-            $kunci = $dasar . '-' . ($dasar + 4);
+            $kunci = $dasar.'-'.($dasar + 4);
             $hitung[$kunci] = ($hitung[$kunci] ?? 0) + 1;
         }
 
@@ -250,7 +240,6 @@ class DashboardWilayahController extends Controller
         return $hitung;
     }
 
-    // Hitung tren jumlah pencatatan kesehatan bulanan di wilayah kelurahan
     private function tren(?int $wilayahId, $tglMulai)
     {
         return DB::table('catatan_kesehatan as ck')
@@ -267,13 +256,12 @@ class DashboardWilayahController extends Controller
             ->map(fn ($tgl) => Carbon::parse($tgl)->format('Y-m'))
             ->countBy()
             ->map(fn ($jumlah, $periode) => [
-                'periode'          => $periode,
+                'periode' => $periode,
                 'total_pencatatan' => (int) $jumlah,
             ])
             ->values();
     }
 
-    // Filter privasi untuk menyembunyikan sel di bawah batas minimum
     private function saringKelompok(array $mentah): array
     {
         $adaData = array_filter($mentah, fn ($n) => (int) $n > 0);
@@ -284,11 +272,8 @@ class DashboardWilayahController extends Controller
 
         $tampil = array_filter($mentah, fn ($n) => (int) $n >= self::MIN_SEL);
 
-        // Sel "tersembunyi" = ada isinya tapi < 5. Sel 0 bukan data.
         $tersembunyi = count(array_filter($mentah, fn ($n) => (int) $n > 0 && (int) $n < self::MIN_SEL));
 
-        // Complementary: tepat satu sel disembunyikan → sembunyikan
-        // sel terkecil berikutnya agar tidak bisa dihitung dari total.
         if ($tersembunyi === 1 && count($tampil) > 1) {
             $kunciTampil = array_keys($tampil);
             usort($kunciTampil, fn ($a, $b) => $tampil[$a] <=> $tampil[$b]);
@@ -297,7 +282,7 @@ class DashboardWilayahController extends Controller
         }
 
         return [
-            'tampil'        => $tampil,
+            'tampil' => $tampil,
             'disembunyikan' => $tersembunyi > 0,
         ];
     }

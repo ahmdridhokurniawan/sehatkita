@@ -466,30 +466,6 @@ export default function DashboardSuperAdmin({ user: _user }: { user: User }) {
 
       {/* BARIS 2 — 4 KPI GLASS CARDS + SPARKLINE SVG */}
       <GlassyKpiGrid items={kpiItems} />
-
-      {/* STRIP PINTASAN MASTER DATA (1 BARIS DATAR) */}
-      <div className="gv-quick-bar">
-        <div className="gv-quick-links">
-          <Link href="/admin" className="gv-quick-pill">
-            <Icon name="shield" size={13} /> Panel Admin
-          </Link>
-          <Link href="/admin/pengguna" className="gv-quick-pill">
-            <Icon name="users" size={13} /> Kelola Pengguna
-          </Link>
-          <Link href="/admin/faskes" className="gv-quick-pill">
-            <Icon name="home" size={13} /> Kelola Faskes ({angka(stats?.total_faskes ?? 0)})
-          </Link>
-          <Link href="/admin/indikator" className="gv-quick-pill">
-            <Icon name="settings" size={13} /> Indikator &amp; Ambang
-          </Link>
-          <Link href="/peringkat" className="gv-quick-pill">
-            <Icon name="trophy" size={13} /> Peringkat Kelurahan
-          </Link>
-        </div>
-        <span className="tiny">
-          <Icon name="lock" size={12} /> Akses terbatas Super Admin · tercatat otomatis ke log audit
-        </span>
-      </div>
     </AppShell>
   );
 }

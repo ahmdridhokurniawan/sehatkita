@@ -298,16 +298,6 @@ export function GlassyDashboardSkeleton({ label = "Memuat ringkasan…" }: { lab
           </div>
         ))}
       </div>
-
-      {/* BARIS 3 — STRIP PINTASAN SKELETON */}
-      <div className="gv-quick-bar">
-        <div className="gv-quick-links">
-          {[104, 122, 112, 118].map((w, i) => (
-            <div key={i} className="skeleton skel-pill" style={{ width: w, height: 28 }} />
-          ))}
-        </div>
-        <div className="skeleton" style={{ width: 220, maxWidth: "60vw", height: 12 }} />
-      </div>
     </div>
   );
 }

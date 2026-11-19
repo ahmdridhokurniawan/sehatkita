@@ -5,10 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-/**
- * Badge gamifikasi milik user — kontrak 12.5 & §3 (`badge_pengguna`).
- * Satu user hanya sekali punya badge yang sama (unique user_id + badge).
- */
+// Menyimpan daftar lencana penghargaan yang sudah diraih warga.
 class BadgePengguna extends Model
 {
     protected $table = 'badge_pengguna';

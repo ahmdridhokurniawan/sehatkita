@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-// Model pengaduan masyarakat untuk kelurahan dan faskes
+// Menyimpan laporan pengaduan warga beserta status dan balasan petugas.
 class Pengaduan extends Model
 {
     protected $table = 'pengaduan';

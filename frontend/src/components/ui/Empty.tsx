@@ -99,25 +99,3 @@ export function EmptyState({
     </div>
   );
 }
-
-/** Banner "Data Demo" — dipakai untuk data yang belum ada di backend */
-export function DemoBanner() {
-  return (
-    <div className="demo-banner">
-      <Icon name="alert-triangle" size={17} />
-      <span>
-        Data pada halaman ini adalah <b>Data Demo</b> — bukan statistik produksi. Akan diganti data API
-        saat backend siap.
-      </span>
-    </div>
-  );
-}
-
-/** Tag kecil "Data Demo" */
-export function DemoTag() {
-  return (
-    <span className="demo-tag">
-      <Icon name="info" size={12} /> Data Demo
-    </span>
-  );
-}

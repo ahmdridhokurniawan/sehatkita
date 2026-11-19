@@ -15,7 +15,7 @@ import { EmptyState, Loading } from "@/components/ui/Empty";
 import { useToast } from "@/components/ui/Toast";
 import { useUser } from "@/hooks/useUser";
 import { useMinLoading } from "@/hooks/useMinLoading";
-import { catatanKesehatan, rekamMedis, ApiError } from "@/lib/api";
+import { admin as adminApi, catatanKesehatan, rekamMedis, ApiError } from "@/lib/api";
 import { tanggal } from "@/lib/format";
 import { LABEL_JENIS_GULA_DARAH, LABEL_STATUS_KESEHATAN, LABEL_SUMBER, labelKategoriIndikator } from "@/lib/labels";
 import type { StatusKesehatan } from "@/lib/enums";
@@ -112,6 +112,7 @@ export default function RekamMedisPage() {
   const isAdminKel = user?.role === "admin_kelurahan";
   const bisaCatat = !isAdminKel;
   const bisaHapus = !isAdminKel;
+  const bisaVerifikasi = isAdminKel || user?.role === "super_admin";
   const [periode, setPeriode] = useState<"1m" | "3m" | "6m" | "1y">("3m");
   const [indikator, setIndikator] = useState<string>("bb_kg");
   const [wargaDipilih, setWargaDipilih] = useState<WargaCari | null>(null);
@@ -131,6 +132,25 @@ export default function RekamMedisPage() {
   const [catatTerbuka, setCatatTerbuka] = useState(false);
   const [hapusItem, setHapusItem] = useState<CatatanKesehatan | null>(null);
   const [sedangHapus, setSedangHapus] = useState(false);
+  const [verifikasiId, setVerifikasiId] = useState<number | null>(null);
+
+  async function putuskanVerifikasi(item: CatatanKesehatan, setuju: boolean) {
+    setVerifikasiId(item.id);
+    try {
+      await adminApi.verifikasi.putuskan(item.id, setuju);
+      if (setuju) {
+        setCatatan((prev) => prev.map((row) => (row.id === item.id ? { ...row, perlu_verifikasi: false } : row)));
+        toast.success("Catatan diverifikasi dan masuk agregat.");
+      } else {
+        setCatatan((prev) => prev.filter((row) => row.id !== item.id));
+        toast.success("Catatan ditolak dan dihapus.");
+      }
+    } catch (err) {
+      toast.warning(err instanceof ApiError ? err.message : "Gagal memproses verifikasi catatan.");
+    } finally {
+      setVerifikasiId(null);
+    }
+  }
 
   // Fetch data awal & refresh manual
   const [catatan, setCatatan] = useState<CatatanKesehatan[]>([]);
@@ -1003,6 +1023,26 @@ export default function RekamMedisPage() {
                       {c.catatan ? c.catatan : "Tidak ada catatan tambahan."}
                     </p>
                     <div className="row gap-8" style={{ flexWrap: "wrap" }}>
+                      {bisaVerifikasi && c.perlu_verifikasi ? (
+                        <>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-primary"
+                            disabled={verifikasiId === c.id}
+                            onClick={() => putuskanVerifikasi(c, true)}
+                          >
+                            <Icon name="check" size={15} /> Setujui
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-danger"
+                            disabled={verifikasiId === c.id}
+                            onClick={() => putuskanVerifikasi(c, false)}
+                          >
+                            <Icon name="x" size={15} /> Tolak
+                          </button>
+                        </>
+                      ) : null}
                       <button type="button" className="btn btn-sm btn-outline" onClick={() => setDetail(c)}>
                         <Icon name="eye" size={15} /> Detail
                       </button>

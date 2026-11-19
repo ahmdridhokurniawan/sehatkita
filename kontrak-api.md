@@ -1204,8 +1204,8 @@ Butuh role `super_admin`.
 | GET        | `/admin/log-audit`                          | Riwayat aktivitas, termasuk `baca_data_individu` oleh `super_admin`                            |
 | GET        | `/admin/statistik`                          | Statistik keseluruhan sistem                                                                   |
 | GET        | `/admin/export`                             | **Ekspor CSV (UTF-8 BOM)**: `?tipe=catatan\|posbindu\|rujukan&wilayah_id=`                      |
-| GET        | `/admin/catatan-kesehatan/perlu-verifikasi` | Log ber-flag `perlu_verifikasi` (`?wilayah_id=`)                                               |
-| PATCH      | `/admin/catatan-kesehatan/{id}/verifikasi`  | `{"setuju":true}` → `perlu_verifikasi=false` (masuk agregat); `{"setuju":false}` → soft delete |
+| GET        | `/admin/catatan-kesehatan/perlu-verifikasi` | Log ber-flag `perlu_verifikasi` (`?wilayah_id=`; `admin_kelurahan` terkunci ke wilayahnya)     |
+| PATCH      | `/admin/catatan-kesehatan/{id}/verifikasi`  | `{"setuju":true}` → `perlu_verifikasi=false` (masuk agregat); `{"setuju":false}` → soft delete (`super_admin` & `admin_kelurahan` sesuai wilayah) |
 
 **Bentuk `ambang-kategori`** (rentang `[batas_min, batas_max)`; `batas_max` eksklusif):
 
@@ -1257,7 +1257,7 @@ Butuh role `super_admin`.
 | POST /rujukan                                | ✅          | –                | ✅\*  | –                       | –      |
 | GET /rujukan                                 | ✅          | ✅\* (teredaksi) | ✅\*  | ✅\*                    | –      |
 | PATCH /rujukan/{id}/status                   | ✅          | ✅\*             | ✅\*  | –                       | –      |
-| GET /admin/catatan-kesehatan/perlu-verifikasi; PATCH .../verifikasi | ✅ | – | – | – | – |
+| GET /admin/catatan-kesehatan/perlu-verifikasi; PATCH .../verifikasi | ✅ | ✅\* | – | – | – |
 | GET /program, /program/{id}, /peringkat      | ✅          | ✅               | ✅    | ✅                      | –      |
 | POST, PUT, DELETE /program                   | ✅          | ✅\*             | –     | –                       | –      |
 | POST /program/{id}/peserta                   | –           | –                | –     | ✅                      | –      |

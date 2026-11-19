@@ -13,6 +13,7 @@ import { useMinLoading } from "@/hooks/useMinLoading";
 import { LABEL_JENIS_TARGET, SATUAN_JENIS_TARGET, labelJenisTarget } from "@/lib/labels";
 import { statusTenggatTarget, tanggal } from "@/lib/format";
 import type { TargetKesehatan, TargetKesehatanInput, JenisTarget } from "@/types";
+import Fireworks, { playCelebrationSound } from "@/components/ui/Fireworks";
 
 const JENIS_OPTIONS = Object.keys(LABEL_JENIS_TARGET);
 
@@ -32,6 +33,7 @@ export default function TargetKesehatanPage() {
   const toast = useToast();
   const [daftar, setDaftar] = useState<TargetKesehatan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [celebrate, setCelebrate] = useState(false);
   const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState("");
 
@@ -188,6 +190,10 @@ export default function TargetKesehatanPage() {
         title: "Berhasil",
       });
       setSasaran(null);
+      if (tercapai) {
+        setCelebrate(true);
+        playCelebrationSound();
+      }
       await muat();
     } catch (err) {
       toast.warning((err as ApiError).message || "Gagal memperbarui status.");
@@ -448,25 +454,51 @@ export default function TargetKesehatanPage() {
       </Modal>
 
       <Modal open={!!hapusTarget} onClose={() => setHapusTarget(null)} title="Hapus Target">
-        <p className="text-sm">
-          Yakin ingin menghapus target <strong>{hapusTarget?.judul}</strong>? Tindakan ini tidak
-          dapat dibatalkan.
-        </p>
-        <div className="row-between mt-16">
-          <button type="button" className="btn btn-outline" onClick={() => setHapusTarget(null)}>
-            Batal
-          </button>
-          <button
-            type="button"
-            className="btn btn-outline"
-            style={{ color: "var(--danger)", borderColor: "var(--danger)" }}
-            onClick={hapusTargetSubmit}
-            disabled={memproses}
-          >
-            {memproses ? "Menghapus…" : "Hapus"}
-          </button>
-        </div>
-      </Modal>
-    </AppShell>
+              <p className="text-sm">
+                Yakin ingin menghapus target <strong>{hapusTarget?.judul}</strong>? Tindakan ini tidak
+                dapat dibatalkan.
+              </p>
+              <div className="row-between mt-16">
+                <button type="button" className="btn btn-outline" onClick={() => setHapusTarget(null)}>
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  style={{ color: "var(--danger)", borderColor: "var(--danger)" }}
+                  onClick={hapusTargetSubmit}
+                  disabled={memproses}
+                >
+                  {memproses ? "Menghapus…" : "Hapus"}
+                </button>
+              </div>
+            </Modal>
+
+            <Modal
+              open={celebrate}
+              onClose={() => setCelebrate(false)}
+              size="sm"
+              className="modal-logout"
+              backdropContent={<Fireworks aktif={celebrate} />}
+              title={
+                <span className="logout-modal-heading">
+                  <span className="celebration-icon"><Icon name="check-circle" size={22} /></span>
+                  <span className="celebration-title">Target Tercapai!</span>
+                </span>
+              }
+              footer={
+                <button type="button" className="btn btn-primary" onClick={() => setCelebrate(false)}>
+                  Tutup
+                </button>
+              }
+            >
+              <div className="celebration-copy">
+                <p>
+                  Hebat, <strong>{sasaran?.judul ?? "Target"}</strong> tercapai. Keren!
+                </p>
+                <p className="tiny text-2">Pantang sembuh, tetap sembuh semangat.</p>
+              </div>
+            </Modal>
+          </AppShell>
   );
 }

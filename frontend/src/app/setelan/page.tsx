@@ -27,8 +27,10 @@ const SETELAN_MENU = [
 export default function SetelanPage() {
   const router = useRouter();
   const [konfirmasiKeluar, setKonfirmasiKeluar] = useState(false);
+  const [keluar, setKeluar] = useState(false);
 
   async function handleLogout() {
+    setKeluar(true);
     const logoutReq = auth.logout();
     clearUserCache();
     try {
@@ -113,23 +115,43 @@ export default function SetelanPage() {
       <Modal
         open={konfirmasiKeluar}
         onClose={() => setKonfirmasiKeluar(false)}
-        title="Keluar"
+        className="modal-logout"
+        size="sm"
+        title={
+          <span className="logout-modal-heading">
+            <span className="logout-modal-icon"><Icon name="log-out" size={21} /></span>
+            <span className="logout-modal-title">Keluar</span>
+          </span>
+        }
         footer={
           <>
             <button
               type="button"
               className="btn btn-ghost"
               onClick={() => setKonfirmasiKeluar(false)}
+              disabled={keluar}
             >
               Batal
             </button>
-            <button type="button" className="btn btn-danger" onClick={handleLogout}>
-              Ya, keluar
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={handleLogout}
+              disabled={keluar}
+              aria-busy={keluar}
+            >
+              <Icon name="log-out" size={16} />
+              {keluar ? "Keluar…" : "Ya, keluar"}
             </button>
           </>
         }
       >
-        <p className="tiny">Apakah kamu yakin ingin keluar dari akun ini?</p>
+        <div className="logout-modal-copy">
+          <p>Apakah kamu yakin ingin keluar dari akun ini?</p>
+          <p className="logout-modal-note">
+            <Icon name="lock" size={14} /> Kamu perlu masuk lagi untuk mengakses akun.
+          </p>
+        </div>
       </Modal>
     </AppShell>
   );

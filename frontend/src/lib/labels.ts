@@ -6,14 +6,11 @@
 import type {
   KategoriImt,
   StatusKesehatan,
-  LevelInsight,
   Sumber,
   JenisGulaDarah,
-  KonsumsiManis,
   JenisKelamin,
   TingkatAktivitas,
   StatusRujukan,
-  JenisProgram,
   StatusProgram,
   StatusPeserta,
 } from "@/lib/enums";
@@ -34,13 +31,6 @@ export const LABEL_KATEGORI_IMT: Record<KategoriImt, string> = {
   obesitas: "Obesitas",
 };
 
-/** Tulisan untuk tingkat bahaya insight */
-export const LABEL_LEVEL_INSIGHT: Record<LevelInsight, string> = {
-  info: "Info",
-  peringatan: "Peringatan",
-  bahaya: "Bahaya",
-};
-
 /** Tulisan untuk sumber pengukuran */
 export const LABEL_SUMBER: Record<Sumber, string> = {
   mandiri: "Mandiri",
@@ -54,12 +44,6 @@ export const LABEL_JENIS_GULA_DARAH: Record<JenisGulaDarah, string> = {
   "2jam_pp": "2 Jam Setelah Makan",
 };
 
-/** Tulisan untuk kebiasaan konsumsi manis */
-export const LABEL_KONSUMSI_MANIS: Record<KonsumsiManis, string> = {
-  jarang: "Jarang",
-  sering: "Sering",
-  setiap_hari: "Setiap Hari",
-};
 /** Tulisan untuk jenis kelamin */
 export const LABEL_JENIS_KELAMIN: Record<JenisKelamin, string> = {
   L: "Laki-laki",
@@ -91,14 +75,6 @@ export const LABEL_STATUS_RUJUKAN: Record<StatusRujukan, string> = {
   dihubungi: "Diproses",
   selesai: "Selesai",
   ditolak: "Ditolak",
-};
-
-/** Tulisan untuk jenis program (§12) */
-export const LABEL_JENIS_PROGRAM: Record<JenisProgram, string> = {
-  olahraga: "Olahraga",
-  edukasi: "Edukasi",
-  pemeriksaan: "Pemeriksaan",
-  lainnya: "Lainnya",
 };
 
 /** Tulisan untuk status program (§12) */

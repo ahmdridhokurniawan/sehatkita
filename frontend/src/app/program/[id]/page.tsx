@@ -9,6 +9,8 @@ import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
+import Fireworks, { playCelebrationSound } from "@/components/ui/Fireworks";
+import { shouldCelebrateCompletion } from "@/lib/celebration";
 import { ErrorState, Loading } from "@/components/ui/Empty";
 import { useUser } from "@/hooks/useUser";
 import { useMinLoading } from "@/hooks/useMinLoading";
@@ -161,6 +163,10 @@ export default function ProgramDetailPage() {
   const [tolakTarget, setTolakTarget] = useState<PesertaProgram | null>(null);
   const [alasanTolak, setAlasanTolak] = useState("");
 
+  // Animasi kembang api saat misi diselesaikan
+  const [celebrate, setCelebrate] = useState(false);
+  const prevStatusRef = useRef<StatusPeserta | undefined>(undefined);
+
   useEffect(() => {
     draftRef.current = draftFoto;
   }, [draftFoto]);
@@ -227,6 +233,16 @@ export default function ProgramDetailPage() {
       aktif = false;
     };
   }, [loadingUser, user, id]);
+
+  useEffect(() => {
+    const status = (program?.peserta_saya?.status || program?.status_saya) as StatusPeserta | undefined;
+    const prev = prevStatusRef.current;
+    prevStatusRef.current = status;
+    if (shouldCelebrateCompletion(prev ?? null, status ?? null)) {
+      setCelebrate(true);
+      playCelebrationSound();
+    }
+  }, [program]);
 
   async function toggle() {
     if (!program) return;
@@ -418,6 +434,7 @@ export default function ProgramDetailPage() {
       setTolakTarget(null);
       setAlasanTolak("");
       await muatPeserta();
+      await muat();
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Gagal memverifikasi peserta";
       setAksiErr(msg);
@@ -980,6 +997,39 @@ export default function ProgramDetailPage() {
           />
         </div>
       </Modal>
-    </AppShell>
+
+            <Modal
+              open={celebrate}
+              onClose={() => setCelebrate(false)}
+              size="sm"
+              className="modal-logout"
+              backdropContent={<Fireworks aktif={celebrate} />}
+              title={
+                <span className="logout-modal-heading">
+                  <span className="celebration-icon"><Icon name="check-circle" size={22} /></span>
+                  <span className="celebration-title">Misi Selesai!</span>
+                </span>
+              }
+              footer={
+                <>
+                  <button type="button" className="btn btn-outline" onClick={() => setCelebrate(false)}>
+                    Tutup
+                  </button>
+                  <Link href="/peringkat" className="btn btn-primary">
+                    Lihat Peringkat
+                  </Link>
+                </>
+              }
+            >
+              <div className="celebration-copy">
+                <p>
+                  Kerja bagus, <strong>{user?.name || "Warga"}</strong>! Misi ini resmi selesai dan hadiahnya
+                  sudah masuk.
+                </p>
+                <p>+{angka(program?.exp || 0)} EXP{program?.badge ? ` · Badge baru: <strong>{program.badge}</strong>` : ""}</p>
+                <p className="tiny text-2">Terus tingkatkan aktivitas sehatmu untuk peringkat lebih tinggi.</p>
+              </div>
+            </Modal>
+          </AppShell>
   );
 }

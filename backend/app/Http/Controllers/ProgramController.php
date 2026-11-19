@@ -13,14 +13,13 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
-// Controller pengelolaan program kesehatan dan keikutsertaan warga
+// Mengurus tantangan hidup sehat, pendaftaran peserta, foto bukti kegiatan, dan persetujuan petugas.
 class ProgramController extends Controller
 {
     private const MAKS_FOTO_BUKTI = 5;
 
     public function __construct(private TelegramService $telegram) {}
 
-    // Tampilkan daftar program kesehatan sesuai peran dan status berjalan
     public function index(Request $request)
     {
         $user = $request->user();
@@ -30,13 +29,12 @@ class ProgramController extends Controller
         ]);
 
         $statusFilter = $request->query('status');
-        $hariIni      = now()->toDateString();
+        $hariIni = now()->toDateString();
 
         if (in_array($statusFilter, ['akan_datang', 'berjalan', 'selesai'], true)) {
             $this->saringStatus($query, $statusFilter, $hariIni);
         }
 
-        // Warga dan admin kelurahan hanya melihat program kelurahannya dan tingkat kota
         if ($user->role !== 'super_admin' && $user->wilayah_id) {
             $query->where(fn ($q) => $q->whereNull('wilayah_id')->orWhere('wilayah_id', $user->wilayah_id));
         } elseif ($request->filled('wilayah_id')) {
@@ -49,14 +47,13 @@ class ProgramController extends Controller
 
         $this->saringCari($query, ['judul', 'kategori_aktivitas'], $request);
 
-        $isWarga        = $user->role === 'user';
+        $isWarga = $user->role === 'user';
         $kondisiSelesai = "status = 'selesai' OR (selesai IS NOT NULL AND DATE(selesai) < ?)";
-        $params         = [$hariIni];
+        $params = [$hariIni];
 
-        // Prioritaskan tantangan yang belum selesai di atas (berjalan -> akan_datang -> selesai)
         if ($isWarga) {
             $kondisiSelesai .= " OR EXISTS (SELECT 1 FROM peserta_program WHERE peserta_program.program_id = program.id AND peserta_program.user_id = ? AND peserta_program.status = 'selesai')";
-            $params[]        = $user->id;
+            $params[] = $user->id;
         }
         $params[] = $hariIni;
 
@@ -70,7 +67,7 @@ class ProgramController extends Controller
             ->get()
             ->keyBy('program_id');
 
-        $data    = collect($list->items())->map(function (Program $p) use ($milikSaya, $isWarga, $hariIni) {
+        $data = collect($list->items())->map(function (Program $p) use ($milikSaya, $isWarga, $hariIni) {
             $pSaya = $isWarga ? $milikSaya->get($p->id) : null;
 
             return $this->baris($p, $pSaya?->status, $hariIni) + [
@@ -81,12 +78,11 @@ class ProgramController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'OK',
-            'data'    => $data,
-            'meta'    => $this->metaPaginasi($list),
+            'data' => $data,
+            'meta' => $this->metaPaginasi($list),
         ]);
     }
 
-    // Buat program kesehatan baru oleh admin kelurahan atau super admin
     public function store(Request $request)
     {
         $user = $request->user();
@@ -95,28 +91,27 @@ class ProgramController extends Controller
         $this->normalisasiAlias($request);
 
         $data = $request->validate([
-            'wilayah_id'         => 'nullable|exists:wilayah,id',
-            'judul'              => 'required|string|max:150',
-            'deskripsi'          => 'nullable|string|max:2000',
-            'kriteria_misi'      => 'nullable|string|max:500',
-            'jenis'              => ['required', Rule::in(['olahraga', 'edukasi', 'pemeriksaan', 'lainnya'])],
+            'wilayah_id' => 'nullable|exists:wilayah,id',
+            'judul' => 'required|string|max:150',
+            'deskripsi' => 'nullable|string|max:2000',
+            'kriteria_misi' => 'nullable|string|max:500',
+            'jenis' => ['required', Rule::in(['olahraga', 'edukasi', 'pemeriksaan', 'lainnya'])],
             'kategori_aktivitas' => ['nullable', 'string', 'max:50', Rule::requiredIf(fn () => $request->input('jenis') === 'lainnya')],
-            'target_peserta'     => 'nullable|integer|min:1',
-            'mulai'              => 'required|date',
-            'selesai'            => 'required|date|after_or_equal:mulai',
-            'exp_reward'         => 'required|integer|min:1|max:10000',
-            'badge_reward'       => 'nullable|string|max:100',
+            'target_peserta' => 'nullable|integer|min:1',
+            'mulai' => 'required|date',
+            'selesai' => 'required|date|after_or_equal:mulai',
+            'exp_reward' => 'required|integer|min:1|max:10000',
+            'badge_reward' => 'nullable|string|max:100',
         ], [
-            'judul.required'               => 'Judul program wajib diisi.',
-            'mulai.required'               => 'Tanggal mulai wajib diisi.',
-            'selesai.required'             => 'Tanggal selesai (tenggat) wajib diisi.',
-            'selesai.after_or_equal'       => 'Tanggal selesai tidak boleh sebelum tanggal mulai.',
-            'exp_reward.required'          => 'Reward EXP wajib diisi.',
-            'exp_reward.min'               => 'Reward EXP minimal 1 poin.',
-            'kategori_aktivitas.required'  => 'Kategori aktivitas wajib diisi saat memilih jenis Lainnya.',
+            'judul.required' => 'Judul program wajib diisi.',
+            'mulai.required' => 'Tanggal mulai wajib diisi.',
+            'selesai.required' => 'Tanggal selesai (tenggat) wajib diisi.',
+            'selesai.after_or_equal' => 'Tanggal selesai tidak boleh sebelum tanggal mulai.',
+            'exp_reward.required' => 'Reward EXP wajib diisi.',
+            'exp_reward.min' => 'Reward EXP minimal 1 poin.',
+            'kategori_aktivitas.required' => 'Kategori aktivitas wajib diisi saat memilih jenis Lainnya.',
         ]);
 
-        // Kunci program admin kelurahan ke wilayahnya sendiri dan se-kota bila kosong
         if ($user->role === 'admin_kelurahan') {
             abort_unless($user->wilayah_id, 422, 'Akun admin kelurahan belum memiliki wilayah penugasan.');
             $data['wilayah_id'] = $user->wilayah_id;
@@ -126,12 +121,12 @@ class ProgramController extends Controller
         }
 
         $data['exp_reward'] = $data['exp_reward'] ?? 50;
-        // Setel status awal di DB selaras dengan rentang tanggal mulai dan selesai program
+
         $hariIni = now()->toDateString();
         $data['status'] = match (true) {
-            $data['mulai'] > $hariIni                             => 'akan_datang',
+            $data['mulai'] > $hariIni => 'akan_datang',
             ! empty($data['selesai']) && $data['selesai'] < $hariIni => 'selesai',
-            default                                               => 'berjalan',
+            default => 'berjalan',
         };
 
         $program = Program::create($data);
@@ -142,24 +137,23 @@ class ProgramController extends Controller
                 $program->wilayah_id ? (int) $program->wilayah_id : null,
                 'Program & Tantangan Kesehatan Baru',
                 "Ada program baru: {$program->judul}\n"
-                . "Periode: {$program->mulai}{$periodeSelesai}\n"
-                . "Reward: +{$program->exp_reward} EXP"
-                . ($program->badge_reward ? " & Badge {$program->badge_reward}" : '') . "\n\n"
-                . 'Yuk daftar dan selesaikan misinya di aplikasi SehatKita!'
+                ."Periode: {$program->mulai}{$periodeSelesai}\n"
+                ."Reward: +{$program->exp_reward} EXP"
+                .($program->badge_reward ? " & Badge {$program->badge_reward}" : '')."\n\n"
+                .'Yuk daftar dan selesaikan misinya di aplikasi SehatKita!'
             );
         }
 
         return response()->json([
             'success' => true,
             'message' => 'Program berhasil dibuat',
-            'data'    => $this->baris($program->fresh(), null),
+            'data' => $this->baris($program->fresh(), null),
         ], 201);
     }
 
-    // Ambil detail program beserta daftar peserta sesuai hak akses petugas
     public function show(Request $request, int $id)
     {
-        $user    = $request->user();
+        $user = $request->user();
         $program = Program::findOrFail($id);
 
         $pesertaSaya = null;
@@ -185,11 +179,10 @@ class ProgramController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Detail program',
-            'data'    => $detail,
+            'data' => $detail,
         ]);
     }
 
-    // Perbarui informasi atau status program oleh pengelola wilayah
     public function update(Request $request, int $id)
     {
         $user = $request->user();
@@ -204,26 +197,26 @@ class ProgramController extends Controller
         $this->normalisasiAlias($request);
 
         $data = $request->validate([
-            'wilayah_id'         => 'sometimes|nullable|exists:wilayah,id',
-            'judul'              => 'sometimes|string|max:150',
-            'deskripsi'          => 'sometimes|nullable|string|max:2000',
-            'kriteria_misi'      => 'sometimes|nullable|string|max:500',
-            'jenis'              => ['sometimes', Rule::in(['olahraga', 'edukasi', 'pemeriksaan', 'lainnya'])],
+            'wilayah_id' => 'sometimes|nullable|exists:wilayah,id',
+            'judul' => 'sometimes|string|max:150',
+            'deskripsi' => 'sometimes|nullable|string|max:2000',
+            'kriteria_misi' => 'sometimes|nullable|string|max:500',
+            'jenis' => ['sometimes', Rule::in(['olahraga', 'edukasi', 'pemeriksaan', 'lainnya'])],
             'kategori_aktivitas' => 'sometimes|nullable|string|max:50',
-            'target_peserta'     => 'sometimes|nullable|integer|min:1',
-            'mulai'              => 'sometimes|date',
-            'selesai'            => 'sometimes|required|date|after_or_equal:mulai',
-            'status'             => ['sometimes', Rule::in(['akan_datang', 'berjalan', 'selesai'])],
-            'exp_reward'         => 'sometimes|required|integer|min:1|max:10000',
-            'badge_reward'       => 'sometimes|nullable|string|max:100',
+            'target_peserta' => 'sometimes|nullable|integer|min:1',
+            'mulai' => 'sometimes|date',
+            'selesai' => 'sometimes|required|date|after_or_equal:mulai',
+            'status' => ['sometimes', Rule::in(['akan_datang', 'berjalan', 'selesai'])],
+            'exp_reward' => 'sometimes|required|integer|min:1|max:10000',
+            'badge_reward' => 'sometimes|nullable|string|max:100',
         ], [
-            'selesai.required'       => 'Tanggal selesai (tenggat) wajib diisi.',
+            'selesai.required' => 'Tanggal selesai (tenggat) wajib diisi.',
             'selesai.after_or_equal' => 'Tanggal selesai tidak boleh sebelum tanggal mulai.',
-            'exp_reward.required'    => 'Reward EXP wajib diisi.',
-            'exp_reward.min'         => 'Reward EXP minimal 1 poin.',
+            'exp_reward.required' => 'Reward EXP wajib diisi.',
+            'exp_reward.min' => 'Reward EXP minimal 1 poin.',
         ]);
 
-        $jenisAkhir    = $data['jenis'] ?? $program->jenis;
+        $jenisAkhir = $data['jenis'] ?? $program->jenis;
         $kategoriAkhir = array_key_exists('kategori_aktivitas', $data)
             ? $data['kategori_aktivitas']
             : $program->kategori_aktivitas;
@@ -237,7 +230,6 @@ class ProgramController extends Controller
             unset($data['wilayah_id']);
         }
 
-        // Jika status diubah menjadi selesai tapi tanggal selesai tidak ditentukan
         if (isset($data['status']) && $data['status'] === 'selesai' && ! isset($data['selesai'])) {
             $hariIni = now()->toDateString();
             $data['selesai'] = ($program->mulai && $program->mulai->toDateString() > $hariIni)
@@ -250,11 +242,10 @@ class ProgramController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Program berhasil diperbarui',
-            'data'    => $this->baris($program->fresh(), null),
+            'data' => $this->baris($program->fresh(), null),
         ]);
     }
 
-    // Hapus program kesehatan oleh pengelola wilayah yang berwenang
     public function destroy(Request $request, int $id)
     {
         $user = $request->user();
@@ -271,11 +262,10 @@ class ProgramController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Program berhasil dihapus',
-            'data'    => null,
+            'data' => null,
         ]);
     }
 
-    // Tampilkan daftar peserta program sesuai cakupan wilayah petugas
     public function peserta(Request $request, int $id)
     {
         $user = $request->user();
@@ -290,11 +280,10 @@ class ProgramController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Daftar peserta program',
-            'data'    => $this->ambilDaftarPeserta($program, $user),
+            'data' => $this->ambilDaftarPeserta($program, $user),
         ]);
     }
 
-    // POST /program/{id}/peserta — kontrak 12.3
     public function ikut(Request $request, int $id)
     {
         $user = $request->user();
@@ -324,7 +313,6 @@ class ProgramController extends Controller
             ->where('user_id', $user->id)
             ->first();
 
-        // Kontrak 12.3: sudah terdaftar → 422.
         if ($sudah && $sudah->status !== 'berhenti') {
             throw ValidationException::withMessages([
                 'program' => ['Anda sudah terdaftar pada program ini.'],
@@ -332,35 +320,34 @@ class ProgramController extends Controller
         }
 
         if ($sudah) {
-            // Berhenti lalu ikut lagi → aktifkan kembali & bersihkan riwayat lama.
+
             $this->hapusSemuaFileBukti($this->daftarPathBukti($sudah));
             $sudah->update([
-                'status'             => 'terdaftar',
-                'selesai_pada'       => null,
-                'bukti_foto'         => null,
-                'bukti_foto_daftar'  => null,
-                'catatan_bukti'      => null,
-                'dikirim_pada'       => null,
+                'status' => 'terdaftar',
+                'selesai_pada' => null,
+                'bukti_foto' => null,
+                'bukti_foto_daftar' => null,
+                'catatan_bukti' => null,
+                'dikirim_pada' => null,
                 'catatan_verifikasi' => null,
-                'diverifikasi_oleh'  => null,
-                'diverifikasi_pada'  => null,
+                'diverifikasi_oleh' => null,
+                'diverifikasi_pada' => null,
             ]);
         } else {
             PesertaProgram::create([
                 'program_id' => $program->id,
-                'user_id'    => $user->id,
-                'status'     => 'terdaftar',
+                'user_id' => $user->id,
+                'status' => 'terdaftar',
             ]);
         }
 
         return response()->json([
             'success' => true,
             'message' => 'Berhasil mengikuti program',
-            'data'    => ['status' => 'terdaftar'],
+            'data' => ['status' => 'terdaftar'],
         ], 201);
     }
 
-    // POST /program/{id}/bukti — unggah satu atau banyak foto dokumentasi penyelesaian misi
     public function kirimBukti(Request $request, int $id)
     {
         $user = $request->user();
@@ -382,24 +369,24 @@ class ProgramController extends Controller
 
         $fotoTunggalAtauArray = $request->file('foto');
         $rules = [
-            'fotos'         => 'nullable|array|max:' . self::MAKS_FOTO_BUKTI,
-            'fotos.*'       => 'image|mimes:jpg,jpeg,png,webp|max:5120',
-            'foto.*'        => 'image|mimes:jpg,jpeg,png,webp|max:5120',
+            'fotos' => 'nullable|array|max:'.self::MAKS_FOTO_BUKTI,
+            'fotos.*' => 'image|mimes:jpg,jpeg,png,webp|max:5120',
+            'foto.*' => 'image|mimes:jpg,jpeg,png,webp|max:5120',
             'catatan_bukti' => 'nullable|string|max:500',
         ];
         if ($request->hasFile('foto')) {
             $rules['foto'] = is_array($fotoTunggalAtauArray)
-                ? 'array|max:' . self::MAKS_FOTO_BUKTI
+                ? 'array|max:'.self::MAKS_FOTO_BUKTI
                 : 'image|mimes:jpg,jpeg,png,webp|max:5120';
         }
 
         $validated = $request->validate($rules, [
-            'foto.image'    => 'File dokumentasi harus berupa gambar (JPG, PNG, atau WebP).',
-            'foto.max'      => 'Ukuran foto maksimal 5 MB.',
-            'foto.*.image'  => 'Setiap file dokumentasi harus berupa gambar (JPG, PNG, atau WebP).',
-            'foto.*.max'    => 'Ukuran setiap foto maksimal 5 MB.',
+            'foto.image' => 'File dokumentasi harus berupa gambar (JPG, PNG, atau WebP).',
+            'foto.max' => 'Ukuran foto maksimal 5 MB.',
+            'foto.*.image' => 'Setiap file dokumentasi harus berupa gambar (JPG, PNG, atau WebP).',
+            'foto.*.max' => 'Ukuran setiap foto maksimal 5 MB.',
             'fotos.*.image' => 'Setiap file dokumentasi harus berupa gambar (JPG, PNG, atau WebP).',
-            'fotos.*.max'   => 'Ukuran setiap foto maksimal 5 MB.',
+            'fotos.*.max' => 'Ukuran setiap foto maksimal 5 MB.',
         ]);
 
         $files = array_values(array_merge(
@@ -416,7 +403,7 @@ class ProgramController extends Controller
         $existing = $this->daftarPathBukti($peserta);
         if (count($existing) + count($files) > self::MAKS_FOTO_BUKTI) {
             throw ValidationException::withMessages([
-                'foto' => ['Maksimal ' . self::MAKS_FOTO_BUKTI . ' foto dokumentasi per tantangan. Hapus foto lama terlebih dahulu bila ingin mengganti.'],
+                'foto' => ['Maksimal '.self::MAKS_FOTO_BUKTI.' foto dokumentasi per tantangan. Hapus foto lama terlebih dahulu bila ingin mengganti.'],
             ]);
         }
 
@@ -426,24 +413,23 @@ class ProgramController extends Controller
         }
 
         $peserta->update([
-            'bukti_foto'         => $semua[0] ?? null,
-            'bukti_foto_daftar'  => $semua,
-            'catatan_bukti'      => $validated['catatan_bukti'] ?? $peserta->catatan_bukti,
-            'dikirim_pada'       => now(),
-            'status'             => 'menunggu_verifikasi',
+            'bukti_foto' => $semua[0] ?? null,
+            'bukti_foto_daftar' => $semua,
+            'catatan_bukti' => $validated['catatan_bukti'] ?? $peserta->catatan_bukti,
+            'dikirim_pada' => now(),
+            'status' => 'menunggu_verifikasi',
             'catatan_verifikasi' => null,
-            'diverifikasi_oleh'  => null,
-            'diverifikasi_pada'  => null,
+            'diverifikasi_oleh' => null,
+            'diverifikasi_pada' => null,
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Dokumentasi berhasil dikirim dan menunggu verifikasi kader/admin.',
-            'data'    => $this->ringkasanPesertaSaya($peserta->fresh(), $program->id),
+            'data' => $this->ringkasanPesertaSaya($peserta->fresh(), $program->id),
         ]);
     }
 
-    // DELETE /program/{id}/bukti — warga menghapus satu (?index=) atau semua foto dokumentasi sebelum misi selesai
     public function hapusBukti(Request $request, int $id)
     {
         $user = $request->user();
@@ -467,7 +453,7 @@ class ProgramController extends Controller
         abort_unless($daftar !== [], 404, 'Belum ada foto dokumentasi yang dapat dihapus.');
 
         $idxRaw = $request->query('index', $request->input('index'));
-        $sisa   = [];
+        $sisa = [];
 
         if ($idxRaw !== null && $idxRaw !== '') {
             if (! is_numeric($idxRaw) || (int) $idxRaw < 0 || (int) $idxRaw >= count($daftar)) {
@@ -482,18 +468,18 @@ class ProgramController extends Controller
         }
 
         $atribut = [
-            'bukti_foto'        => $sisa[0] ?? null,
+            'bukti_foto' => $sisa[0] ?? null,
             'bukti_foto_daftar' => $sisa !== [] ? $sisa : null,
         ];
 
         if ($sisa === []) {
             $atribut += [
-                'catatan_bukti'      => null,
-                'dikirim_pada'       => null,
-                'status'             => 'terdaftar',
+                'catatan_bukti' => null,
+                'dikirim_pada' => null,
+                'status' => 'terdaftar',
                 'catatan_verifikasi' => null,
-                'diverifikasi_oleh'  => null,
-                'diverifikasi_pada'  => null,
+                'diverifikasi_oleh' => null,
+                'diverifikasi_pada' => null,
             ];
         }
 
@@ -502,11 +488,10 @@ class ProgramController extends Controller
         return response()->json([
             'success' => true,
             'message' => $sisa === [] ? 'Semua foto dokumentasi berhasil dihapus.' : 'Foto dokumentasi terpilih berhasil dihapus.',
-            'data'    => $this->ringkasanPesertaSaya($peserta->fresh(), $program->id),
+            'data' => $this->ringkasanPesertaSaya($peserta->fresh(), $program->id),
         ]);
     }
 
-    // Ambil daftar path foto bukti dari kolom array maupun kolom tunggal lama
     private function daftarPathBukti(PesertaProgram $peserta): array
     {
         $daftar = $peserta->bukti_foto_daftar;
@@ -517,7 +502,6 @@ class ProgramController extends Controller
         return $peserta->bukti_foto ? [$peserta->bukti_foto] : [];
     }
 
-    // Susun daftar URL terautentikasi untuk tiap foto dokumentasi peserta
     private function urlBuktiList(PesertaProgram $peserta, int $programId): array
     {
         $paths = $this->daftarPathBukti($peserta);
@@ -528,7 +512,6 @@ class ProgramController extends Controller
         ));
     }
 
-    // Hapus seluruh file foto dokumentasi milik peserta
     private function hapusSemuaFileBukti(array $paths): void
     {
         foreach ($paths as $path) {
@@ -536,7 +519,6 @@ class ProgramController extends Controller
         }
     }
 
-    // Hapus file foto dokumentasi pada disk penyimpanan yang tersedia
     private function hapusFileBukti(?string $path): void
     {
         if (! $path) {
@@ -550,7 +532,6 @@ class ProgramController extends Controller
         }
     }
 
-    // GET /program/{id}/bukti/{pesertaId} — tampilkan foto dokumentasi bukti (mendukung ?index=)
     public function lihatBukti(Request $request, int $id, int $pesertaId)
     {
         $user = $request->user();
@@ -571,8 +552,8 @@ class ProgramController extends Controller
         abort_unless($boleh, 403, 'Anda tidak memiliki akses melihat dokumentasi ini.');
 
         $daftar = $this->daftarPathBukti($peserta);
-        $idx    = max(0, (int) $request->query('index', 0));
-        $path   = $daftar[$idx] ?? null;
+        $idx = max(0, (int) $request->query('index', 0));
+        $path = $daftar[$idx] ?? null;
 
         abort_unless($path, 404, 'Foto bukti tidak ditemukan.');
 
@@ -585,21 +566,19 @@ class ProgramController extends Controller
         abort(404, 'Foto bukti tidak ditemukan.');
     }
 
-    // PATCH /program/{id}/peserta — kontrak 12.4 + verifikasi bukti (selesai/ditolak)
     public function ubahStatusPeserta(Request $request, int $id)
     {
-        $user    = $request->user();
+        $user = $request->user();
         $program = Program::findOrFail($id);
 
         $data = $request->validate([
-            'status'             => ['required', Rule::in(['selesai', 'ditolak', 'berhenti'])],
-            'user_id'            => 'nullable|integer|exists:pengguna,id',
+            'status' => ['required', Rule::in(['selesai', 'ditolak', 'berhenti'])],
+            'user_id' => 'nullable|integer|exists:pengguna,id',
             'catatan_verifikasi' => 'nullable|string|max:500',
         ]);
 
         $targetId = $user->id;
 
-        // Aturan hak (kontrak 12.4).
         if (in_array($data['status'], ['selesai', 'ditolak'], true)) {
             abort_unless(
                 in_array($user->role, ['kader', 'admin_kelurahan', 'super_admin'], true),
@@ -616,7 +595,7 @@ class ProgramController extends Controller
                 $targetId = (int) $data['user_id'];
             }
         } else {
-            // `berhenti`: user hanya untuk dirinya; staf boleh untuk warga.
+
             if ($request->filled('user_id') && (int) $data['user_id'] !== (int) $user->id) {
                 abort_unless(
                     in_array($user->role, ['kader', 'admin_kelurahan', 'super_admin'], true),
@@ -645,9 +624,8 @@ class ProgramController extends Controller
         $notifStatus = null;
         $catatanVerif = null;
 
-        // Bungkus pembaruan status dan pemberian EXP/badge dalam satu transaksi atomik agar idempoten tanpa celah gagal parsial
-        $hasil = DB::transaction(function () use ($peserta, $program, $data, $user, $request, &$notifStatus, &$catatanVerif) {
-            $terkunci     = PesertaProgram::whereKey($peserta->id)->lockForUpdate()->firstOrFail();
+        $hasil = DB::transaction(function () use ($peserta, $program, $data, $user, &$notifStatus, &$catatanVerif) {
+            $terkunci = PesertaProgram::whereKey($peserta->id)->lockForUpdate()->firstOrFail();
             $sudahSelesai = $terkunci->status === 'selesai';
 
             if ($sudahSelesai && $data['status'] !== 'selesai') {
@@ -658,17 +636,17 @@ class ProgramController extends Controller
 
             $terkunci->status = $data['status'];
             if ($data['status'] === 'selesai') {
-                $terkunci->selesai_pada       = $terkunci->selesai_pada ?? now();
-                $terkunci->diverifikasi_oleh  = $user->id;
-                $terkunci->diverifikasi_pada  = now();
+                $terkunci->selesai_pada = $terkunci->selesai_pada ?? now();
+                $terkunci->diverifikasi_oleh = $user->id;
+                $terkunci->diverifikasi_pada = now();
                 $terkunci->catatan_verifikasi = $data['catatan_verifikasi'] ?? null;
                 if (! $sudahSelesai) {
                     $notifStatus = 'selesai';
                 }
             } elseif ($data['status'] === 'ditolak') {
-                $terkunci->selesai_pada       = null;
-                $terkunci->diverifikasi_oleh  = $user->id;
-                $terkunci->diverifikasi_pada  = now();
+                $terkunci->selesai_pada = null;
+                $terkunci->diverifikasi_oleh = $user->id;
+                $terkunci->diverifikasi_pada = now();
                 $terkunci->catatan_verifikasi = ($data['catatan_verifikasi'] ?? null) ?: 'Foto bukti belum sesuai kriteria misi. Silakan kirim ulang.';
                 $notifStatus = 'ditolak';
                 $catatanVerif = $terkunci->catatan_verifikasi;
@@ -679,19 +657,19 @@ class ProgramController extends Controller
 
             if ($data['status'] !== 'selesai' || $sudahSelesai) {
                 return [
-                    'status'           => $terkunci->status,
-                    'exp_didapat'      => 0,
-                    'exp_total'        => (int) $warga->exp_total,
+                    'status' => $terkunci->status,
+                    'exp_didapat' => 0,
+                    'exp_total' => (int) $warga->exp_total,
                     'level_gamifikasi' => (int) $warga->level_gamifikasi,
-                    'badge_baru'       => null,
+                    'badge_baru' => null,
                 ];
             }
 
-            $expLama  = (int) $warga->exp_total;
+            $expLama = (int) $warga->exp_total;
             $expDapat = (int) $program->exp_reward;
             $expTotal = $expLama + $expDapat;
 
-            $warga->exp_total        = $expTotal;
+            $warga->exp_total = $expTotal;
             $warga->level_gamifikasi = $this->levelDariExp($expTotal);
             $warga->save();
 
@@ -703,8 +681,8 @@ class ProgramController extends Controller
 
                 if (! $ada) {
                     BadgePengguna::create([
-                        'user_id'    => $warga->id,
-                        'badge'      => $program->badge_reward,
+                        'user_id' => $warga->id,
+                        'badge' => $program->badge_reward,
                         'program_id' => $program->id,
                     ]);
                     $badgeBaru = $program->badge_reward;
@@ -712,11 +690,11 @@ class ProgramController extends Controller
             }
 
             return [
-                'status'           => 'selesai',
-                'exp_didapat'      => $expDapat,
-                'exp_total'        => $expTotal,
+                'status' => 'selesai',
+                'exp_didapat' => $expDapat,
+                'exp_total' => $expTotal,
                 'level_gamifikasi' => $warga->level_gamifikasi,
-                'badge_baru'       => $badgeBaru,
+                'badge_baru' => $badgeBaru,
             ];
         });
 
@@ -727,7 +705,7 @@ class ProgramController extends Controller
                 $warga,
                 'Misi Program Selesai!',
                 "Selamat {$warga?->name}! Bukti program \"{$program->judul}\" Anda telah disetujui.\n"
-                . "Hadiah: +{$hasil['exp_didapat']} EXP (Total: {$hasil['exp_total']} EXP){$badgeInfo}"
+                ."Hadiah: +{$hasil['exp_didapat']} EXP (Total: {$hasil['exp_total']} EXP){$badgeInfo}"
             );
         } elseif ($notifStatus === 'ditolak') {
             $warga = Pengguna::find($peserta->user_id);
@@ -735,21 +713,18 @@ class ProgramController extends Controller
                 $warga,
                 'Bukti Program Perlu Diperbaiki',
                 "Bukti keikutsertaan Anda pada program \"{$program->judul}\" belum disetujui.\n"
-                . "Catatan petugas: {$catatanVerif}\n\n"
-                . 'Silakan unggah ulang bukti yang sesuai melalui aplikasi SehatKita.'
+                ."Catatan petugas: {$catatanVerif}\n\n"
+                .'Silakan unggah ulang bukti yang sesuai melalui aplikasi SehatKita.'
             );
         }
 
         return response()->json([
             'success' => true,
             'message' => 'Status peserta diperbarui',
-            'data'    => $hasil,
+            'data' => $hasil,
         ]);
     }
 
-    // ================= HELPER =================
-
-    // Samakan alias exp/badge dan nilai wilayah 0 menjadi format resmi backend
     private function normalisasiAlias(Request $request): void
     {
         if ($request->has('wilayah_id') && (int) $request->input('wilayah_id') === 0) {
@@ -767,7 +742,6 @@ class ProgramController extends Controller
         }
     }
 
-    // Ambil dan format daftar peserta program sesuai prioritas verifikasi dan wilayah petugas
     private function ambilDaftarPeserta(Program $program, Pengguna $user)
     {
         $query = PesertaProgram::with('pengguna:id,name,email,wilayah_id')
@@ -784,56 +758,53 @@ class ProgramController extends Controller
             ->map(fn ($p) => $this->barisPeserta($p, $program->id));
     }
 
-    // Format satu baris program beserta status berjalan dan keikutsertaan pengguna
     private function baris(Program $p, ?string $statusSaya, ?string $hariIni = null): array
     {
         $ikut = $statusSaya !== null && $statusSaya !== 'berhenti';
 
         return [
-            'id'                 => $p->id,
-            'wilayah_id'         => $p->wilayah_id,
-            'judul'              => $p->judul,
-            'deskripsi'          => $p->deskripsi,
-            'kriteria_misi'      => $p->kriteria_misi,
-            'jenis'              => $p->jenis,
+            'id' => $p->id,
+            'wilayah_id' => $p->wilayah_id,
+            'judul' => $p->judul,
+            'deskripsi' => $p->deskripsi,
+            'kriteria_misi' => $p->kriteria_misi,
+            'jenis' => $p->jenis,
             'kategori_aktivitas' => $p->kategori_aktivitas,
-            'target_peserta'     => $p->target_peserta,
-            'jumlah_peserta'     => (int) ($p->jumlah_peserta ?? $p->peserta()->where('status', '!=', 'berhenti')->count()),
-            'mulai'              => $p->mulai?->toDateString(),
-            'selesai'            => $p->selesai?->toDateString(),
-            'status'             => $this->statusProgram($p, $hariIni ?? now()->toDateString()),
-            'exp_reward'         => (int) $p->exp_reward,
-            'badge_reward'       => $p->badge_reward,
-            'exp'                => (int) $p->exp_reward,
-            'badge'              => $p->badge_reward,
-            'diikuti'            => $ikut,
-            'status_saya'        => $statusSaya,
+            'target_peserta' => $p->target_peserta,
+            'jumlah_peserta' => (int) ($p->jumlah_peserta ?? $p->peserta()->where('status', '!=', 'berhenti')->count()),
+            'mulai' => $p->mulai?->toDateString(),
+            'selesai' => $p->selesai?->toDateString(),
+            'status' => $this->statusProgram($p, $hariIni ?? now()->toDateString()),
+            'exp_reward' => (int) $p->exp_reward,
+            'badge_reward' => $p->badge_reward,
+            'exp' => (int) $p->exp_reward,
+            'badge' => $p->badge_reward,
+            'diikuti' => $ikut,
+            'status_saya' => $statusSaya,
         ];
     }
 
-    // Format baris data peserta beserta tautan foto bukti dan catatan verifikasi
     private function barisPeserta(PesertaProgram $p, int $programId): array
     {
         $urls = $this->urlBuktiList($p, $programId);
 
         return [
-            'id'                 => $p->id,
-            'user_id'            => $p->user_id,
-            'name'               => $p->pengguna?->name,
-            'email'              => $p->pengguna?->email,
-            'status'             => $p->status,
-            'bukti_foto_url'     => $urls[0] ?? null,
-            'bukti_foto_urls'    => $urls,
-            'catatan_bukti'      => $p->catatan_bukti,
-            'dikirim_pada'       => $p->dikirim_pada?->toIso8601String(),
+            'id' => $p->id,
+            'user_id' => $p->user_id,
+            'name' => $p->pengguna?->name,
+            'email' => $p->pengguna?->email,
+            'status' => $p->status,
+            'bukti_foto_url' => $urls[0] ?? null,
+            'bukti_foto_urls' => $urls,
+            'catatan_bukti' => $p->catatan_bukti,
+            'dikirim_pada' => $p->dikirim_pada?->toIso8601String(),
             'catatan_verifikasi' => $p->catatan_verifikasi,
-            'diverifikasi_pada'  => $p->diverifikasi_pada?->toIso8601String(),
-            'terdaftar_pada'     => $p->created_at?->toIso8601String(),
-            'selesai_pada'       => $p->selesai_pada?->toIso8601String(),
+            'diverifikasi_pada' => $p->diverifikasi_pada?->toIso8601String(),
+            'terdaftar_pada' => $p->created_at?->toIso8601String(),
+            'selesai_pada' => $p->selesai_pada?->toIso8601String(),
         ];
     }
 
-    // Format ringkasan keikutsertaan dan status bukti milik pengguna sendiri
     private function ringkasanPesertaSaya(?PesertaProgram $p, int $programId): ?array
     {
         if (! $p) {
@@ -843,26 +814,25 @@ class ProgramController extends Controller
         $urls = $this->urlBuktiList($p, $programId);
 
         return [
-            'id'                 => $p->id,
-            'status'             => $p->status,
-            'bukti_foto_url'     => $urls[0] ?? null,
-            'bukti_foto_urls'    => $urls,
-            'catatan_bukti'      => $p->catatan_bukti,
-            'dikirim_pada'       => $p->dikirim_pada?->toIso8601String(),
+            'id' => $p->id,
+            'status' => $p->status,
+            'bukti_foto_url' => $urls[0] ?? null,
+            'bukti_foto_urls' => $urls,
+            'catatan_bukti' => $p->catatan_bukti,
+            'dikirim_pada' => $p->dikirim_pada?->toIso8601String(),
             'catatan_verifikasi' => $p->catatan_verifikasi,
-            'diverifikasi_pada'  => $p->diverifikasi_pada?->toIso8601String(),
-            'selesai_pada'       => $p->selesai_pada?->toIso8601String(),
+            'diverifikasi_pada' => $p->diverifikasi_pada?->toIso8601String(),
+            'selesai_pada' => $p->selesai_pada?->toIso8601String(),
         ];
     }
 
-    // Hitung status program secara dinamis berdasarkan rentang tanggal pelaksanaan
     private function statusProgram(Program $p, string $hariIni): string
     {
         if ($p->status === 'selesai') {
             return 'selesai';
         }
 
-        $mulai   = $p->mulai?->toDateString();
+        $mulai = $p->mulai?->toDateString();
         $selesai = $p->selesai?->toDateString();
 
         if ($mulai && $hariIni < $mulai) {
@@ -876,17 +846,15 @@ class ProgramController extends Controller
         return 'berjalan';
     }
 
-    // Terapkan filter status program langsung pada query SQL
     private function saringStatus($query, string $status, string $hariIni): void
     {
         match ($status) {
             'akan_datang' => $query->where('status', '!=', 'selesai')->whereDate('mulai', '>', $hariIni),
-            'selesai'     => $query->where(fn ($q) => $q->where('status', 'selesai')->orWhere(fn ($sub) => $sub->whereNotNull('selesai')->whereDate('selesai', '<', $hariIni))),
-            default       => $query->sedangBerjalan($hariIni),
+            'selesai' => $query->where(fn ($q) => $q->where('status', 'selesai')->orWhere(fn ($sub) => $sub->whereNotNull('selesai')->whereDate('selesai', '<', $hariIni))),
+            default => $query->sedangBerjalan($hariIni),
         };
     }
 
-    // Hitung level gamifikasi dengan kenaikan tiap kelipatan 100 EXP
     private function levelDariExp(int $exp): int
     {
         return max(1, (int) floor($exp / 100) + 1);

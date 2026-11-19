@@ -30,8 +30,8 @@ function isAppRoute(pathname: string | null): boolean {
 export default function GlobalLoading() {
   const pathname = usePathname();
 
-  if (isAppRoute(pathname)) {
-    return <GlassyDashboardSkeleton label="Memuat halaman…" />;
+  if (isAppRoute(pathname) || pathname === "/kalkulator") {
+    return <div aria-hidden="true" />;
   }
 
   return (

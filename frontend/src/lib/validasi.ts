@@ -18,10 +18,6 @@ export const RANGE: Record<string, [number, number, string]> = {
   tidur_jam: [0, 24, "Jam tidur"],
 };
 
-export function validEmail(v?: string | null): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v || "");
-}
-
 /** Angka: hanya digit/desimal, dalam rentang field jika terdaftar */
 export function validAngka(field: string, v?: string | number | null): HasilValidasi {
   if (v === "" || v === null || v === undefined) return { ok: true };
@@ -38,17 +34,6 @@ export function validAngka(field: string, v?: string | number | null): HasilVali
     return { ok: false, msg: `${r[2]} harus antara ${r[0]}–${r[1]}.` };
   }
   return { ok: true, value: n };
-}
-
-/** Tanggal tidak boleh di masa depan (mis. tanggal lahir) */
-export function validTglLampau(v?: string | null): HasilValidasi {
-  if (!v) return { ok: true };
-  const d = new Date(v + "T00:00:00");
-  if (isNaN(d.getTime())) return { ok: false, msg: "Format tanggal tidak valid." };
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  if (d > today) return { ok: false, msg: "Tanggal tidak boleh di masa depan." };
-  return { ok: true };
 }
 
 /** Tanggal pemeriksaan: wajib, tidak boleh di masa depan */

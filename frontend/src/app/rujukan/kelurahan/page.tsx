@@ -278,17 +278,30 @@ export default function RujukanKelurahanPage() {
                   </div>
                   <div className="tiny text-2">Dibuat: {tanggal(r.created_at, "short")}</div>
                 </div>
-                <div className="row gap-8" style={{ alignItems: "center" }}>
-                  <Badge tone={TONE_STATUS[r.status]}>{LABEL_STATUS[r.status]}</Badge>
-                  {opsiLanjut(r.status).length > 0 ? (
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-outline"
-                      onClick={() => bukaModalStatus(r)}
-                    >
-                      Ubah
-                    </button>
-                  ) : null}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "92px 68px",
+                    alignItems: "center",
+                    gap: 10,
+                    flexShrink: 0,
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <Badge tone={TONE_STATUS[r.status]}>{LABEL_STATUS[r.status]}</Badge>
+                  </div>
+                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    {opsiLanjut(r.status).length > 0 ? (
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline"
+                        style={{ width: "100%", justifyContent: "center" }}
+                        onClick={() => bukaModalStatus(r)}
+                      >
+                        Ubah
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             ))}

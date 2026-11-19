@@ -6,9 +6,11 @@ use App\Services\TelegramService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 
+// Menerima pesan masuk dari bot Telegram agar warga bisa menghubungkan akunnya.
 class TelegramPollCommand extends Command
 {
     protected $signature = 'telegram:poll {--once : Hanya periksa pembaruan satu kali lalu keluar}';
+
     protected $description = 'Jalankan long polling Bot Telegram untuk menerima perintah /start warga di lingkungan lokal';
 
     public function handle(TelegramService $telegram): int
@@ -16,6 +18,7 @@ class TelegramPollCommand extends Command
         $lock = Cache::lock('telegram_bot_poller_lock', 30);
         if (! $lock->get()) {
             $this->warn('Telegram bot poller sudah berjalan di proses lain. Mencegah duplikasi proses.');
+
             return 0;
         }
 
@@ -24,7 +27,7 @@ class TelegramPollCommand extends Command
         $this->info('Tekan Ctrl+C untuk berhenti.');
 
         $offset = 0;
-        $once   = $this->option('once');
+        $once = $this->option('once');
 
         try {
             do {
@@ -41,7 +44,7 @@ class TelegramPollCommand extends Command
 
                         $sukses = $telegram->prosesPesan($update['message']);
                         if ($sukses) {
-                            $this->info("-> Berhasil diproses dan dibalas!");
+                            $this->info('-> Berhasil diproses dan dibalas!');
                         }
                     }
                 }
@@ -50,7 +53,7 @@ class TelegramPollCommand extends Command
                     break;
                 }
 
-                usleep(100000); // 0.1 detik (super cepat)
+                usleep(100000);
             } while (true);
         } finally {
             $lock->release();

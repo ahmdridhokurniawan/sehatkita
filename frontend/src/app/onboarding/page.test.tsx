@@ -62,14 +62,19 @@ describe("OnboardingPage", () => {
     fireEvent.change(document.querySelector('select[name="jenis_kelamin"]') as HTMLSelectElement, {
       target: { value: "L" },
     });
+    fireEvent.click(screen.getByRole("button", { name: /^Lanjut$/i }));
+
     fireEvent.change(document.querySelector('input[name="tinggi_cm"]') as HTMLInputElement, {
       target: { value: "170" },
     });
     fireEvent.change(document.querySelector('select[name="tingkat_aktivitas"]') as HTMLSelectElement, {
       target: { value: "sedang" },
     });
-    fireEvent.click(document.querySelector('input[name="setuju"]') as HTMLInputElement);
+    fireEvent.click(screen.getByRole("button", { name: /^Lanjut$/i }));
 
+    fireEvent.click(screen.getByRole("button", { name: /^Lewati$/i }));
+
+    fireEvent.click(document.querySelector('input[name="setuju"]') as HTMLInputElement);
     fireEvent.click(screen.getByRole("button", { name: /Simpan & Lanjut ke Dashboard/i }));
 
     await waitFor(() => {
@@ -94,15 +99,15 @@ describe("OnboardingPage", () => {
     fireEvent.change(document.querySelector('select[name="jenis_kelamin"]') as HTMLSelectElement, {
       target: { value: "P" },
     });
+    fireEvent.click(screen.getByRole("button", { name: /^Lanjut$/i }));
+
     fireEvent.change(document.querySelector('input[name="tinggi_cm"]') as HTMLInputElement, {
       target: { value: "110" },
     });
     fireEvent.change(document.querySelector('select[name="tingkat_aktivitas"]') as HTMLSelectElement, {
       target: { value: "ringan" },
     });
-    fireEvent.click(document.querySelector('input[name="setuju"]') as HTMLInputElement);
-
-    fireEvent.click(screen.getByRole("button", { name: /Simpan & Lanjut ke Dashboard/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Lanjut$/i }));
 
     expect(await screen.findByText(/120–220 cm/i)).toBeInTheDocument();
     expect(mockSetuju).not.toHaveBeenCalled();

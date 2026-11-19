@@ -38,7 +38,7 @@ function statusSesi(s: SesiPosbindu): {
 } {
   const st = (s.status || "").toLowerCase();
   if (st === "akan_datang") {
-    return { kode: "akan_datang", label: "Akan datang", tone: "info", warna: "var(--info, #0284c7)" };
+    return { kode: "akan_datang", label: "Akan datang", tone: "info", warna: "var(--info, #4B6251)" };
   }
   if (st === "berlangsung" || st === "berjalan") {
     return { kode: "berlangsung", label: "Berlangsung", tone: "peringatan", warna: "var(--warning)" };
@@ -50,7 +50,7 @@ function statusSesi(s: SesiPosbindu): {
   const hariIni = todayLocalISO();
   const t = (s.tanggal || "").slice(0, 10);
   if (t > hariIni) {
-    return { kode: "akan_datang", label: "Akan datang", tone: "info", warna: "var(--info, #0284c7)" };
+    return { kode: "akan_datang", label: "Akan datang", tone: "info", warna: "var(--info, #4B6251)" };
   }
   if (t === hariIni) {
     return { kode: "berlangsung", label: "Berlangsung", tone: "peringatan", warna: "var(--warning)" };

@@ -5,12 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+// Menyimpan daftar jenis pemeriksaan kesehatan seperti tekanan darah, gula darah, dan berat badan.
 class Indikator extends Model
 {
-    // Tanpa ini Eloquent menebak tabel "indikators".
     protected $table = 'indikator';
 
-    // Kolom yang boleh diisi massal pada pengelolaan indikator kesehatan
     protected $fillable = [
         'kode',
         'nama',
@@ -19,7 +18,6 @@ class Indikator extends Model
         'interval_skrining_hari',
     ];
 
-    // Konversi tipe kolom numerik untuk jadwal skrining
     protected function casts(): array
     {
         return [
@@ -27,7 +25,6 @@ class Indikator extends Model
         ];
     }
 
-    // Relasi: indikator ini punya banyak ambang kategori (1:N).
     public function ambangKategori(): HasMany
     {
         return $this->hasMany(AmbangKategori::class, 'indikator_id');

@@ -65,17 +65,6 @@ export function desimal(n?: number | string | null, dec = 1): string {
   });
 }
 
-/** Hitung umur (tahun) dari tanggal lahir */
-export function umur(tglLahir?: string | null): number | null {
-  if (!tglLahir) return null;
-  const b = new Date(tglLahir);
-  const now = new Date();
-  let a = now.getFullYear() - b.getFullYear();
-  const m = now.getMonth() - b.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < b.getDate())) a--;
-  return a;
-}
-
 /** "Budi Santoso" -> "BS" */
 export function inisial(nama?: string | null): string {
   if (!nama) return "?";
@@ -86,11 +75,6 @@ export function inisial(nama?: string | null): string {
     .map((w) => w[0])
     .join("")
     .toUpperCase();
-}
-
-/** "L" -> "Laki-laki" */
-export function gender(g?: string | null): string {
-  return g === "L" ? "Laki-laki" : g === "P" ? "Perempuan" : "—";
 }
 
 /** Tanggal hari ini versi zona waktu lokal pengguna (YYYY-MM-DD), bukan UTC. */

@@ -15,13 +15,11 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
+// Mengelola data utama aplikasi seperti indikator kesehatan, batas aman, pengguna, puskesmas, dan catatan aktivitas.
 class AdminMasterController extends Controller
 {
     public function __construct(private HealthCalculatorService $kalkulator) {}
 
-    // ================= INDIKATOR =================
-
-    // Daftar master indikator kesehatan
     public function indexIndikator(Request $request)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -38,8 +36,8 @@ class AdminMasterController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'OK',
-            'data'    => $list->items(),
-            'meta'    => $this->metaPaginasi($list),
+            'data' => $list->items(),
+            'meta' => $this->metaPaginasi($list),
         ]);
     }
 
@@ -48,10 +46,10 @@ class AdminMasterController extends Controller
         $this->hanyaSuperAdmin($request->user());
 
         $data = $request->validate([
-            'kode'                   => 'required|string|max:30|unique:indikator,kode',
-            'nama'                   => 'required|string|max:100',
-            'satuan'                 => 'nullable|string|max:20',
-            'kelompok'               => 'nullable|string|max:50',
+            'kode' => 'required|string|max:30|unique:indikator,kode',
+            'nama' => 'required|string|max:100',
+            'satuan' => 'nullable|string|max:20',
+            'kelompok' => 'nullable|string|max:50',
             'interval_skrining_hari' => 'nullable|integer|min:1|max:365',
         ]);
 
@@ -60,7 +58,7 @@ class AdminMasterController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Indikator ditambahkan',
-            'data'    => $indikator,
+            'data' => $indikator,
         ], 201);
     }
 
@@ -74,21 +72,21 @@ class AdminMasterController extends Controller
         }
 
         $data = $request->validate([
-            'kode'                   => ['sometimes', 'string', 'max:30', Rule::unique('indikator', 'kode')->ignore($id)],
-            'nama'                   => 'sometimes|string|max:100',
-            'satuan'                 => 'sometimes|nullable|string|max:20',
-            'kelompok'               => 'sometimes|nullable|string|max:50',
+            'kode' => ['sometimes', 'string', 'max:30', Rule::unique('indikator', 'kode')->ignore($id)],
+            'nama' => 'sometimes|string|max:100',
+            'satuan' => 'sometimes|nullable|string|max:20',
+            'kelompok' => 'sometimes|nullable|string|max:50',
             'interval_skrining_hari' => 'sometimes|nullable|integer|min:1|max:365',
         ]);
 
         $indikator->update($data);
-        // Bersihkan cache kalkulator agar perubahan kode/interval indikator langsung aktif
+
         $this->kalkulator->lupakanCache();
 
         return response()->json([
             'success' => true,
             'message' => 'Indikator diubah',
-            'data'    => $indikator,
+            'data' => $indikator,
         ]);
     }
 
@@ -101,20 +99,16 @@ class AdminMasterController extends Controller
             return $this->tidakDitemukan('Indikator tidak ditemukan');
         }
 
-        // ambang_kategori cascadeOnDelete -> ikut terhapus.
         $indikator->delete();
         $this->kalkulator->lupakanCache();
 
         return response()->json([
             'success' => true,
             'message' => 'Indikator dihapus',
-            'data'    => null,
+            'data' => null,
         ]);
     }
 
-    // ================= AMBANG KATEGORI =================
-
-    // Daftar ambang batas kategori indikator
     public function indexAmbang(Request $request)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -134,8 +128,8 @@ class AdminMasterController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'OK',
-            'data'    => $list->getCollection()->map(fn ($a) => $this->bentukAmbang($a))->values(),
-            'meta'    => $this->metaPaginasi($list),
+            'data' => $list->getCollection()->map(fn ($a) => $this->bentukAmbang($a))->values(),
+            'meta' => $this->metaPaginasi($list),
         ]);
     }
 
@@ -158,7 +152,7 @@ class AdminMasterController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Ambang kategori ditambahkan',
-            'data'    => $this->bentukAmbang($ambang),
+            'data' => $this->bentukAmbang($ambang),
         ], 201);
     }
 
@@ -171,7 +165,6 @@ class AdminMasterController extends Controller
             return $this->tidakDitemukan('Ambang kategori tidak ditemukan');
         }
 
-        // Semua opsional saat update: "required" -> "sometimes".
         $aturan = $this->aturanAmbang();
         foreach ($aturan as $field => $rule) {
             $aturan[$field] = is_string($rule)
@@ -206,7 +199,7 @@ class AdminMasterController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Ambang kategori diubah',
-            'data'    => $this->bentukAmbang($ambang),
+            'data' => $this->bentukAmbang($ambang),
         ]);
     }
 
@@ -225,13 +218,10 @@ class AdminMasterController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Ambang kategori dihapus',
-            'data'    => null,
+            'data' => null,
         ]);
     }
 
-    // ================= PENGGUNA =================
-
-    // Daftar pengguna sistem
     public function indexPengguna(Request $request)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -252,12 +242,11 @@ class AdminMasterController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'OK',
-            'data'    => $list->items(),
-            'meta'    => $this->metaPaginasi($list),
+            'data' => $list->items(),
+            'meta' => $this->metaPaginasi($list),
         ]);
     }
 
-    // Tambah akun pengguna baru
     public function storePengguna(Request $request)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -267,13 +256,13 @@ class AdminMasterController extends Controller
         }
 
         $data = $request->validate([
-            'name'       => 'required|string|max:100',
-            'nik'        => 'nullable|string|size:16|regex:/^[0-9]+$/|unique:pengguna,nik',
-            'email'      => 'required|email|max:150|unique:pengguna,email',
-            'password'   => ['required', 'string', Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
-            'role'       => ['required', Rule::in(['super_admin', 'admin_kelurahan', 'kader', 'user'])],
+            'name' => 'required|string|max:100',
+            'nik' => 'nullable|string|size:16|regex:/^[0-9]+$/|unique:pengguna,nik',
+            'email' => 'required|email|max:150|unique:pengguna,email',
+            'password' => ['required', 'string', Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
+            'role' => ['required', Rule::in(['super_admin', 'admin_kelurahan', 'kader', 'user'])],
             'wilayah_id' => ['nullable', Rule::exists('wilayah', 'id')->where('tipe', 'kelurahan')],
-            'kader_id'   => 'nullable|exists:pengguna,id',
+            'kader_id' => 'nullable|exists:pengguna,id',
         ]);
 
         if ($data['role'] !== 'user') {
@@ -288,11 +277,10 @@ class AdminMasterController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Akun dibuat',
-            'data'    => $pengguna->load('wilayah:id,nama,tipe'),
+            'data' => $pengguna->load('wilayah:id,nama,tipe'),
         ], 201);
     }
 
-    // Ubah data pengguna
     public function updatePengguna(Request $request, int $id)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -307,17 +295,16 @@ class AdminMasterController extends Controller
         }
 
         $data = $request->validate([
-            'name'       => 'sometimes|string|max:100',
-            'nik'        => ['sometimes', 'nullable', 'string', 'size:16', 'regex:/^[0-9]+$/', Rule::unique('pengguna', 'nik')->ignore($id)],
-            'email'      => ['sometimes', 'email', 'max:150', Rule::unique('pengguna', 'email')->ignore($id)],
-            'password'   => ['sometimes', 'string', Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
-            'role'       => ['sometimes', Rule::in(['super_admin', 'admin_kelurahan', 'kader', 'user'])],
+            'name' => 'sometimes|string|max:100',
+            'nik' => ['sometimes', 'nullable', 'string', 'size:16', 'regex:/^[0-9]+$/', Rule::unique('pengguna', 'nik')->ignore($id)],
+            'email' => ['sometimes', 'email', 'max:150', Rule::unique('pengguna', 'email')->ignore($id)],
+            'password' => ['sometimes', 'string', Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
+            'role' => ['sometimes', Rule::in(['super_admin', 'admin_kelurahan', 'kader', 'user'])],
             'wilayah_id' => ['sometimes', 'nullable', Rule::exists('wilayah', 'id')->where('tipe', 'kelurahan')],
-            'kader_id'   => 'sometimes|nullable|exists:pengguna,id',
-            'aktif'      => 'sometimes|boolean',
+            'kader_id' => 'sometimes|nullable|exists:pengguna,id',
+            'aktif' => 'sometimes|boolean',
         ]);
 
-        // Cegah super admin menonaktifkan atau menurunkan peran akunnya sendiri
         if ($pengguna->id === $request->user()->id) {
             if ($request->has('aktif') && ! $request->boolean('aktif')) {
                 throw ValidationException::withMessages(['aktif' => ['Tidak boleh menonaktifkan akun sendiri.']]);
@@ -327,15 +314,14 @@ class AdminMasterController extends Controller
             }
         }
 
-        // Catat riwayat perpindahan wilayah dan lepas kader lama bila warga mutasi kelurahan (U12)
         if ($request->has('wilayah_id') && (int) $request->wilayah_id !== (int) $pengguna->wilayah_id) {
             if ($request->filled('wilayah_id')) {
                 RiwayatWilayah::create([
-                    'user_id'           => $pengguna->id,
-                    'wilayah_asal_id'   => $pengguna->wilayah_id,
+                    'user_id' => $pengguna->id,
+                    'wilayah_asal_id' => $pengguna->wilayah_id,
                     'wilayah_tujuan_id' => (int) $data['wilayah_id'],
-                    'alasan'            => $request->input('alasan_mutasi', 'Mutasi domisili warga'),
-                    'diubah_oleh'       => $request->user()->id,
+                    'alasan' => $request->input('alasan_mutasi', 'Mutasi domisili warga'),
+                    'diubah_oleh' => $request->user()->id,
                 ]);
             }
             if (! array_key_exists('kader_id', $data)) {
@@ -358,7 +344,6 @@ class AdminMasterController extends Controller
 
         $pengguna->update($data);
 
-        // Cabut token saat akun dinonaktifkan atau sandi diubah
         if (($request->has('aktif') && ! $request->boolean('aktif')) || $request->filled('password')) {
             $pengguna->tokens()->delete();
         }
@@ -366,11 +351,10 @@ class AdminMasterController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Data pengguna diubah',
-            'data'    => $pengguna->load('wilayah:id,nama,tipe'),
+            'data' => $pengguna->load('wilayah:id,nama,tipe'),
         ]);
     }
 
-    // Ambil riwayat perpindahan wilayah warga (U12)
     public function riwayatWilayahPengguna(Request $request, int $id)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -391,26 +375,26 @@ class AdminMasterController extends Controller
             ->map(function ($r) {
                 $item = $r->toArray();
                 $item['wilayahAsal'] = $r->wilayahAsal ? [
-                    'id'   => $r->wilayahAsal->id,
+                    'id' => $r->wilayahAsal->id,
                     'nama' => $r->wilayahAsal->nama,
                     'tipe' => $r->wilayahAsal->tipe,
                 ] : null;
                 $item['wilayahTujuan'] = $r->wilayahTujuan ? [
-                    'id'   => $r->wilayahTujuan->id,
+                    'id' => $r->wilayahTujuan->id,
                     'nama' => $r->wilayahTujuan->nama,
                     'tipe' => $r->wilayahTujuan->tipe,
                 ] : null;
+
                 return $item;
             });
 
         return response()->json([
             'success' => true,
             'message' => 'Riwayat wilayah pengguna',
-            'data'    => $riwayat,
+            'data' => $riwayat,
         ]);
     }
 
-    // Nonaktifkan akun pengguna
     public function destroyPengguna(Request $request, int $id)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -433,13 +417,10 @@ class AdminMasterController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Pengguna dinonaktifkan',
-            'data'    => null,
+            'data' => null,
         ]);
     }
 
-    // ================= FASKES =================
-
-    // Daftar fasilitas kesehatan
     public function indexFaskes(Request $request)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -460,12 +441,11 @@ class AdminMasterController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'OK',
-            'data'    => $list->items(),
-            'meta'    => $this->metaPaginasi($list),
+            'data' => $list->items(),
+            'meta' => $this->metaPaginasi($list),
         ]);
     }
 
-    // Tambah faskes baru
     public function storeFaskes(Request $request)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -475,11 +455,10 @@ class AdminMasterController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Faskes ditambahkan',
-            'data'    => $faskes->load('wilayah:id,nama,tipe'),
+            'data' => $faskes->load('wilayah:id,nama,tipe'),
         ], 201);
     }
 
-    // Ubah data faskes
     public function updateFaskes(Request $request, int $id)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -501,11 +480,10 @@ class AdminMasterController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Faskes diubah',
-            'data'    => $faskes->load('wilayah:id,nama,tipe'),
+            'data' => $faskes->load('wilayah:id,nama,tipe'),
         ]);
     }
 
-    // Hapus faskes
     public function destroyFaskes(Request $request, int $id)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -527,13 +505,10 @@ class AdminMasterController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Faskes dihapus',
-            'data'    => null,
+            'data' => null,
         ]);
     }
 
-    // ================= LOG AUDIT =================
-
-    // Tampilkan daftar log audit dengan filter pengguna, model, dan rentang tanggal inklusif
     public function indexLogAudit(Request $request)
     {
         $this->hanyaSuperAdmin($request->user());
@@ -557,20 +532,16 @@ class AdminMasterController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'OK',
-            'data'    => $list->items(),
-            'meta'    => $this->metaPaginasi($list),
+            'data' => $list->items(),
+            'meta' => $this->metaPaginasi($list),
         ]);
     }
 
-    // ================= HELPER =================
-
-    // Batasi akses endpoint hanya untuk peran super admin
     private function hanyaSuperAdmin($user): void
     {
         $this->wajibPeran($user, ['super_admin'], 'Endpoint ini hanya untuk super admin.');
     }
 
-    // Kembalikan response JSON 404 saat data master tidak ditemukan
     private function tidakDitemukan(string $pesan)
     {
         return $this->responTidakDitemukan($pesan);
@@ -579,35 +550,35 @@ class AdminMasterController extends Controller
     private function bentukAmbang(AmbangKategori $a): array
     {
         return [
-            'id'         => $a->id,
-            'indikator'  => $a->indikator
+            'id' => $a->id,
+            'indikator' => $a->indikator
                 ? [
-                    'kode'   => $a->indikator->kode,
-                    'nama'   => $a->indikator->nama,
+                    'kode' => $a->indikator->kode,
+                    'nama' => $a->indikator->nama,
                     'satuan' => $a->indikator->satuan,
                 ]
                 : null,
             'jenis_gula_darah' => $a->jenis_gula_darah,
-            'memicu_rujukan'   => (bool) $a->memicu_rujukan,
-            'batas_min'  => $a->batas_min === null ? null : (float) $a->batas_min,
-            'batas_max'  => $a->batas_max === null ? null : (float) $a->batas_max,
-            'kategori'   => $a->kategori,
-            'status'     => $a->status,
-            'skor'       => (int) $a->skor,
+            'memicu_rujukan' => (bool) $a->memicu_rujukan,
+            'batas_min' => $a->batas_min === null ? null : (float) $a->batas_min,
+            'batas_max' => $a->batas_max === null ? null : (float) $a->batas_max,
+            'kategori' => $a->kategori,
+            'status' => $a->status,
+            'skor' => (int) $a->skor,
         ];
     }
 
     private function aturanAmbang(): array
     {
         return [
-            'indikator_id'     => 'required|exists:indikator,id',
+            'indikator_id' => 'required|exists:indikator,id',
             'jenis_gula_darah' => 'nullable|in:puasa,2jam_pp',
-            'memicu_rujukan'   => 'sometimes|boolean',
-            'batas_min'    => 'required|numeric',
-            'batas_max'    => 'nullable|numeric|gte:batas_min',
-            'kategori'     => 'required|string|max:50',
-            'status'       => ['required', Rule::in(['normal', 'perlu_perhatian', 'berisiko'])],
-            'skor'         => 'nullable|integer|min:0|max:255',
+            'memicu_rujukan' => 'sometimes|boolean',
+            'batas_min' => 'required|numeric',
+            'batas_max' => 'nullable|numeric|gte:batas_min',
+            'kategori' => 'required|string|max:50',
+            'status' => ['required', Rule::in(['normal', 'perlu_perhatian', 'berisiko'])],
+            'skor' => 'nullable|integer|min:0|max:255',
         ];
     }
 
@@ -615,16 +586,15 @@ class AdminMasterController extends Controller
     {
         return [
             'wilayah_id' => 'nullable|exists:wilayah,id',
-            'nama'       => 'required|string|max:150',
-            'jenis'      => ['required', Rule::in(['puskesmas', 'klinik', 'rumah_sakit', 'lainnya'])],
-            'alamat'     => 'nullable|string',
-            'telepon'    => 'nullable|string|max:30',
-            'lat'        => 'nullable|numeric|between:-90,90',
-            'lng'        => 'nullable|numeric|between:-180,180',
+            'nama' => 'required|string|max:150',
+            'jenis' => ['required', Rule::in(['puskesmas', 'klinik', 'rumah_sakit', 'lainnya'])],
+            'alamat' => 'nullable|string',
+            'telepon' => 'nullable|string|max:30',
+            'lat' => 'nullable|numeric|between:-90,90',
+            'lng' => 'nullable|numeric|between:-180,180',
         ];
     }
 
-    // Tolak interval ambang batas [batas_min, batas_max) yang tumpang tindih pada indikator dan jenis gula sama
     private function pastikanAmbangTidakTumpangTindih(
         int $indikatorId,
         ?string $jenisGula,
@@ -649,7 +619,6 @@ class AdminMasterController extends Controller
         }
     }
 
-    // Pastikan kader_id yang ditugaskan benar-benar akun kader aktif di wilayah warga
     private function pastikanKaderSah(?int $kaderId, ?int $wilayahId): void
     {
         if ($kaderId === null) {

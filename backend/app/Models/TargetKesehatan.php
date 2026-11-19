@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-// Model target kesehatan dinamis warga
+// Menyimpan daftar target kesehatan yang dibuat oleh warga.
 class TargetKesehatan extends Model
 {
     protected $table = 'target_kesehatan';
@@ -26,10 +26,10 @@ class TargetKesehatan extends Model
     protected function casts(): array
     {
         return [
-            'nilai_awal'    => 'float',
-            'nilai_target'  => 'float',
+            'nilai_awal' => 'float',
+            'nilai_target' => 'float',
             'tenggat_waktu' => 'date',
-            'tercapai'      => 'boolean',
+            'tercapai' => 'boolean',
             'tercapai_pada' => 'datetime',
         ];
     }

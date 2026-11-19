@@ -5,12 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+// Menyimpan catatan jejak aktivitas penting petugas dan admin demi keamanan data.
 class LogAudit extends Model
 {
-    // Tanpa ini Eloquent menebak tabel "log_audits".
     protected $table = 'log_audit';
 
-    // Kolom yang boleh diisi massal untuk pencatatan log audit
     protected $fillable = [
         'user_id',
         'aksi',
@@ -21,10 +20,8 @@ class LogAudit extends Model
         'created_at',
     ];
 
-    // Tabel log hanya menyimpan created_at tanpa updated_at
     public $timestamps = false;
 
-    // Isi created_at otomatis saat log baru dibuat
     protected static function booted(): void
     {
         static::creating(function (LogAudit $log) {
@@ -32,7 +29,6 @@ class LogAudit extends Model
         });
     }
 
-    // Cast tipe kolom.
     protected function casts(): array
     {
         return [
@@ -40,7 +36,6 @@ class LogAudit extends Model
         ];
     }
 
-    // Relasi: aksi ini dilakukan oleh user mana.
     public function pengguna(): BelongsTo
     {
         return $this->belongsTo(Pengguna::class, 'user_id');

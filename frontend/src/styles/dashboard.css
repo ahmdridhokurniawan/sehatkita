@@ -19,7 +19,7 @@
 /* ---------- Skip link (aksesibilitas) ---------- */
 .skip-link {
   position: absolute; left: -9999px; top: 0; z-index: 2000;
-  background: var(--primary); color: #fff; padding: 10px 16px;
+  background: var(--primary); color: var(--on-primary); padding: 10px 16px;
   border-radius: 0 0 var(--radius) 0; font-weight: 600; font-size: .875rem;
 }
 .skip-link:focus { left: 0; outline: 2px solid var(--text-invert); outline-offset: 2px; }
@@ -30,7 +30,7 @@
 /* ---------- Grid bantu ---------- */
 .grid-kpi { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 .grid-balanced-4 { display: grid; gap: 12px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.grid-charts { display: grid; gap: 18px; grid-template-columns: 1.6fr 1fr; }
+.grid-charts { display: grid; gap: 14px; grid-template-columns: 1.6fr 1fr; }
 @media (max-width: 1100px) { .grid-charts, .grid-4, .grid-3, .grid-balanced-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 760px) { .grid-charts, .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
 @media (max-width: 520px) { .grid-balanced-4 { grid-template-columns: 1fr; } }
@@ -167,13 +167,13 @@
   gap: 14px;
 }
 .dash-skel-main {
-  padding: 28px 28px 60px;
+  padding: 16px 20px 44px;
   max-width: 1280px;
   width: 100%;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
 }
 .dash-skel-kpis {
   display: grid;
@@ -322,8 +322,8 @@
   }
   .app-dash .app-body {
     max-width: 1280px;
-    padding: 20px 32px 44px;
-    gap: 20px;
+    padding: 16px 24px 36px;
+    gap: 14px;
   }
 }
 
@@ -491,14 +491,16 @@
   height: 30px;
   border-radius: 50%;
   background: linear-gradient(145deg, var(--primary), var(--primary-700));
-  color: #fff;
+  color: var(--on-primary);
   display: grid;
   place-items: center;
   font-size: .72rem;
   font-weight: 800;
 }
 :root[data-theme="dark"] .app-topbar-avatar .ava-dot {
-  color: #12180E;
+  background: #076653;
+  color: #FFFFFF;
+  border: 1px solid rgba(226, 251, 206, .35);
 }
 :root[data-theme="dark"] .app-topbar-search-input,
 :root[data-theme="dark"] .app-topbar-pill,
@@ -543,6 +545,8 @@
   font-size: .8125rem;
   font-weight: 600;
   color: var(--primary);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .bento-sec-action:hover { text-decoration: underline; }
 
@@ -959,17 +963,6 @@ a.bento-history-row:hover {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-/* Center loading animasi di area konten saja */
-.app-body .lottie-loading:not(.is-compact) {
-  flex: 1;
-  min-height: calc(100dvh - 165px);
-  display: grid;
-  place-items: center;
-  align-content: center;
-  width: 100%;
-  padding: 24px 16px !important;
 }
 
 /* ---------- Dashboard Super Admin (padat, minim card, tanpa gap kosong) ---------- */
@@ -1464,11 +1457,11 @@ a.sa-row:hover strong { color: var(--primary); }
   padding: 22px 24px;
   color: #FFFFFF;
   background:
-    radial-gradient(380px 260px at 86% 24%, rgba(232, 246, 178, .22), transparent 68%),
-    radial-gradient(280px 220px at 10% 96%, rgba(16, 26, 9, .34), transparent 68%),
-    linear-gradient(132deg, #2d5a27 0%, #467325 52%, #689438 100%);
+    radial-gradient(380px 260px at 86% 24%, rgba(226, 251, 206, .2), transparent 68%),
+    radial-gradient(280px 220px at 10% 96%, rgba(6, 35, 29, .38), transparent 68%),
+    linear-gradient(132deg, #06231D 0%, #0C342C 52%, #076653 100%);
   border: 1px solid rgba(255, 255, 255, .24);
-  box-shadow: 0 18px 38px -20px rgba(32, 62, 24, .58);
+  box-shadow: 0 18px 38px -20px rgba(6, 35, 29, .58);
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
@@ -1477,9 +1470,9 @@ a.sa-row:hover strong { color: var(--primary); }
 }
 :root[data-theme="dark"] .gv-hero {
   background:
-    radial-gradient(360px 240px at 85% 24%, rgba(196, 217, 123, .14), transparent 68%),
-    linear-gradient(135deg, #1f3f1d 0%, #2f5827 54%, #42702f 100%);
-  border-color: rgba(223, 230, 201, .2);
+    radial-gradient(360px 240px at 85% 24%, rgba(226, 251, 206, .14), transparent 68%),
+    linear-gradient(135deg, #06231D 0%, #0C342C 54%, #076653 100%);
+  border-color: rgba(226, 251, 206, .22);
 }
 .gv-hero.is-warning {
   background:
@@ -1755,14 +1748,29 @@ a.sa-row:hover strong { color: var(--primary); }
 }
 .gv-tab-btn.is-active {
   background: var(--primary);
-  color: #FFFFFF;
-  box-shadow: 0 4px 10px -4px rgba(59, 86, 22, .45);
+  color: var(--on-primary);
+  box-shadow: 0 4px 10px -4px color-mix(in srgb, var(--primary) 42%, transparent);
 }
 .gv-agenda-body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   flex: 1;
+}
+.gv-agenda .chip-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+.gv-agenda .chip {
+  flex: 1 1 0;
+  min-width: 0;
+  justify-content: center;
+  padding: 5px 8px;
+  font-size: .72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .gv-agenda-foot {
   margin-top: auto;
@@ -1771,9 +1779,12 @@ a.sa-row:hover strong { color: var(--primary); }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
   font-size: .74rem;
   color: var(--text-2);
+}
+.gv-agenda-foot > span {
+  min-width: 0;
 }
 
 /* Baris Bawah: 4 KPI Glass Cards + Inline Sparkline */
@@ -1820,8 +1831,8 @@ a.sa-row:hover strong { color: var(--primary); }
   box-shadow: 0 16px 32px -18px rgba(200, 62, 77, .62);
 }
 .gv-kpi.is-accent.is-primary {
-  background: linear-gradient(138deg, #2d5a27 0%, #467325 54%, #689438 100%);
-  box-shadow: 0 16px 32px -18px rgba(45, 90, 39, .58);
+  background: linear-gradient(138deg, #06231D 0%, #0C342C 54%, #076653 100%);
+  box-shadow: 0 16px 32px -18px rgba(6, 35, 29, .58);
 }
 .gv-kpi.is-accent.is-safe {
   background: linear-gradient(138deg, #15803d 0%, #16a34a 54%, #22c55e 100%);
@@ -1831,7 +1842,7 @@ a.sa-row:hover strong { color: var(--primary); }
   background: linear-gradient(138deg, #8b282b 0%, #b03a38 55%, #c7513d 100%);
 }
 :root[data-theme="dark"] .gv-kpi.is-accent.is-primary {
-  background: linear-gradient(138deg, #1f3f1d 0%, #2f5827 55%, #42702f 100%);
+  background: linear-gradient(138deg, #06231D 0%, #0C342C 55%, #076653 100%);
 }
 :root[data-theme="dark"] .gv-kpi.is-accent.is-safe {
   background: linear-gradient(138deg, #14532d 0%, #166534 55%, #15803d 100%);

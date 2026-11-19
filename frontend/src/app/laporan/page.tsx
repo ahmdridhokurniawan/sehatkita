@@ -405,7 +405,7 @@ export default function LaporanKelurahanPage() {
             ["baru", "Baru Masuk", "var(--danger)"],
             ["dihubungi", "Sedang Diproses", "var(--warning)"],
             ["selesai", "Selesai Ditangani", "var(--safe)"],
-            ["ditolak", "Ditolak", "var(--info, #0284c7)"],
+            ["ditolak", "Ditolak", "var(--info, #4B6251)"],
           ] as const
         ).filter(([k]) => d.rujukan[k] !== undefined);
 
@@ -633,7 +633,7 @@ function LembarLaporanPrint({
     if (k.includes("obesitas")) return "#c62828";
     if (k.includes("gemuk")) return "#d97706";
     if (k.includes("normal")) return "#2e7d32";
-    return "#0284c7";
+    return "#4B6251";
   };
 
   return (
@@ -846,7 +846,7 @@ function warnaImt(kategori?: string): string {
   if (k.includes("obesitas")) return "var(--danger)";
   if (k.includes("gemuk")) return "var(--warning)";
   if (k.includes("normal")) return "var(--safe)";
-  return "var(--info, #0284c7)";
+  return "var(--info, #4B6251)";
 }
 
 function persen(nilai: number, total: number): number {

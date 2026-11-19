@@ -368,4 +368,66 @@ class AccessControlTest extends TestCase
             'riwayat_keluarga'  => ['tidak_ada'],
         ])->assertOk()->assertJsonPath('data.tampil_di_peringkat', true);
     }
+
+    public function test_admin_kelurahan_hanya_bisa_verifikasi_catatan_di_wilayahnya(): void
+    {
+        $kelA = $this->wilayah();
+        $kelB = Wilayah::firstOrCreate(
+            ['kode' => '63.72.05.1009'],
+            ['nama' => 'Kemuning', 'tipe' => 'kelurahan']
+        );
+
+        $adminA = $this->pengguna('admin_kelurahan');
+        $wargaA = $this->pengguna('user');
+        $wargaB = Pengguna::create([
+            'name'       => 'Warga B',
+            'email'      => 'warga.b.' . uniqid() . '@sehatkita.test',
+            'password'   => 'rahasia123',
+            'role'       => 'user',
+            'wilayah_id' => $kelB->id,
+            'consent_at' => now(),
+            'aktif'      => true,
+        ]);
+        $kader = $this->pengguna('kader');
+
+        $catatanA = \App\Models\CatatanKesehatan::create([
+            'user_id'          => $wargaA->id,
+            'dicatat_oleh'     => $wargaA->id,
+            'dicatat_pada'     => now(),
+            'sumber'           => 'mandiri',
+            'bb_kg'            => 340,
+            'perlu_verifikasi' => true,
+        ]);
+
+        $catatanB = \App\Models\CatatanKesehatan::create([
+            'user_id'          => $wargaB->id,
+            'dicatat_oleh'     => $wargaB->id,
+            'dicatat_pada'     => now(),
+            'sumber'           => 'mandiri',
+            'bb_kg'            => 350,
+            'perlu_verifikasi' => true,
+        ]);
+
+        // Kader tetap ditolak (403)
+        $this->asUser($kader)->getJson('/api/v1/admin/catatan-kesehatan/perlu-verifikasi')->assertStatus(403);
+
+        // Admin kelurahan A hanya melihat catatan wilayah A (walau kirim wilayah_id B)
+        $res = $this->asUser($adminA)
+            ->getJson("/api/v1/admin/catatan-kesehatan/perlu-verifikasi?wilayah_id={$kelB->id}")
+            ->assertOk();
+        $ids = collect($res->json('data'))->pluck('id')->all();
+        $this->assertContains($catatanA->id, $ids);
+        $this->assertNotContains($catatanB->id, $ids);
+
+        // Admin kelurahan A ditolak (404) memverifikasi catatan wilayah B
+        $this->asUser($adminA)
+            ->patchJson("/api/v1/admin/catatan-kesehatan/{$catatanB->id}/verifikasi", ['setuju' => true])
+            ->assertStatus(404);
+
+        // Admin kelurahan A berhasil menyetujui catatan wilayah A
+        $this->asUser($adminA)
+            ->patchJson("/api/v1/admin/catatan-kesehatan/{$catatanA->id}/verifikasi", ['setuju' => true])
+            ->assertOk();
+        $this->assertFalse($catatanA->fresh()->perlu_verifikasi);
+    }
 }

@@ -8,7 +8,7 @@ use App\Models\Pengguna;
 use App\Models\Rujukan;
 use Illuminate\Support\Facades\DB;
 
-// Layanan pembuat rujukan otomatis saat indikator melewati ambang kritis
+// Membuat rujukan otomatis ke puskesmas terdekat saat hasil pemeriksaan warga masuk kondisi berbahaya.
 class RujukanOtomatisService
 {
     public function __construct(
@@ -17,7 +17,6 @@ class RujukanOtomatisService
         private SuratRujukanService $suratRujukan
     ) {}
 
-    // Buat rujukan faskes otomatis jika indikator catatan memicu rujukan
     public function buatDariCatatan(CatatanKesehatan $catatan, Pengguna $pemilik): void
     {
         $pemicu = $this->kalkulator->indikatorMemicuRujukan($catatan);
@@ -35,7 +34,7 @@ class RujukanOtomatisService
         $rujukanBaru = [];
 
         foreach ($pemicu as $indikator) {
-            // Sistol dan diastol digabung menjadi satu rujukan indikator tensi
+
             $nama = in_array($indikator, ['sistol', 'diastol'], true) ? 'tensi' : $indikator;
 
             $sudahAda = Rujukan::where('user_id', $pemilik->id)
@@ -48,13 +47,13 @@ class RujukanOtomatisService
             }
 
             $rujukanBaru[] = Rujukan::create([
-                'user_id'     => $pemilik->id,
-                'faskes_id'   => $faskesId,
-                'alasan'      => 'Rujukan ini saran sistem, bukan diagnosis medis.',
+                'user_id' => $pemilik->id,
+                'faskes_id' => $faskesId,
+                'alasan' => 'Rujukan ini saran sistem, bukan diagnosis medis.',
                 'dibuat_oleh' => null,
-                'status'      => 'baru',
-                'otomatis'    => true,
-                'indikator'   => $nama,
+                'status' => 'baru',
+                'otomatis' => true,
+                'indikator' => $nama,
             ]);
 
             $indikatorBaru[] = $nama;
@@ -70,9 +69,9 @@ class RujukanOtomatisService
                     $pemilikSegar,
                     'Saran Rujukan Kesehatan Baru',
                     "Halo {$pemilik->name},\n"
-                    . "Catatan kesehatan Anda menunjukkan indikator ({$daftarIndikator}) di luar batas aman.\n"
-                    . "Tujuan faskes: {$namaFaskes}\n\n"
-                    . 'Catatan: Rujukan ini saran sistem, bukan diagnosis medis. Silakan konsultasikan dengan tenaga kesehatan.'
+                    ."Catatan kesehatan Anda menunjukkan indikator ({$daftarIndikator}) di luar batas aman.\n"
+                    ."Tujuan faskes: {$namaFaskes}\n\n"
+                    .'Catatan: Rujukan ini saran sistem, bukan diagnosis medis. Silakan konsultasikan dengan tenaga kesehatan.'
                 );
 
                 if (isset($rujukanBaru[0])) {
@@ -87,7 +86,6 @@ class RujukanOtomatisService
         }
     }
 
-    // Cari ID puskesmas di kelurahan warga atau kecamatan induknya
     public function cariPuskesmasTerdekat(Pengguna $pemilik): ?int
     {
         if (! $pemilik->wilayah_id) {

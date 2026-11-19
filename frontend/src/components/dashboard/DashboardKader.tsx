@@ -370,27 +370,6 @@ export default function DashboardKader({ user: _user }: { user: User }) {
 
       {/* BARIS 2 — 4 KPI GLASS CARDS + SPARKLINE SVG */}
       <GlassyKpiGrid items={kpiItems} />
-
-      {/* STRIP PINTASAN KERJA KADER (1 BARIS DATAR) */}
-      <div className="gv-quick-bar">
-        <div className="gv-quick-links">
-          <Link href="/posbindu" className="gv-quick-pill">
-            <Icon name="calendar-check" size={13} /> Kelola Posbindu ({angka(sesi.length)})
-          </Link>
-          <Link href="/rujukan" className="gv-quick-pill">
-            <Icon name="send" size={13} /> Daftar Rujukan ({angka(rujukanTerbuka.length)} aktif)
-          </Link>
-          <Link href="/rekam-medis" className="gv-quick-pill">
-            <Icon name="clipboard" size={13} /> Rekam Medis
-          </Link>
-          <Link href="/peringkat" className="gv-quick-pill">
-            <Icon name="trophy" size={13} /> Peringkat Kelurahan
-          </Link>
-        </div>
-        <span className="tiny">
-          <Icon name="shield" size={12} /> Data peserta binaan aman &amp; hanya dapat diakses petugas berwenang
-        </span>
-      </div>
     </AppShell>
   );
 }

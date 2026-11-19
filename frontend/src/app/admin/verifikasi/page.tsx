@@ -112,8 +112,8 @@ export default function AdminVerifikasiPage() {
   }
 
   return (
-    <AppShell noFab roles={["super_admin"]}>
-      <TombolKembaliAdmin />
+    <AppShell noFab roles={["super_admin", "admin_kelurahan"]}>
+      <TombolKembaliAdmin hanyaSuperAdmin />
       <div className="row-between mb-16">
         <div>
           <h1 className="h3">Verifikasi Catatan</h1>
@@ -137,7 +137,7 @@ export default function AdminVerifikasiPage() {
       ) : daftar.length === 0 ? (
         <EmptyState
           title="Tidak ada catatan menunggu"
-          desc="Semua catatan ber-flag sudah diverifikasi."
+          desc="Semua catatan yang perlu diperiksa ulang sudah selesai ditinjau."
         />
       ) : (
         <>

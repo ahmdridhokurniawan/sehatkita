@@ -7,12 +7,11 @@ use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
-// Controller modul pengaduan warga untuk admin kelurahan dan dinas kesehatan
+// Mengurus laporan pengaduan dari warga beserta tanggapan dari petugas kelurahan.
 class PengaduanController extends Controller
 {
     public function __construct(private TelegramService $telegram) {}
 
-    // Tampilkan daftar pengaduan warga sesuai wilayah tugas admin atau milik sendiri
     public function index(Request $request)
     {
         $user = $request->user();
@@ -43,21 +42,20 @@ class PengaduanController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Daftar pengaduan',
-            'data'    => $list->items(),
-            'meta'    => $this->metaPaginasi($list),
+            'data' => $list->items(),
+            'meta' => $this->metaPaginasi($list),
         ]);
     }
 
-    // Simpan laporan pengaduan baru yang dikirimkan warga
     public function store(Request $request)
     {
         $user = $request->user();
         $this->wajibPeran($user, ['user'], 'Hanya user yang dapat mengirim pengaduan.');
 
         $data = $request->validate([
-            'judul'      => 'required|string|max:150',
-            'isi'        => 'required|string',
-            'kategori'   => ['required', Rule::in(['layanan_posbindu', 'faskes', 'rujukan', 'aplikasi', 'lainnya'])],
+            'judul' => 'required|string|max:150',
+            'isi' => 'required|string',
+            'kategori' => ['required', Rule::in(['layanan_posbindu', 'faskes', 'rujukan', 'aplikasi', 'lainnya'])],
             'wilayah_id' => 'nullable|exists:wilayah,id',
         ]);
 
@@ -65,22 +63,21 @@ class PengaduanController extends Controller
         abort_unless($wilayahId, 422, 'Wilayah pengaduan belum ditentukan.');
 
         $pengaduan = Pengaduan::create([
-            'user_id'    => $user->id,
+            'user_id' => $user->id,
             'wilayah_id' => $wilayahId,
-            'judul'      => $data['judul'],
-            'isi'        => $data['isi'],
-            'kategori'   => $data['kategori'],
-            'status'     => 'menunggu',
+            'judul' => $data['judul'],
+            'isi' => $data['isi'],
+            'kategori' => $data['kategori'],
+            'status' => 'menunggu',
         ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Pengaduan berhasil dikirim',
-            'data'    => $pengaduan->load(['pengguna:id,name', 'wilayah:id,nama']),
+            'data' => $pengaduan->load(['pengguna:id,name', 'wilayah:id,nama']),
         ], 201);
     }
 
-    // Ambil detail pengaduan warga beserta tanggapannya jika ada
     public function show(Request $request, int $id)
     {
         $user = $request->user();
@@ -91,10 +88,10 @@ class PengaduanController extends Controller
         abort_unless($pengaduan, 404, 'Pengaduan tidak ditemukan.');
 
         $boleh = match ($user->role) {
-            'user'            => (int) $pengaduan->user_id === (int) $user->id,
+            'user' => (int) $pengaduan->user_id === (int) $user->id,
             'admin_kelurahan' => (int) $pengaduan->wilayah_id === (int) $user->wilayah_id,
-            'super_admin'     => true,
-            default           => false,
+            'super_admin' => true,
+            default => false,
         };
 
         abort_unless($boleh, 404, 'Pengaduan tidak ditemukan.');
@@ -102,11 +99,10 @@ class PengaduanController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Detail pengaduan',
-            'data'    => $pengaduan,
+            'data' => $pengaduan,
         ]);
     }
 
-    // Kirim tanggapan dan perbarui status tindak lanjut pengaduan oleh admin
     public function tanggapi(Request $request, int $id)
     {
         $user = $request->user();
@@ -120,13 +116,13 @@ class PengaduanController extends Controller
         }
 
         $data = $request->validate([
-            'status'    => ['required', Rule::in(['diproses', 'selesai', 'ditolak'])],
+            'status' => ['required', Rule::in(['diproses', 'selesai', 'ditolak'])],
             'tanggapan' => 'required|string',
         ]);
 
         $pengaduan->update([
-            'status'          => $data['status'],
-            'tanggapan'       => $data['tanggapan'],
+            'status' => $data['status'],
+            'tanggapan' => $data['tanggapan'],
             'ditanggapi_oleh' => $user->id,
             'ditanggapi_pada' => now(),
         ]);
@@ -137,14 +133,14 @@ class PengaduanController extends Controller
             $pengaduan->pengguna,
             'Tanggapan Pengaduan Anda',
             "Judul: {$pengaduan->judul}\n"
-            . 'Status: ' . strtoupper($pengaduan->status) . "\n"
-            . "Tanggapan: {$pengaduan->tanggapan}"
+            .'Status: '.strtoupper($pengaduan->status)."\n"
+            ."Tanggapan: {$pengaduan->tanggapan}"
         );
 
         return response()->json([
             'success' => true,
             'message' => 'Tanggapan pengaduan berhasil disimpan',
-            'data'    => $pengaduan->fresh(['pengguna:id,name', 'penanggap:id,name,role']),
+            'data' => $pengaduan->fresh(['pengguna:id,name', 'penanggap:id,name,role']),
         ]);
     }
 }

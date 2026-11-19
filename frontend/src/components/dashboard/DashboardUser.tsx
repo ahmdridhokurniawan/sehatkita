@@ -573,27 +573,6 @@ export default function DashboardUser({ user }: { user: User }) {
       {/* BARIS 2 — 4 KPI GLASS CARDS + SPARKLINE SVG */}
       <GlassyKpiGrid items={kpiItems} />
 
-      {/* STRIP PINTASAN KESEHATAN (1 BARIS DATAR) */}
-      <div className="gv-quick-bar">
-        <div className="gv-quick-links">
-          <Link href="/rekam-medis" className="gv-quick-pill">
-            <Icon name="clipboard" size={13} /> Rekam Medis
-          </Link>
-          <Link href="/target-kesehatan" className="gv-quick-pill">
-            <Icon name="target" size={13} /> Target Kesehatan ({angka(targetAktif)})
-          </Link>
-          <Link href="/program" className="gv-quick-pill">
-            <Icon name="award" size={13} /> Tantangan ({angka(gamifikasi?.exp_total ?? 0)} poin)
-          </Link>
-          <Link href="/kalkulator?app=1" className="gv-quick-pill">
-            <Icon name="calculator" size={13} /> Kalkulator
-          </Link>
-        </div>
-        <span className="tiny">
-          <Icon name="shield" size={12} /> SehatKita bukan alat diagnosis mandiri dan tidak menggantikan tenaga kesehatan
-        </span>
-      </div>
-
       <CatatModal
         open={catatTerbuka}
         onClose={() => setCatatTerbuka(false)}

@@ -975,22 +975,53 @@ function KalkulatorContent() {
   );
 }
 
-export default function KalkulatorPage() {
+function KalkulatorFallback() {
   return (
-    <Suspense
-      fallback={
-        <div className="landing">
-          <PublicHeader />
-          <main className="section-sm">
-            <div className="container">
-              <p className="tiny">Memuat kalkulator…</p>
-            </div>
-          </main>
-          <PublicFooter />
+    <div style={{ display: "grid", gap: 16 }}>
+      <div className="card" style={{ padding: 24, display: "grid", gap: 12 }}>
+        <div className="skeleton" style={{ width: 180, height: 24, borderRadius: 8 }} />
+        <div className="skeleton" style={{ width: "65%", height: 14, borderRadius: 6 }} />
+      </div>
+      <div className="grid col-2 gap-16">
+        <div className="card" style={{ padding: 20, display: "grid", gap: 12 }}>
+          <div className="skeleton" style={{ width: 120, height: 18, borderRadius: 6 }} />
+          <div className="skeleton" style={{ width: "100%", height: 42, borderRadius: 8 }} />
+          <div className="skeleton" style={{ width: "100%", height: 42, borderRadius: 8 }} />
         </div>
-      }
-    >
-      <KalkulatorContent />
-    </Suspense>
+        <div className="card" style={{ padding: 20, display: "grid", gap: 12 }}>
+          <div className="skeleton" style={{ width: 120, height: 18, borderRadius: 6 }} />
+          <div className="skeleton" style={{ width: "100%", height: 120, borderRadius: 12 }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function KalkulatorPage() {
+  const searchParams = useSearchParams();
+  const dalamAplikasi = searchParams.get("app") === "1";
+
+  if (dalamAplikasi) {
+    return (
+      <AppShell noFab>
+        <Suspense fallback={<KalkulatorFallback />}>
+          <KalkulatorContent />
+        </Suspense>
+      </AppShell>
+    );
+  }
+
+  return (
+    <div className="landing">
+      <PublicHeader />
+      <main className="section-sm">
+        <div className="container">
+          <Suspense fallback={<KalkulatorFallback />}>
+            <KalkulatorContent />
+          </Suspense>
+        </div>
+      </main>
+      <PublicFooter />
+    </div>
   );
 }

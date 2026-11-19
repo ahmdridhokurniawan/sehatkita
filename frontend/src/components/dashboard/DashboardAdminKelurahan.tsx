@@ -417,10 +417,16 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
             )}
           </div>
 
-          <div className="gv-agenda-foot">
-            <span className="row gap-6 items-center">
+          <div className="gv-agenda-foot" style={{ gap: 10 }}>
+            <span
+              className="row gap-6 items-center"
+              style={{ flexWrap: "nowrap", minWidth: 0 }}
+              title="Privasi Warga Terjaga (kelompok < 5 disamarkan)"
+            >
               <Icon name="shield" size={14} className="text-safe" />
-              <span>Privasi Warga Terjaga (kelompok &lt; 5 disamarkan)</span>
+              <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                Privasi terjaga (&lt; 5 disamarkan)
+              </span>
             </span>
             <Link
               href={
@@ -431,6 +437,7 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
                     : "/laporan"
               }
               className="bento-sec-action"
+              style={{ whiteSpace: "nowrap", flexShrink: 0 }}
             >
               Lihat semua <Icon name="chevron-right" size={14} />
             </Link>
@@ -440,27 +447,6 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
 
       {/* BARIS 2 — 4 KPI GLASS CARDS + SPARKLINE SVG */}
       <GlassyKpiGrid items={kpiItems} />
-
-      {/* STRIP PINTASAN TATA KELOLA KELURAHAN (1 BARIS DATAR) */}
-      <div className="gv-quick-bar">
-        <div className="gv-quick-links">
-          <Link href="/laporan" className="gv-quick-pill">
-            <Icon name="bar-chart" size={13} /> Laporan Wilayah
-          </Link>
-          <Link href="/rujukan/kelurahan" className="gv-quick-pill">
-            <Icon name="send" size={13} /> Rujukan Kelurahan ({angka(totalRujukan)})
-          </Link>
-          <Link href="/posbindu" className="gv-quick-pill">
-            <Icon name="calendar-check" size={13} /> Jadwal Posbindu ({angka(sesiTerbaru.length)})
-          </Link>
-          <Link href="/peringkat" className="gv-quick-pill">
-            <Icon name="trophy" size={13} /> Peringkat Kelurahan
-          </Link>
-        </div>
-        <span className="tiny">
-          <Icon name="shield" size={12} /> Data agregat wilayah aman &amp; bebas identitas pribadi warga
-        </span>
-      </div>
     </AppShell>
   );
 }

@@ -6,7 +6,7 @@ use App\Models\TargetKesehatan;
 use App\Services\TelegramService;
 use Illuminate\Http\Request;
 
-// Controller CRUD target kesehatan dinamis dan motivasi warga
+// Mengurus target kesehatan pribadi warga seperti berat badan, olahraga, dan minum air.
 class TargetKesehatanController extends Controller
 {
     public function __construct(private TelegramService $telegram) {}
@@ -26,7 +26,7 @@ class TargetKesehatanController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Daftar target kesehatan',
-            'data'    => $list,
+            'data' => $list,
         ]);
     }
 
@@ -35,12 +35,12 @@ class TargetKesehatanController extends Controller
         $this->hanyaWarga($request->user());
 
         $data = $request->validate([
-            'judul'            => 'required|string|max:100',
-            'jenis_target'     => 'required|string|max:50',
-            'nilai_awal'       => 'nullable|numeric',
-            'nilai_target'     => 'required|numeric',
-            'satuan'           => 'required|string|max:20',
-            'tenggat_waktu'    => 'nullable|date',
+            'judul' => 'required|string|max:100',
+            'jenis_target' => 'required|string|max:50',
+            'nilai_awal' => 'nullable|numeric',
+            'nilai_target' => 'required|numeric',
+            'satuan' => 'required|string|max:20',
+            'tenggat_waktu' => 'nullable|date',
             'catatan_motivasi' => 'nullable|string|max:255',
         ]);
 
@@ -52,22 +52,21 @@ class TargetKesehatanController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Target kesehatan berhasil dibuat',
-            'data'    => $target,
+            'data' => $target,
         ], 201);
     }
 
-    // Perbarui detail target kesehatan milik warga yang sedang login
     public function update(Request $request, int $id)
     {
         $target = $this->cariTargetMilik($request, $id);
 
         $data = $request->validate([
-            'judul'            => 'sometimes|string|max:100',
-            'jenis_target'     => 'sometimes|string|max:50',
-            'nilai_awal'       => 'sometimes|nullable|numeric',
-            'nilai_target'     => 'sometimes|numeric',
-            'satuan'           => 'sometimes|string|max:20',
-            'tenggat_waktu'    => 'sometimes|nullable|date',
+            'judul' => 'sometimes|string|max:100',
+            'jenis_target' => 'sometimes|string|max:50',
+            'nilai_awal' => 'sometimes|nullable|numeric',
+            'nilai_target' => 'sometimes|numeric',
+            'satuan' => 'sometimes|string|max:20',
+            'tenggat_waktu' => 'sometimes|nullable|date',
             'catatan_motivasi' => 'sometimes|nullable|string|max:255',
         ]);
 
@@ -76,11 +75,10 @@ class TargetKesehatanController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Target berhasil diperbarui',
-            'data'    => $target,
+            'data' => $target,
         ]);
     }
 
-    // Ubah status ketercapaian target sekaligus kirimkan pesan motivasi
     public function capai(Request $request, int $id)
     {
         $target = $this->cariTargetMilik($request, $id);
@@ -88,7 +86,7 @@ class TargetKesehatanController extends Controller
         $tercapai = $request->has('tercapai') ? $request->boolean('tercapai') : ! $target->tercapai;
 
         $target->update([
-            'tercapai'      => $tercapai,
+            'tercapai' => $tercapai,
             'tercapai_pada' => $tercapai ? now() : null,
         ]);
 
@@ -101,19 +99,18 @@ class TargetKesehatanController extends Controller
                 $request->user(),
                 'Target Kesehatan Tercapai!',
                 "Selamat {$request->user()->name}! Target \"{$target->judul}\" berhasil tercapai.\n"
-                . $motivasi
+                .$motivasi
             );
         }
 
         return response()->json([
-            'success'  => true,
-            'message'  => $motivasi,
-            'data'     => $target,
+            'success' => true,
+            'message' => $motivasi,
+            'data' => $target,
             'motivasi' => $motivasi,
         ]);
     }
 
-    // Hapus target kesehatan milik warga
     public function destroy(Request $request, int $id)
     {
         $target = $this->cariTargetMilik($request, $id);
@@ -122,11 +119,10 @@ class TargetKesehatanController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Target berhasil dihapus',
-            'data'    => null,
+            'data' => null,
         ]);
     }
 
-    // Cari target kesehatan berdasarkan ID atau gagalkan dengan 404 jika bukan miliknya
     private function cariTargetMilik(Request $request, int $id): TargetKesehatan
     {
         $this->hanyaWarga($request->user());
@@ -137,7 +133,6 @@ class TargetKesehatanController extends Controller
         return $target;
     }
 
-    // Batasi pengelolaan target kesehatan pribadi hanya untuk peran warga
     private function hanyaWarga($user): void
     {
         $this->wajibPeran($user, ['user'], 'Hanya warga yang dapat mengelola target kesehatan.');

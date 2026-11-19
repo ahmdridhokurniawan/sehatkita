@@ -32,24 +32,3 @@ export default function Card({ children, className = "", raised, padLg, title, s
     </section>
   );
 }
-
-/** Kepala kartu (dipakai bila perlu kontrol posisi) */
-export function CardHead({
-  title,
-  sub,
-  actions,
-}: {
-  title: ReactNode;
-  sub?: ReactNode;
-  actions?: ReactNode;
-}) {
-  return (
-    <div className="card-head">
-      <div>
-        <div className="card-title">{title}</div>
-        {sub ? <div className="card-sub">{sub}</div> : null}
-      </div>
-      {actions ? <div className="row gap-8">{actions}</div> : null}
-    </div>
-  );
-}
