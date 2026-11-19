@@ -1,24 +1,41 @@
-/* Ambil gaya Arclo dengan seluruh palet asli SehatKita dari design-system.css. */
+/* Ambil gaya Arclo dengan palet Hijau Emerald Murni terpadu & gradasi elegan. */
 :root {
   --radius-sm: 10px;
   --radius: 16px;
   --radius-lg: 24px;
+  --grad-primary: linear-gradient(135deg, #168C58 0%, #0F7347 52%, #0A5233 100%);
+  --grad-primary-hover: linear-gradient(135deg, #1B9E64 0%, #128251 52%, #0C5F3B 100%);
+  --grad-hero: radial-gradient(420px 260px at 90% 12%, rgba(74, 222, 128, 0.22), transparent 68%), linear-gradient(135deg, #072E1E 0%, #0C5738 52%, #157D50 100%);
+  --grad-surface: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--surface-2) 34%, var(--surface)) 100%);
+  --grad-warning: radial-gradient(360px 220px at 88% 16%, rgba(251, 191, 36, 0.18), transparent 68%), linear-gradient(135deg, #7C2D12 0%, #A14114 54%, #C25E1A 100%);
+  --grad-danger: radial-gradient(360px 220px at 88% 16%, rgba(252, 165, 165, 0.18), transparent 68%), linear-gradient(135deg, #7F1D1D 0%, #9F2426 54%, #B93234 100%);
+}
+:root[data-theme="dark"] {
+  --grad-primary: linear-gradient(135deg, #4ADE80 0%, #22C55E 55%, #16A34A 100%);
+  --grad-primary-hover: linear-gradient(135deg, #6EE7A0 0%, #34D36E 55%, #1BB555 100%);
+  --grad-hero: radial-gradient(420px 260px at 90% 12%, rgba(74, 222, 128, 0.18), transparent 68%), linear-gradient(135deg, #062417 0%, #0B472D 54%, #116641 100%);
+  --grad-surface: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--surface-2) 48%, var(--surface)) 100%);
+  --grad-warning: linear-gradient(135deg, #6B2810 0%, #8C3B15 55%, #A64D1C 100%);
+  --grad-danger: linear-gradient(135deg, #6E1A1D 0%, #8E2327 55%, #A62F33 100%);
 }
 
 :root:not([data-theme="dark"]) body,
 :root[data-theme="dark"] body {
   background: var(--bg);
 }
-:root:not([data-theme="dark"]) .dash-main {
+:root:not([data-theme="dark"]) .dash-main,
+:root:not([data-theme="dark"]) .landing {
   background:
-    radial-gradient(640px 360px at 96% 4%, rgba(16, 185, 129, 0.065), transparent 70%),
-    radial-gradient(520px 320px at 6% 92%, rgba(13, 98, 78, 0.045), transparent 72%),
-    var(--bg);
+    radial-gradient(680px 380px at 94% 4%, rgba(22, 140, 88, 0.065), transparent 70%),
+    radial-gradient(540px 340px at 6% 92%, rgba(21, 128, 61, 0.045), transparent 72%),
+    linear-gradient(180deg, #F8FBF9 0%, var(--bg) 52%, #EFF6F1 100%);
 }
-:root[data-theme="dark"] .dash-main {
+:root[data-theme="dark"] .dash-main,
+:root[data-theme="dark"] .landing {
   background:
-    radial-gradient(640px 360px at 96% 4%, rgba(16, 185, 129, 0.08), transparent 70%),
-    var(--bg);
+    radial-gradient(680px 380px at 94% 4%, rgba(74, 222, 128, 0.08), transparent 70%),
+    radial-gradient(540px 340px at 6% 92%, rgba(34, 197, 94, 0.055), transparent 72%),
+    linear-gradient(180deg, #061810 0%, var(--bg) 55%, #092116 100%);
 }
 
 /* Gaya minimalis & elegan untuk semua role: kurangi bayangan berat dan card-inside-card. */
@@ -32,7 +49,7 @@
 :root .gv-chart-card,
 :root .gv-feed-card,
 :root .status-cell {
-  background: var(--surface);
+  background: var(--grad-surface);
   border: 1px solid var(--border);
   box-shadow: none;
   border-radius: 14px;
@@ -197,11 +214,11 @@
 }
 :root .sidebar .snav.active,
 :root .sidebar .snav.active:hover {
-  background: linear-gradient(135deg, var(--primary) 0%, #0b5d47 100%);
+  background: var(--grad-primary);
   color: var(--on-primary);
   font-weight: 600;
   transform: none;
-  box-shadow: 0 8px 18px -8px rgba(13, 98, 78, 0.42);
+  box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--primary) 42%, transparent);
 }
 :root .sidebar .snav.active .snav-ico,
 :root .sidebar .snav.active:hover .snav-ico {
@@ -272,28 +289,34 @@
 .sidebar-nav { padding-top: 16px; }
 :root .snav.active::before { display: none; }
 :root .snav.active svg { color: currentColor; }
-:root .app-topbar { background: var(--surface); border-bottom: 1px solid var(--border); backdrop-filter: none; }
+:root .app-topbar {
+  background: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--surface-2) 26%, var(--surface)) 100%);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: none;
+}
 :root .app-topbar-avatar .ava-dot { background: var(--primary-050); color: var(--primary); border: 1px solid var(--border); }
 :root .app-topbar-search-input,
 :root .app-topbar-pill,
 :root .app-topbar-avatar { background: var(--surface); border-color: var(--border); }
 
-/* Pertahankan warna panel asli dan sederhanakan bayangannya. */
+/* Selaraskan seluruh panel hero, KPI aksen, dan tombol dengan gradasi Emerald-Teal terpadu. */
 :root .gv-hero:not(.is-warning):not(.is-danger),
 :root .bento-hero:not(.tone-warning):not(.tone-danger),
 :root .gv-kpi.is-accent.is-primary,
+:root .gv-kpi.is-accent.is-safe,
 :root .cta-band {
+  background: var(--grad-hero);
   box-shadow: var(--shadow-md);
 }
 :root .bento-hero::after { opacity: .055; }
 :root .gv-hero-badge,
-:root .gv-ring-cap { background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .2); }
+:root .gv-ring-cap { background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .22); }
 :root .gv-btn-solid { box-shadow: none; }
-:root .gv-hero.is-warning .gv-btn-solid { color: #78350f; }
-:root .gv-hero.is-danger .gv-btn-solid { color: #7f1d1d; }
+:root .gv-hero.is-warning .gv-btn-solid { color: #7C2D12; }
+:root .gv-hero.is-danger .gv-btn-solid { color: #7F1D1D; }
 :root .gv-btn-glass { backdrop-filter: none; }
-:root .btn-primary { background: var(--primary); color: var(--on-primary); border-color: transparent; box-shadow: var(--shadow-xs); }
-:root .btn-primary:hover:not(:disabled) { background: var(--primary-600); }
+:root .btn-primary { background: var(--grad-primary); color: var(--on-primary); border-color: transparent; box-shadow: var(--shadow-xs); }
+:root .btn-primary:hover:not(:disabled) { background: var(--grad-primary-hover); }
 :root .btn-outline { background: var(--surface); }
 :root .cta-band .btn-outline { background: transparent; border-color: rgba(255, 255, 255, .4); color: #fff; }
 :root .gv-tab-strip { background: var(--surface-2); padding: 5px; border-color: var(--border); }
@@ -301,7 +324,10 @@
 .gv-tab-btn { min-height: 36px; }
 
 /* Halaman publik memakai ritme tipografi dan ruang yang lebih lapang. */
-:root .site-header { background: var(--surface); backdrop-filter: none; }
+:root .site-header {
+  background: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--surface-2) 24%, var(--surface)) 100%);
+  backdrop-filter: none;
+}
 :root .landing .hero { padding-top: 28px; padding-bottom: 36px; }
 :root .hero::before,
 :root .hero::after { display: none; }
@@ -310,12 +336,12 @@
 :root .landing .hero-bento-main,
 :root .landing .preview-shell,
 :root .landing .preview-big {
-  background: var(--surface);
+  background: var(--grad-surface);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-md);
 }
 :root .landing .feat:not(.feat-accent) {
-  background: var(--surface);
+  background: var(--grad-surface);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-xs);
 }
@@ -329,10 +355,25 @@
 :root .landing .step:hover .step-num { background: var(--primary); color: var(--on-primary); }
 :root .scroll-progress { background: var(--primary); }
 
-/* Panel masuk tetap terpisah jelas dari formulir. */
-:root .auth-aside-bg { opacity: .12; }
-:root .auth-orb { opacity: .15; }
-:root .auth-aside-grid { opacity: .08; }
+/* Panel masuk tetap terpisah jelas dengan gradasi & efek kursor penuh. */
+:root .auth-aside {
+  background: var(--grad-hero);
+}
+:root .auth-aside-bg { opacity: 1; }
+:root .auth-cursor-aura {
+  opacity: calc(.28 + var(--c-active, 0) * .62);
+  filter: none;
+  background:
+    radial-gradient(420px 350px at var(--cx, 76%) var(--cy, 26%), rgba(74, 222, 128, .28), rgba(110, 231, 160, .16) 44%, transparent 74%),
+    radial-gradient(300px 250px at calc(var(--cx, 76%) + 12%) calc(var(--cy, 26%) + 14%), rgba(187, 247, 208, .18), transparent 70%);
+}
+:root .auth-orb { opacity: .35; }
+:root .auth-aside-grid { opacity: .28; }
+:root .auth-slide-tag {
+  background: rgba(74, 222, 128, .18);
+  border-color: rgba(134, 239, 172, .35);
+  color: #DCFCE7;
+}
 
 /* Jaga bidang kecil agar judul dan tombol tidak saling menekan. */
 .gv-hero-main, .gv-agenda, .bento-chart-panel, .bento-card { min-width: 0; }
@@ -350,19 +391,15 @@
   .bento-sec-action { margin-left: auto; }
   .gv-tab-btn { min-height: 44px; }
 }
-/* Kontras teks kecil dijaga pada label dan panel berwarna di mode terang. */
-:root:not([data-theme="dark"]) { --warning: #9A4311; }
-:root:not([data-theme="dark"]) .gv-kpi.is-accent.is-safe {
-  background: linear-gradient(138deg, #14532d, #166534 55%, #166534);
+/* Gradasi status warning/danger dan kontras teks pada panel berwarna. */
+:root .gv-kpi.is-accent:not(.is-primary):not(.is-safe),
+:root .gv-hero.is-danger,
+:root .bento-hero.tone-danger {
+  background: var(--grad-danger);
 }
-:root:not([data-theme="dark"]) .gv-kpi.is-accent:not(.is-primary):not(.is-safe) {
-  background: linear-gradient(138deg, #7f1d1d, #991b1b 55%, #a42621);
-}
-:root:not([data-theme="dark"]) .gv-hero.is-warning {
-  background: linear-gradient(132deg, #78350f, #85400e 55%, #8a400b);
-}
-:root:not([data-theme="dark"]) .gv-hero.is-danger {
-  background: linear-gradient(132deg, #7f1d1d, #991b1b 55%, #a42621);
+:root .gv-hero.is-warning,
+:root .bento-hero.tone-warning {
+  background: var(--grad-warning);
 }
 :root:not([data-theme="dark"]) .gv-kpi.is-accent .gv-kpi-meta span,
 :root:not([data-theme="dark"]) .gv-hero-sub,

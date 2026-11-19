@@ -20,26 +20,26 @@ type Props = {
   className?: string;
 };
 
-// Palet vital SehatKita yang tenang & ramah mata semua usia
+// Palet vital SehatKita (Hijau Emerald Murni) yang selaras, tenang, dan ramah mata
 const ASIDE_PALETTE: [number, number, number][] = [
-  [203, 232, 131], // lime lembut
-  [124, 224, 184], // emerald tenang
-  [143, 212, 139], // sage lembut
-  [226, 251, 206], // mint terang
+  [74, 222, 128],  // hijau emerald cerah
+  [52, 211, 130],  // hijau mint murni
+  [134, 239, 172], // hijau muda tenang
+  [187, 247, 208], // mint lembut
 ];
 
 const HERO_PALETTE_LIGHT: [number, number, number][] = [
-  [7, 102, 83],    // emerald utama
-  [54, 158, 126],  // sage emerald
-  [42, 97, 81],    // hijau teduh
-  [120, 179, 156], // mint lembut
+  [15, 115, 71],   // emerald utama
+  [24, 140, 87],   // hijau sehat
+  [21, 128, 61],   // hijau alam
+  [75, 181, 127],  // mint lembut
 ];
 
 const HERO_PALETTE_DARK: [number, number, number][] = [
-  [192, 224, 122], // soft lime
-  [112, 218, 180], // mint lembut
-  [143, 212, 139], // sage lembut
-  [226, 251, 206], // mint terang
+  [74, 222, 128],  // hijau emerald cerah
+  [52, 211, 130],  // hijau mint murni
+  [134, 239, 172], // hijau muda tenang
+  [187, 247, 208], // mint lembut
 ];
 
 const ASIDE_WAVES: WaveSpec[] = [

@@ -998,30 +998,21 @@ function KalkulatorFallback() {
 }
 
 export default function KalkulatorPage() {
-  const searchParams = useSearchParams();
-  const dalamAplikasi = searchParams.get("app") === "1";
-
-  if (dalamAplikasi) {
-    return (
-      <AppShell noFab>
-        <Suspense fallback={<KalkulatorFallback />}>
-          <KalkulatorContent />
-        </Suspense>
-      </AppShell>
-    );
-  }
-
   return (
-    <div className="landing">
-      <PublicHeader />
-      <main className="section-sm">
-        <div className="container">
-          <Suspense fallback={<KalkulatorFallback />}>
-            <KalkulatorContent />
-          </Suspense>
+    <Suspense
+      fallback={
+        <div className="landing">
+          <PublicHeader />
+          <main className="section-sm">
+            <div className="container">
+              <KalkulatorFallback />
+            </div>
+          </main>
+          <PublicFooter />
         </div>
-      </main>
-      <PublicFooter />
-    </div>
+      }
+    >
+      <KalkulatorContent />
+    </Suspense>
   );
 }
