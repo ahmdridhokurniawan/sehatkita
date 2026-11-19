@@ -369,7 +369,6 @@ export default function DashboardUser({ user }: { user: User }) {
         <section className={`gv-hero${heroToneClass}`}>
           <div className="gv-hero-main">
             <span className="gv-hero-badge">
-              <i className={`gv-hero-dot${status_kesehatan !== "normal" ? " is-warn" : ""}`} />
               <span>{LABEL_STATUS[status_kesehatan] || "Kondisi Baik"}</span>
             </span>
 

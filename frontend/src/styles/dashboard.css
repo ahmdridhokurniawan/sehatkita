@@ -1514,17 +1514,6 @@ a.sa-row:hover strong { color: var(--primary); }
   color: rgba(255, 255, 255, .95);
   backdrop-filter: blur(8px);
 }
-.gv-hero-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #BEF264;
-  box-shadow: 0 0 0 3px rgba(190, 242, 100, .26);
-}
-.gv-hero-dot.is-warn {
-  background: #FDE047;
-  box-shadow: 0 0 0 3px rgba(253, 224, 71, .28);
-}
 .gv-hero-title {
   margin: 0;
   font-size: 1.55rem;

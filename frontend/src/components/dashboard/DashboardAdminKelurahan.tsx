@@ -228,7 +228,6 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
         <section className={`gv-hero${heroWarn ? " is-warning" : ""}`}>
           <div className="gv-hero-main">
             <span className="gv-hero-badge">
-              <i className={`gv-hero-dot${rujukanBaru > 0 || heroWarn ? " is-warn" : ""}`} />
               <span>
                 {rujukanBaru > 0
                   ? `${angka(rujukanBaru)} rujukan baru perlu pantauan`

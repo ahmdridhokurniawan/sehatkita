@@ -233,7 +233,6 @@ export default function DashboardSuperAdmin({ user: _user }: { user: User }) {
         <section className={`gv-hero${perluVerifikasi > 0 ? " is-warning" : ""}`}>
           <div className="gv-hero-main">
             <span className="gv-hero-badge">
-              <i className={`gv-hero-dot${statusIntegritas.warn ? " is-warn" : ""}`} />
               <span>{statusIntegritas.label}</span>
             </span>
 

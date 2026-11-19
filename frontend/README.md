@@ -1,243 +1,150 @@
-# sehatkita Frontend
+# SehatKita — Frontend Web Application
 
-**Sistem monitoring kesehatan kecamatan (PTM)** — aplikasi Next.js 16 role-based untuk masyarakat, kader posbindu, admin kelurahan, dan super admin.
+[![Next.js](https://img.shields.io/badge/Next.js-16.3.8-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org)
+[![React](https://img.shields.io/badge/React-19.2.8-61DAFB?logo=react&logoColor=black)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Kontrak API](https://img.shields.io/badge/Kontrak%20API-v1.8.4-2563EB)](../kontrak-api.md)
 
-## Struktur Aplikasi
+Aplikasi web **SehatKita** untuk pemantauan dan skrining dini Penyakit Tidak Menular (PTM) berbasis peran (*role-based*), dibangun dengan **Next.js 16 (App Router)**, **React 19**, **TypeScript**, dan **Tailwind CSS v4**. Mengacu pada [kontrak-api.md](../kontrak-api.md) (`v1.8.4`).
 
+> Untuk panduan menjalankan **Frontend + Backend + Bot Telegram secara bersamaan**, lihat [README.md](../README.md) di direktori root.
+
+---
+
+## Prasyarat
+
+- **Node.js:** `20+` dan `npm`
+- **Backend API:** Laravel Backend (`../backend`) berjalan via Laradock atau `php artisan serve`
+
+---
+
+## Setup & Menjalankan Frontend
+
+### Opsi A — Bersama Laradock (`http://sehatkita.test`)
+
+Nginx Laradock meneruskan `/` ke Next.js pada port **`3002`** dan `/api/*` ke `laradock-php-fpm-1`.
+
+1. Pastikan `frontend/.env.local` berisi:
+   ```env
+   NEXT_PUBLIC_API_URL=http://sehatkita.test/api/v1
+   NEXT_PUBLIC_API_BASE_URL=http://sehatkita.test/api/v1
+   ```
+2. Pasang dependensi dan jalankan di port **`3002`**:
+   ```bash
+   cd frontend
+   npm install
+   npx next dev -p 3002
+   # Atau jalankan build produksi:
+   # npm run build && npx next start -p 3002
+   ```
+3. Buka **`http://sehatkita.test`** di browser.
+
+### Opsi B — Lokal dengan `php artisan serve` (`http://localhost:3000`)
+
+1. Salin `frontend/.env.example` menjadi `frontend/.env.local`:
+   ```bash
+   cd frontend
+   npm install
+   cp .env.example .env.local
+   ```
+2. Atur `API_PROXY_TARGET=http://127.0.0.1:8000` di `.env.local` dan biarkan `NEXT_PUBLIC_API_URL` kosong/dikomentari. Dengan konfigurasi ini, browser memanggil origin yang sama (`/api/v1/*`) lalu Next.js meneruskannya ke backend lewat `rewrites()` di `next.config.ts` tanpa masalah CORS.
+3. Jalankan dev server:
+   ```bash
+   npm run dev
+   ```
+4. Buka **`http://localhost:3000`** di browser.
+
+---
+
+## Perintah Pengembangan, Build, & Pengujian
+
+```bash
+# Development server
+npm run dev                  # Port default 3000
+npx next dev -p 3002         # Port 3002 (untuk proxy Nginx Laradock sehatkita.test)
+
+# Build & Preview Produksi
+npm run build
+npm start                    # Port 3000
+npx next start -p 3002       # Port 3002
+
+# Kualitas Kode & Pengujian
+npx tsc --noEmit             # Cek tipe TypeScript
+npm run lint                 # Pemeriksaan ESLint
+npm test                     # Jalankan Jest + React Testing Library
 ```
+
+Suite pengujian saat ini menjalankan **6 test suites (20 tests)**:
+- `src/app/login/page.test.tsx`
+- `src/app/onboarding/page.test.tsx`
+- `src/components/charts/Charts.test.tsx`
+- `src/components/ui/Button.test.tsx`
+- `src/lib/api.test.ts`
+- `src/lib/celebration.test.ts`
+
+---
+
+## Autentikasi, Proteksi Rute, & Akun Login
+
+- **Mekanisme Token (`src/lib/api.ts`):** Menggunakan Bearer token Laravel Sanctum opaque yang disimpan di `localStorage` / `sessionStorage`.
+- **Pembagian Proteksi Rute (lihat `middleware.ts`):**
+  - `middleware.ts` berupa *passthrough* (tidak melakukan dekode token).
+  - `AppShell` (`src/components/app/AppShell.tsx`) menjaga navigasi UI di sisi klien — mengarahkan ke `/login` bila belum login dan `/unauthorized` bila peran tidak cocok.
+  - **Backend API** merupakan penjaga otorisasi final untuk seluruh endpoint.
+- **Akun Login Demo:** Menggunakan akun nyata hasil seeder backend dengan password **`demo1234`** (misalnya `superadmin@sehatkita.test`, `admin.loktabatutara@sehatkita.test`, `kader.loktabatutara@sehatkita.test`, `warga.loktabatutara@sehatkita.test`). File `src/lib/demo.ts` hanya berisi data statis pratinjau di landing page.
+
+---
+
+## Struktur Direktori Aktual
+
+```text
 frontend/
 ├── src/
-│   ├── app/                          # App Router (Next.js 16)
-│   │   ├── (auth)/                   # Auth routes (login, register, onboarding)
-│   │   ├── dashboard/                # Dashboard role-based (conditional render)
-│   │   ├── dashboard/kelurahan/      # Dashboard admin_kelurahan (tier 3)
-│   │   ├── laporan/                  # Laporan agregat kelurahan (tier 3)
-│   │   ├── program/                  # Manajemen program posbindu (tier 3)
-│   │   ├── program/[id]/             # Detail program: peserta, sesi, pencapaian (tier 3)
-│   │   ├── rujukan/kelurahan/        # List rujukan per kelurahan (tier 3)
-│   │   ├── pengaturan/               # 5 halaman pengaturan super_admin (tier 4)
-│   │   │   ├── wilayah/
-│   │   │   ├── faskes/
-│   │   │   ├── pengguna/
-│   │   │   ├── indikator/
-│   │   │   └── ambang/
-│   │   ├── profil/                   # User profile
-│   │   ├── notifikasi/               # Notifications
-│   │   ├── rekam-medis/              # Medical records
-│   │   ├── insight/                  # Health insights
-│   │   ├── tren/                     # Trends
-│   │   ├── rujukan/                  # Referral list
-│   │   ├── catatan-kesehatan/        # Health notes
-│   │   └── unauthorized/             # 403 error page
-│   ├── components/
-│   │   ├── app/                      # App layout & shell
-│   │   ├── ui/                       # UI primitives (Button, Badge, Icon, etc.)
-│   │   ├── dashboard/                # Dashboard components (tier 1-4)
-│   │   └── charts/                   # Chart components (Bar, Line, etc.)
-│   ├── hooks/                        # React hooks (useUser, etc.)
-│   ├── lib/
-│   │   ├── demo.ts                   # Demo data (4 role akun)
-│   │   ├── dummy.ts                  # Dummy data (dashboard, program, rujukan, etc.)
-│   │   ├── format.ts                 # Format utils (tanggal, angka, dll)
-│   │   ├── labels.ts                 # Label constants (role, status, dll)
-│   │   ├── session.ts                # Session utils (demo user simulation)
-│   │   └── [utilities]
-│   ├── types/                        # TypeScript types (User, Program, etc.)
-│   ├── styles/                       # Global styles (CSS)
-│   └── [pages & components]
-├── middleware.ts                     # Route permission guard (role-based)
-├── public/                           # Static assets
-├── tailwind.config.ts                # Tailwind v4 config
-└── tsconfig.json                     # TypeScript config
+│   ├── app/                      # App Router (Next.js 16)
+│   │   ├── page.tsx              # Landing page publik
+│   │   ├── kalkulator/           # Kalkulator faktor risiko PTM publik
+│   │   ├── login/                # Halaman masuk
+│   │   ├── register/             # Halaman registrasi warga
+│   │   ├── onboarding/           # Alur onboarding & persetujuan privasi (4 langkah)
+│   │   ├── dashboard/            # Dashboard role-based (user, kader, admin_kelurahan, super_admin)
+│   │   ├── catatan-kesehatan/    # Input & riwayat catatan kesehatan
+│   │   ├── rekam-medis/          # Rekam medis & verifikasi cepat kelurahan
+│   │   ├── insight/              # Insight klinis & ambang kategori
+│   │   ├── tren/                 # Grafik tren indikator kesehatan
+│   │   ├── rujukan/              # Rujukan faskes, kelurahan, & cetak surat rujukan
+│   │   ├── posbindu/             # Sesi Posbindu, presensi peserta, & riwayat kunjungan
+│   │   ├── program/              # Tantangan program kesehatan, bukti foto, & verifikasi peserta
+│   │   ├── peringkat/            # Papan peringkat EXP & badge kelurahan
+│   │   ├── target-kesehatan/     # Target dinamis & refleksi mingguan
+│   │   ├── pengaduan/            # Layanan aspirasi & pengaduan warga
+│   │   ├── laporan/              # Laporan pribadi & agregat kelurahan (siap cetak)
+│   │   ├── profil/               # Profil kesehatan, keluarga, & preferensi
+│   │   ├── setelan/              # Tautan pairing Bot Telegram, tema, & persetujuan privasi
+│   │   ├── admin/                # Panel administrasi:
+│   │   │   ├── statistik/        #   Ringkasan global (super_admin)
+│   │   │   ├── verifikasi/       #   Antrean verifikasi anomali (super_admin & admin_kelurahan)
+│   │   │   ├── pengguna/         #   Manajemen pengguna & mutasi wilayah (super_admin)
+│   │   │   ├── faskes/           #   Master faskes & koordinat peta (super_admin)
+│   │   │   ├── indikator/        #   Master indikator & ambang kategori (super_admin)
+│   │   │   ├── pengaduan/        #   Tindak lanjut pengaduan (super_admin)
+│   │   │   └── log-audit/        #   Jejak audit aktivitas sensitif (super_admin)
+│   │   ├── bantuan/, batasan-medis/, kebijakan-privasi/, syarat-ketentuan/, kontak/, unauthorized/
+│   ├── components/               # admin, app, auth, catatan, charts, dashboard, insight, landing, ui, warga
+│   ├── hooks/                    # Custom React hooks
+│   ├── lib/                      # api.ts, celebration.ts, demo.ts, enums.ts, format.ts, icons.ts, labels.ts, session.ts, theme.ts, validasi.ts
+│   ├── styles/                   # design-system.css, arclo-theme.css, dashboard.css, public.css
+│   └── types/                    # Definisi TypeScript API & domain
+├── public/                       # Aset statis
+├── middleware.ts                 # Passthrough handler
+├── next.config.ts                # Rewrite proxy /api/v1/* & allowedDevOrigins
+├── jest.config.ts                # Konfigurasi Jest
+└── package.json
 ```
 
-## Role & Permission Matrix
+---
 
-| Role | Dashboard | Pengaturan | Laporan | Program | Rujukan Kelurahan | Dashboard Kelurahan |
-|------|-----------|-----------|---------|---------|------------------|-------------------|
-| user | ✅ (tier 1) | ❌ | ❌ | ❌ | ❌ | ❌ |
-| kader | ✅ (tier 2) | ❌ | ❌ | ✅ | ❌ | ❌ |
-| admin_kelurahan | ✅ (tier 3) | ❌ | ✅ | ✅ | ✅ | ✅ |
-| super_admin | ✅ (tier 4) | ✅ | ❌ | ❌ | ❌ | ❌ |
+## Referensi
 
-## Setup Dev Server
-
-### Prerequisites
-- Node.js 18+
-- Docker (untuk MariaDB backend — optional, tidak perlu untuk FE-only dev)
-
-### Install & Run
-
-```bash
-# 1. Navigate ke frontend folder
-cd C:/Users/asus/sehatkita/frontend
-
-# 2. Install dependencies
-npm install
-
-# 3. Salin template environment (isinya sudah cukup untuk kasus umum)
-cp .env.example .env.local
-
-# 4. KALAU backend tidak di `pm-monitoring.test` di laptop ini, buka
-#    .env.local dan sesuaikan satu baris API_PROXY_TARGET:
-#      - php artisan serve       : http://127.0.0.1:8000
-#      - backend di laptop rekan : http://<IP-lokal-rekan>
-#    Alamat ini dipakai server Next.js, bukan browser — jadi tidak ada CORS.
-
-# 5. Run dev server (port 3002)
-npm run dev
-
-# 6. Open browser
-# http://localhost:3002
-```
-
-> Semua request `/api/v1/*` diteruskan server Next.js ke `API_PROXY_TARGET`
-> (lihat `next.config.ts`). Browser tidak pernah memanggil backend secara
-> langsung, sehingga tidak ada preflight CORS dan tidak ada
-> "Failed to fetch" — berapa pun port dev yang kamu pakai.
->
-> `pm-monitoring.test` adalah hostname lokal yang hanya ada di laptop yang
-> menjalankan Docker Laradock. Di laptop lain hostname itu tidak menunjuk ke
-> mana pun, jadi ganti `API_PROXY_TARGET` di `.env.local`.
-
-### Build Production
-
-```bash
-# Build
-npm run build
-
-# Preview build
-npm start
-```
-
-## Testing Flow
-
-### Demo Akun
-
-4 demo akun tersedia di `lib/demo.ts`:
-
-| Email | Role | Password | Akses |
-|-------|------|----------|-------|
-| `user@demo.sehatkita.id` | user | sehat123 | Dashboard user (tier 1) |
-| `kader@demo.sehatkita.id` | kader | sehat123 | Dashboard kader (tier 2) + Program |
-| `admin@demo.sehatkita.id` | admin_kelurahan | sehat123 | Dashboard admin (tier 3) + Laporan, Program, Rujukan |
-| `superadmin@demo.sehatkita.id` | super_admin | sehat123 | Dashboard super admin (tier 4) + Pengaturan |
-
-### Login Flow (Demo Simulation)
-
-1. Buka http://localhost:3002
-2. Klik "Masuk" → `/login`
-3. Pilih akun demo dari dropdown
-4. Submit (no backend required)
-5. Redirect → `/onboarding` (consent form) → `/dashboard` (role-specific)
-
-### Role-Based Access Test
-
-**User (tier 1):**
-- ✅ `/dashboard` — dashboard user (kartu status, indikator, insight, dll)
-- ❌ `/pengaturan/wilayah` → redirect `/unauthorized`
-- ❌ `/laporan` → redirect `/unauthorized`
-
-**Kader (tier 2):**
-- ✅ `/dashboard` — dashboard kader (aktivitas, sesi, peserta)
-- ✅ `/program` — list & manajemen program
-- ❌ `/laporan` → redirect `/unauthorized`
-
-**Admin Kelurahan (tier 3):**
-- ✅ `/dashboard/kelurahan` — dashboard admin
-- ✅ `/laporan` — laporan agregat (chart, filter, export)
-- ✅ `/program` + `/program/[id]` — manajemen & detail program
-- ✅ `/rujukan/kelurahan` — list rujukan
-- ❌ `/pengaturan/wilayah` → redirect `/unauthorized`
-
-**Super Admin (tier 4):**
-- ✅ `/dashboard` — dashboard super admin
-- ✅ `/pengaturan/*` — kelurahan, faskes, pengguna, indikator, ambang
-- ❌ `/laporan` → redirect `/unauthorized`
-
-### Tab Navigation Test
-
-**Program Detail** (`/program/1`):
-- Tab "Detail" — info program, tujuan, penanggung jawab
-- Tab "Peserta" — daftar peserta, status (normal/waspada/berbahaya)
-- Tab "Sesi" — daftar sesi, kehadiran per sesi
-- Tab "Pencapaian" — metrik program (target, realisasi, kehadiran %)
-
-## Middleware Guard
-
-Route protection via `middleware.ts`:
-
-```typescript
-// Permission matrix
-/pengaturan/*            → super_admin
-/laporan                 → admin_kelurahan
-/rujukan/kelurahan       → admin_kelurahan
-/dashboard/kelurahan     → admin_kelurahan
-/program                 → admin_kelurahan, kader
-```
-
-- Unauthenticated → redirect `/login`
-- Invalid role → redirect `/unauthorized`
-- Cookie `demo_user_role` set by `useUser()` hook
-
-## Demo Data
-
-- **Akun**: 4 role di `lib/demo.ts`
-- **Dashboard**: Dummy data di `lib/dummy.ts`
-- **Charts**: Mock data (Bar, Line, Pie via SVG)
-- **Status Badge**: Warna-coded (safe/warning/danger)
-
-## Project Commands
-
-```bash
-# Development
-npm run dev              # Start dev server (port 3002)
-
-# Build & Test
-npm run build            # Production build
-npm start                # Preview build
-npm run lint             # ESLint check
-npx tsc --noEmit         # TypeScript check
-
-# Git Workflow (from repo root)
-git checkout -b daffa/feature-name
-# ... edit & test ...
-git add -A && git commit -m "feat(area): deskripsi"
-git push -u origin daffa/feature-name
-bash scripts/pr-merge.sh "daffa/feature-name" "title" "body-file.md"
-```
-
-## Tech Stack
-
-- **Next.js 16.3.8** (App Router)
-- **React 19**
-- **TypeScript**
-- **Tailwind CSS v4**
-- **Lucide Icons**
-- **Chart Components** (Bar, Line, Pie via SVG)
-
-## Fase D — Dashboard & Role Guard (Complete)
-
-✅ 6 PR merged, 26 rute, role-based middleware guard
-
-### Deliverables
-- 4 dashboard (tier 1-4 role-based)
-- 5 halaman pengaturan super_admin
-- 3 halaman detail tier 3 (laporan, program, rujukan)
-- Detail program dengan tab navigation
-- Middleware guard + unauthorized page
-
-### Testing
-Demo flow: login → role-specific dashboard → protected routes test → middleware validation
-
-## Next Steps
-
-1. **Fase E** — aplikasi tier 1 detail (catatan kesehatan, insight, tren, program daftar)
-2. **API Integration** — ganti dummy data jadi kontrak v1.2 endpoints
-3. **Deployment** — build & hosting
-
-## References
-
-- **Kontrak API**: `kontrak-api.md` (v1.2)
-- **Backend**: `backend/` folder (Laravel 13 + Sanctum)
-- **Prototype**: `C:\Users\asus\sehatkita-prototype` (~35 HTML pages reference)
+- [README.md](../README.md) — Panduan utama monorepo (Backend + Frontend + Bot Telegram)
+- [kontrak-api.md](../kontrak-api.md) — Kontrak API v1.8.4
+- [DEPLOYMENT.md](./DEPLOYMENT.md) — Catatan deployment frontend
