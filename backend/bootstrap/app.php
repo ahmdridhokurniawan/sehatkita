@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureSingleIpSession;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -20,7 +21,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            'single.ip' => EnsureSingleIpSession::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // Request API / yang minta JSON selalu dibalas JSON.

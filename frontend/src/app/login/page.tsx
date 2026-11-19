@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Icon from "@/components/ui/Icon";
@@ -9,13 +9,26 @@ import ThemeToggle from "@/components/ui/ThemeToggle";
 import Modal from "@/components/ui/Modal";
 import AuthAside from "@/components/auth/AuthAside";
 import LegalInfoModal, { type LegalTopic } from "@/components/landing/LegalInfoModal";
-import { auth, setToken, ApiError } from "@/lib/api";
+import { auth, clearToken, getToken, mintaSesiDariTabLain, setToken, ApiError } from "@/lib/api";
 import { clearUserCache } from "@/hooks/useUser";
 
 type Err = { email?: string; password?: string };
 
+function tujuanSetelahLogin(): string {
+  if (typeof window === "undefined") return "/dashboard";
+  const next = new URLSearchParams(window.location.search).get("next");
+  if (next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/login") && !next.startsWith("/register")) {
+    return next;
+  }
+  return "/dashboard";
+}
+
 export default function LoginPage() {
   const router = useRouter();
+  const [cekSesi, setCekSesi] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return Boolean(getToken()) || typeof BroadcastChannel !== "undefined";
+  });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [ingat, setIngat] = useState(true);
@@ -26,6 +39,47 @@ export default function LoginPage() {
   const [lupa, setLupa] = useState(false);
   const [tersalin, setTersalin] = useState(false);
   const [legalTopic, setLegalTopic] = useState<LegalTopic | null>(null);
+
+  useEffect(() => {
+    let aktif = true;
+    (async () => {
+      let token = getToken();
+      if (!token) {
+        token = await mintaSesiDariTabLain();
+      }
+      if (!aktif) return;
+      if (!token) {
+        setCekSesi(false);
+        return;
+      }
+      try {
+        await auth.me();
+        if (!aktif) return;
+        router.replace(tujuanSetelahLogin());
+      } catch {
+        clearToken(false);
+        clearUserCache();
+        if (aktif) setCekSesi(false);
+      }
+    })();
+
+    let ch: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== "undefined") {
+      ch = new BroadcastChannel("sehatkita_auth");
+      ch.onmessage = (ev: MessageEvent<{ type?: string; token?: string; remember?: boolean }>) => {
+        if (ev.data?.type === "LOGIN" && ev.data.token) {
+          setToken(ev.data.token, Boolean(ev.data.remember), false);
+          clearUserCache();
+          router.replace(tujuanSetelahLogin());
+        }
+      };
+    }
+
+      return () => {
+      aktif = false;
+      ch?.close();
+    };
+  }, [router]);
 
   function validasi(): boolean {
     const err: Err = {};
@@ -76,6 +130,17 @@ export default function LoginPage() {
     } catch {
       setTersalin(false);
     }
+  }
+
+  if (cekSesi) {
+    return (
+      <div className="auth-wrap" style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
+        <div className="row" style={{ gap: 10, color: "var(--ink-2)" }}>
+          <Icon name="activity" size={20} />
+          <span className="text-sm fw-600">Memeriksa sesi masuk…</span>
+        </div>
+      </div>
+    );
   }
 
   return (

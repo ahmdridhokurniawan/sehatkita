@@ -240,7 +240,7 @@ export default function AdminIndikatorPage() {
     const payload: Partial<AmbangKategori> = {
       indikator_id: Number(ambForm.indikator_id),
       jenis_gula_darah: ambForm.jenis_gula_darah
-        ? (ambForm.jenis_gula_darah as "puasa" | "2jam_pp")
+        ? (ambForm.jenis_gula_darah as "puasa" | "sewaktu" | "2jam_pp" | "hba1c")
         : null,
       batas_min: Number(ambForm.batas_min),
       batas_max: ambForm.batas_max.trim() === "" ? null : Number(ambForm.batas_max),
@@ -579,7 +579,7 @@ export default function AdminIndikatorPage() {
 
           <div className="field">
             <label className="label" htmlFor="amb-gula">
-              Jenis gula darah <span className="opt">(khusus indikator gula darah)</span>
+              Jenis Pemeriksaan Gula Darah <span className="opt">(khusus indikator gula darah)</span>
             </label>
             <select
               id="amb-gula"
@@ -588,8 +588,10 @@ export default function AdminIndikatorPage() {
               onChange={(e) => setAmbForm((p) => ({ ...p, jenis_gula_darah: e.target.value }))}
             >
               <option value="">— Tidak berlaku / umum —</option>
-              <option value="puasa">Puasa</option>
+              <option value="puasa">Gula Darah Puasa</option>
+              <option value="sewaktu">Gula Darah Sewaktu</option>
               <option value="2jam_pp">2 Jam Setelah Makan</option>
+              <option value="hba1c">HbA1c (%)</option>
             </select>
           </div>
 

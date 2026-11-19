@@ -8,6 +8,7 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
+import Pagination, { type Meta } from "@/components/ui/Pagination";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
 import { useUser } from "@/hooks/useUser";
 import { useMinLoading } from "@/hooks/useMinLoading";
@@ -101,6 +102,8 @@ export default function ProgramPage() {
   const bolehIkut = role === "user";
 
   const [program, setProgram] = useState<Program[]>([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<Meta | null>(null);
   const [cari, setCari] = useState("");
   const [loading, setLoading] = useState(true);
   const tampilLoading = useMinLoading(loading);
@@ -176,23 +179,36 @@ export default function ProgramPage() {
   const muat = useCallback(async () => {
     setLoading(true);
     try {
-      setProgram(await programApi.list());
+      const res = await programApi.listPaged({
+        page,
+        per_page: 10,
+        exclude_jenis: "edukasi",
+        search: cari.trim() || undefined,
+      });
+      setProgram(res.data);
+      setMeta(res.meta);
       setError("");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Gagal memuat program");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, cari]);
 
   useEffect(() => {
     if (loadingUser || !user) return;
     let aktif = true;
     programApi
-      .list()
+      .listPaged({
+        page,
+        per_page: 10,
+        exclude_jenis: "edukasi",
+        search: cari.trim() || undefined,
+      })
       .then((res) => {
         if (!aktif) return;
-        setProgram(res);
+        setProgram(res.data);
+        setMeta(res.meta);
         setError("");
       })
       .catch((err) => {
@@ -204,7 +220,7 @@ export default function ProgramPage() {
     return () => {
       aktif = false;
     };
-  }, [loadingUser, user]);
+  }, [loadingUser, user, page, cari]);
 
   useEffect(() => {
     if (!loadingUser && role === "super_admin") {
@@ -362,8 +378,12 @@ export default function ProgramPage() {
           <h1 className="h3">Tantangan &amp; Program</h1>
           <p className="tiny">
             {bolehBuat
-              ? "Kelola misi sehat kelurahan dan verifikasi dokumentasi warga."
-              : "Ikuti tantangan sehat, kirim foto kegiatan, dan kumpulkan poin (EXP) serta lencana."}
+              ? "Kelola tantangan kesehatan kelurahan dan verifikasi dokumentasi warga. Materi bacaan dikelola di "
+              : "Ikuti tantangan sehat, catat progres pribadi, dan kumpulkan EXP serta lencana. Materi pembelajaran ada di "}
+            <Link href="/edukasi" className="text-primary fw-600">
+              halaman Edukasi
+            </Link>
+            .
           </p>
         </div>
         {bolehBuat ? (
@@ -395,7 +415,10 @@ export default function ProgramPage() {
           type="search"
           placeholder="Cari judul tantangan atau kategori…"
           value={cari}
-          onChange={(e) => setCari(e.target.value)}
+          onChange={(e) => {
+            setCari(e.target.value);
+            setPage(1);
+          }}
         />
       </div>
 
@@ -506,6 +529,23 @@ export default function ProgramPage() {
                   ) : null}
                 </div>
 
+                {bolehIkut && p.diikuti && p.peserta_saya ? (
+                  <div>
+                    <div className="row-between tiny mb-4">
+                      <span>Progres pribadi saya</span>
+                      <strong>{p.peserta_saya.progres_persen ?? 0}%</strong>
+                    </div>
+                    <div className="progress" style={{ height: 6 }}>
+                      <i
+                        style={{
+                          width: `${p.peserta_saya.progres_persen ?? 0}%`,
+                          background: statusSaya === "selesai" ? "var(--safe)" : "var(--primary)",
+                        }}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
                 <div className="row gap-8 wrap">
                   {bolehIkut && st !== "selesai" && !p.diikuti ? (
                     <Button
@@ -560,6 +600,8 @@ export default function ProgramPage() {
           })}
         </div>
       ) : null}
+
+      {!tampilLoading && !error && meta ? <Pagination meta={meta} onPage={setPage} /> : null}
 
       <Modal
         open={!!detail}

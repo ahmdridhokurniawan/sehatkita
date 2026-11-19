@@ -6,6 +6,7 @@ use App\Models\CatatanKesehatan;
 use App\Models\KunjunganPosbindu;
 use App\Models\Pengguna;
 use App\Models\SesiPosbindu;
+use App\Services\BadgeKeaktifanService;
 use App\Services\HealthCalculatorService;
 use App\Services\RujukanOtomatisService;
 use App\Services\TelegramService;
@@ -20,7 +21,8 @@ class PosbinduController extends Controller
     public function __construct(
         private HealthCalculatorService $kalkulator,
         private RujukanOtomatisService $rujukanOtomatis,
-        private TelegramService $telegram
+        private TelegramService $telegram,
+        private BadgeKeaktifanService $badges
     ) {}
 
     private const ROLE_ADMIN = ['admin_kelurahan', 'super_admin'];
@@ -221,8 +223,8 @@ class PosbinduController extends Controller
             'catatan_kesehatan.tinggi_cm' => 'nullable|numeric|min:50|max:250',
             'catatan_kesehatan.sistol' => 'nullable|integer|gt:0|max:400',
             'catatan_kesehatan.diastol' => 'nullable|integer|gt:0|max:300',
-            'catatan_kesehatan.gula_darah' => 'nullable|integer|gt:0|max:1500',
-            'catatan_kesehatan.jenis_gula_darah' => 'nullable|in:puasa,2jam_pp',
+            'catatan_kesehatan.gula_darah' => 'nullable|numeric|gt:0|max:1500',
+            'catatan_kesehatan.jenis_gula_darah' => 'nullable|in:puasa,sewaktu,2jam_pp,hba1c',
             'catatan_kesehatan.kolesterol' => 'nullable|integer|gt:0|max:1500',
             'catatan_kesehatan.asam_urat' => 'nullable|numeric|gt:0|max:50',
             'catatan_kesehatan.lingkar_perut' => 'nullable|numeric|gt:0|max:300',
@@ -249,7 +251,12 @@ class PosbinduController extends Controller
             }
             if (($rawCk['gula_darah'] ?? null) !== null && ($rawCk['jenis_gula_darah'] ?? null) === null) {
                 throw ValidationException::withMessages([
-                    'catatan_kesehatan.jenis_gula_darah' => ['Jenis gula darah wajib diisi bila gula darah diukur.'],
+                    'catatan_kesehatan.jenis_gula_darah' => ['Jenis pemeriksaan gula darah wajib diisi bila gula darah diukur.'],
+                ]);
+            }
+            if (($rawCk['jenis_gula_darah'] ?? null) === 'hba1c' && ($rawCk['gula_darah'] ?? null) !== null && (float) $rawCk['gula_darah'] > 25) {
+                throw ValidationException::withMessages([
+                    'catatan_kesehatan.gula_darah' => ['Nilai HbA1c harus antara 0,1% hingga 25%.'],
                 ]);
             }
             if (($rawCk['gula_darah'] ?? null) === null) {
@@ -333,6 +340,10 @@ class PosbinduController extends Controller
             ]);
             $kunjunganId = $kunjungan->id;
         });
+
+        if ($data['hadir']) {
+            $this->badges->evaluasiUntukUser($warga);
+        }
 
         if ($data['hadir'] && $catatanRingkas !== null) {
             $statusLabel = ucwords(str_replace('_', ' ', (string) ($catatanRingkas['status'] ?? 'tercatat')));

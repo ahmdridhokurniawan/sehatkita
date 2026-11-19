@@ -7,7 +7,8 @@ import Icon from "@/components/ui/Icon";
 import { useToast } from "@/components/ui/Toast";
 import PilihWarga from "@/components/warga/PilihWarga";
 import { useUser } from "@/hooks/useUser";
-import { RANGE, validAngka, validTglPemeriksaan } from "@/lib/validasi";
+import { RANGE, validAngka, validGulaDarah, validTglPemeriksaan } from "@/lib/validasi";
+import { satuanGulaDarah } from "@/lib/labels";
 import { catatanKesehatan, posbindu as posbinduApi, ApiError } from "@/lib/api";
 import { tanggal } from "@/lib/format";
 import type { CatatanKesehatanInput, SesiPosbindu, WargaCari } from "@/types";
@@ -28,7 +29,9 @@ const SUMBER = [
 
 const JENIS_GULA = [
   { v: "puasa", l: "Puasa" },
-  { v: "2jam_pp", l: "2 Jam Setelah Makan" },
+  { v: "sewaktu", l: "Sewaktu" },
+  { v: "2jam_pp", l: "2 Jam PP" },
+  { v: "hba1c", l: "HbA1c (%)" },
 ];
 
 const KONSUMSI_MANIS = [
@@ -147,8 +150,9 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
         setErr((prev) => ({ ...prev, gula_darah: "", jenis_gula_darah: "" }));
         return;
       }
-      if (!jenisGula) setJenisGula("puasa");
-      const cek = validAngka("gula_darah", bersih);
+      const jenisAktif = jenisGula || "puasa";
+      if (!jenisGula) setJenisGula(jenisAktif);
+      const cek = validGulaDarah(bersih, jenisAktif);
       setErr((prev) => ({
         ...prev,
         gula_darah: cek.ok ? "" : cek.msg || "",
@@ -180,7 +184,10 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
     for (const f of FIELD_ANGKA) {
       const t = (angka[f.id] || "").trim();
       if (t === "") continue;
-      const v = validAngka(f.id, t);
+      const v =
+        f.id === "gula_darah"
+          ? validGulaDarah(t, jenisGula || "puasa")
+          : validAngka(f.id, t);
       if (!v.ok) e[f.id] = v.msg || "Nilai tidak valid.";
       else {
         payload[f.id] = v.value;
@@ -194,7 +201,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
     }
 
     if (payload.gula_darah != null) {
-      if (!jenisGula) e.jenis_gula_darah = "Pilih Puasa atau 2 Jam Setelah Makan.";
+      if (!jenisGula) e.jenis_gula_darah = "Pilih jenis pemeriksaan gula darah (Puasa / Sewaktu / 2 Jam PP / HbA1c).";
       else payload.jenis_gula_darah = jenisGula;
     }
 
@@ -386,26 +393,42 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
         </legend>
         <div className="grid grid-2" style={{ gap: 12 }}>
           <AngkaField
-            f={FIELD_ANGKA[4]}
+            f={{
+              ...FIELD_ANGKA[4],
+              satuan: satuanGulaDarah(jenisGula),
+              ph: jenisGula === "hba1c" ? "misalnya 5.7" : "misalnya 110",
+            }}
             value={angka[FIELD_ANGKA[4].id] || ""}
             err={err[FIELD_ANGKA[4].id]}
-            extraHint="Umumnya 70–200+ mg/dL (bukan mmol/L)"
+            rangeText={jenisGula === "hba1c" ? "Rentang 3–25 %" : "Rentang 20–700 mg/dL"}
+            extraHint={jenisGula === "hba1c" ? "Nilai desimal %" : "Bukan mmol/L"}
             onChange={ubahAngka}
           />
           <div className="field">
             <label className="label" htmlFor="jenis_gula_darah">
-              Jenis gula darah{" "}
+              Jenis Pemeriksaan Gula Darah{" "}
               {angka.gula_darah ? <span className="req">*</span> : <span className="opt">(wajib jika gula diisi)</span>}
             </label>
-            <div className="segment" role="group" aria-label="Pilih jenis gula darah">
+            <div className="segment" role="group" aria-label="Pilih jenis pemeriksaan gula darah">
               {JENIS_GULA.map((j) => (
                 <button
                   key={j.v}
                   type="button"
                   className={jenisGula === j.v ? "active" : ""}
                   onClick={() => {
-                    setJenisGula(jenisGula === j.v && !angka.gula_darah ? "" : j.v);
-                    setErr((p) => ({ ...p, jenis_gula_darah: "" }));
+                    const nextJenis = jenisGula === j.v && !angka.gula_darah ? "" : j.v;
+                    setJenisGula(nextJenis);
+                    const gulaVal = (angka.gula_darah || "").trim();
+                    if (gulaVal !== "" && nextJenis) {
+                      const cek = validGulaDarah(gulaVal, nextJenis);
+                      setErr((p) => ({
+                        ...p,
+                        jenis_gula_darah: "",
+                        gula_darah: cek.ok ? "" : cek.msg || "",
+                      }));
+                    } else {
+                      setErr((p) => ({ ...p, jenis_gula_darah: "" }));
+                    }
                   }}
                 >
                   {j.l}
@@ -413,9 +436,13 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
               ))}
             </div>
             <div className="hint">
-              {jenisGula === "2jam_pp"
-                ? "Dicek 2 jam setelah makan. Normal < 140 mg/dL · Tinggi ≥ 200 mg/dL."
-                : "Puasa: tidak makan/minum manis min. 8 jam. Normal < 100 mg/dL · Tinggi ≥ 126 mg/dL."}
+              {jenisGula === "hba1c"
+                ? "HbA1c mengukur rata-rata gula darah 3 bulan terakhir. Normal < 5,7% · Diabetes ≥ 6,5%."
+                : jenisGula === "2jam_pp"
+                  ? "Dicek 2 jam setelah makan. Normal < 140 mg/dL · Tinggi ≥ 200 mg/dL."
+                  : jenisGula === "sewaktu"
+                    ? "Gula darah sewaktu (kapan saja tanpa puasa). Normal < 140 mg/dL · Tinggi ≥ 200 mg/dL."
+                    : "Puasa: tidak makan/minum manis min. 8 jam. Normal < 100 mg/dL · Tinggi ≥ 126 mg/dL."}
             </div>
             {err.jenis_gula_darah ? <div className="err-msg show">{err.jenis_gula_darah}</div> : null}
           </div>
@@ -423,9 +450,10 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
         <div className="alert alert-info mt-12" style={{ marginBottom: 14 }}>
           <Icon name="info" size={16} />
           <div className="text-xs">
-            <b>Panduan Gula Darah:</b> Pilih <b>Puasa</b> jika belum makan/minum manis minimal 8 jam (air putih boleh).
-            Pilih <b>2 Jam Setelah Makan</b> jika dicek 2 jam sesudah makan — atau saat cek <b>sewaktu (tidak puasa)</b>.
-            Jika alat cek Anda menampilkan satuan <b>mmol/L</b> (mis. 5.5), kalikan <b>18</b> dulu agar menjadi <b>mg/dL</b>.
+            <b>Panduan Pemeriksaan Gula Darah:</b> Pilih <b>Puasa</b> jika belum makan/minum manis min. 8 jam;{" "}
+            <b>Sewaktu</b> bila dicek kapan saja tanpa puasa; <b>2 Jam PP</b> jika 2 jam setelah makan; atau{" "}
+            <b>HbA1c</b> untuk pemeriksaan laboratorium (satuan %). Jika alat stik menunjukkan <b>mmol/L</b>,
+            kalikan <b>18</b> lebih dulu ke mg/dL.
           </div>
         </div>
         <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
@@ -517,16 +545,19 @@ function AngkaField({
   f,
   value,
   err,
+  rangeText,
   extraHint,
   onChange,
 }: {
   f: { id: string; label: string; satuan: string; ph: string };
   value: string;
   err?: string;
+  rangeText?: string;
   extraHint?: string;
   onChange: (id: string, v: string) => void;
 }) {
   const r = RANGE[f.id];
+  const teksRentang = rangeText ?? (r ? `Rentang ${r[0]}–${r[1]} ${f.satuan}` : "");
   return (
     <div className="field">
       <label className="label" htmlFor={f.id}>
@@ -545,9 +576,9 @@ function AngkaField({
         />
         {f.satuan ? <span className="suffix">{f.satuan}</span> : null}
       </div>
-      {r ? (
+      {teksRentang ? (
         <div className="hint">
-          Rentang {r[0]}–{r[1]} {f.satuan}
+          {teksRentang}
           {extraHint ? ` · ${extraHint}` : ""}
         </div>
       ) : null}

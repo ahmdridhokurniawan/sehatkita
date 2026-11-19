@@ -7,6 +7,7 @@ import Icon from "@/components/ui/Icon";
 import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
+import Pagination, { type Meta } from "@/components/ui/Pagination";
 import { pengaduanApi, ApiError } from "@/lib/api";
 import { useMinLoading } from "@/hooks/useMinLoading";
 import { tanggal } from "@/lib/format";
@@ -35,6 +36,8 @@ const PENGOLAHAN: { kode: Exclude<StatusPengaduan, "menunggu">; label: string }[
 
 export default function HalamanAdminPengaduan() {
   const [list, setList] = useState<Pengaduan[]>([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<Meta | null>(null);
   const [loading, setLoading] = useState(true);
   const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState<string | null>(null);
@@ -50,22 +53,28 @@ export default function HalamanAdminPengaduan() {
     setLoading(true);
     setError(null);
     try {
-      const d = await pengaduanApi.list(filter ? { status: filter } : undefined);
-      setList(d);
+      const res = await pengaduanApi.listPaged({
+        page,
+        per_page: 10,
+        status: filter || undefined,
+      });
+      setList(res.data);
+      setMeta(res.meta);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Gagal memuat pengaduan.");
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter, page]);
 
   useEffect(() => {
     let aktif = true;
     pengaduanApi
-      .list(filter ? { status: filter } : undefined)
-      .then((d) => {
+      .listPaged({ page, per_page: 10, status: filter || undefined })
+      .then((res) => {
         if (!aktif) return;
-        setList(d);
+        setList(res.data);
+        setMeta(res.meta);
         setError(null);
       })
       .catch((e) => {
@@ -77,7 +86,7 @@ export default function HalamanAdminPengaduan() {
     return () => {
       aktif = false;
     };
-  }, [filter]);
+  }, [filter, page]);
 
   const buka = (p: Pengaduan) => {
     setAktif(p);
@@ -120,6 +129,7 @@ export default function HalamanAdminPengaduan() {
             className={`btn ${filter === s ? "btn-primary" : "btn-outline"}`}
             onClick={() => {
               setLoading(true);
+              setPage(1);
               setFilter(s);
             }}
           >
@@ -164,6 +174,8 @@ export default function HalamanAdminPengaduan() {
           ))}
         </div>
       )}
+
+      {!tampilLoading && !error && meta ? <Pagination meta={meta} onPage={setPage} /> : null}
 
       <Modal open={!!aktif} onClose={() => setAktif(null)} title="Tanggapi Pengaduan">
         {aktif ? (

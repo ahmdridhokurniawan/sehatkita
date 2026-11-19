@@ -3,13 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\TargetKesehatan;
+use App\Services\BadgeKeaktifanService;
 use App\Services\TelegramService;
 use Illuminate\Http\Request;
 
 // Mengurus target kesehatan pribadi warga seperti berat badan, olahraga, dan minum air.
 class TargetKesehatanController extends Controller
 {
-    public function __construct(private TelegramService $telegram) {}
+    public function __construct(
+        private TelegramService $telegram,
+        private BadgeKeaktifanService $badges
+    ) {}
 
     public function index(Request $request)
     {
@@ -21,12 +25,15 @@ class TargetKesehatanController extends Controller
             $query->where('tercapai', $request->boolean('tercapai'));
         }
 
-        $list = $query->orderBy('tercapai')->orderBy('tenggat_waktu')->get();
+        $list = $query->orderBy('tercapai')
+            ->orderBy('tenggat_waktu')
+            ->paginate($this->perHalaman($request, 12));
 
         return response()->json([
             'success' => true,
             'message' => 'Daftar target kesehatan',
-            'data' => $list,
+            'data' => $list->items(),
+            'meta' => $this->metaPaginasi($list),
         ]);
     }
 
@@ -95,6 +102,7 @@ class TargetKesehatanController extends Controller
             : 'Target dikembalikan ke status aktif. Semangat berjuang kembali!';
 
         if ($tercapai) {
+            $this->badges->evaluasiUntukUser($request->user());
             $this->telegram->kirimNotifikasiUser(
                 $request->user(),
                 'Target Kesehatan Tercapai!',

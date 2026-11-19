@@ -38,11 +38,22 @@ export const LABEL_SUMBER: Record<Sumber, string> = {
   puskesmas: "Puskesmas",
 };
 
-/** Tulisan untuk jenis gula darah */
+/** Tulisan untuk jenis pemeriksaan gula darah */
 export const LABEL_JENIS_GULA_DARAH: Record<JenisGulaDarah, string> = {
-  puasa: "Puasa",
+  puasa: "Gula Darah Puasa",
+  sewaktu: "Gula Darah Sewaktu",
   "2jam_pp": "2 Jam Setelah Makan",
+  hba1c: "HbA1c (%)",
 };
+
+export function satuanGulaDarah(jenis?: string | null): string {
+  return jenis === "hba1c" ? "%" : "mg/dL";
+}
+
+export function formatNilaiGulaDarah(nilai?: number | null, jenis?: string | null): string {
+  if (nilai === null || nilai === undefined) return "—";
+  return `${nilai} ${satuanGulaDarah(jenis)}`;
+}
 
 /** Tulisan untuk jenis kelamin */
 export const LABEL_JENIS_KELAMIN: Record<JenisKelamin, string> = {

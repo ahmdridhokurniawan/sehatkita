@@ -7,6 +7,7 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Modal from "@/components/ui/Modal";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
+import Pagination, { type Meta } from "@/components/ui/Pagination";
 import { useToast } from "@/components/ui/Toast";
 import { rujukan as rujukanApi, ApiError } from "@/lib/api";
 import { tanggal, angka } from "@/lib/format";
@@ -53,6 +54,8 @@ export default function RujukanKelurahanPage() {
   const [daftar, setDaftar] = useState<Rujukan[]>([]);
   const [filterStatus, setFilterStatus] = useState<StatusRujukan | null>(null);
   const [cari, setCari] = useState("");
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<Meta | null>(null);
   const [loading, setLoading] = useState(true);
   const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState("");
@@ -66,23 +69,35 @@ export default function RujukanKelurahanPage() {
   const muat = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await rujukanApi.list({ per_page: 100 });
-      setDaftar(data);
+      const res = await rujukanApi.listPaged({
+        page,
+        per_page: 12,
+        status: filterStatus ?? undefined,
+        search: cari.trim() || undefined,
+      });
+      setDaftar(res.data);
+      setMeta(res.meta);
       setError("");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Gagal memuat rujukan");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, filterStatus, cari]);
 
   useEffect(() => {
     let aktif = true;
     rujukanApi
-      .list({ per_page: 100 })
-      .then((data) => {
+      .listPaged({
+        page,
+        per_page: 12,
+        status: filterStatus ?? undefined,
+        search: cari.trim() || undefined,
+      })
+      .then((res) => {
         if (!aktif) return;
-        setDaftar(data);
+        setDaftar(res.data);
+        setMeta(res.meta);
         setError("");
       })
       .catch((err) => {
@@ -94,7 +109,7 @@ export default function RujukanKelurahanPage() {
     return () => {
       aktif = false;
     };
-  }, []);
+  }, [page, filterStatus, cari]);
 
   function bukaModalStatus(r: Rujukan) {
     const opsi = opsiLanjut(r.status);
@@ -318,6 +333,7 @@ export default function RujukanKelurahanPage() {
             />
           </div>
         )}
+        {!tampilLoading && !error && meta ? <Pagination meta={meta} onPage={setPage} /> : null}
       </section>
 
       <section>

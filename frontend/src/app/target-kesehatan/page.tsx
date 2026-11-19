@@ -8,6 +8,7 @@ import Modal from "@/components/ui/Modal";
 import Input from "@/components/ui/Input";
 import { useToast } from "@/components/ui/Toast";
 import { EmptyState, Loading } from "@/components/ui/Empty";
+import Pagination, { type Meta } from "@/components/ui/Pagination";
 import { targetKesehatan, ApiError } from "@/lib/api";
 import { useMinLoading } from "@/hooks/useMinLoading";
 import { LABEL_JENIS_TARGET, SATUAN_JENIS_TARGET, labelJenisTarget } from "@/lib/labels";
@@ -32,6 +33,8 @@ type ErrForm = Partial<Record<keyof TargetKesehatanInput, string>>;
 export default function TargetKesehatanPage() {
   const toast = useToast();
   const [daftar, setDaftar] = useState<TargetKesehatan[]>([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<Meta | null>(null);
   const [loading, setLoading] = useState(true);
   const [celebrate, setCelebrate] = useState(false);
   const tampilLoading = useMinLoading(loading);
@@ -49,23 +52,25 @@ export default function TargetKesehatanPage() {
   const muat = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await targetKesehatan.list();
-      setDaftar(res || []);
+      const res = await targetKesehatan.listPaged({ page, per_page: 12 });
+      setDaftar(res.data || []);
+      setMeta(res.meta);
       setError("");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Gagal memuat target");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     let aktif = true;
     targetKesehatan
-      .list()
+      .listPaged({ page, per_page: 12 })
       .then((res) => {
         if (!aktif) return;
-        setDaftar(res || []);
+        setDaftar(res.data || []);
+        setMeta(res.meta);
         setError("");
       })
       .catch((err) => {
@@ -77,7 +82,7 @@ export default function TargetKesehatanPage() {
     return () => {
       aktif = false;
     };
-  }, []);
+  }, [page]);
 
   const tercapai = useMemo(() => daftar.filter((t) => t.tercapai).length, [daftar]);
   const lewatTenggat = useMemo(
@@ -330,6 +335,8 @@ export default function TargetKesehatanPage() {
           })}
         </div>
       )}
+
+      {!tampilLoading && meta ? <Pagination meta={meta} onPage={setPage} /> : null}
 
       <Modal
         open={formBuka}

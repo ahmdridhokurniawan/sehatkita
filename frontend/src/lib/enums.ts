@@ -21,7 +21,9 @@ export type Sumber = (typeof SUMBER)[keyof typeof SUMBER];
 // §1.7 — jenis_gula_darah
 export const JENIS_GULA_DARAH = {
   PUASA: "puasa",
+  SEWAKTU: "sewaktu",
   DUA_JAM_PP: "2jam_pp",
+  HBA1C: "hba1c",
 } as const;
 export type JenisGulaDarah = (typeof JENIS_GULA_DARAH)[keyof typeof JENIS_GULA_DARAH];
 // §1.7 — jenis_kelamin

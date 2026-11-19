@@ -8,6 +8,7 @@ import Button from "@/components/ui/Button";
 import { BrandLockup } from "@/components/ui/BrandLogo";
 import Modal from "@/components/ui/Modal";
 import Segmented from "@/components/ui/Segmented";
+import Pagination, { type Meta } from "@/components/ui/Pagination";
 import PilihWarga from "@/components/warga/PilihWarga";
 import { EmptyState, Loading } from "@/components/ui/Empty";
 import { useToast } from "@/components/ui/Toast";
@@ -55,192 +56,277 @@ function LembarSuratRujukan({
       : surat.pasien.jenis_kelamin === "P"
         ? "Perempuan"
         : "-";
-  const usiaLabel = surat.pasien.usia !== null && surat.pasien.usia !== undefined ? `${surat.pasien.usia} tahun` : "-";
+  const usiaLabel =
+    surat.pasien.usia !== null && surat.pasien.usia !== undefined ? `${surat.pasien.usia} tahun` : "-";
   const pembuatLabel = surat.dibuat_oleh?.name || "Sistem Skrining Otomatis SehatKita";
+  const jenisFaskesLabel = (surat.faskes.jenis || "-").replace(/_/g, " ");
 
   return (
     <div className="surat-sheet" ref={sheetRef}>
       <div className="surat-head">
-        <div className="surat-brand">
+        <div className="surat-logo-kiri">
           <BrandLockup variant="sm" />
-          <div>
-            <p className="surat-instansi">PEMERINTAH KOTA BANJARBARU · DINAS KESEHATAN</p>
-            <h3>SURAT PENGANTAR RUJUKAN POSBINDU</h3>
-            <p>Program Pengendalian Penyakit Tidak Menular (PTM) — SehatKita</p>
-          </div>
         </div>
-        <div className="surat-num">
-          <strong>{surat.nomor_surat}</strong>
-          <span>Tanggal Rujukan: {tanggal(surat.tanggal_rujukan, "day")}</span>
-          <span>Dicetak: {tanggal(surat.tanggal_cetak, "day")}</span>
+        <div className="surat-kop-tengah">
+          <p className="surat-instansi">PEMERINTAH KOTA BANJARBARU</p>
+          <p className="surat-dinas">DINAS KESEHATAN</p>
+          <p className="surat-unit">POS PEMBINAAN TERPADU (POSBINDU) PTM — SEHATKITA</p>
+          <p className="surat-alamat">
+            Kota Banjarbaru, Kalimantan Selatan · Program Pengendalian Penyakit Tidak Menular (PTM)
+          </p>
         </div>
       </div>
 
-      <p className="surat-sec-title">Identitas Warga / Pasien</p>
+      <div className="surat-date">Banjarbaru, {tanggal(surat.tanggal_rujukan, "day")}</div>
+
+      <div className="surat-meta-grid">
+        <div className="surat-meta-left">
+          <table className="surat-meta-tbl">
+            <tbody>
+              <tr>
+                <td className="lbl">Nomor</td>
+                <td className="sep">:</td>
+                <td>
+                  <strong>{surat.nomor_surat}</strong>
+                </td>
+              </tr>
+              <tr>
+                <td className="lbl">Sifat</td>
+                <td className="sep">:</td>
+                <td>Penting</td>
+              </tr>
+              <tr>
+                <td className="lbl">Lampiran</td>
+                <td className="sep">:</td>
+                <td>-</td>
+              </tr>
+              <tr>
+                <td className="lbl">Perihal</td>
+                <td className="sep">:</td>
+                <td>
+                  <strong>Pengantar Rujukan Pemeriksaan Lanjutan</strong>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div className="surat-meta-right">
+          <div>Kepada Yth.</div>
+          <div>
+            <strong>Kepala / Dokter Pemeriksa</strong>
+          </div>
+          <div>{surat.faskes.nama || "Fasilitas Kesehatan Tujuan"}</div>
+          {surat.faskes.alamat ? <div>{surat.faskes.alamat}</div> : null}
+          {surat.faskes.telepon ? <div>Telp. {surat.faskes.telepon}</div> : null}
+          <div>di Tempat</div>
+        </div>
+      </div>
+
+      <div className="surat-judul">
+        <h3>SURAT PENGANTAR RUJUKAN POSBINDU</h3>
+        <span>Nomor: {surat.nomor_surat}</span>
+      </div>
+
+      <p className="surat-paragraf">
+        Dengan hormat, berdasarkan hasil pemantauan dan skrining faktor risiko Penyakit Tidak Menular (PTM)
+        pada layanan Posbindu SehatKita, bersama ini kami sampaikan pengantar rujukan untuk warga/pasien
+        dengan keterangan sebagai berikut:
+      </p>
+
+      <p className="surat-sec-title">A. Identitas Warga / Pasien</p>
       <table className="surat-table">
         <tbody>
           <tr>
             <th>Nama Lengkap</th>
-            <td>{surat.pasien.name || "-"}</td>
+            <td className="sep">:</td>
+            <td>
+              <strong>{surat.pasien.name || "-"}</strong>
+            </td>
           </tr>
           <tr>
             <th>NIK</th>
+            <td className="sep">:</td>
             <td>{surat.pasien.nik || "-"}</td>
           </tr>
           <tr>
             <th>Tanggal Lahir</th>
+            <td className="sep">:</td>
             <td>{surat.pasien.tgl_lahir ? tanggal(surat.pasien.tgl_lahir, "day") : "-"}</td>
           </tr>
           <tr>
             <th>Jenis Kelamin / Usia</th>
+            <td className="sep">:</td>
             <td>
               {jkLabel} / {usiaLabel}
             </td>
           </tr>
           <tr>
             <th>Wilayah Domisili</th>
+            <td className="sep">:</td>
             <td>{surat.pasien.wilayah || "-"}</td>
           </tr>
         </tbody>
       </table>
 
-      <p className="surat-sec-title">Fasilitas Kesehatan Tujuan</p>
+      <p className="surat-sec-title">B. Keterangan Rujukan &amp; Tujuan</p>
       <table className="surat-table">
         <tbody>
           <tr>
-            <th>Nama Faskes</th>
-            <td>{surat.faskes.nama || "-"}</td>
+            <th>Fasilitas Kesehatan Tujuan</th>
+            <td className="sep">:</td>
+            <td>
+              <strong>{surat.faskes.nama || "-"}</strong> ({jenisFaskesLabel})
+            </td>
           </tr>
-          <tr>
-            <th>Jenis Faskes</th>
-            <td>{(surat.faskes.jenis || "-").replace(/_/g, " ")}</td>
-          </tr>
-          <tr>
-            <th>Alamat</th>
-            <td>{surat.faskes.alamat || "-"}</td>
-          </tr>
-          <tr>
-            <th>Telepon</th>
-            <td>{surat.faskes.telepon || "-"}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <p className="surat-sec-title">Keterangan Rujukan</p>
-      <table className="surat-table">
-        <tbody>
           <tr>
             <th>Alasan Rujukan</th>
+            <td className="sep">:</td>
             <td>{surat.alasan}</td>
           </tr>
           {surat.indikator ? (
             <tr>
               <th>Indikator Pemicu</th>
+              <td className="sep">:</td>
               <td>{surat.indikator.toUpperCase()}</td>
             </tr>
           ) : null}
           <tr>
             <th>Status Tindak Lanjut</th>
+            <td className="sep">:</td>
             <td>{LABEL_STATUS_RUJUKAN[surat.status] || surat.status}</td>
           </tr>
           {surat.catatan ? (
             <tr>
               <th>Catatan Petugas</th>
+              <td className="sep">:</td>
               <td>{surat.catatan}</td>
             </tr>
           ) : null}
         </tbody>
       </table>
 
+      <p className="surat-paragraf">
+        Demikian surat pengantar rujukan ini kami sampaikan agar warga/pasien yang bersangkutan dapat
+        memperoleh pemeriksaan serta penanganan medis lebih lanjut. Atas perhatian dan kerja sama Bapak/Ibu,
+        kami ucapkan terima kasih.
+      </p>
+
       <div className="surat-sign">
         <div className="surat-sign-box">
-          <span>Diterbitkan oleh,</span>
-          <div className="surat-sign-space" />
-          <strong>{pembuatLabel}</strong>
-        </div>
-        <div className="surat-sign-box" style={{ textAlign: "right" }}>
           <span>Pemegang Surat / Warga,</span>
           <div className="surat-sign-space" />
-          <strong>{surat.pasien.name || "-"}</strong>
+          <strong className="surat-sign-name">{surat.pasien.name || "-"}</strong>
+          <span className="surat-sign-role">Warga Terdaftar SehatKita</span>
+        </div>
+        <div className="surat-sign-box">
+          <span>Banjarbaru, {tanggal(surat.tanggal_rujukan, "day")}</span>
+          <span>Diterbitkan oleh,</span>
+          <div className="surat-sign-space" />
+          <strong className="surat-sign-name">{pembuatLabel}</strong>
+          <span className="surat-sign-role">Petugas / Layanan SehatKita</span>
         </div>
       </div>
 
       <div className="surat-note">{surat.disclaimer}</div>
+      <div className="surat-print-meta">Dicetak: {tanggal(surat.tanggal_cetak, "day")}</div>
     </div>
   );
 }
 
 const CSS_CETAK_SURAT = `
-  @page { size: A4; margin: 14mm; }
+  @page { size: A4; margin: 16mm 18mm; }
   * { box-sizing: border-box; }
   body {
     margin: 0;
-    font-family: Arial, Helvetica, sans-serif;
-    color: #182015;
+    font-family: "Times New Roman", Times, Georgia, serif;
+    color: #141c17;
     background: #fff;
+    font-size: 11.5pt;
+    line-height: 1.45;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  .surat-sheet { background: #fff; color: #182015; }
+  .surat-sheet { background: #fff; color: #141c17; }
   .surat-head {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     gap: 16px;
-    padding-bottom: 14px;
-    margin-bottom: 16px;
-    border-bottom: 2.5px solid #1f3319;
+    padding-bottom: 10px;
+    margin-bottom: 14px;
+    border-bottom: 3px solid #163022;
+    position: relative;
   }
-  .surat-brand { display: flex; align-items: center; gap: 12px; }
+  .surat-head::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -5px;
+    border-bottom: 1px solid #163022;
+  }
+  .surat-logo-kiri { flex: none; }
+  .surat-kop-tengah { flex: 1; text-align: center; }
   .brand-logos { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
   .brand-city { display: block; object-fit: contain; }
   .brand-mark { display: inline-flex; align-items: center; }
-  .surat-instansi {
-    margin: 0 0 2px;
-    font-size: 10.5px;
-    font-weight: 700;
-    letter-spacing: .04em;
-    color: #3d5333;
-  }
-  .surat-head h3 { margin: 0; font-size: 16px; color: #1f3319; }
-  .surat-head p { margin: 3px 0 0; font-size: 11.5px; color: #4e5846; }
-  .surat-num { text-align: right; font-size: 11px; color: #4e5846; white-space: nowrap; }
-  .surat-num strong { display: block; color: #182015; font-size: 13px; margin-bottom: 3px; }
-  .surat-num span { display: block; line-height: 1.45; }
+  .surat-instansi { margin: 0; font-size: 10.5pt; font-weight: 700; letter-spacing: .04em; }
+  .surat-dinas { margin: 1px 0; font-size: 13pt; font-weight: 700; letter-spacing: .03em; }
+  .surat-unit { margin: 0; font-size: 10.5pt; font-weight: 700; }
+  .surat-alamat { margin: 2px 0 0; font-size: 9pt; color: #435048; font-family: Arial, Helvetica, sans-serif; }
+  .surat-date { text-align: right; margin: 14px 0 10px; font-size: 11pt; }
+  .surat-meta-grid { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; margin-bottom: 14px; }
+  .surat-meta-left { flex: 1.15; }
+  .surat-meta-right { flex: 0.85; font-size: 11pt; }
+  .surat-meta-tbl { width: 100%; border-collapse: collapse; font-size: 11pt; }
+  .surat-meta-tbl td { padding: 2px 0; vertical-align: top; }
+  .surat-meta-tbl td.lbl { width: 82px; }
+  .surat-meta-tbl td.sep { width: 14px; text-align: center; }
+  .surat-judul { text-align: center; margin: 14px 0 10px; }
+  .surat-judul h3 { margin: 0; font-size: 12pt; text-transform: uppercase; text-decoration: underline; letter-spacing: .04em; }
+  .surat-judul span { display: block; font-size: 10pt; margin-top: 2px; }
+  .surat-paragraf { margin: 10px 0; text-align: justify; text-indent: 26px; font-size: 11pt; }
   .surat-sec-title {
-    margin: 16px 0 6px;
-    font-size: 11px;
+    margin: 14px 0 4px;
+    font-size: 10.5pt;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: .05em;
-    color: #3d5333;
+    letter-spacing: .03em;
+    color: #163022;
   }
-  .surat-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-  .surat-table th, .surat-table td {
-    padding: 6px 8px;
-    border-bottom: 1px solid #e2e8dd;
-    text-align: left;
-    vertical-align: top;
-  }
-  .surat-table th { width: 180px; color: #4e5846; font-weight: 600; }
+  .surat-table { width: calc(100% - 14px); margin-left: 14px; border-collapse: collapse; font-size: 11pt; }
+  .surat-table th, .surat-table td { padding: 3.5px 4px; text-align: left; vertical-align: top; }
+  .surat-table th { width: 180px; color: #2d3b33; font-weight: 600; }
+  .surat-table td.sep { width: 14px; text-align: center; }
   .surat-sign {
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
-    gap: 24px;
-    margin-top: 28px;
-    font-size: 12px;
+    gap: 32px;
+    margin-top: 26px;
+    font-size: 11pt;
   }
-  .surat-sign-box span { display: block; color: #4e5846; }
-  .surat-sign-space { height: 48px; }
+  .surat-sign-box { width: 46%; }
+  .surat-sign-box span { display: block; color: #2d3b33; }
+  .surat-sign-space { height: 56px; }
+  .surat-sign-name { text-decoration: underline; display: block; }
+  .surat-sign-role { font-size: 9.5pt; color: #435048; }
   .surat-note {
     margin-top: 20px;
-    padding: 10px 12px;
-    border-left: 3.5px solid #638b3f;
-    background: #f4f7f0;
-    font-size: 11px;
+    padding: 9px 12px;
+    border: 1px solid #cbd6ce;
+    border-left: 3.5px solid #163022;
+    background: #f6faf7;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 9pt;
     line-height: 1.45;
-    color: #3a4533;
+    color: #334039;
+  }
+  .surat-print-meta {
+    margin-top: 8px;
+    text-align: right;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 8.5pt;
+    color: #55635b;
   }
 `;
 
@@ -254,6 +340,8 @@ export default function RujukanPage() {
 
   const [filter, setFilter] = useState<string>("semua");
   const [cari, setCari] = useState("");
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<Meta | null>(null);
   const [daftarRujukan, setDaftarRujukan] = useState<Rujukan[]>([]);
   const [daftarFaskes, setDaftarFaskes] = useState<Faskes[]>([]);
   const [loading, setLoading] = useState(true);
@@ -282,8 +370,14 @@ export default function RujukanPage() {
 
   const muat = useCallback(async () => {
     try {
-      const res = await rujukanApi.list({ per_page: 100 });
-      setDaftarRujukan(res);
+      const res = await rujukanApi.listPaged({
+        page,
+        per_page: 12,
+        status: filter !== "semua" ? (filter as StatusRujukan) : undefined,
+        search: cari.trim() || undefined,
+      });
+      setDaftarRujukan(res.data);
+      setMeta(res.meta);
       setError("");
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Gagal muat rujukan";
@@ -291,15 +385,21 @@ export default function RujukanPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, filter, cari]);
 
   useEffect(() => {
     let aktif = true;
     rujukanApi
-      .list({ per_page: 100 })
+      .listPaged({
+        page,
+        per_page: 12,
+        status: filter !== "semua" ? (filter as StatusRujukan) : undefined,
+        search: cari.trim() || undefined,
+      })
       .then((res) => {
         if (!aktif) return;
-        setDaftarRujukan(res);
+        setDaftarRujukan(res.data);
+        setMeta(res.meta);
         setError("");
       })
       .catch((err) => {
@@ -311,7 +411,7 @@ export default function RujukanPage() {
     return () => {
       aktif = false;
     };
-  }, []);
+  }, [page, filter, cari]);
 
   useEffect(() => {
     if (!bisaBuat) return;
@@ -362,8 +462,6 @@ export default function RujukanPage() {
       return cocokStatus && cocokCari;
     });
   }, [filter, cari, daftarRujukan]);
-
-  const hitung = (s: StatusRujukan) => daftarRujukan.filter((r) => r.status === s).length;
 
   async function kirimRujukanBaru() {
     setFErr("");
@@ -545,14 +643,17 @@ export default function RujukanPage() {
         <>
           <Segmented
             items={[
-              { value: "semua", label: `Semua (${daftarRujukan.length})` },
+              { value: "semua", label: "Semua" },
               ...URUTAN_STATUS.map((s) => ({
                 value: s,
-                label: `${LABEL_STATUS_RUJUKAN[s]} (${hitung(s)})`,
+                label: LABEL_STATUS_RUJUKAN[s],
               })),
             ]}
             value={filter}
-            onChange={setFilter}
+            onChange={(v) => {
+              setFilter(v);
+              setPage(1);
+            }}
           />
 
           <div className="input-icon mt-12">
@@ -560,9 +661,12 @@ export default function RujukanPage() {
             <input
               className="input"
               type="search"
-              placeholder="Cari rujukan (nama pasien, NIK, faskes, alasan)…"
+              placeholder="Cari rujukan (alasan, catatan, faskes, indikator)…"
               value={cari}
-              onChange={(e) => setCari(e.target.value)}
+              onChange={(e) => {
+                setCari(e.target.value);
+                setPage(1);
+              }}
             />
           </div>
 
@@ -623,6 +727,8 @@ export default function RujukanPage() {
               </div>
             )}
           </div>
+
+          {meta ? <Pagination meta={meta} onPage={setPage} /> : null}
 
           <p className="tiny center mt-16 mb-16">
             <Icon name="info" size={13} /> Rujukan ini saran sistem, bukan diagnosis medis.

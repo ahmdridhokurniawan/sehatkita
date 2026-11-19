@@ -224,7 +224,7 @@ class HealthCalculatorService
             'bb_kg' => [20, 300],
             'sistol' => [60, 260],
             'diastol' => [30, 160],
-            'gula_darah' => [20, 700],
+            'gula_darah' => ($data['jenis_gula_darah'] ?? null) === 'hba1c' ? [3, 20] : [20, 700],
             'kolesterol' => [50, 600],
             'asam_urat' => [1, 20],
             'lingkar_perut' => [40, 200],

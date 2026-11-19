@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             FaskesSeeder::class,
             PenggunaWilayahSeeder::class,
             WargaDummySeeder::class,
+            EdukasiSeeder::class,
         ]);
     }
 }

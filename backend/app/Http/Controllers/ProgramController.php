@@ -6,6 +6,8 @@ use App\Models\BadgePengguna;
 use App\Models\Pengguna;
 use App\Models\PesertaProgram;
 use App\Models\Program;
+use App\Services\BadgeKeaktifanService;
+use App\Services\PeringkatService;
 use App\Services\TelegramService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,12 +15,16 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
-// Mengurus tantangan hidup sehat, pendaftaran peserta, foto bukti kegiatan, dan persetujuan petugas.
+// Mengurus tantangan hidup sehat, pendaftaran peserta, progres pribadi, foto bukti kegiatan, dan persetujuan petugas.
 class ProgramController extends Controller
 {
     private const MAKS_FOTO_BUKTI = 5;
 
-    public function __construct(private TelegramService $telegram) {}
+    public function __construct(
+        private TelegramService $telegram,
+        private BadgeKeaktifanService $badges,
+        private PeringkatService $peringkat
+    ) {}
 
     public function index(Request $request)
     {
@@ -43,6 +49,13 @@ class ProgramController extends Controller
 
         if ($request->filled('jenis')) {
             $query->where('jenis', $request->query('jenis'));
+        }
+
+        if ($request->filled('exclude_jenis')) {
+            $kecuali = array_filter(array_map('trim', explode(',', (string) $request->query('exclude_jenis'))));
+            if ($kecuali !== []) {
+                $query->whereNotIn('jenis', $kecuali);
+            }
         }
 
         $this->saringCari($query, ['judul', 'kategori_aktivitas'], $request);
@@ -637,6 +650,8 @@ class ProgramController extends Controller
             $terkunci->status = $data['status'];
             if ($data['status'] === 'selesai') {
                 $terkunci->selesai_pada = $terkunci->selesai_pada ?? now();
+                $terkunci->progres_persen = 100;
+                $terkunci->progres_diperbarui_pada = $terkunci->progres_diperbarui_pada ?? now();
                 $terkunci->diverifikasi_oleh = $user->id;
                 $terkunci->diverifikasi_pada = now();
                 $terkunci->catatan_verifikasi = $data['catatan_verifikasi'] ?? null;
@@ -700,6 +715,10 @@ class ProgramController extends Controller
 
         if ($notifStatus === 'selesai') {
             $warga = Pengguna::find($peserta->user_id);
+            if ($warga) {
+                $this->badges->evaluasiUntukUser($warga);
+                $this->peringkat->lupakanCache($warga->wilayah_id ? (int) $warga->wilayah_id : null);
+            }
             $badgeInfo = $hasil['badge_baru'] ? "\nBadge baru: {$hasil['badge_baru']}" : '';
             $this->telegram->kirimNotifikasiUser(
                 $warga,
@@ -722,6 +741,44 @@ class ProgramController extends Controller
             'success' => true,
             'message' => 'Status peserta diperbarui',
             'data' => $hasil,
+        ]);
+    }
+
+    public function perbaruiProgres(Request $request, int $id)
+    {
+        $user = $request->user();
+        abort_unless($user->role === 'user', 403, 'Hanya warga peserta yang dapat memperbarui progres mandiri.');
+
+        $program = Program::findOrFail($id);
+        $peserta = PesertaProgram::where('program_id', $program->id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        abort_unless($peserta && $peserta->status !== 'berhenti', 404, 'Anda belum terdaftar pada tantangan ini.');
+
+        if ($peserta->status === 'selesai') {
+            throw ValidationException::withMessages([
+                'progres_persen' => ['Tantangan ini sudah terverifikasi selesai oleh petugas.'],
+            ]);
+        }
+
+        $data = $request->validate([
+            'progres_persen' => 'required|integer|min:0|max:100',
+            'catatan_progres' => 'nullable|string|max:500',
+        ]);
+
+        $peserta->update([
+            'progres_persen' => (int) $data['progres_persen'],
+            'catatan_progres' => array_key_exists('catatan_progres', $data)
+                ? $data['catatan_progres']
+                : $peserta->catatan_progres,
+            'progres_diperbarui_pada' => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Progres mandiri berhasil diperbarui',
+            'data' => $this->ringkasanPesertaSaya($peserta->fresh(), $program->id),
         ]);
     }
 
@@ -794,6 +851,9 @@ class ProgramController extends Controller
             'name' => $p->pengguna?->name,
             'email' => $p->pengguna?->email,
             'status' => $p->status,
+            'progres_persen' => (int) ($p->progres_persen ?? ($p->status === 'selesai' ? 100 : 0)),
+            'catatan_progres' => $p->catatan_progres,
+            'progres_diperbarui_pada' => $p->progres_diperbarui_pada?->toIso8601String(),
             'bukti_foto_url' => $urls[0] ?? null,
             'bukti_foto_urls' => $urls,
             'catatan_bukti' => $p->catatan_bukti,
@@ -816,6 +876,9 @@ class ProgramController extends Controller
         return [
             'id' => $p->id,
             'status' => $p->status,
+            'progres_persen' => (int) ($p->progres_persen ?? ($p->status === 'selesai' ? 100 : 0)),
+            'catatan_progres' => $p->catatan_progres,
+            'progres_diperbarui_pada' => $p->progres_diperbarui_pada?->toIso8601String(),
             'bukti_foto_url' => $urls[0] ?? null,
             'bukti_foto_urls' => $urls,
             'catatan_bukti' => $p->catatan_bukti,

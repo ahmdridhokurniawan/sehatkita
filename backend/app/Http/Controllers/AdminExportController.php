@@ -52,7 +52,7 @@ class AdminExportController extends Controller
             'ID', 'Tanggal', 'Nama Warga', 'NIK', 'Kelurahan',
             'BB (kg)', 'TB (cm)', 'IMT', 'Kategori IMT',
             'Sistol (mmHg)', 'Diastol (mmHg)', 'Kategori Tensi',
-            'Gula Darah (mg/dL)', 'Jenis Gula',
+            'Gula Darah', 'Jenis Pemeriksaan Gula Darah',
             'Kolesterol (mg/dL)', 'Asam Urat (mg/dL)',
             'Status Kesehatan', 'Skor Risiko', 'Sumber',
         ]);

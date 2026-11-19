@@ -14,6 +14,9 @@ class PesertaProgram extends Model
         'program_id',
         'user_id',
         'status',
+        'progres_persen',
+        'catatan_progres',
+        'progres_diperbarui_pada',
         'bukti_foto',
         'bukti_foto_daftar',
         'catatan_bukti',
@@ -27,6 +30,8 @@ class PesertaProgram extends Model
     protected function casts(): array
     {
         return [
+            'progres_persen' => 'integer',
+            'progres_diperbarui_pada' => 'datetime',
             'bukti_foto_daftar' => 'array',
             'dikirim_pada' => 'datetime',
             'diverifikasi_pada' => 'datetime',

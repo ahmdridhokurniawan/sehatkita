@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CatatanKesehatan;
 use App\Models\Indikator;
 use App\Models\Rujukan;
+use App\Services\BadgeKeaktifanService;
 use App\Services\HealthCalculatorService;
 use App\Services\PeringkatService;
 use Carbon\Carbon;
@@ -15,7 +16,8 @@ class DashboardController extends Controller
 {
     public function __construct(
         private HealthCalculatorService $kalkulator,
-        private PeringkatService $peringkat
+        private PeringkatService $peringkat,
+        private BadgeKeaktifanService $badges
     ) {}
 
     private const KOLOM_INDIKATOR = [
@@ -77,6 +79,7 @@ class DashboardController extends Controller
                     isset($terkini['diastol']) ? (int) $terkini['diastol'] : null
                 )['kategori'] ?? null,
                 'gula_darah' => $terkini['gula_darah'] ?? null,
+                'jenis_gula_darah' => $kJenisGula,
                 'kategori_gula_darah' => $this->kalkulator->kategori('gula_darah', $terkini['gula_darah'] ?? null, $kJenisGula)['kategori'] ?? null,
                 'kolesterol' => $terkini['kolesterol'] ?? null,
                 'kategori_kolesterol' => $this->kalkulator->kategori('kolesterol', $terkini['kolesterol'] ?? null)['kategori'] ?? null,
@@ -250,11 +253,14 @@ class DashboardController extends Controller
 
     private function blokGamifikasi($user): array
     {
+        $achievement = $this->badges->daftarAchievement($user);
+
         return [
             'exp_total' => (int) $user->exp_total,
             'level_gamifikasi' => (int) $user->level_gamifikasi,
             'badge' => $user->badge()->pluck('badge')->values(),
             'rank_kelurahan' => $this->peringkat->rankUser($user),
+            'achievement' => $achievement,
         ];
     }
 

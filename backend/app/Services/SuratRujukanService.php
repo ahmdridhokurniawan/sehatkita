@@ -3,10 +3,17 @@
 namespace App\Services;
 
 use App\Models\Rujukan;
+use Carbon\Carbon;
 
-// Menyusun isi dan tampilan surat rujukan resmi yang siap dicetak atau dikirim.
+// Menyusun isi dan tata naskah resmi surat pengantar rujukan Posbindu yang siap dicetak atau disimpan PDF.
 class SuratRujukanService
 {
+    private const BULAN_ID = [
+        1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+        5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+        9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember',
+    ];
+
     public function nomorSurat(Rujukan $rujukan): string
     {
         $tahun = ($rujukan->created_at ?? now())->format('Y');
@@ -83,10 +90,10 @@ class SuratRujukanService
         $pasien = $d['pasien'];
         $faskes = $d['faskes'];
 
-        $tanggalRujukan = $rujukan->created_at
-            ? $rujukan->created_at->timezone('Asia/Makassar')->format('d-m-Y H:i').' WITA'
-            : '-';
+        $tanggalSurat = $this->formatTanggalId($rujukan->created_at ?? now());
         $tanggalCetak = now()->timezone('Asia/Makassar')->format('d-m-Y H:i').' WITA';
+        $tglLahirLabel = $pasien['tgl_lahir'] ? $this->formatTanggalId(Carbon::parse($pasien['tgl_lahir'])) : '-';
+
         $jkLabel = match ($pasien['jenis_kelamin']) {
             'L' => 'Laki-laki',
             'P' => 'Perempuan',
@@ -101,86 +108,134 @@ class SuratRujukanService
             default => strtoupper((string) $d['status']),
         };
         $pembuatLabel = $d['dibuat_oleh']['name'] ?? 'Sistem Skrining Otomatis SehatKita';
-        $penanganHtml = $d['ditangani_oleh']
-            ? '<tr><th>Ditangani Oleh</th><td>'.e($d['ditangani_oleh']['name']).'</td></tr>'
+        $pembuatPeran = match ($d['dibuat_oleh']['role'] ?? null) {
+            'kader' => 'Kader Posbindu PTM',
+            'super_admin' => 'Petugas Dinas Kesehatan',
+            default => 'Petugas / Sistem Skrining PTM',
+        };
+        $jenisFaskes = ucwords(str_replace('_', ' ', (string) ($faskes['jenis'] ?? 'Fasilitas Kesehatan')));
+
+        $barisIndikator = $d['indikator']
+            ? '<tr><td class="lbl">Indikator Pemicu</td><td class="sep">:</td><td>'.e(strtoupper((string) $d['indikator'])).'</td></tr>'
             : '';
-        $catatanHtml = $d['catatan']
-            ? '<tr><th>Catatan Petugas</th><td>'.e($d['catatan']).'</td></tr>'
+        $barisPenangan = $d['ditangani_oleh']
+            ? '<tr><td class="lbl">Petugas Penindak Lanjut</td><td class="sep">:</td><td>'.e($d['ditangani_oleh']['name']).'</td></tr>'
             : '';
-        $indikatorHtml = $d['indikator']
-            ? '<tr><th>Indikator Pemicu</th><td>'.e(strtoupper((string) $d['indikator'])).'</td></tr>'
+        $barisCatatan = $d['catatan']
+            ? '<tr><td class="lbl">Catatan Tindak Lanjut</td><td class="sep">:</td><td>'.e($d['catatan']).'</td></tr>'
             : '';
 
         return '<!DOCTYPE html>'
             .'<html lang="id"><head><meta charset="utf-8">'
             .'<title>Surat Pengantar Rujukan - '.e($d['nomor_surat']).'</title>'
             .'<style>'
-            .'@page{size:A4;margin:14mm;}'
+            .'@page{size:A4;margin:16mm 18mm;}'
             .'*{box-sizing:border-box;}'
-            .'body{font-family:Arial,Helvetica,sans-serif;color:#182015;margin:0;padding:24px;background:#f7f8f5;-webkit-print-color-adjust:exact;print-color-adjust:exact;}'
-            .'.sheet{max-width:760px;margin:0 auto;background:#fff;padding:32px 36px;border:1px solid #d5dccf;border-radius:10px;}'
-            .'.head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:2.5px solid #1f3319;padding-bottom:14px;margin-bottom:20px;}'
-            .'.brand{display:flex;align-items:center;gap:12px;}'
-            .'.instansi{margin:0 0 2px;font-size:10.5px;font-weight:700;letter-spacing:.04em;color:#3d5333;}'
-            .'.head h1{margin:0;font-size:17px;color:#1f3319;}'
-            .'.head p.sub{margin:3px 0 0;font-size:11.5px;color:#4e5846;}'
-            .'.num{text-align:right;font-size:11.5px;color:#4e5846;white-space:nowrap;}'
-            .'.num strong{display:block;font-size:13.5px;color:#182015;margin-bottom:3px;}'
-            .'.num span{display:block;line-height:1.45;}'
-            .'h2{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#3d5333;margin:18px 0 8px;}'
-            .'table{width:100%;border-collapse:collapse;font-size:12.5px;}'
-            .'th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #edf0ea;vertical-align:top;}'
-            .'th{width:185px;color:#4e5846;font-weight:600;}'
-            .'.sign{margin-top:28px;display:flex;justify-content:space-between;align-items:flex-end;gap:24px;font-size:12px;}'
-            .'.sign-space{height:48px;}'
-            .'.note{margin-top:20px;padding:10px 12px;background:#f4f7f0;border-left:3.5px solid #638b3f;font-size:11px;line-height:1.45;color:#3a4533;}'
-            .'.actions{max-width:760px;margin:0 auto 14px;text-align:right;}'
-            .'.btn{background:#1f3319;color:#fff;border:none;padding:9px 16px;border-radius:8px;cursor:pointer;font-size:13px;}'
-            .'@media print{body{background:#fff;padding:0;}.sheet{border:none;border-radius:0;padding:0;max-width:none;}.actions{display:none;}}'
+            .'body{font-family:"Times New Roman",Times,Georgia,serif;color:#111812;margin:0;padding:24px;background:#f3f5f3;-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:12pt;line-height:1.45;}'
+            .'.actions{max-width:780px;margin:0 auto 14px;text-align:right;font-family:Arial,Helvetica,sans-serif;}'
+            .'.btn{background:#184a33;color:#fff;border:none;padding:9px 16px;border-radius:8px;cursor:pointer;font-size:13px;}'
+            .'.sheet{max-width:780px;margin:0 auto;background:#fff;padding:34px 42px;border:1px solid #d5dcd7;}'
+            .'.kop{display:flex;align-items:center;gap:18px;padding-bottom:10px;border-bottom:3px solid #14281d;position:relative;margin-bottom:14px;}'
+            .'.kop::after{content:"";position:absolute;left:0;right:0;bottom:-5px;border-bottom:1px solid #14281d;}'
+            .'.kop-logo{flex:none;display:flex;align-items:center;}'
+            .'.kop-teks{flex:1;text-align:center;}'
+            .'.kop-pemerintah{font-size:11pt;font-weight:700;letter-spacing:.04em;text-transform:uppercase;}'
+            .'.kop-dinas{font-size:13.5pt;font-weight:700;letter-spacing:.03em;text-transform:uppercase;margin:1px 0;}'
+            .'.kop-unit{font-size:11pt;font-weight:700;}'
+            .'.kop-alamat{font-size:9.5pt;color:#3d4942;margin-top:2px;font-family:Arial,Helvetica,sans-serif;}'
+            .'.tgl-surat{text-align:right;margin:14px 0 10px;font-size:11pt;}'
+            .'.meta-grid{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:16px;}'
+            .'.meta-kiri{flex:1.15;}'
+            .'.meta-kanan{flex:0.85;font-size:11pt;}'
+            .'.meta-tbl{width:100%;border-collapse:collapse;font-size:11pt;}'
+            .'.meta-tbl td{padding:2px 0;vertical-align:top;}'
+            .'.meta-tbl td.lbl{width:88px;}'
+            .'.meta-tbl td.sep{width:14px;text-align:center;}'
+            .'.judul-surat{text-align:center;margin:14px 0 12px;}'
+            .'.judul-surat h1{margin:0;font-size:12.5pt;text-transform:uppercase;text-decoration:underline;letter-spacing:.04em;}'
+            .'.judul-surat span{display:block;font-size:10.5pt;margin-top:2px;}'
+            .'p.paragraf{margin:10px 0;text-align:justify;text-indent:28px;font-size:11.5pt;}'
+            .'.bagian-judul{font-size:11pt;font-weight:700;margin:14px 0 4px;text-transform:uppercase;letter-spacing:.03em;}'
+            .'.data-tbl{width:100%;border-collapse:collapse;font-size:11pt;margin-left:14px;width:calc(100% - 14px);}'
+            .'.data-tbl td{padding:3.5px 4px;vertical-align:top;}'
+            .'.data-tbl td.lbl{width:185px;color:#27332c;}'
+            .'.data-tbl td.sep{width:16px;text-align:center;}'
+            .'.ttd-grid{display:flex;justify-content:space-between;align-items:flex-end;gap:32px;margin-top:28px;font-size:11pt;}'
+            .'.ttd-kolom{width:46%;}'
+            .'.ttd-kolom.kanan{text-align:left;}'
+            .'.ttd-ruang{height:64px;}'
+            .'.ttd-nama{font-weight:700;text-decoration:underline;}'
+            .'.ttd-peran{font-size:10pt;color:#3d4942;}'
+            .'.catatan-kaki{margin-top:24px;padding:9px 12px;border:1px solid #ccd7d0;border-left:3.5px solid #184a33;background:#f7faf8;font-family:Arial,Helvetica,sans-serif;font-size:9pt;line-height:1.45;color:#334039;}'
+            .'.cetak-info{margin-top:8px;text-align:right;font-family:Arial,Helvetica,sans-serif;font-size:8.5pt;color:#5a6860;}'
+            .'@media print{body{background:#fff;padding:0;}.sheet{border:none;padding:0;max-width:none;}.actions{display:none;}}'
             .'</style></head><body>'
             .'<div class="actions"><button class="btn" onclick="window.print()">Cetak / Simpan PDF</button></div>'
             .'<div class="sheet">'
-            .'<div class="head"><div class="brand">'.$this->logoSehatKitaSvg()
-            .'<div><div class="instansi">PEMERINTAH KOTA BANJARBARU · DINAS KESEHATAN</div>'
-            .'<h1>SURAT PENGANTAR RUJUKAN POSBINDU</h1>'
-            .'<p class="sub">Program Pengendalian PTM SehatKita</p></div></div>'
-            .'<div class="num"><strong>'.e($d['nomor_surat']).'</strong>'
-            .'<span>Tanggal: '.e($tanggalRujukan).'</span>'
-            .'<span>Dicetak: '.e($tanggalCetak).'</span></div></div>'
-            .'<h2>Identitas Warga / Pasien</h2>'
-            .'<table>'
-            .'<tr><th>Nama Lengkap</th><td>'.e($pasien['name'] ?? '-').'</td></tr>'
-            .'<tr><th>NIK</th><td>'.e($pasien['nik'] ?? '-').'</td></tr>'
-            .'<tr><th>Tanggal Lahir</th><td>'.e($pasien['tgl_lahir'] ?? '-').'</td></tr>'
-            .'<tr><th>Jenis Kelamin / Usia</th><td>'.e($jkLabel).' / '.e($usiaLabel).'</td></tr>'
-            .'<tr><th>Wilayah Domisili</th><td>'.e($pasien['wilayah'] ?? '-').'</td></tr>'
+            .'<div class="kop">'
+            .'<div class="kop-logo">'.$this->logoSehatKitaSvg().'</div>'
+            .'<div class="kop-teks">'
+            .'<div class="kop-pemerintah">Pemerintah Kota Banjarbaru</div>'
+            .'<div class="kop-dinas">Dinas Kesehatan</div>'
+            .'<div class="kop-unit">Pos Pembinaan Terpadu (Posbindu) PTM — SehatKita</div>'
+            .'<div class="kop-alamat">Kota Banjarbaru, Kalimantan Selatan · Layanan Skrining &amp; Pemantauan Faktor Risiko PTM</div>'
+            .'</div></div>'
+            .'<div class="tgl-surat">Banjarbaru, '.e($tanggalSurat).'</div>'
+            .'<div class="meta-grid">'
+            .'<div class="meta-kiri"><table class="meta-tbl">'
+            .'<tr><td class="lbl">Nomor</td><td class="sep">:</td><td><strong>'.e($d['nomor_surat']).'</strong></td></tr>'
+            .'<tr><td class="lbl">Sifat</td><td class="sep">:</td><td>Penting</td></tr>'
+            .'<tr><td class="lbl">Lampiran</td><td class="sep">:</td><td>-</td></tr>'
+            .'<tr><td class="lbl">Perihal</td><td class="sep">:</td><td><strong>Pengantar Rujukan Pemeriksaan Lanjutan</strong></td></tr>'
+            .'</table></div>'
+            .'<div class="meta-kanan">'
+            .'<div>Kepada Yth.</div>'
+            .'<div><strong>Kepala / Dokter Pemeriksa</strong></div>'
+            .'<div>'.e($faskes['nama'] ?? 'Fasilitas Kesehatan Tujuan').'</div>'
+            .($faskes['alamat'] ? '<div>'.e($faskes['alamat']).'</div>' : '')
+            .($faskes['telepon'] ? '<div>Telp. '.e($faskes['telepon']).'</div>' : '')
+            .'<div>di Tempat</div>'
+            .'</div></div>'
+            .'<div class="judul-surat"><h1>SURAT PENGANTAR RUJUKAN POSBINDU</h1><span>Nomor: '.e($d['nomor_surat']).'</span></div>'
+            .'<p class="paragraf">Dengan hormat, berdasarkan hasil pemantauan dan skrining faktor risiko Penyakit Tidak Menular (PTM) pada layanan Posbindu SehatKita, bersama ini kami sampaikan pengantar rujukan untuk warga/pasien dengan keterangan sebagai berikut:</p>'
+            .'<div class="bagian-judul">A. Identitas Warga / Pasien</div>'
+            .'<table class="data-tbl">'
+            .'<tr><td class="lbl">Nama Lengkap</td><td class="sep">:</td><td><strong>'.e($pasien['name'] ?? '-').'</strong></td></tr>'
+            .'<tr><td class="lbl">NIK</td><td class="sep">:</td><td>'.e($pasien['nik'] ?? '-').'</td></tr>'
+            .'<tr><td class="lbl">Tanggal Lahir</td><td class="sep">:</td><td>'.e($tglLahirLabel).'</td></tr>'
+            .'<tr><td class="lbl">Jenis Kelamin / Usia</td><td class="sep">:</td><td>'.e($jkLabel).' / '.e($usiaLabel).'</td></tr>'
+            .'<tr><td class="lbl">Wilayah Domisili</td><td class="sep">:</td><td>'.e($pasien['wilayah'] ?? '-').'</td></tr>'
             .'</table>'
-            .'<h2>Fasilitas Kesehatan Tujuan</h2>'
-            .'<table>'
-            .'<tr><th>Nama Faskes</th><td>'.e($faskes['nama'] ?? '-').'</td></tr>'
-            .'<tr><th>Jenis Faskes</th><td>'.e(ucwords(str_replace('_', ' ', (string) ($faskes['jenis'] ?? '-')))).'</td></tr>'
-            .'<tr><th>Alamat</th><td>'.e($faskes['alamat'] ?? '-').'</td></tr>'
-            .'<tr><th>Telepon</th><td>'.e($faskes['telepon'] ?? '-').'</td></tr>'
+            .'<div class="bagian-judul">B. Keterangan Rujukan &amp; Tujuan</div>'
+            .'<table class="data-tbl">'
+            .'<tr><td class="lbl">Fasilitas Kesehatan Tujuan</td><td class="sep">:</td><td><strong>'.e($faskes['nama'] ?? '-').'</strong> ('.e($jenisFaskes).')</td></tr>'
+            .'<tr><td class="lbl">Alasan / Indikasi Rujukan</td><td class="sep">:</td><td>'.e($d['alasan'] ?? '-').'</td></tr>'
+            .$barisIndikator
+            .'<tr><td class="lbl">Status Tindak Lanjut</td><td class="sep">:</td><td>'.e($statusLabel).'</td></tr>'
+            .$barisPenangan
+            .$barisCatatan
             .'</table>'
-            .'<h2>Keterangan Rujukan</h2>'
-            .'<table>'
-            .'<tr><th>Alasan Rujukan</th><td>'.e($d['alasan'] ?? '-').'</td></tr>'
-            .$indikatorHtml
-            .'<tr><th>Status Tindak Lanjut</th><td>'.e($statusLabel).'</td></tr>'
-            .$penanganHtml
-            .$catatanHtml
-            .'</table>'
-            .'<div class="sign">'
-            .'<div><span>Diterbitkan oleh,</span><div class="sign-space"></div><strong>'.e($pembuatLabel).'</strong></div>'
-            .'<div style="text-align:right"><span>Pemegang Surat / Warga,</span><div class="sign-space"></div><strong>'.e($pasien['name'] ?? '-').'</strong></div>'
+            .'<p class="paragraf">Demikian surat pengantar rujukan ini kami sampaikan agar warga/pasien yang bersangkutan dapat memperoleh pemeriksaan serta penanganan medis lebih lanjut. Atas perhatian dan kerja sama Bapak/Ibu, kami ucapkan terima kasih.</p>'
+            .'<div class="ttd-grid">'
+            .'<div class="ttd-kolom"><div>Pemegang Surat / Warga,</div><div class="ttd-ruang"></div><div class="ttd-nama">'.e($pasien['name'] ?? '-').'</div><div class="ttd-peran">Warga Terdaftar SehatKita</div></div>'
+            .'<div class="ttd-kolom kanan"><div>Banjarbaru, '.e($tanggalSurat).'</div><div>Diterbitkan oleh,</div><div class="ttd-ruang"></div><div class="ttd-nama">'.e($pembuatLabel).'</div><div class="ttd-peran">'.e($pembuatPeran).'</div></div>'
             .'</div>'
-            .'<div class="note">'.e($d['disclaimer']).'</div>'
+            .'<div class="catatan-kaki"><strong>Catatan Penting:</strong> '.e($d['disclaimer']).'</div>'
+            .'<div class="cetak-info">Dicetak melalui SehatKita pada '.e($tanggalCetak).'</div>'
             .'</div></body></html>';
+    }
+
+    private function formatTanggalId(Carbon $dt): string
+    {
+        $lokal = $dt->copy()->timezone('Asia/Makassar');
+        $bulan = self::BULAN_ID[$lokal->month] ?? $lokal->format('m');
+
+        return "{$lokal->day} {$bulan} {$lokal->year}";
     }
 
     private function logoSehatKitaSvg(): string
     {
-        return '<svg width="46" height="46" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
+        return '<svg width="56" height="56" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
             .'<defs>'
             .'<linearGradient id="sk-gold" x1="12" y1="3" x2="52" y2="59" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#FEF08A"/><stop offset="48%" stop-color="#F59E0B"/><stop offset="100%" stop-color="#B45309"/></linearGradient>'
             .'<linearGradient id="sk-field" x1="32" y1="6" x2="32" y2="56" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#7D8D39"/><stop offset="52%" stop-color="#485B1E"/><stop offset="100%" stop-color="#202B0C"/></linearGradient>'

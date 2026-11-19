@@ -5,6 +5,7 @@ import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
+import Pagination, { type Meta } from "@/components/ui/Pagination";
 import { pengaduanApi, ApiError } from "@/lib/api";
 import { useMinLoading } from "@/hooks/useMinLoading";
 import { tanggal } from "@/lib/format";
@@ -35,6 +36,8 @@ const STATUS_TONE: Record<StatusPengaduan, "warning" | "info" | "safe" | "danger
 
 export default function HalamanPengaduan() {
   const [list, setList] = useState<Pengaduan[]>([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<Meta | null>(null);
   const [loading, setLoading] = useState(true);
   const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState<string | null>(null);
@@ -50,22 +53,24 @@ export default function HalamanPengaduan() {
     setLoading(true);
     setError(null);
     try {
-      const d = await pengaduanApi.list();
-      setList(d);
+      const res = await pengaduanApi.listPaged({ page, per_page: 10 });
+      setList(res.data);
+      setMeta(res.meta);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Gagal memuat pengaduan.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     let aktif = true;
     pengaduanApi
-      .list()
-      .then((d) => {
+      .listPaged({ page, per_page: 10 })
+      .then((res) => {
         if (!aktif) return;
-        setList(d);
+        setList(res.data);
+        setMeta(res.meta);
         setError(null);
       })
       .catch((e) => {
@@ -77,7 +82,7 @@ export default function HalamanPengaduan() {
     return () => {
       aktif = false;
     };
-  }, []);
+  }, [page]);
 
   const kirim = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -214,7 +219,7 @@ export default function HalamanPengaduan() {
       <section>
         <div className="app-section-title">
           <h2>Riwayat Pengaduan Anda</h2>
-          <span className="tiny">{list.length} pengaduan</span>
+          <span className="tiny">{meta?.total ?? list.length} pengaduan</span>
         </div>
 
         {tampilLoading ? (
@@ -278,6 +283,7 @@ export default function HalamanPengaduan() {
             ))}
           </div>
         )}
+        {!tampilLoading && !error && meta ? <Pagination meta={meta} onPage={setPage} /> : null}
       </section>
     </AppShell>
   );

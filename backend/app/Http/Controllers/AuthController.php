@@ -3,18 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pengguna;
+use App\Services\SingleIpSessionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
-// Mengurus pendaftaran akun warga, masuk, keluar, dan persetujuan privasi.
+// Mengurus pendaftaran akun warga, masuk, keluar, pembatasan 1 IP 1 user, dan persetujuan privasi.
 class AuthController extends Controller
 {
+    public function __construct(private SingleIpSessionService $sessions) {}
+
     public function register(Request $request)
     {
-
         if ($request->filled('email')) {
             $request->merge(['email' => strtolower(trim((string) $request->input('email')))]);
         }
@@ -36,6 +38,14 @@ class AuthController extends Controller
             'password.confirmed' => 'Konfirmasi password tidak cocok.',
         ]);
 
+        $ip = (string) $request->ip();
+        if ($this->sessions->cekKonflikIp($ip, 0)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Alamat IP ini masih memiliki sesi pengguna aktif. Silakan logout dari akun sebelumnya atau tunggu batas sesi 30 menit berakhir.',
+            ], 409);
+        }
+
         $user = Pengguna::create([
             'name' => $validated['name'],
             'nik' => $validated['nik'] ?? null,
@@ -45,12 +55,21 @@ class AuthController extends Controller
             'role' => 'user',
         ]);
 
-        $token = $user->createToken('auth-token')->plainTextToken;
+        $sesi = $this->sessions->daftarkanSesi(
+            $user,
+            $ip,
+            (string) ($request->input('device_name') ?: 'auth-token')
+        );
 
         return response()->json([
             'success' => true,
             'message' => 'Registrasi berhasil',
-            'data' => ['user' => $user, 'token' => $token],
+            'data' => [
+                'user' => $user,
+                'token' => $sesi['token'],
+                'expires_at' => $sesi['expires_at'],
+                'token_ttl_menit' => $sesi['token_ttl_menit'],
+            ],
         ], 201);
     }
 
@@ -72,19 +91,35 @@ class AuthController extends Controller
             return response()->json(['success' => false, 'message' => 'Akun dinonaktifkan'], 403);
         }
 
-        $user->tokens()->delete();
-        $token = $user->createToken('auth-token')->plainTextToken;
+        $ip = (string) $request->ip();
+        if ($this->sessions->cekKonflikIp($ip, (int) $user->id)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Alamat IP ini sedang dipakai akun lain yang masih aktif (maksimal 1 IP 1 pengguna). Silakan logout akun sebelumnya atau tunggu 30 menit.',
+            ], 409);
+        }
+
+        $sesi = $this->sessions->daftarkanSesi(
+            $user,
+            $ip,
+            (string) ($request->input('device_name') ?: 'auth-token')
+        );
 
         return response()->json([
             'success' => true,
             'message' => 'Login berhasil',
-            'data' => ['user' => $user, 'token' => $token],
+            'data' => [
+                'user' => $user,
+                'token' => $sesi['token'],
+                'expires_at' => $sesi['expires_at'],
+                'token_ttl_menit' => $sesi['token_ttl_menit'],
+            ],
         ]);
     }
 
     public function logout(Request $request)
     {
-        $request->user()->tokens()->delete();
+        $this->sessions->lepasSesi($request->user(), (string) $request->ip());
 
         return response()->json(['success' => true, 'message' => 'Logout berhasil', 'data' => null]);
     }

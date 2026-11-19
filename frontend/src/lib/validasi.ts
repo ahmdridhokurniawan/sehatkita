@@ -36,6 +36,20 @@ export function validAngka(field: string, v?: string | number | null): HasilVali
   return { ok: true, value: n };
 }
 
+/** Validasi gula darah sesuai jenis pemeriksaan (HbA1c dalam %, lainnya mg/dL) */
+export function validGulaDarah(v?: string | number | null, jenis?: string | null): HasilValidasi {
+  if (v === "" || v === null || v === undefined) return { ok: true };
+  if (!/^-?\d+(\.\d+)?$/.test(String(v))) return { ok: false, msg: "Hanya boleh angka." };
+  const n = Number(v);
+  if (jenis === "hba1c") {
+    if (n < 3 || n > 25) {
+      return { ok: false, msg: "Nilai HbA1c harus antara 3–25 % (contoh 5.7 atau 6.5)." };
+    }
+    return { ok: true, value: n };
+  }
+  return validAngka("gula_darah", v);
+}
+
 /** Tanggal pemeriksaan: wajib, tidak boleh di masa depan */
 export function validTglPemeriksaan(v?: string | null): HasilValidasi {
   if (!v) return { ok: false, msg: "Wajib diisi." };

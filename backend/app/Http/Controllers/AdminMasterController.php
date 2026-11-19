@@ -451,6 +451,7 @@ class AdminMasterController extends Controller
         $this->hanyaSuperAdmin($request->user());
 
         $faskes = Faskes::create($request->validate($this->aturanFaskes()));
+        FaskesController::lupakanCache();
 
         return response()->json([
             'success' => true,
@@ -476,6 +477,7 @@ class AdminMasterController extends Controller
         }
 
         $faskes->update($request->validate($aturan));
+        FaskesController::lupakanCache();
 
         return response()->json([
             'success' => true,
@@ -501,6 +503,8 @@ class AdminMasterController extends Controller
                 'message' => 'Faskes masih dipakai rujukan, tidak bisa dihapus',
             ], 409);
         }
+
+        FaskesController::lupakanCache();
 
         return response()->json([
             'success' => true,
@@ -572,7 +576,7 @@ class AdminMasterController extends Controller
     {
         return [
             'indikator_id' => 'required|exists:indikator,id',
-            'jenis_gula_darah' => 'nullable|in:puasa,2jam_pp',
+            'jenis_gula_darah' => 'nullable|in:puasa,sewaktu,2jam_pp,hba1c',
             'memicu_rujukan' => 'sometimes|boolean',
             'batas_min' => 'required|numeric',
             'batas_max' => 'nullable|numeric|gte:batas_min',

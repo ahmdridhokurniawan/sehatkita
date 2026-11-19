@@ -27,7 +27,14 @@ import {
 } from "@/lib/api";
 import { tanggal, relatif, angka, statusTenggatTarget } from "@/lib/format";
 import { useMinLoading } from "@/hooks/useMinLoading";
-import { LABEL_INDIKATOR, LABEL_INSIGHT, LABEL_STATUS_RUJUKAN, labelKategoriIndikator } from "@/lib/labels";
+import {
+  LABEL_INDIKATOR,
+  LABEL_INSIGHT,
+  LABEL_JENIS_GULA_DARAH,
+  LABEL_STATUS_RUJUKAN,
+  labelKategoriIndikator,
+  satuanGulaDarah,
+} from "@/lib/labels";
 import type { User, DashboardPribadi, RekamMedis, Insight, TargetKesehatan } from "@/types";
 
 type TabPanel = "jadwal" | "peringatan" | "tren";
@@ -234,9 +241,13 @@ export default function DashboardUser({ user }: { user: User }) {
     {
       id: "gula",
       title: "Gula Darah",
-      subtitle: "Pemeriksaan terakhir",
+      subtitle: indikator_terkini?.jenis_gula_darah
+        ? LABEL_JENIS_GULA_DARAH[indikator_terkini.jenis_gula_darah] || "Pemeriksaan terakhir"
+        : "Pemeriksaan terakhir",
       value: indikator_terkini?.gula_darah ?? "—",
-      unit: indikator_terkini?.gula_darah != null ? "mg/dL" : undefined,
+      unit: indikator_terkini?.gula_darah != null
+        ? satuanGulaDarah(indikator_terkini.jenis_gula_darah)
+        : undefined,
       icon: "droplet",
       pillText: indikator_terkini?.kategori_gula_darah
         ? labelKategoriIndikator(indikator_terkini.kategori_gula_darah)
@@ -396,7 +407,11 @@ export default function DashboardUser({ user }: { user: User }) {
               </div>
               <div className="gv-hero-metric">
                 <strong>Level {gamifikasi?.level_gamifikasi ?? 1}</strong>
-                <span>{angka(gamifikasi?.exp_total ?? 0)} poin · {gamifikasi?.badge.length ?? 0} lencana</span>
+                <span>
+                  {angka(gamifikasi?.exp_total ?? 0)} EXP ·{" "}
+                  {gamifikasi?.achievement?.ringkasan.diraih ?? gamifikasi?.badge.length ?? 0}/
+                  {gamifikasi?.achievement?.ringkasan.total ?? 8} lencana
+                </span>
               </div>
               <div className="gv-hero-metric">
                 <strong>
@@ -410,8 +425,11 @@ export default function DashboardUser({ user }: { user: User }) {
               <button type="button" className="gv-btn-solid" onClick={() => setCatatTerbuka(true)}>
                 <Icon name="plus" size={14} /> Catat Kesehatan
               </button>
-              <Link href="/insight" className="gv-btn-glass">
-                <Icon name="zap" size={14} /> Peringatan Dini
+              <Link href="/peringkat" className="gv-btn-glass">
+                <Icon name="trophy" size={14} /> Achievement
+              </Link>
+              <Link href="/edukasi" className="gv-btn-glass">
+                <Icon name="book-open" size={14} /> Edukasi
               </Link>
             </div>
           </div>

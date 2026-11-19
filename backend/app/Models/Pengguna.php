@@ -46,6 +46,8 @@ class Pengguna extends Authenticatable
             'consent_at' => 'datetime',
             'email_verified_at' => 'datetime',
             'aktif' => 'boolean',
+            'exp_total' => 'integer',
+            'level_gamifikasi' => 'integer',
         ];
     }
 
@@ -104,5 +106,15 @@ class Pengguna extends Authenticatable
     public function riwayatWilayah(): HasMany
     {
         return $this->hasMany(RiwayatWilayah::class, 'user_id')->latest();
+    }
+
+    public function riwayatPeringkat(): HasMany
+    {
+        return $this->hasMany(RiwayatPeringkat::class, 'user_id')->orderByDesc('selesai_periode');
+    }
+
+    public function progresEdukasi(): HasMany
+    {
+        return $this->hasMany(ProgresEdukasi::class, 'user_id');
     }
 }

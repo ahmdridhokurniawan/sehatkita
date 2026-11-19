@@ -15,6 +15,7 @@
  *  - §20  : notifikasi DITUNDA — tidak ada endpoint /notifications.
  */
 import type {
+  AchievementResponse,
   AdminPengguna,
   AdminPenggunaInput,
   AdminStatistik,
@@ -28,6 +29,8 @@ import type {
   DashboardKelurahan,
   DashboardKelurahanQuery,
   DashboardPribadi,
+  EdukasiInput,
+  EdukasiItem,
   Faskes,
   Indikator,
   Insight,
@@ -37,17 +40,20 @@ import type {
   LaporanKelurahan,
   LaporanPribadi,
   LogAudit,
+  PaginationMeta,
   PersetujuanData,
   PesertaProgramInput,
   PesertaProgram,
   PesertaSaya,
   Peringkat,
   Profil,
+  ProgresEdukasi,
   Program,
   ProgramInput,
   ProgramQuery,
   RekamMedis,
   RekamMedisQuery,
+  RingkasanProgresEdukasi,
   Rujukan,
   RujukanInput,
   RujukanQuery,
@@ -82,6 +88,53 @@ export const API_BASE_URL =
   "/api/v1";
 // Nama kunci untuk menyimpan token di browser
 const TOKEN_KEY = "sehatkita_token";
+const AUTH_CHANNEL = "sehatkita_auth";
+type AuthBroadcastMsg =
+  | { type: "LOGIN"; token: string; remember: boolean }
+  | { type: "SYNC_SESSION"; token: string; remember: boolean }
+  | { type: "LOGOUT" }
+  | { type: "REQUEST_SESSION" };
+
+let channelAuth: BroadcastChannel | null = null;
+function dapatChannelAuth(): BroadcastChannel | null {
+  if (typeof window === "undefined" || typeof BroadcastChannel === "undefined") return null;
+  if (!channelAuth) {
+    channelAuth = new BroadcastChannel(AUTH_CHANNEL);
+    channelAuth.onmessage = (ev: MessageEvent<AuthBroadcastMsg>) => {
+      const msg = ev.data;
+      if (!msg) return;
+      if (msg.type === "REQUEST_SESSION") {
+        const ada = localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
+        if (ada) {
+          channelAuth?.postMessage({
+            type: "SYNC_SESSION",
+            token: ada,
+            remember: Boolean(localStorage.getItem(TOKEN_KEY)),
+          } satisfies AuthBroadcastMsg);
+        }
+      } else if (msg.type === "LOGIN" || msg.type === "SYNC_SESSION") {
+        if (msg.remember) {
+          sessionStorage.removeItem(TOKEN_KEY);
+          localStorage.setItem(TOKEN_KEY, msg.token);
+        } else {
+          localStorage.removeItem(TOKEN_KEY);
+          sessionStorage.setItem(TOKEN_KEY, msg.token);
+        }
+      } else if (msg.type === "LOGOUT") {
+        localStorage.removeItem(TOKEN_KEY);
+        sessionStorage.removeItem(TOKEN_KEY);
+        sessionStorage.removeItem("sehatkita_user_snapshot");
+        localStorage.removeItem("sehatkita_user_snapshot");
+      }
+    };
+  }
+  return channelAuth;
+}
+
+if (typeof window !== "undefined") {
+  dapatChannelAuth();
+}
+
 /* ============================================================
  * Manajemen token (§18: kesepakatan simpan token)
  * ============================================================ */
@@ -89,7 +142,7 @@ export function getToken(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
 }
-export function setToken(token: string, remember = true): void {
+export function setToken(token: string, remember = true, broadcast = true): void {
   if (typeof window === "undefined") return;
   if (remember) {
     sessionStorage.removeItem(TOKEN_KEY);
@@ -98,12 +151,56 @@ export function setToken(token: string, remember = true): void {
     localStorage.removeItem(TOKEN_KEY);
     sessionStorage.setItem(TOKEN_KEY, token);
   }
+  if (broadcast) {
+    dapatChannelAuth()?.postMessage({ type: "LOGIN", token, remember } satisfies AuthBroadcastMsg);
+  }
 }
-export function clearToken(): void {
+export function clearToken(broadcast = true): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem("sehatkita_user_snapshot");
+  localStorage.removeItem("sehatkita_user_snapshot");
+  if (broadcast) {
+    dapatChannelAuth()?.postMessage({ type: "LOGOUT" } satisfies AuthBroadcastMsg);
+  }
+}
+
+/**
+ * Minta token sesi aktif dari tab lain yang sudah login (jika tab baru dibuka).
+ * Mengembalikan token jika tersedia atau null setelah timeout singkat.
+ */
+export function mintaSesiDariTabLain(timeoutMs = 180): Promise<string | null> {
+  const existing = getToken();
+  if (existing) return Promise.resolve(existing);
+  const ch = dapatChannelAuth();
+  if (!ch) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    let selesai = false;
+    const timer = window.setTimeout(() => {
+      if (selesai) return;
+      selesai = true;
+      ch.removeEventListener("message", onMsg);
+      resolve(getToken());
+    }, timeoutMs);
+
+    const onMsg = (ev: MessageEvent<AuthBroadcastMsg>) => {
+      const msg = ev.data;
+      if (msg && (msg.type === "SYNC_SESSION" || msg.type === "LOGIN") && msg.token) {
+        setToken(msg.token, msg.remember, false);
+        if (!selesai) {
+          selesai = true;
+          window.clearTimeout(timer);
+          ch.removeEventListener("message", onMsg);
+          resolve(msg.token);
+        }
+      }
+    };
+
+    ch.addEventListener("message", onMsg);
+    ch.postMessage({ type: "REQUEST_SESSION" } satisfies AuthBroadcastMsg);
+  });
 }
 /* ============================================================
  * Error khusus API
@@ -405,8 +502,10 @@ export const insight = {
  * ============================================================ */
 export const posbindu = {
   /** §10.1 GET /posbindu/sesi */
-  sesiList: (query?: { wilayah_id?: number; dari?: string; status?: string; search?: string }) =>
+  sesiList: (query?: { wilayah_id?: number; dari?: string; status?: string; search?: string; page?: number; per_page?: number }) =>
     request<SesiPosbindu[]>("/posbindu/sesi", { query }),
+  sesiListPaged: (query?: { wilayah_id?: number; dari?: string; status?: string; search?: string; page?: number; per_page?: number }) =>
+    requestPaged<SesiPosbindu>("/posbindu/sesi", { query }),
   /** §10.2 POST /posbindu/sesi */
   sesiBuat: (payload: SesiPosbinduInput) =>
     request<SesiPosbindu>("/posbindu/sesi", { method: "POST", body: payload }),
@@ -431,6 +530,8 @@ export const posbindu = {
   /** §10.6 GET /posbindu/kunjungan */
   kunjungan: (query?: KunjunganQuery) =>
     request<KunjunganPosbindu[]>("/posbindu/kunjungan", { query }),
+  kunjunganPaged: (query?: KunjunganQuery) =>
+    requestPaged<KunjunganPosbindu>("/posbindu/kunjungan", { query }),
 };
 /* ============================================================
  * §23 — Pencarian warga (petugas) — autocomplete nama / NIK
@@ -450,6 +551,7 @@ export const rujukan = {
   create: (payload: RujukanInput) => request<Rujukan>("/rujukan", { method: "POST", body: payload }),
   /** §11.2 GET */
   list: (query?: RujukanQuery) => request<Rujukan[]>("/rujukan", { query }),
+  listPaged: (query?: RujukanQuery) => requestPaged<Rujukan>("/rujukan", { query }),
   /** §11.3 PATCH status */
   updateStatus: (id: number, payload: { status: string; catatan?: string }) =>
     request<Rujukan>(`/rujukan/${id}/status`, { method: "PATCH", body: payload }),
@@ -478,6 +580,7 @@ export const telegram = {
 export const program = {
   /** §12.1 GET */
   list: (query?: ProgramQuery) => request<Program[]>("/program", { query }),
+  listPaged: (query?: ProgramQuery) => requestPaged<Program>("/program", { query }),
   /** Detail satu program/tantangan */
   detail: (id: number) => request<Program>(`/program/${id}`),
   /** §12.2 POST (admin_kelurahan / super_admin) */
@@ -502,11 +605,75 @@ export const program = {
       index !== undefined ? `/program/${id}/bukti?index=${index}` : `/program/${id}/bukti`,
       { method: "DELETE" },
     ),
+  /** §12.7c PATCH progres mandiri tantangan */
+  perbaruiProgres: (id: number, payload: { progres_persen: number; catatan_progres?: string }) =>
+    request<PesertaSaya>(`/program/${id}/progres`, { method: "PATCH", body: payload }),
   /** §12.6 GET daftar peserta  */
   peserta: (id: number) =>
     request<PesertaProgram[]>(`/program/${id}/peserta`),
   /** §12.5 GET /peringkat — peringkat EXP satu kelurahan */
   peringkat: (query?: { wilayah_id?: number }) => request<Peringkat>("/peringkat", { query }),
+};
+
+export const achievementApi = {
+  /** §12.8b GET /achievement — katalog lencana keaktifan bersimbol */
+  list: () => request<AchievementResponse>("/achievement"),
+};
+
+/** §12.9 — Modul Edukasi Terpisah & Progres Pribadi */
+export const edukasiApi = {
+  listPaged: async (query?: {
+    kategori?: string;
+    status_baca?: string;
+    search?: string;
+    wilayah_id?: number;
+    page?: number;
+    per_page?: number;
+  }): Promise<{
+    data: EdukasiItem[];
+    meta: PaginationMeta | null;
+    ringkasan_progres: RingkasanProgresEdukasi | null;
+  }> => {
+    const headers: Record<string, string> = { Accept: "application/json" };
+    const token = getToken();
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const response = await kirim(buildUrl("/edukasi", query), { method: "GET", headers });
+    const json = (await response.json()) as {
+      data?: EdukasiItem[];
+      meta?: PaginationMeta;
+      ringkasan_progres?: RingkasanProgresEdukasi | null;
+      message?: string;
+      errors?: Record<string, string[]>;
+    };
+    if (response.ok) {
+      return {
+        data: json.data ?? [],
+        meta: json.meta ?? null,
+        ringkasan_progres: json.ringkasan_progres ?? null,
+      };
+    }
+    if (response.status === 401) {
+      tangani401();
+    }
+    throw new ApiError(json.message ?? "Terjadi kesalahan", response.status, json.errors);
+  },
+  detail: (id: number) => request<EdukasiItem>(`/edukasi/${id}`),
+  buat: (payload: EdukasiInput) =>
+    request<EdukasiItem>("/edukasi", { method: "POST", body: payload }),
+  ubah: (id: number, payload: Partial<EdukasiInput>) =>
+    request<EdukasiItem>(`/edukasi/${id}`, { method: "PUT", body: payload }),
+  hapus: (id: number) => request<null>(`/edukasi/${id}`, { method: "DELETE" }),
+  simpanProgres: (
+    id: number,
+    payload: { progres_persen?: number; sudah_dibaca?: boolean; catatan_pribadi?: string | null },
+  ) =>
+    request<
+      ProgresEdukasi & {
+        edukasi_id: number;
+        badge_baru?: string[];
+        ringkasan_progres?: RingkasanProgresEdukasi;
+      }
+    >(`/edukasi/${id}/progres`, { method: "PATCH", body: payload }),
 };
 
 /** Ambil media terautentikasi (mis. foto dokumentasi tantangan) sebagai object URL. */
@@ -529,8 +696,10 @@ export async function fetchMediaBlobUrl(pathOrUrl: string): Promise<string> {
  * ============================================================ */
 /** §13.4 — CRUD target kesehatan dinamis /target-kesehatan */
 export const targetKesehatan = {
-  list: (query?: { tercapai?: boolean }) =>
+  list: (query?: { tercapai?: boolean; page?: number; per_page?: number }) =>
     request<TargetKesehatan[]>("/target-kesehatan", { query }),
+  listPaged: (query?: { tercapai?: boolean; page?: number; per_page?: number }) =>
+    requestPaged<TargetKesehatan>("/target-kesehatan", { query }),
   buat: (payload: TargetKesehatanInput) =>
     request<TargetKesehatan>("/target-kesehatan", { method: "POST", body: payload }),
   ubah: (id: number, payload: Partial<TargetKesehatanInput>) =>
@@ -640,8 +809,10 @@ export const admin = {
 
 /** §A3 — Pengaduan warga */
 export const pengaduanApi = {
-  list: (query?: { status?: string; kategori?: string; search?: string }) =>
+  list: (query?: { status?: string; kategori?: string; search?: string; page?: number; per_page?: number }) =>
     request<Pengaduan[]>("/pengaduan", { query }),
+  listPaged: (query?: { status?: string; kategori?: string; search?: string; page?: number; per_page?: number }) =>
+    requestPaged<Pengaduan>("/pengaduan", { query }),
   detail: (id: number) => request<Pengaduan>(`/pengaduan/${id}`),
   buat: (payload: PengaduanInput) =>
     request<Pengaduan>("/pengaduan", { method: "POST", body: payload }),

@@ -4,25 +4,35 @@ namespace App\Http\Controllers;
 
 use App\Models\Wilayah;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
 
-// Menampilkan daftar dan rincian kelurahan serta kecamatan.
+// Menampilkan daftar dan rincian kelurahan serta kecamatan dengan dukungan cache Redis.
 class WilayahController extends Controller
 {
     public function index(Request $request)
     {
+        $adaCari = trim((string) ($request->query('search') ?? $request->query('q') ?? '')) !== '';
+        $tipe = (string) $request->query('tipe', '');
+        $parentId = (string) $request->query('parent_id', '');
 
-        $query = Wilayah::orderByRaw('parent_id IS NULL DESC')
-            ->orderBy('nama');
+        if (! $adaCari) {
+            $cacheKey = 'wilayah:list:'.md5("{$tipe}|{$parentId}");
+            $data = Cache::remember($cacheKey, now()->addHour(), function () use ($tipe, $parentId) {
+                return $this->queryDasar($tipe, $parentId)
+                    ->get(['id', 'nama', 'tipe', 'kode', 'parent_id'])
+                    ->values()
+                    ->all();
+            });
 
-        if ($request->filled('tipe')) {
-            $query->where('tipe', $request->tipe);
+            return response()->json([
+                'success' => true,
+                'message' => 'OK',
+                'data' => $data,
+            ]);
         }
 
-        if ($request->filled('parent_id')) {
-            $query->where('parent_id', $request->parent_id);
-        }
-
+        $query = $this->queryDasar($tipe, $parentId);
         $this->saringCari($query, ['nama', 'kode'], $request);
 
         return response()->json([
@@ -30,6 +40,21 @@ class WilayahController extends Controller
             'message' => 'OK',
             'data' => $query->get(['id', 'nama', 'tipe', 'kode', 'parent_id']),
         ]);
+    }
+
+    private function queryDasar(string $tipe, string $parentId)
+    {
+        $query = Wilayah::orderByRaw('parent_id IS NULL DESC')->orderBy('nama');
+
+        if ($tipe !== '') {
+            $query->where('tipe', $tipe);
+        }
+
+        if ($parentId !== '') {
+            $query->where('parent_id', $parentId);
+        }
+
+        return $query;
     }
 
     public function show(Request $request, $id)

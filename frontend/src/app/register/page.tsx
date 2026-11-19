@@ -8,7 +8,7 @@ import { BrandLockup } from "@/components/ui/BrandLogo";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import AuthAside from "@/components/auth/AuthAside";
 import LegalInfoModal, { type LegalTopic } from "@/components/landing/LegalInfoModal";
-import { auth, setToken, wilayah as wilayahApi, ApiError } from "@/lib/api";
+import { auth, clearToken, getToken, mintaSesiDariTabLain, setToken, wilayah as wilayahApi, ApiError } from "@/lib/api";
 import { clearUserCache } from "@/hooks/useUser";
 import type { Wilayah } from "@/types";
 
@@ -17,6 +17,10 @@ type WilayahItem = Wilayah & { parent_nama?: string };
 
 export default function RegisterPage() {
   const router = useRouter();
+  const [cekSesi, setCekSesi] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    return Boolean(getToken()) || typeof BroadcastChannel !== "undefined";
+  });
   const [nama, setNama] = useState("");
   const [nik, setNik] = useState("");
   const [email, setEmail] = useState("");
@@ -39,6 +43,47 @@ export default function RegisterPage() {
   const [kelOpen, setKelOpen] = useState(false);
   const [kelHighlight, setKelHighlight] = useState(0);
   const regionRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    let aktif = true;
+    (async () => {
+      let token = getToken();
+      if (!token) {
+        token = await mintaSesiDariTabLain();
+      }
+      if (!aktif) return;
+      if (!token) {
+        setCekSesi(false);
+        return;
+      }
+      try {
+        await auth.me();
+        if (!aktif) return;
+        router.replace("/dashboard");
+      } catch {
+        clearToken(false);
+        clearUserCache();
+        if (aktif) setCekSesi(false);
+      }
+    })();
+
+    let ch: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== "undefined") {
+      ch = new BroadcastChannel("sehatkita_auth");
+      ch.onmessage = (ev: MessageEvent<{ type?: string; token?: string; remember?: boolean }>) => {
+        if (ev.data?.type === "LOGIN" && ev.data.token) {
+          setToken(ev.data.token, Boolean(ev.data.remember), false);
+          clearUserCache();
+          router.replace("/dashboard");
+        }
+      };
+    }
+
+    return () => {
+      aktif = false;
+      ch?.close();
+    };
+  }, [router]);
 
   useEffect(() => {
     (async () => {
@@ -195,6 +240,17 @@ export default function RegisterPage() {
         setAlert(apiErr.message || "Registrasi gagal. Coba lagi.");
       }
     }
+  }
+
+  if (cekSesi) {
+    return (
+      <div className="auth-wrap" style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
+        <div className="row" style={{ gap: 10, color: "var(--ink-2)" }}>
+          <Icon name="activity" size={20} />
+          <span className="text-sm fw-600">Memeriksa sesi masuk…</span>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -31,7 +31,9 @@ const LABEL_KATEGORI: Record<string, string> = {
 
 const LABEL_GULA: Record<string, string> = {
   puasa: "Gula darah puasa",
+  sewaktu: "Gula darah sewaktu",
   "2jam_pp": "Gula darah 2 jam setelah makan",
+  hba1c: "Gula darah HbA1c",
 };
 
 function rentang(b: AmbangBaris) {
@@ -58,7 +60,7 @@ export default function PanelAmbang({ data }: { data: AmbangBaris[] }) {
       g = {
         kode: kunci,
         nama: b.jenis_gula_darah ? LABEL_GULA[b.jenis_gula_darah] ?? b.nama : b.nama,
-        satuan: b.satuan,
+        satuan: b.jenis_gula_darah === "hba1c" ? "%" : b.satuan,
         baris: [],
       };
       grup.push(g);

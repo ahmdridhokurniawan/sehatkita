@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
-import { auth, getToken } from "@/lib/api";
+import { auth, clearToken, getToken, setToken } from "@/lib/api";
 import type { User } from "@/types";
 
 export interface UseUserResult {
@@ -34,10 +34,14 @@ function simpanSnapshotSesi(u: User | null): string | null {
   try {
     if (!u || !getToken()) {
       sessionStorage.removeItem(USER_SNAPSHOT_KEY);
+      localStorage.removeItem(USER_SNAPSHOT_KEY);
       return null;
     }
     const serialized = JSON.stringify(u);
     sessionStorage.setItem(USER_SNAPSHOT_KEY, serialized);
+    if (localStorage.getItem("sehatkita_token")) {
+      localStorage.setItem(USER_SNAPSHOT_KEY, serialized);
+    }
     return serialized;
   } catch {
     return null;
@@ -52,7 +56,9 @@ function bacaSnapshotSesi(): void {
     return;
   }
   try {
-    const raw = sessionStorage.getItem(USER_SNAPSHOT_KEY);
+    const raw =
+      sessionStorage.getItem(USER_SNAPSHOT_KEY) ??
+      localStorage.getItem(USER_SNAPSHOT_KEY);
     if (!raw) return;
     const parsed = JSON.parse(raw) as User | null;
     if (parsed && typeof parsed === "object" && typeof parsed.role === "string") {
@@ -184,6 +190,41 @@ export function useUser(): UseUserResult {
       void muatUser();
     }
   }, [snapshot.loading, snapshot.user]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "sehatkita_token") {
+        if (!e.newValue) {
+          clearUserCache();
+        } else {
+          void refreshUser();
+        }
+      }
+    };
+    window.addEventListener("storage", onStorage);
+
+    let ch: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== "undefined") {
+      ch = new BroadcastChannel("sehatkita_auth");
+      ch.onmessage = (ev: MessageEvent<{ type?: string; token?: string; remember?: boolean }>) => {
+        const msg = ev.data;
+        if (!msg) return;
+        if (msg.type === "LOGOUT") {
+          clearToken(false);
+          clearUserCache();
+        } else if ((msg.type === "LOGIN" || msg.type === "SYNC_SESSION") && msg.token) {
+          setToken(msg.token, Boolean(msg.remember), false);
+          void refreshUser();
+        }
+      };
+    }
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      ch?.close();
+    };
+  }, []);
 
   return snapshot;
 }

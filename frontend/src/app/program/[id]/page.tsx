@@ -163,6 +163,11 @@ export default function ProgramDetailPage() {
   const [tolakTarget, setTolakTarget] = useState<PesertaProgram | null>(null);
   const [alasanTolak, setAlasanTolak] = useState("");
 
+  // State progres mandiri warga
+  const [progPersen, setProgPersen] = useState<number>(0);
+  const [progCatatan, setProgCatatan] = useState<string>("");
+  const [progSaving, setProgSaving] = useState<boolean>(false);
+
   // Animasi kembang api saat misi diselesaikan
   const [celebrate, setCelebrate] = useState(false);
   const prevStatusRef = useRef<StatusPeserta | undefined>(undefined);
@@ -183,6 +188,10 @@ export default function ProgramDetailPage() {
     try {
       const detail = await programApi.detail(id);
       setProgram(detail);
+      if (detail.peserta_saya) {
+        setProgPersen(detail.peserta_saya.progres_persen ?? 0);
+        setProgCatatan(detail.peserta_saya.catatan_progres ?? "");
+      }
       if (detail.peserta) {
         setPeserta(detail.peserta);
       }
@@ -217,6 +226,10 @@ export default function ProgramDetailPage() {
       .then((detail) => {
         if (!aktif) return;
         setProgram(detail);
+        if (detail.peserta_saya) {
+          setProgPersen(detail.peserta_saya.progres_persen ?? 0);
+          setProgCatatan(detail.peserta_saya.catatan_progres ?? "");
+        }
         if (detail.peserta) {
           setPeserta(detail.peserta);
         }
@@ -262,6 +275,23 @@ export default function ProgramDetailPage() {
       setAksiErr(err instanceof ApiError ? err.message : "Gagal mengubah keikutsertaan");
     } finally {
       setProses(false);
+    }
+  }
+
+  async function simpanProgresMandiri() {
+    if (!program) return;
+    setProgSaving(true);
+    try {
+      const updated = await programApi.perbaruiProgres(program.id, {
+        progres_persen: progPersen,
+        catatan_progres: progCatatan.trim() || undefined,
+      });
+      setProgram((prev) => (prev ? { ...prev, peserta_saya: updated } : prev));
+      toast.success("Progres pribadi tantangan disimpan.");
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Gagal menyimpan progres mandiri");
+    } finally {
+      setProgSaving(false);
     }
   }
 
@@ -562,6 +592,73 @@ export default function ProgramDetailPage() {
               </div>
             ) : null}
           </div>
+
+          {/* KARTU PROGRES MANDIRI WARGA */}
+          {bolehIkut && program.diikuti ? (
+            <div className="card mt-12">
+              <div className="row-between wrap gap-8 mb-8">
+                <div>
+                  <h2 className="h4">Progres Pribadi Saya</h2>
+                  <p className="tiny mt-2">
+                    Catat perkembangan mandiri Anda selama menjalankan tantangan (tidak menggantikan verifikasi petugas).
+                  </p>
+                </div>
+                <Badge tone={statusSaya === "selesai" ? "safe" : "primary"}>
+                  {statusSaya === "selesai" ? "100% Terverifikasi" : `${progPersen}%`}
+                </Badge>
+              </div>
+              <div className="progress mb-10" style={{ height: 8 }}>
+                <i
+                  style={{
+                    width: `${statusSaya === "selesai" ? 100 : progPersen}%`,
+                    background: statusSaya === "selesai" ? "var(--safe)" : "var(--primary)",
+                  }}
+                />
+              </div>
+              {statusSaya !== "selesai" ? (
+                <div style={{ display: "grid", gap: 10 }}>
+                  <div>
+                    <label className="label" htmlFor="prog-tantangan-range">
+                      Capaian Progres ({progPersen}%)
+                    </label>
+                    <input
+                      id="prog-tantangan-range"
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={5}
+                      value={progPersen}
+                      onChange={(e) => setProgPersen(Number(e.target.value))}
+                      style={{ width: "100%" }}
+                    />
+                  </div>
+                  <div className="field">
+                    <label className="label" htmlFor="prog-tantangan-catatan">
+                      Catatan Progres <span className="opt">(opsional)</span>
+                    </label>
+                    <input
+                      id="prog-tantangan-catatan"
+                      type="text"
+                      className="input"
+                      maxLength={500}
+                      placeholder="Contoh: Hari ke-4 berjalan lancar, target 20 kali tercapai"
+                      value={progCatatan}
+                      onChange={(e) => setProgCatatan(e.target.value)}
+                    />
+                  </div>
+                  <div className="row" style={{ justifyContent: "flex-end" }}>
+                    <Button variant="outline" size="sm" onClick={simpanProgresMandiri} loading={progSaving}>
+                      Simpan Progres Pribadi
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                pSaya?.catatan_progres ? (
+                  <p className="tiny">Catatan Anda: {pSaya.catatan_progres}</p>
+                ) : null
+              )}
+            </div>
+          ) : null}
 
           {/* KARTU VALIDASI & UNGGAH DOKUMENTASI FOTO (WARGA) */}
           {bolehIkut && program.diikuti ? (

@@ -55,6 +55,7 @@ const APP_ROUTE_PREFIXES = [
   "/rekam-medis",
   "/target-kesehatan",
   "/program",
+  "/edukasi",
   "/peringkat",
   "/insight",
   "/pengaduan",
@@ -190,7 +191,8 @@ const NAV_UTAMA: NavItem[] = [
   { href: "/target-kesehatan", icon: "target", label: "Target Kesehatan", short: "Target", desc: "Atur target kesehatan harian & pantau capaian Anda" },
   { href: "/kalkulator?app=1", icon: "calculator", label: "Kalkulator", desc: "Hitung IMT, estimasi risiko PTM & cek status instan" },
   { href: "/program", icon: "award", label: "Tantangan", desc: "Program tantangan hidup sehat untuk mengumpulkan poin" },
-  { href: "/peringkat", icon: "trophy", label: "Peringkat", desc: "Papan peringkat warga aktif & capaian poin kesehatan" },
+  { href: "/edukasi", icon: "book-open", label: "Edukasi", desc: "Materi edukasi PTM terpisah dengan progres belajar pribadi" },
+  { href: "/peringkat", icon: "trophy", label: "Peringkat", desc: "Papan peringkat kuartalan & simbol achievement keaktifan" },
   { href: "/insight", icon: "zap", label: "Peringatan Dini", short: "Peringatan", desc: "Peringatan dini kondisi risiko & saran tindak lanjut personal" },
   { href: "/insight/panduan", icon: "file-text", label: "Panduan", desc: "Panduan ambang batas indikator PTM & edukasi kesehatan" },
   { href: "/pengaduan", icon: "alert-circle", label: "Pengaduan", desc: "Kirim laporan kendala, saran atau pengaduan layanan" },
@@ -345,7 +347,7 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
     });
     grup.push({
       judul: "Program & Edukasi",
-      items: [NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[7]],
+      items: [NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[6], NAV_UTAMA[8]],
     });
     grup.push({ judul: "Data & Laporan", items: [NAV_DATA[0], NAV_DATA[1], NAV_DATA[2]] });
     grup.push({
@@ -368,7 +370,7 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
     });
     grup.push({
       judul: "Program & Edukasi",
-      items: [NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[7]],
+      items: [NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[6], NAV_UTAMA[8]],
     });
     grup.push({
       judul: "Data & Laporan",
@@ -409,7 +411,7 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
     });
     grup.push({
       judul: "Program & Edukasi",
-      items: [NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[7]],
+      items: [NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[6], NAV_UTAMA[8]],
     });
     grup.push({ judul: "Data & Laporan", items: [NAV_DATA[1], NAV_DATA[2]] });
     grup.push({ judul: "Akun", items: NAV_AKUN });
@@ -420,11 +422,11 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
     });
     grup.push({
       judul: "Program & Edukasi",
-      items: [NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[6], NAV_UTAMA[7]],
+      items: [NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[6], NAV_UTAMA[8]],
     });
     grup.push({
       judul: "Layanan",
-      items: [NAV_UTAMA[8], NAV_DATA[2]],
+      items: [NAV_UTAMA[7], NAV_UTAMA[9], NAV_DATA[2]],
     });
     grup.push({ judul: "Akun", items: NAV_AKUN });
   }

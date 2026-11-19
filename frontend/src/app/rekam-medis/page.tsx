@@ -17,7 +17,13 @@ import { useUser } from "@/hooks/useUser";
 import { useMinLoading } from "@/hooks/useMinLoading";
 import { admin as adminApi, catatanKesehatan, rekamMedis, ApiError } from "@/lib/api";
 import { tanggal } from "@/lib/format";
-import { LABEL_JENIS_GULA_DARAH, LABEL_STATUS_KESEHATAN, LABEL_SUMBER, labelKategoriIndikator } from "@/lib/labels";
+import {
+  LABEL_JENIS_GULA_DARAH,
+  LABEL_STATUS_KESEHATAN,
+  LABEL_SUMBER,
+  labelKategoriIndikator,
+  satuanGulaDarah,
+} from "@/lib/labels";
 import type { StatusKesehatan } from "@/lib/enums";
 import type { CatatanKesehatan, RekamMedis as RekamMedisType, WargaCari } from "@/types";
 
@@ -56,7 +62,7 @@ function isoTanggalLokal(s?: string | null): string {
   return formatIsoTanggal(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-const PER_HALAMAN = 5;
+const PER_HALAMAN = 10;
 
 function toneKategori(k = ""): "safe" | "warning" | "danger" {
   if (/derajat 2|obesitas|tinggi|berisiko/i.test(k)) return "danger";
@@ -77,7 +83,9 @@ function ringkasAlasanRujukan(c: CatatanKesehatan): string {
     bagian.push(`Tensi ${c.sistol}/${c.diastol} mmHg (${LABEL_STATUS_KESEHATAN[c.kategori_tensi]})`);
   }
   if (c.gula_darah !== null && c.kategori_gula_darah && c.kategori_gula_darah !== "normal") {
-    bagian.push(`Gula darah ${c.gula_darah} mg/dL (${LABEL_STATUS_KESEHATAN[c.kategori_gula_darah]})`);
+    bagian.push(
+      `Gula darah ${c.gula_darah} ${satuanGulaDarah(c.jenis_gula_darah)} (${LABEL_STATUS_KESEHATAN[c.kategori_gula_darah]})`,
+    );
   }
   if (c.kolesterol !== null && c.kategori_kolesterol && c.kategori_kolesterol !== "normal") {
     bagian.push(`Kolesterol ${c.kolesterol} mg/dL (${LABEL_STATUS_KESEHATAN[c.kategori_kolesterol]})`);
@@ -936,135 +944,166 @@ export default function RekamMedisPage() {
             }
           />
         ) : (
-          <div className="card card-list mb-12">
-            {baris.map((c) => {
-              const metrik: { nama: string; nilai: string; tone: "default" | "warning" | "danger" }[] = [];
-              if (c.bb_kg !== null) {
-                metrik.push({ nama: "Berat Badan", nilai: `${c.bb_kg} kg`, tone: "default" });
-              }
-              if (c.sistol !== null && c.diastol !== null) {
-                metrik.push({
-                  nama: "Tekanan Darah",
-                  nilai: `${c.sistol}/${c.diastol} mmHg`,
-                  tone: c.kategori_tensi === "berisiko" ? "danger" : c.kategori_tensi === "perlu_perhatian" ? "warning" : "default",
-                });
-              }
-              if (c.gula_darah !== null) {
-                metrik.push({
-                  nama: "Gula Darah",
-                  nilai: `${c.gula_darah} mg/dL`,
-                  tone: c.kategori_gula_darah === "berisiko" ? "danger" : c.kategori_gula_darah === "perlu_perhatian" ? "warning" : "default",
-                });
-              }
-              if (c.kolesterol !== null) {
-                metrik.push({
-                  nama: "Kolesterol",
-                  nilai: `${c.kolesterol} mg/dL`,
-                  tone: c.kategori_kolesterol === "berisiko" ? "danger" : c.kategori_kolesterol === "perlu_perhatian" ? "warning" : "default",
-                });
-              }
-              if (c.asam_urat !== null) {
-                metrik.push({
-                  nama: "Asam Urat",
-                  nilai: `${c.asam_urat} mg/dL`,
-                  tone: c.kategori_asam_urat === "berisiko" ? "danger" : c.kategori_asam_urat === "perlu_perhatian" ? "warning" : "default",
-                });
-              }
-              const layakRujuk =
-                bisaPilihWarga &&
-                Boolean(c.pengguna) &&
-                (c.status_kesehatan === "berisiko" || c.status_kesehatan === "perlu_perhatian");
-
-              return (
-                <div className="li" key={c.id} style={{ display: "block", padding: "16px 18px" }}>
-                  <div className="row-between wrap gap-8">
-                    <div className="row gap-10">
-                      <span className="li-ico">
-                        <Icon name={c.sumber === "puskesmas" ? "users" : "pencil"} size={18} />
-                      </span>
-                      <div>
-                        <strong className="text-sm">{tanggal(c.dicatat_pada, "day")}</strong>
-                        <div className="tiny">{LABEL_SUMBER[c.sumber] || c.sumber}</div>
-                        {petugas && c.pengguna ? (
-                          <div className="tiny" style={{ marginTop: 2 }}>
-                            <Icon name="user" size={12} /> {c.pengguna.name}
-                            {bisaPilihWarga && c.pengguna.nik ? ` · NIK ${c.pengguna.nik}` : ""}
-                            {c.pengguna.wilayah?.nama ? ` · ${c.pengguna.wilayah.nama}` : ""}
-                          </div>
+          <div className="card mb-12" style={{ padding: 0, overflow: "hidden" }}>
+            <div className="tbl-wrap">
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>Tanggal &amp; Sumber</th>
+                    {petugas ? <th>Warga</th> : null}
+                    <th>BB / IMT</th>
+                    <th>Tekanan Darah</th>
+                    <th>Gula Darah</th>
+                    <th>Kol. / Asam Urat</th>
+                    <th>Status</th>
+                    <th className="num">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {baris.map((c) => {
+                    const layakRujuk =
+                      bisaPilihWarga &&
+                      Boolean(c.pengguna) &&
+                      (c.status_kesehatan === "berisiko" || c.status_kesehatan === "perlu_perhatian");
+                    return (
+                      <tr key={c.id}>
+                        <td>
+                          <strong>{tanggal(c.dicatat_pada, "short")}</strong>
+                          <div className="tiny">{LABEL_SUMBER[c.sumber] || c.sumber}</div>
+                        </td>
+                        {petugas ? (
+                          <td>
+                            {c.pengguna ? (
+                              <>
+                                <strong className="text-sm">{c.pengguna.name}</strong>
+                                <div className="tiny">
+                                  {bisaPilihWarga && c.pengguna.nik ? `NIK ${c.pengguna.nik}` : ""}
+                                  {c.pengguna.wilayah?.nama ? ` · ${c.pengguna.wilayah.nama}` : ""}
+                                </div>
+                              </>
+                            ) : (
+                              <span className="tiny">—</span>
+                            )}
+                          </td>
                         ) : null}
-                      </div>
-                    </div>
-                    <div className="row gap-6" style={{ flexWrap: "wrap" }}>
-                      {c.perlu_verifikasi && <Badge tone="warning">Menunggu verifikasi</Badge>}
-                      {c.status_kesehatan && (
-                        <Badge tone={toneStatusKesehatan(c.status_kesehatan)}>
-                          {LABEL_STATUS_KESEHATAN[c.status_kesehatan]}
-                        </Badge>
-                      )}
-                      {c.kategori_imt && (
-                        <Badge tone={toneKategori(c.kategori_imt)}>
-                          IMT {labelKategoriIndikator(c.kategori_imt)}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  {metrik.length > 0 && (
-                    <div className="riwayat-metric-grid">
-                      {metrik.map((m, idx) => (
-                        <div key={idx} className={`riwayat-metric-item tone-${m.tone}`}>
-                          <span className="riwayat-metric-lbl">{m.nama}</span>
-                          <strong className="riwayat-metric-val">{m.nilai}</strong>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <div className="riwayat-foot">
-                    <p className="tiny" style={{ margin: 0, flex: "1 1 220px" }}>
-                      {c.catatan ? c.catatan : "Tidak ada catatan tambahan."}
-                    </p>
-                    <div className="row gap-8" style={{ flexWrap: "wrap" }}>
-                      {bisaVerifikasi && c.perlu_verifikasi ? (
-                        <>
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-primary"
-                            disabled={verifikasiId === c.id}
-                            onClick={() => putuskanVerifikasi(c, true)}
-                          >
-                            <Icon name="check" size={15} /> Setujui
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-danger"
-                            disabled={verifikasiId === c.id}
-                            onClick={() => putuskanVerifikasi(c, false)}
-                          >
-                            <Icon name="x" size={15} /> Tolak
-                          </button>
-                        </>
-                      ) : null}
-                      <button type="button" className="btn btn-sm btn-outline" onClick={() => setDetail(c)}>
-                        <Icon name="eye" size={15} /> Detail
-                      </button>
-                      {layakRujuk ? (
-                        <Link href={urlRujukDariCatatan(c)} className="btn btn-sm btn-primary">
-                          <Icon name="send" size={15} /> Rujuk ke Faskes
-                        </Link>
-                      ) : null}
-                      {bisaHapus ? (
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-danger"
-                          onClick={() => setHapusItem(c)}
-                        >
-                          <Icon name="trash" size={15} /> Hapus
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                        <td>
+                          <div>{c.bb_kg !== null ? `${c.bb_kg} kg` : "—"}</div>
+                          {c.imt !== null ? (
+                            <div className="tiny">
+                              IMT {c.imt}
+                              {c.kategori_imt ? (
+                                <>
+                                  {" "}
+                                  <Badge tone={toneKategori(c.kategori_imt)}>
+                                    {labelKategoriIndikator(c.kategori_imt)}
+                                  </Badge>
+                                </>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </td>
+                        <td>
+                          {c.sistol !== null && c.diastol !== null ? (
+                            <>
+                              <strong>
+                                {c.sistol}/{c.diastol} mmHg
+                              </strong>
+                              {c.kategori_tensi ? (
+                                <div className="tiny">{labelKategoriIndikator(c.kategori_tensi)}</div>
+                              ) : null}
+                            </>
+                          ) : (
+                            <span className="tiny">—</span>
+                          )}
+                        </td>
+                        <td>
+                          {c.gula_darah !== null ? (
+                            <>
+                              <strong>
+                                {c.gula_darah} {satuanGulaDarah(c.jenis_gula_darah)}
+                              </strong>
+                              <div className="tiny">
+                                {c.jenis_gula_darah
+                                  ? LABEL_JENIS_GULA_DARAH[c.jenis_gula_darah] ?? c.jenis_gula_darah
+                                  : "Gula darah"}
+                              </div>
+                            </>
+                          ) : (
+                            <span className="tiny">—</span>
+                          )}
+                        </td>
+                        <td>
+                          {c.kolesterol !== null || c.asam_urat !== null ? (
+                            <div className="tiny" style={{ color: "var(--text)" }}>
+                              {c.kolesterol !== null ? <div>Kol: {c.kolesterol} mg/dL</div> : null}
+                              {c.asam_urat !== null ? <div>AU: {c.asam_urat} mg/dL</div> : null}
+                            </div>
+                          ) : (
+                            <span className="tiny">—</span>
+                          )}
+                        </td>
+                        <td>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                            {c.perlu_verifikasi ? <Badge tone="warning">Verifikasi</Badge> : null}
+                            {c.status_kesehatan ? (
+                              <Badge tone={toneStatusKesehatan(c.status_kesehatan)}>
+                                {LABEL_STATUS_KESEHATAN[c.status_kesehatan]}
+                              </Badge>
+                            ) : (
+                              <span className="tiny">—</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="num">
+                          <div className="row gap-6" style={{ justifyContent: "flex-end", flexWrap: "wrap" }}>
+                            {bisaVerifikasi && c.perlu_verifikasi ? (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-primary"
+                                  disabled={verifikasiId === c.id}
+                                  onClick={() => putuskanVerifikasi(c, true)}
+                                  title="Setujui catatan"
+                                >
+                                  <Icon name="check" size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-danger"
+                                  disabled={verifikasiId === c.id}
+                                  onClick={() => putuskanVerifikasi(c, false)}
+                                  title="Tolak catatan"
+                                >
+                                  <Icon name="x" size={14} />
+                                </button>
+                              </>
+                            ) : null}
+                            <button type="button" className="btn btn-sm btn-outline" onClick={() => setDetail(c)}>
+                              <Icon name="eye" size={14} /> Detail
+                            </button>
+                            {layakRujuk ? (
+                              <Link href={urlRujukDariCatatan(c)} className="btn btn-sm btn-primary">
+                                <Icon name="send" size={14} /> Rujuk
+                              </Link>
+                            ) : null}
+                            {bisaHapus ? (
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-danger"
+                                onClick={() => setHapusItem(c)}
+                                title="Hapus catatan"
+                              >
+                                <Icon name="trash" size={14} />
+                              </button>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
         <Pagination meta={meta} onPage={setHalaman} />
@@ -1119,7 +1158,7 @@ export default function RekamMedisPage() {
               {detail.gula_darah !== null && (
                 <Baris
                   label="Gula darah"
-                  nilai={`${detail.gula_darah} mg/dL${
+                  nilai={`${detail.gula_darah} ${satuanGulaDarah(detail.jenis_gula_darah)}${
                     detail.jenis_gula_darah
                       ? ` (${LABEL_JENIS_GULA_DARAH[detail.jenis_gula_darah] ?? detail.jenis_gula_darah})`
                       : ""

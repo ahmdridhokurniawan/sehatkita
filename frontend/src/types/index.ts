@@ -18,6 +18,7 @@ import type {
   StatusPeserta,
   LevelInsight,
 } from "@/lib/enums";
+export type { JenisGulaDarah };
 /* ============================================================
  * §1.2 / §1.3 / §1.4 — Envelope response dari backend
  * ============================================================ */
@@ -118,6 +119,8 @@ export interface User {
 export interface AuthData {
   user: User;
   token: string;
+  token_expires_at?: string | null;
+  token_ttl_menit?: number;
 }
 /* ============================================================
  * §5 — Profil & Persetujuan
@@ -237,12 +240,35 @@ export interface JadwalSkrining {
   jatuh_tempo: string;
   status: string;
 }
+/** Katalog simbol lencana keaktifan (achievement) */
+export interface AchievementItem {
+  kode: string;
+  nama: string;
+  deskripsi: string;
+  ikon: string;
+  tier: "perunggu" | "perak" | "emas";
+  kategori: string;
+  syarat: string;
+  diraih: boolean;
+  diraih_pada: string | null;
+  sumber: "keaktifan" | "program";
+}
+export interface AchievementRingkasan {
+  total: number;
+  diraih: number;
+  persen: number;
+}
+export interface AchievementResponse {
+  ringkasan: AchievementRingkasan;
+  daftar: AchievementItem[];
+}
 /** §8.1 — blok gamifikasi di dashboard pribadi */
 export interface GamifikasiRingkas {
   exp_total: number;
   level_gamifikasi: number;
   badge: string[];
   rank_kelurahan: number | null;
+  achievement?: AchievementResponse;
 }
 export interface DashboardPribadi {
   status_kesehatan: StatusKesehatan;
@@ -447,6 +473,9 @@ export interface SuratRujukan {
 export interface PesertaSaya {
   id: number;
   status: StatusPeserta;
+  progres_persen?: number;
+  catatan_progres?: string | null;
+  progres_diperbarui_pada?: string | null;
   bukti_foto_url?: string | null;
   bukti_foto_urls?: string[];
   catatan_bukti?: string | null;
@@ -482,6 +511,7 @@ export interface Program {
 export interface ProgramQuery extends ListQuery {
   status?: StatusProgram;
   jenis?: JenisProgram;
+  exclude_jenis?: string;
   wilayah_id?: number;
 }
 export interface ProgramInput {
@@ -511,6 +541,9 @@ export interface PesertaProgram {
   name: string;
   email?: string;
   status: StatusPeserta;
+  progres_persen?: number;
+  catatan_progres?: string | null;
+  progres_diperbarui_pada?: string | null;
   bukti_foto_url?: string | null;
   bukti_foto_urls?: string[];
   catatan_bukti?: string | null;
@@ -606,7 +639,7 @@ export interface AmbangKategori {
   id: number;
   indikator_id?: number;
   indikator: { kode: string; nama: string; satuan: string } | null;
-  jenis_gula_darah?: "puasa" | "2jam_pp" | null;
+  jenis_gula_darah?: JenisGulaDarah | null;
   memicu_rujukan?: boolean;
   batas_min: number;
   batas_max: number | null;
@@ -731,11 +764,93 @@ export interface PeringkatBaris {
   level_gamifikasi: number;
 }
 
+export interface PeriodePeringkat {
+  kode: string;
+  label: string;
+  kuartal: number;
+  tahun: number;
+  mulai: string;
+  selesai: string;
+  reset_berikutnya: string;
+  sisa_hari: number;
+  siklus_bulan: number;
+}
+
+export interface RiwayatPeringkatItem {
+  periode_kode: string;
+  periode_label: string;
+  mulai_periode: string;
+  selesai_periode: string;
+  wilayah: { id: number; nama: string } | null;
+  exp_akhir: number;
+  level_akhir: number;
+  peringkat_akhir: number | null;
+  total_peserta: number;
+  diarsipkan_pada: string | null;
+}
+
 export interface Peringkat {
   wilayah: { id: number; nama: string };
+  periode?: PeriodePeringkat;
   peserta_peringkat: number;
   daftar: PeringkatBaris[];
   saya: { rank: number | null; exp_total: number } | null;
+  riwayat_saya?: RiwayatPeringkatItem[];
+}
+
+/* ============================================================
+ * §12.9 — Edukasi Mandiri & Progres Belajar Pribadi
+ * ============================================================ */
+export type EdukasiKategori =
+  | "hipertensi"
+  | "diabetes"
+  | "gizi_imt"
+  | "aktivitas_fisik"
+  | "gaya_hidup"
+  | "rujukan"
+  | "umum";
+
+export interface ProgresEdukasi {
+  progres_persen: number;
+  sudah_dibaca: boolean;
+  catatan_pribadi: string | null;
+  selesai_pada: string | null;
+  updated_at: string | null;
+}
+
+export interface EdukasiItem {
+  id: number;
+  wilayah_id: number | null;
+  judul: string;
+  ringkasan: string;
+  konten: string;
+  kategori: EdukasiKategori;
+  estimasi_menit: number;
+  urutan: number;
+  aktif: boolean;
+  pembuat: { id: number; name: string; role: Role } | null;
+  progres_saya: ProgresEdukasi;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface EdukasiInput {
+  wilayah_id?: number | null;
+  judul: string;
+  ringkasan: string;
+  konten: string;
+  kategori: EdukasiKategori;
+  estimasi_menit?: number;
+  urutan?: number;
+  aktif?: boolean;
+}
+
+export interface RingkasanProgresEdukasi {
+  total_materi: number;
+  selesai: number;
+  berjalan: number;
+  belum: number;
+  persen_keseluruhan: number;
 }
 
 /* ============================================================

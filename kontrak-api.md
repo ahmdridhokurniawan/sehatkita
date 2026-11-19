@@ -1,6 +1,6 @@
 # Kontrak API — Sistem Monitoring Kesehatan PTM (Skala Kecamatan)
 
-**Versi 1.8.4** · 2026-11-15 · Base URL `http://sehatkita.test/api/v1` · Laravel + Sanctum (token) · FE: SPA/desktop
+**Versi 1.9.0** · 2026-11-20 · Base URL `http://sehatkita.test/api/v1` · Laravel + Sanctum (token 30 menit, 1 IP 1 user) · FE: SPA/desktop
 
 > **Aturan pakai dokumen ini:**
 >
@@ -107,7 +107,7 @@ Gagal (`errors` hanya pada 422):
 | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
 | `role`                                                             | `super_admin`, `admin_kelurahan`, `kader`, `user`                                                    |
 | `sumber`                                                           | `mandiri`, `kader`, `puskesmas`                                                                      |
-| `jenis_gula_darah`                                                 | `puasa`, `2jam_pp`                                                                                   |
+| `jenis_gula_darah`                                                 | `puasa`, `sewaktu`, `2jam_pp`, `hba1c`                                                               |
 | `jenis_kelamin`                                                    | `L`, `P`                                                                                             |
 | `status_rujukan`                                                   | `baru`, `dihubungi`, `selesai`, `ditolak`                                                            |
 | `status_kesehatan`                                                 | `normal`, `perlu_perhatian`, `berisiko`                                                              |
@@ -205,11 +205,13 @@ Mendaftarkan warga (`role` otomatis `user`). Rate limit: **10 percobaan/menit pe
     "wilayah": { "id": 3, "nama": "Kelurahan Sungai Besar" },
     "consent_at": null
   },
-  "token": "12|xxxxxxxxxxxx"
+  "token": "12|xxxxxxxxxxxx",
+  "token_expires_at": "2026-11-20T00:30:00+08:00",
+  "token_ttl_menit": 30
 }
 ```
 
-**Validasi:** `nik` opsional (bila diisi wajib 16 digit angka dan unik); `password` minimal 8 karakter, wajib memuat minimal 1 huruf kapital, 1 angka, 1 simbol/karakter khusus, dan sama dengan konfirmasi; `email` unik (case-insensitive, disimpan lowercase) → 422 bila sudah ada; `wilayah_id` harus bertipe `kelurahan`. Setelah register, FE menampilkan prompt persetujuan (§5.3).
+**Validasi:** `nik` opsional (bila diisi wajib 16 digit angka dan unik); `password` minimal 8 karakter, wajib memuat minimal 1 huruf kapital, 1 angka, 1 simbol/karakter khusus, dan sama dengan konfirmasi; `email` unik (case-insensitive, disimpan lowercase) → 422 bila sudah ada; `wilayah_id` harus bertipe `kelurahan`. Token berlaku **30 menit** (`token_ttl_menit`) dan terikat pada IP pengirim request (`1 IP 1 user aktif`). Setelah register, FE menampilkan prompt persetujuan (§5.3).
 
 ### 4.2 POST `/auth/login` (publik)
 
@@ -223,9 +225,10 @@ Rate limit: 5 percobaan/menit per kombinasi **email + IP**.
 }
 ```
 
-**200** — bentuk sama dengan register. FE langsung ke `/dashboard/pribadi`; profil **tidak wajib** lengkap.
+**200** — bentuk sama dengan register (termasuk `token_expires_at` dan `token_ttl_menit: 30`). FE langsung ke `/dashboard/pribadi`; profil **tidak wajib** lengkap.
 
 - Login hanya memeriksa `Hash::check`; **aturan panjang password hanya di register**. Email dibandingkan case-insensitive. `device_name` opsional (default `unknown`).
+- **Pembatasan sesi 1 IP 1 user & TTL 30 menit:** Apabila pada IP pengirim sudah terdapat sesi token aktif milik pengguna lain (dalam jendela 30 menit terakhir dan belum logout), request login akun berbeda dari IP tersebut ditolak → **409 Conflict** (`"Akun lain sedang aktif pada perangkat/IP ini. Keluar dari akun sebelumnya terlebih dahulu atau tunggu sesi berakhir."`). Apabila pengguna yang sama login ulang, sesi token sebelumnya pada IP terkait dibersihkan secara otomatis.
 - Gagal (password salah, email tidak ada, atau `aktif = false`) → **422**:
 
 ```json
@@ -387,7 +390,7 @@ Endpoint ini mengembalikan daftar fasilitas kesehatan resmi se-Kota Banjarbaru l
 - **Read-only** (dihitung server, jangan dikirim; bila dikirim → **422**): `imt`, `tinggi_cm`, semua `kategori_*`, `skor_*`, `status_kesehatan`, `perlu_verifikasi`, `dicatat_oleh`, `created_at`.
 - **Snapshot:** `tinggi_cm`, semua `kategori_*`, dan **`skor_*` per indikator** dihitung saat insert dan **disimpan di baris log** (bukan dihitung ulang dari `ambang_kategori` saat baca).
 - **Profil belum ada / `tinggi_cm` null:** log tetap tersimpan, `imt` dan `kategori_imt` = `null` (bukan 422).
-- **Kelengkapan:** selain `dicatat_pada` dan `sumber`, **minimal satu** pengukuran harus terisi (`bb_kg`, `sistol`+`diastol`, `gula_darah`, `kolesterol`, `asam_urat`, `lingkar_perut`, `tidur_jam`). `sistol` dan `diastol` harus berpasangan. `gula_darah` wajib disertai `jenis_gula_darah` (`puasa` / `2jam_pp`). `dicatat_pada` divalidasi tidak boleh di masa depan (`before_or_equal:now + 10m buffer`), pencatatan waktu hari ini sah dan diterima. Pelanggaran → 422.
+- **Kelengkapan:** selain `dicatat_pada` dan `sumber`, **minimal satu** pengukuran harus terisi (`bb_kg`, `sistol`+`diastol`, `gula_darah`, `kolesterol`, `asam_urat`, `lingkar_perut`, `tidur_jam`). `sistol` dan `diastol` harus berpasangan. `gula_darah` wajib disertai `jenis_gula_darah` (`puasa` / `sewaktu` / `2jam_pp` / `hba1c`); untuk `hba1c` nilai berupa persentase desimal (`%`) dengan rentang keras `3–25` dan rentang wajar `3–20`, sedangkan jenis lain memakai `mg/dL` rentang keras `20–700`. `dicatat_pada` divalidasi tidak boleh di masa depan (`before_or_equal:now + 10m buffer`), pencatatan waktu hari ini sah dan diterima. Pelanggaran → 422.
 - **Consent:** `consent_at = null` atau ditarik → **422** `{"errors":{"consent":["Persetujuan data belum diberikan."]}}` (berlaku untuk `mandiri` dan `kader`).
 
 ### 7.2 POST `/catatan-kesehatan`
@@ -510,6 +513,7 @@ Melihat detail satu catatan kesehatan. Akses: pemilik (`user`), kader pembina (`
     "diastol": 88,
     "kategori_tensi": "perlu_perhatian",
     "gula_darah": 110,
+    "jenis_gula_darah": "puasa",
     "kategori_gula_darah": "perlu_perhatian",
     "kolesterol": 200,
     "kategori_kolesterol": "perlu_perhatian",
@@ -531,7 +535,11 @@ Melihat detail satu catatan kesehatan. Akses: pemilik (`user`), kader pembina (`
     "exp_total": 120,
     "level_gamifikasi": 2,
     "badge": ["peserta_aktif"],
-    "rank_kelurahan": 7
+    "rank_kelurahan": 7,
+    "achievement": {
+      "ringkasan": { "total": 8, "diraih": 2, "persen": 25 },
+      "daftar": []
+    }
   },
   "jadwal_skrining_berikutnya": [
     {
@@ -607,9 +615,15 @@ Insight berbasis aturan (if-then, bukan ML), **dihitung saat dibaca dan tidak me
 | `gula_darah` puasa (mg/dL)   | < 100          | `normal`          | 0                | tidak            |
 |                              | \[100 ; 126)   | `perlu_perhatian` | 1                | tidak            |
 |                              | ≥ 126          | `tinggi`          | 2                | tidak            |
+| `gula_darah` sewaktu (mg/dL) | < 140          | `normal`          | 0                | tidak            |
+|                              | \[140 ; 200)   | `perlu_perhatian` | 1                | tidak            |
+|                              | ≥ 200          | `tinggi`          | 2                | tidak            |
 | `gula_darah` 2jam_pp (mg/dL) | < 140          | `normal`          | 0                | tidak            |
 |                              | \[140 ; 200)   | `perlu_perhatian` | 1                | tidak            |
 |                              | ≥ 200          | `tinggi`          | 2                | tidak            |
+| `gula_darah` hba1c (%)       | < 5,7          | `normal`          | 0                | tidak            |
+|                              | \[5,7 ; 6,5)   | `perlu_perhatian` | 1                | tidak            |
+|                              | ≥ 6,5          | `tinggi`          | 2                | tidak            |
 | `kolesterol` (mg/dL)         | < 200          | `normal`          | 0                | tidak            |
 |                              | \[200 ; 240)   | `perlu_perhatian` | 1                | tidak            |
 |                              | ≥ 240          | `tinggi`          | 2                | tidak            |
@@ -973,7 +987,7 @@ Modul ini adalah **tantangan/penyuluhan** (mis. push-up) dengan reward EXP, leve
 
 ### 12.1 GET `/program` (auth)
 
-Query: `?status=berjalan&search=`. `status` dihitung dari `mulai`/`selesai`. Urutan default menempatkan program yang belum selesai di atas (`berjalan` → `akan_datang` → `selesai`; bagi role `user`, program yang sudah diselesaikan oleh dirinya ikut turun ke kelompok bawah). `diikuti` dan `status_saya` hanya bermakna untuk role `user` (selain itu `false` dan `null`).
+Query: `?status=berjalan&search=&jenis=&exclude_jenis=edukasi&page=1&per_page=12`. `status` dihitung dari `mulai`/`selesai`. Urutan default menempatkan program yang belum selesai di atas (`berjalan` → `akan_datang` → `selesai`; bagi role `user`, program yang sudah diselesaikan oleh dirinya ikut turun ke kelompok bawah). Parameter `exclude_jenis` mendukung pemisahan program tantangan dari modul edukasi mandiri (`/edukasi`). `diikuti`, `status_saya`, dan `progres_saya` hanya bermakna untuk role `user` (selain itu `false` / `null`). Respons menyertakan `meta` paginasi standar.
 
 ```json
 [
@@ -991,7 +1005,14 @@ Query: `?status=berjalan&search=`. `status` dihitung dari `mulai`/`selesai`. Uru
     "exp_reward": 100,
     "badge_reward": "jagoan_pushup",
     "diikuti": true,
-    "status_saya": "terdaftar"
+    "status_saya": "terdaftar",
+    "peserta_saya": {
+      "id": 19,
+      "status": "terdaftar",
+      "progres_persen": 40,
+      "catatan_progres": "Hari ke-4 rutin",
+      "progres_diperbarui_pada": "2026-10-03T10:00:00+08:00"
+    }
   }
 ]
 ```
@@ -1037,13 +1058,31 @@ Ikut program. **201** `data`: `{"status":"terdaftar"}`. Sudah terdaftar → 422.
 - **DELETE `/program/{id}/bukti`** (`user`, query opsional `?index=0`): Menghapus satu foto pada indeks tertentu (bila `index` diisi) atau seluruh foto dokumentasi (bila `index` dikosongkan) sebelum misi berstatus `selesai`. Bila seluruh foto habis terhapus, status peserta kembali ke `terdaftar` serta file & catatan verifikasi dibersihkan. Bila misi sudah `selesai` → **422**.
 - **GET `/program/{id}/bukti/{pesertaId}`** (`user` pemilik, `kader`/`admin_kelurahan` wilayah terkait, `super_admin`, query opsional `?index=0`): Mengambil file foto dokumentasi terautentikasi berdasarkan indeks foto.
 
+### 12.7c Progres Pribadi Tantangan (`PATCH /program/{id}/progres`) (user)
+
+Warga yang telah terdaftar pada program (`status != "berhenti"`) dapat mencatat progres pribadinya (tanpa mengubah status verifikasi `selesai` oleh petugas).
+
+- Body: `progres_persen` (integer `0..100`, opsional bila tetap), `catatan_progres` (string maks. 500, opsional).
+- **200** `data`: `{"program_id": 4, "user_id": 12, "progres_persen": 65, "catatan_progres": "...", "progres_diperbarui_pada": "..."}`. Belum mendaftar → **422**.
+
 ### 12.8 GET `/peringkat` (auth)
 
-Query: `?wilayah_id=3`. Peringkat dihitung (tidak disimpan) dari `exp_total` warga satu kelurahan. **Bukan data kesehatan.** Nama tampil **hanya bila** user mengaktifkan `tampil_di_peringkat` (§5.2); selain itu `"Peserta anonim"`. Bila peserta peringkat < 5, `daftar` kosong dan `rank` = `null` (suppression §9.2).
+Query: `?wilayah_id=3`. Peringkat berjalan pada **siklus kuartalan (reset setiap 3 bulan)** dan hasil agregat di-cache melalui Redis. **Bukan data kesehatan.** Nama tampil **hanya bila** user mengaktifkan `tampil_di_peringkat` (§5.2); selain itu `"Peserta anonim"`. Bila peserta peringkat < 5, `daftar` kosong dan `rank` = `null` (suppression §9.2). Saat reset 3 bulan (`peringkat:reset-kuartal`), `pengguna.exp_total` dikembalikan ke `0` dan `level_gamifikasi` ke `1`, sedangkan pencapaian pada `riwayat_peringkat` (`exp_akhir`, `level_akhir`, `peringkat_akhir`) dan lencana `badge_pengguna` tetap tersimpan permanen.
 
 ```json
 {
   "wilayah": { "id": 3, "nama": "Kelurahan Sungai Besar" },
+  "periode": {
+    "kode": "2026-Q4",
+    "label": "Okt – Des 2026",
+    "kuartal": 4,
+    "tahun": 2026,
+    "mulai": "2026-10-01",
+    "selesai": "2026-12-31",
+    "reset_berikutnya": "2027-01-01",
+    "sisa_hari": 42,
+    "siklus_bulan": 3
+  },
   "peserta_peringkat": 86,
   "daftar": [
     {
@@ -1059,11 +1098,38 @@ Query: `?wilayah_id=3`. Peringkat dihitung (tidak disimpan) dari `exp_total` war
       "level_gamifikasi": 6
     }
   ],
-  "saya": { "rank": 7, "exp_total": 120 }
+  "saya": { "rank": 7, "exp_total": 120 },
+  "riwayat_saya": [
+    {
+      "periode_kode": "2026-Q3",
+      "periode_label": "Jul – Sep 2026",
+      "mulai_periode": "2026-07-01",
+      "selesai_periode": "2026-09-30",
+      "wilayah": { "id": 3, "nama": "Kelurahan Sungai Besar" },
+      "exp_akhir": 420,
+      "level_akhir": 5,
+      "peringkat_akhir": 4,
+      "total_peserta": 82,
+      "diarsipkan_pada": "2026-10-01T00:05:00+08:00"
+    }
+  ]
 }
 ```
 
-`saya` hanya untuk role `user`. `daftar` maksimal 10.
+`saya` dan `riwayat_saya` hanya untuk role `user`. `daftar` maksimal 10.
+
+### 12.8b GET `/achievement` (user)
+
+Mengembalikan katalog simbol lencana keaktifan (`langkah_pertama`, `catatan_rutin`, `pejuang_konsisten`, `penjaga_jantung`, `penakluk_target`, `juara_tantangan`, `pembelajar_sehat`, `bintang_exp`) beserta evaluasi progres/status diraih milik pengguna saat ini.
+
+### 12.9 Modul Edukasi Terpisah (`/edukasi`)
+
+Memisahkan materi edukasi PTM dari Program Tantangan (§12.1) beserta pelacakan progres belajar mandiri warga.
+
+- **GET `/edukasi`** (auth): Query `?kategori=umum|gizi|olahraga|hipertensi|diabetes|jantung&search=&hanya_belum_dibaca=true/false&page=1&per_page=10`. Mengembalikan array materi edukasi + `progres_saya`, `meta` paginasi, dan `ringkasan_progres` (`total_materi`, `mulai_dibaca`, `selesai`, `rata_rata_persen` untuk role `user`).
+- **GET `/edukasi/{id}`** (auth): Detail konten lengkap materi edukasi beserta `progres_saya`.
+- **POST `/edukasi`, PUT/PATCH `/edukasi/{id}`, DELETE `/edukasi/{id}`** (`kader`, `admin_kelurahan`, `super_admin`): CRUD materi edukasi (scope wilayah kelurahan untuk `kader`/`admin_kelurahan`, atau kota `wilayah_id: null` untuk `super_admin`).
+- **PATCH `/edukasi/{id}/progres`** (`user`): Memperbarui progres baca pribadi (`progres_persen: 0..100`, `sudah_dibaca: boolean`, `catatan_pribadi: string|null`). Otomatis mengevaluasi lencana `pembelajar_sehat` saat ≥ 3 materi selesai dibaca.
 
 ---
 
@@ -1108,7 +1174,7 @@ Query: `?page=&per_page=`. **200** array refleksi miliknya + paginasi, terbaru d
 
 Warga dapat membuat target bebas metrik (berat badan, tinggi, massa otot, tensi, air minum, langkah harian, dsb) dengan tenggat waktu dan pesan motivasi pencapaian.
 
-- **GET `/target-kesehatan`** (user): Mengambil daftar target miliknya (`?tercapai=true/false`).
+- **GET `/target-kesehatan`** (user): Mengambil daftar target miliknya (`?tercapai=true/false&page=1&per_page=12`) disertai `meta` paginasi.
 - **POST `/target-kesehatan`** (user): Membuat target baru.
   - Body: `judul` (str 100), `jenis_target` (str 50), `nilai_awal` (num), `nilai_target` (num), `satuan` (str 20), `tenggat_waktu` (date, opsional), `catatan_motivasi` (str, opsional).
   - **201** objek target baru.
@@ -1227,7 +1293,7 @@ Butuh role `super_admin`.
 }
 ```
 
-`jenis_gula_darah` hanya terisi untuk indikator gula darah. POST/PUT yang membuat **celah atau tumpang tindih** rentang pada indikator yang sama → 422. Perubahan ambang hanya berlaku untuk log **baru** (riwayat memakai snapshot, §7.1).
+`jenis_gula_darah` hanya terisi untuk indikator gula darah (`puasa`, `sewaktu`, `2jam_pp`, `hba1c`). POST/PUT yang membuat **celah atau tumpang tindih** rentang pada indikator yang sama → 422. Perubahan ambang hanya berlaku untuk log **baru** (riwayat memakai snapshot, §7.1).
 
 ---
 
@@ -1259,9 +1325,13 @@ Butuh role `super_admin`.
 | PATCH /rujukan/{id}/status                   | ✅          | ✅\*             | ✅\*  | –                       | –      |
 | GET /admin/catatan-kesehatan/perlu-verifikasi; PATCH .../verifikasi | ✅ | ✅\* | – | – | – |
 | GET /program, /program/{id}, /peringkat      | ✅          | ✅               | ✅    | ✅                      | –      |
+| GET /achievement                             | –           | –                | –     | ✅                      | –      |
 | POST, PUT, DELETE /program                   | ✅          | ✅\*             | –     | –                       | –      |
-| POST /program/{id}/peserta                   | –           | –                | –     | ✅                      | –      |
+| POST /program/{id}/peserta, PATCH .../progres| –           | –                | –     | ✅                      | –      |
 | PATCH /program/{id}/peserta                  | ✅          | ✅\*             | ✅\*  | ✅\* (hanya `berhenti`) | –      |
+| GET /edukasi, /edukasi/{id}                  | ✅          | ✅               | ✅    | ✅                      | –      |
+| POST, PUT, DELETE /edukasi                   | ✅          | ✅\*             | ✅\*  | –                       | –      |
+| PATCH /edukasi/{id}/progres                  | –           | –                | –     | ✅                      | –      |
 | GET, PUT /target; GET, POST /refleksi        | –           | –                | –     | ✅                      | –      |
 | GET, POST, PUT, DELETE /target-kesehatan     | –           | –                | –     | ✅                      | –      |
 | POST /pengaduan                              | –           | –                | –     | ✅                      | –      |
@@ -1346,7 +1416,7 @@ Contoh: `GET /catatan-kesehatan?search=lembur`.
 
 **Catatan implementasi v1.6.0:** Notifikasi pengingat bulanan resmi diintegrasikan via Bot Telegram (`/telegram/*` dan artisan `reminder:skrining-ptm`), dan modul `program` kini mendukung CRUD penuh (`GET /{id}`, `PUT`, `DELETE`).
 
-**Kebijakan token:** Sanctum token tidak kedaluwarsa otomatis. FE **wajib** menghapus token tersimpan dan mengarahkan ke login saat menerima `401`.
+**Kebijakan token:** Sanctum Bearer token dibatasi masa berlaku **30 menit** (`SANCTUM_EXPIRATION=30`) dan terikat pada **1 IP untuk 1 user aktif** (login akun berbeda pada IP yang sedang memiliki sesi aktif → `409 Conflict`; pemakaian token kedaluwarsa atau dari IP lain → `401 Unauthorized`). FE **wajib** menghapus token tersimpan dan mengarahkan ke login saat menerima `401`. Cache referensi/peringkat/sesi memanfaatkan **Redis** (`failover` ke `database` bila Redis mati).
 
 ---
 
@@ -1416,3 +1486,4 @@ Bagian ini bukan kontrak API.
 | 1.8.2 | 2026-11-14 | **Wajib Reward EXP, Tenggat Selesai, & Kategori Kustom di Program (§12.2 & §12.4):**<br>`POST /program` dan `PUT /program/{id}` mewajibkan `selesai` (`>= mulai`), `exp_reward` (`1..10000`), serta `kategori_aktivitas` apabila `jenis = "lainnya"`. | BE |
 | 1.8.3 | 2026-11-15 | **Pencarian Warga via Nama atau NIK & NIK Khusus Warga:**<br>**(1)** `GET /pengguna/cari-nik` (`kader` & `super_admin`) kini menerima pencarian **nama warga** (min. 2 huruf) maupun **awalan NIK** (min. 3 digit) lewat parameter `nik` atau `q` dengan scope binaan tetap berlaku.<br>**(2)** Master pengguna (`/admin/pengguna`) memastikan kolom `nik` otomatis `null` untuk akun non-`user` (`admin_kelurahan`, `kader`, `super_admin`). | BE |
 | 1.8.4 | 2026-11-15 | **Penyelarasan Ambang IMT ke Standar Resmi Kemenkes RI (Permenkes No. 41 Tahun 2014):**<br>Tabel `ambang_kategori` untuk indikator `imt` (§8.3 & `IndikatorSeeder`) disesuaikan menjadi `< 18,5` (`kurus`), `[18,5 ; 25,0)` (`normal`), `[25,0 ; 27,0)` (`gemuk`), dan `≥ 27,0` (`obesitas`) menggantikan ambang WHO global (`25–30` / `≥ 30`). | BE |
+| 1.9.0 | 2026-11-20 | **Revisi Pembimbing Lapangan (Sesi, Gula Darah 4 Jenis, Rujukan Resmi, Achievement, Edukasi Terpisah, Reset 3 Bulan, Redis, Paginasi):**<br>**(1)** **Keamanan Sesi Bearer:** TTL token dibatasi **30 menit** (`token_ttl_menit`) dan aturan **1 IP 1 user aktif** (`409` konflik login di IP sama, `401` token kedaluwarsa/IP berbeda).<br>**(2)** **Jenis Pemeriksaan Gula Darah (4 Opsi):** Enum `jenis_gula_darah` (§1.5, §7.1, §8.3) diperluas ke `puasa`, `sewaktu`, `2jam_pp` (`mg/dL`), dan `hba1c` (`%` desimal `3–25`, wajar `3–20`).<br>**(3)** **Edukasi Terpisah & Progres Pribadi:** Penambahan modul mandiri `/edukasi` + `/edukasi/{id}/progres` (beserta `ringkasan_progres`) terpisah dari Program Tantangan (`exclude_jenis`), serta endpoint `PATCH /program/{id}/progres`.<br>**(4)** **Achievement & Reset Peringkat 3 Bulan:** Penambahan `GET /achievement` (katalog simbol keaktifan), jadwal reset peringkat kuartalan (`peringkat:reset-kuartal`) yang mengarsipkan EXP/level/peringkat akhir ke `riwayat_saya` di `GET /peringkat` sambil menolkan `exp_total` aktif dan mempertahankan `badge_pengguna`.<br>**(5)** **Surat Pengantar Rujukan Formal & Redis Cache:** Penataan ulang layout HTML surat rujukan (§11.4), integrasi Redis (`predis/predis` + `failover` cache) untuk wilayah, faskes, peringkat, dan sesi IP, serta paginasi standar pada `GET /target-kesehatan`. | BE / FE |

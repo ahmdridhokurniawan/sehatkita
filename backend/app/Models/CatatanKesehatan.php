@@ -53,6 +53,7 @@ class CatatanKesehatan extends Model
             'bb_kg' => 'decimal:2',
             'tinggi_cm' => 'decimal:2',
             'lingkar_perut' => 'decimal:2',
+            'gula_darah' => 'float',
             'asam_urat' => 'decimal:1',
             'merokok' => 'boolean',
             'perlu_verifikasi' => 'boolean',

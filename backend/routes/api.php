@@ -7,6 +7,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CatatanKesehatanController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardWilayahController;
+use App\Http\Controllers\EdukasiController;
 use App\Http\Controllers\FaskesController;
 use App\Http\Controllers\InsightController;
 use App\Http\Controllers\PengaduanController;
@@ -30,7 +31,7 @@ Route::prefix('v1')->whereNumber(['id', 'pesertaId', 'catatan_kesehatan'])->grou
     Route::get('/wilayah', [WilayahController::class, 'index']);
     Route::post('/telegram/webhook', [TelegramController::class, 'webhook']);
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'single.ip'])->group(function () {
 
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
@@ -81,10 +82,19 @@ Route::prefix('v1')->whereNumber(['id', 'pesertaId', 'catatan_kesehatan'])->grou
         Route::get('/program/{id}/peserta', [ProgramController::class, 'peserta']);
         Route::post('/program/{id}/peserta', [ProgramController::class, 'ikut']);
         Route::patch('/program/{id}/peserta', [ProgramController::class, 'ubahStatusPeserta']);
+        Route::patch('/program/{id}/progres', [ProgramController::class, 'perbaruiProgres']);
         Route::post('/program/{id}/bukti', [ProgramController::class, 'kirimBukti']);
         Route::delete('/program/{id}/bukti', [ProgramController::class, 'hapusBukti']);
         Route::get('/program/{id}/bukti/{pesertaId}', [ProgramController::class, 'lihatBukti']);
         Route::get('/peringkat', [PeringkatController::class, 'index']);
+        Route::get('/achievement', [PeringkatController::class, 'achievement']);
+
+        Route::get('/edukasi', [EdukasiController::class, 'index']);
+        Route::post('/edukasi', [EdukasiController::class, 'store']);
+        Route::get('/edukasi/{id}', [EdukasiController::class, 'show']);
+        Route::match(['put', 'patch'], '/edukasi/{id}', [EdukasiController::class, 'update']);
+        Route::delete('/edukasi/{id}', [EdukasiController::class, 'destroy']);
+        Route::patch('/edukasi/{id}/progres', [EdukasiController::class, 'simpanProgres']);
 
         Route::get('/target', [TargetRefleksiController::class, 'target']);
         Route::put('/target', [TargetRefleksiController::class, 'simpanTarget']);

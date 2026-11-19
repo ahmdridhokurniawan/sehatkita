@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CatatanKesehatan;
 use App\Models\Pengguna;
 use App\Models\SesiPosbindu;
+use App\Services\BadgeKeaktifanService;
 use App\Services\HealthCalculatorService;
 use App\Services\RujukanOtomatisService;
 use App\Services\TelegramService;
@@ -18,7 +19,8 @@ class CatatanKesehatanController extends Controller
     public function __construct(
         private HealthCalculatorService $kalkulator,
         private RujukanOtomatisService $rujukanOtomatis,
-        private TelegramService $telegram
+        private TelegramService $telegram,
+        private BadgeKeaktifanService $badges
     ) {}
 
     public function index(Request $request)
@@ -134,8 +136,8 @@ class CatatanKesehatanController extends Controller
             'tinggi_cm' => 'nullable|numeric|min:50|max:250',
             'sistol' => 'nullable|integer|gt:0|max:400',
             'diastol' => 'nullable|integer|gt:0|max:300',
-            'gula_darah' => 'nullable|integer|gt:0|max:1500',
-            'jenis_gula_darah' => 'nullable|in:puasa,2jam_pp',
+            'gula_darah' => 'nullable|numeric|gt:0|max:1500',
+            'jenis_gula_darah' => 'nullable|in:puasa,sewaktu,2jam_pp,hba1c',
             'kolesterol' => 'nullable|integer|gt:0|max:1500',
             'asam_urat' => 'nullable|numeric|gt:0|max:50',
             'lingkar_perut' => 'nullable|numeric|gt:0|max:300',
@@ -196,6 +198,10 @@ class CatatanKesehatanController extends Controller
 
             return $baris;
         });
+
+        if (! $catatan->perlu_verifikasi) {
+            $this->badges->evaluasiUntukUser($pemilik);
+        }
 
         if (! $catatan->perlu_verifikasi && in_array($catatan->status_kesehatan, ['perlu_perhatian', 'berisiko'], true)) {
             $statusLabel = ucwords(str_replace('_', ' ', (string) $catatan->status_kesehatan));
@@ -351,7 +357,13 @@ class CatatanKesehatanController extends Controller
 
         if (($data['gula_darah'] ?? null) !== null && ($data['jenis_gula_darah'] ?? null) === null) {
             throw ValidationException::withMessages([
-                'jenis_gula_darah' => ['Jenis gula darah wajib diisi bila gula darah diukur.'],
+                'jenis_gula_darah' => ['Jenis pemeriksaan gula darah wajib diisi bila gula darah diukur.'],
+            ]);
+        }
+
+        if (($data['jenis_gula_darah'] ?? null) === 'hba1c' && ($data['gula_darah'] ?? null) !== null && (float) $data['gula_darah'] > 25) {
+            throw ValidationException::withMessages([
+                'gula_darah' => ['Nilai HbA1c harus antara 0,1% hingga 25%.'],
             ]);
         }
     }

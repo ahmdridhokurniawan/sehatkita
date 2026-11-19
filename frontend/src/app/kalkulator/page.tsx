@@ -9,6 +9,8 @@ import PublicFooter from "@/components/landing/PublicFooter";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
 import { useUser } from "@/hooks/useUser";
+import { LABEL_JENIS_GULA_DARAH, satuanGulaDarah } from "@/lib/labels";
+import type { JenisGulaDarah } from "@/types";
 
 type TabKalkulator = "imt" | "kalori" | "air" | "jantung" | "klinis";
 
@@ -99,11 +101,11 @@ const TAB_PENJELASAN: Record<TabKalkulator, PenjelasanTab> = {
         arti: "Rata-rata tekanan aliran darah menuju organ penting (otak & ginjal) dengan rumus (Sistol + 2 × Diastol) / 3. Nilai normalnya 70–100 mmHg.",
       },
       {
-        istilah: "Gula Puasa vs 2 Jam Setelah Makan (2JPP)",
-        arti: "Gula puasa (min. 8 jam tidak makan/minum manis) normal < 100 mg/dL. Gula 2JPP (2 jam sesudah makan) normal < 140 mg/dL.",
+        istilah: "Jenis Pemeriksaan Gula Darah (Puasa, Sewaktu, 2JPP, & HbA1c)",
+        arti: "Puasa (min. 8 jam tidak makan) normal < 100 mg/dL; Sewaktu & 2 Jam Setelah Makan (2JPP) normal < 140 mg/dL; HbA1c (rata-rata gula darah 3 bulan) normal < 5,7%.",
       },
     ],
-    catatan: "Acuan: Pedoman Pengendalian PTM Kemenkes RI / PERHI (Permenkes No. 71 Tahun 2015) — Hipertensi ≥ 140/90 mmHg, Krisis/Rujukan ≥ 180/110 mmHg.",
+    catatan: "Acuan: Pedoman Pengendalian PTM Kemenkes RI / PERHI (Permenkes No. 71 Tahun 2015) — Hipertensi ≥ 140/90 mmHg, HbA1c Diabetes ≥ 6,5%.",
   },
 };
 
@@ -114,7 +116,7 @@ const REFERENSI_MEDIS: { sumber: string; rincian: string }[] = [
   },
   {
     sumber: "Permenkes RI No. 71 Tahun 2015 & Pedoman PTM Kemenkes RI / PERHI",
-    rincian: "Ambang skrining Posbindu PTM: tensi normal (< 130/85 mmHg), gula puasa (< 100 mg/dL), gula 2JPP (< 140 mg/dL), dan kolesterol (< 200 mg/dL).",
+    rincian: "Ambang skrining Posbindu PTM: tensi normal (< 130/85 mmHg), gula puasa (< 100 mg/dL), gula sewaktu/2JPP (< 140 mg/dL), HbA1c (< 5,7%), dan kolesterol (< 200 mg/dL).",
   },
   {
     sumber: "Permenkes RI No. 28 Tahun 2019 (Angka Kecukupan Gizi Indonesia)",
@@ -225,7 +227,7 @@ function KalkulatorContent() {
   const [sistol, setSistol] = useState("118");
   const [diastol, setDiastol] = useState("76");
   const [gula, setGula] = useState("94");
-  const [jenisGula, setJenisGula] = useState<"puasa" | "2jam_pp">("puasa");
+  const [jenisGula, setJenisGula] = useState<JenisGulaDarah>("puasa");
 
   function pakaiContoh(preset: "ideal" | "turun_bb" | "pantau_tensi") {
     if (preset === "ideal") {
@@ -402,9 +404,34 @@ function KalkulatorContent() {
       tensiInfo = { map: map.toFixed(0), kategori, tone };
     }
 
-    let gulaInfo: { nilai: number; kategori: string; tone: "safe" | "warning" | "danger"; batas: string } | null = null;
+    let gulaInfo: {
+      nilai: number;
+      satuan: string;
+      normalBatas: string;
+      kategori: string;
+      tone: "safe" | "warning" | "danger";
+      batas: string;
+    } | null = null;
     if (g > 0) {
-      if (jenisGula === "puasa") {
+      if (jenisGula === "hba1c") {
+        let kategori = "Normal (< 5,7%)";
+        let tone: "safe" | "warning" | "danger" = "safe";
+        if (g >= 6.5) {
+          kategori = "Tinggi / Diabetes (≥ 6,5%)";
+          tone = "danger";
+        } else if (g >= 5.7) {
+          kategori = "Waspada / Pradiabetes (5,7–6,4%)";
+          tone = "warning";
+        }
+        gulaInfo = {
+          nilai: g,
+          satuan: "%",
+          normalBatas: "< 5,7%",
+          kategori,
+          tone,
+          batas: LABEL_JENIS_GULA_DARAH.hba1c,
+        };
+      } else if (jenisGula === "puasa") {
         let kategori = "Normal (< 100 mg/dL)";
         let tone: "safe" | "warning" | "danger" = "safe";
         if (g >= 126) {
@@ -414,7 +441,14 @@ function KalkulatorContent() {
           kategori = "Waspada / Pradiabetes (100–125 mg/dL)";
           tone = "warning";
         }
-        gulaInfo = { nilai: g, kategori, tone, batas: "Puasa (minimal 8 jam tidak makan)" };
+        gulaInfo = {
+          nilai: g,
+          satuan: "mg/dL",
+          normalBatas: "< 100 mg/dL",
+          kategori,
+          tone,
+          batas: "Puasa (minimal 8 jam tidak makan)",
+        };
       } else {
         let kategori = "Normal (< 140 mg/dL)";
         let tone: "safe" | "warning" | "danger" = "safe";
@@ -425,7 +459,14 @@ function KalkulatorContent() {
           kategori = "Waspada (140–199 mg/dL)";
           tone = "warning";
         }
-        gulaInfo = { nilai: g, kategori, tone, batas: "2 Jam Setelah Makan (2JPP)" };
+        gulaInfo = {
+          nilai: g,
+          satuan: "mg/dL",
+          normalBatas: "< 140 mg/dL",
+          kategori,
+          tone,
+          batas: LABEL_JENIS_GULA_DARAH[jenisGula],
+        };
       }
     }
 
@@ -683,27 +724,35 @@ function KalkulatorContent() {
                     <input
                       id="kalk-gula"
                       type="number"
-                      min={30}
-                      max={800}
+                      step={jenisGula === "hba1c" ? "0.1" : "1"}
+                      min={jenisGula === "hba1c" ? 3 : 20}
+                      max={jenisGula === "hba1c" ? 25 : 700}
                       className="input"
                       value={gula}
                       onChange={(e) => setGula(e.target.value)}
                     />
-                    <span className="suffix">mg/dL</span>
+                    <span className="suffix">{satuanGulaDarah(jenisGula)}</span>
                   </div>
                 </div>
                 <div className="field">
                   <label className="label" htmlFor="kalk-jenis-gula">
-                    Waktu Pengukuran Gula
+                    Jenis Pemeriksaan Gula Darah
                   </label>
                   <select
                     id="kalk-jenis-gula"
                     className="select"
                     value={jenisGula}
-                    onChange={(e) => setJenisGula(e.target.value as "puasa" | "2jam_pp")}
+                    onChange={(e) => {
+                      const next = e.target.value as JenisGulaDarah;
+                      setJenisGula(next);
+                      if (next === "hba1c" && Number(gula) > 25) setGula("5.6");
+                      else if (next !== "hba1c" && Number(gula) < 20) setGula("95");
+                    }}
                   >
-                    <option value="puasa">Puasa (8 jam)</option>
-                    <option value="2jam_pp">2 Jam Setelah Makan</option>
+                    <option value="puasa">Gula Darah Puasa (≥ 8 jam)</option>
+                    <option value="sewaktu">Gula Darah Sewaktu</option>
+                    <option value="2jam_pp">2 Jam Setelah Makan (2JPP)</option>
+                    <option value="hba1c">HbA1c (%)</option>
                   </select>
                 </div>
               </>
@@ -897,9 +946,11 @@ function KalkulatorContent() {
                         <span className="stat-cell-label">Gula Darah</span>
                         <Badge tone={hasilKlinis.gulaInfo.tone}>{hasilKlinis.gulaInfo.kategori}</Badge>
                       </div>
-                      <span className="stat-cell-val">{hasilKlinis.gulaInfo.nilai} mg/dL</span>
+                      <span className="stat-cell-val">
+                        {hasilKlinis.gulaInfo.nilai} {hasilKlinis.gulaInfo.satuan}
+                      </span>
                       <span className="stat-cell-sub">
-                        {hasilKlinis.gulaInfo.batas} · Normal {jenisGula === "puasa" ? "< 100 mg/dL" : "< 140 mg/dL"}
+                        {hasilKlinis.gulaInfo.batas} · Normal {hasilKlinis.gulaInfo.normalBatas}
                       </span>
                     </div>
                   ) : null}
@@ -909,9 +960,6 @@ function KalkulatorContent() {
               )}
             </>
           )}
-
-          <PanduanIstilah info={TAB_PENJELASAN[tab]} />
-          <ReferensiMedisBox />
 
           <div className="divider" />
           <div className="row-between wrap gap-8">
@@ -955,6 +1003,23 @@ function KalkulatorContent() {
             </div>
           </div>
         </div>
+        </section>
+
+        {/* CARD PANDUAN & REFERENSI MEDIS TERPISAH DARI KALKULATOR */}
+        <section className="card kalk-panel" aria-label="Panduan dan Referensi Medis">
+          <div className="row gap-10 mb-8">
+            <span className="li-ico" style={{ background: "var(--primary-050)", color: "var(--primary)" }}>
+              <Icon name="book-open" size={18} />
+            </span>
+            <div>
+              <h2 className="h4">Panduan Istilah &amp; Referensi Medis</h2>
+              <p className="tiny">Penjelasan singkat arti setiap angka dan dasar rujukan klinis kalkulator.</p>
+            </div>
+          </div>
+          <div style={{ display: "grid", gap: 12 }}>
+            <PanduanIstilah info={TAB_PENJELASAN[tab]} />
+            <ReferensiMedisBox />
+          </div>
         </section>
       </div>
     </>

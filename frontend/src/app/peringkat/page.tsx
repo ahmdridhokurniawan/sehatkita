@@ -4,11 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import AppShell from "@/components/app/AppShell";
 import TombolKembaliAdmin from "@/components/admin/TombolKembaliAdmin";
 import Icon from "@/components/ui/Icon";
+import Badge from "@/components/ui/Badge";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
 import { useUser } from "@/hooks/useUser";
 import { useMinLoading } from "@/hooks/useMinLoading";
-import { program as programApi, wilayah as wilayahApi, ApiError } from "@/lib/api";
-import type { Peringkat, Wilayah } from "@/types";
+import { achievementApi, program as programApi, wilayah as wilayahApi, ApiError } from "@/lib/api";
+import { angka, tanggal } from "@/lib/format";
+import type { AchievementResponse, Peringkat, Wilayah } from "@/types";
 
 /* ------------------------------------------------------------------
    Peringkat kelurahan — §12.5 GET /peringkat.
@@ -25,7 +27,9 @@ const MEDALI = [
 
 export default function PeringkatPage() {
   const { user, loading: loadingUser } = useUser();
+  const isWarga = user?.role === "user";
   const [data, setData] = useState<Peringkat | null>(null);
+  const [achievement, setAchievement] = useState<AchievementResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState("");
@@ -60,26 +64,35 @@ export default function PeringkatPage() {
     if (loadingUser || (perluPilihWilayah && !wilayahId)) return;
     setLoading(true);
     try {
-      const res = await programApi.peringkat(
-        perluPilihWilayah && wilayahId ? { wilayah_id: wilayahId } : undefined,
-      );
+      const [res, ach] = await Promise.all([
+        programApi.peringkat(
+          perluPilihWilayah && wilayahId ? { wilayah_id: wilayahId } : undefined,
+        ),
+        isWarga ? achievementApi.list().catch(() => null) : Promise.resolve(null),
+      ]);
       setData(res);
+      setAchievement(ach);
       setError("");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Gagal memuat peringkat");
     } finally {
       setLoading(false);
     }
-  }, [loadingUser, perluPilihWilayah, wilayahId]);
+  }, [loadingUser, perluPilihWilayah, wilayahId, isWarga]);
 
   useEffect(() => {
     if (loadingUser || (perluPilihWilayah && !wilayahId)) return;
     let aktif = true;
-    programApi
-      .peringkat(perluPilihWilayah && wilayahId ? { wilayah_id: wilayahId } : undefined)
-      .then((res) => {
+    Promise.all([
+      programApi.peringkat(
+        perluPilihWilayah && wilayahId ? { wilayah_id: wilayahId } : undefined,
+      ),
+      isWarga ? achievementApi.list().catch(() => null) : Promise.resolve(null),
+    ])
+      .then(([res, ach]) => {
         if (!aktif) return;
         setData(res);
+        setAchievement(ach);
         setError("");
       })
       .catch((err) => {
@@ -91,7 +104,7 @@ export default function PeringkatPage() {
     return () => {
       aktif = false;
     };
-  }, [loadingUser, perluPilihWilayah, wilayahId]);
+  }, [loadingUser, perluPilihWilayah, wilayahId, isWarga]);
 
   return (
     <AppShell noFab>
@@ -131,18 +144,138 @@ export default function PeringkatPage() {
       ) : !data ? null : (
         <>
           <div className="card card-flat">
-            <div className="row items-center gap-10">
-              <span className="li-ico" style={{ background: "rgba(212, 175, 55, 0.16)", color: "#D4AF37" }}>
-                <Icon name="trophy" size={19} />
-              </span>
-              <div className="flex-1">
-                <strong className="text-sm">{data.wilayah.nama}</strong>
-                <p className="tiny">
-                  {data.peserta_peringkat} peserta ikut diperingkat
-                </p>
+            <div className="row-between wrap gap-12">
+              <div className="row items-center gap-10">
+                <span className="li-ico" style={{ background: "rgba(212, 175, 55, 0.16)", color: "#D4AF37" }}>
+                  <Icon name="trophy" size={19} />
+                </span>
+                <div>
+                  <strong className="text-sm">{data.wilayah.nama}</strong>
+                  <p className="tiny">
+                    {data.peserta_peringkat} peserta ikut diperingkat
+                    {data.periode ? ` · Periode ${data.periode.label}` : ""}
+                  </p>
+                </div>
               </div>
+              {data.periode ? (
+                <div style={{ textAlign: "right" }}>
+                  <Badge tone="info">Siklus 3 Bulan · {data.periode.kode}</Badge>
+                  <p className="tiny mt-4">
+                    Reset EXP berikutnya {tanggal(data.periode.reset_berikutnya, "short")} ({data.periode.sisa_hari} hari lagi)
+                  </p>
+                </div>
+              ) : null}
             </div>
           </div>
+
+          {user?.role === "user" && achievement ? (
+            <section className="card card-flat mt-12">
+              <div className="row-between wrap gap-8 mb-8">
+                <div>
+                  <h2 className="h4" style={{ margin: 0 }}>Achievement &amp; Lencana Keaktifan</h2>
+                  <p className="tiny">
+                    Simbol pencapaian aktif yang bersifat permanen meskipun EXP peringkat direset tiap 3 bulan.
+                  </p>
+                </div>
+                <Badge tone="safe">
+                  {angka(achievement.ringkasan.diraih)} / {angka(achievement.ringkasan.total)} Diraih ({achievement.ringkasan.persen}%)
+                </Badge>
+              </div>
+              <div className="progress mb-12" style={{ height: 7 }}>
+                <i style={{ width: `${achievement.ringkasan.persen}%`, background: "var(--primary)" }} />
+              </div>
+              <div className="grid grid-2" style={{ gap: 10 }}>
+                {achievement.daftar.map((item) => {
+                  const tierLabel =
+                    item.tier === "emas" ? "Emas" : item.tier === "perak" ? "Perak" : "Perunggu";
+                  return (
+                    <div
+                      key={item.kode}
+                      className="flat-sub"
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        alignItems: "flex-start",
+                        opacity: item.diraih ? 1 : 0.72,
+                        borderColor: item.diraih ? "var(--primary)" : "var(--border)",
+                      }}
+                    >
+                      <span
+                        className="li-ico shrink-0"
+                        style={{
+                          background: item.diraih ? "var(--primary-050)" : "var(--surface-2)",
+                          color: item.diraih ? "var(--primary)" : "var(--text-3)",
+                        }}
+                      >
+                        <Icon name={item.ikon || "award"} size={18} />
+                      </span>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div className="row-between wrap gap-6">
+                          <strong className="text-sm">{item.nama}</strong>
+                          <Badge tone={item.diraih ? "safe" : "default"}>
+                            {item.diraih ? `${tierLabel} · Diraih` : tierLabel}
+                          </Badge>
+                        </div>
+                        <p className="tiny mt-2">{item.deskripsi}</p>
+                        <p className="tiny mt-2" style={{ color: "var(--text-3)" }}>
+                          Syarat: {item.syarat}
+                          {item.diraih && item.diraih_pada ? ` · Diraih ${tanggal(item.diraih_pada, "short")}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          ) : null}
+
+          {user?.role === "user" ? (
+            <section className="card card-flat mt-12">
+              <div className="row-between wrap gap-8 mb-8">
+                <div>
+                  <h2 className="h4" style={{ margin: 0 }}>Riwayat Peringkat &amp; EXP (Reset Per 3 Bulan)</h2>
+                  <p className="tiny">
+                    Setiap pergantian periode 3 bulan, EXP direset ke 0 sementara perolehan EXP &amp; peringkat terakhir Anda diarsipkan di sini.
+                  </p>
+                </div>
+              </div>
+              {data.riwayat_saya && data.riwayat_saya.length > 0 ? (
+                <div className="tbl-wrap">
+                  <table className="tbl">
+                    <thead>
+                      <tr>
+                        <th>Periode</th>
+                        <th>Wilayah</th>
+                        <th className="num">EXP Akhir</th>
+                        <th className="num">Level</th>
+                        <th className="num">Peringkat Akhir</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.riwayat_saya.map((r) => (
+                        <tr key={r.periode_kode}>
+                          <td>
+                            <strong>{r.periode_label}</strong>
+                            <div className="tiny">{r.periode_kode}</div>
+                          </td>
+                          <td>{r.wilayah?.nama || data.wilayah.nama}</td>
+                          <td className="num"><strong>{angka(r.exp_akhir)} EXP</strong></td>
+                          <td className="num">Level {r.level_akhir}</td>
+                          <td className="num">
+                            {r.peringkat_akhir != null ? `#${r.peringkat_akhir} / ${angka(r.total_peserta)}` : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="tiny">
+                  Belum ada riwayat periode 3 bulanan sebelumnya. Catatan EXP &amp; peringkat terakhir akan muncul di sini setelah pergantian kuartal pertama.
+                </p>
+              )}
+            </section>
+          ) : null}
 
           {data.saya ? (
             <div className="card card-flat mt-12" style={{ borderLeft: "4px solid var(--primary)" }}>

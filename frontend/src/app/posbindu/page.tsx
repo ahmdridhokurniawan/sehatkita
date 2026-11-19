@@ -8,11 +8,14 @@ import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import Badge from "@/components/ui/Badge";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
+import Pagination, { type Meta } from "@/components/ui/Pagination";
 import { BentoKpiRow, type BentoCardItem } from "@/components/dashboard/BentoDashboard";
 import { useUser } from "@/hooks/useUser";
 import { useMinLoading } from "@/hooks/useMinLoading";
 import PilihWarga from "@/components/warga/PilihWarga";
 import { angka, tanggal, todayLocalISO } from "@/lib/format";
+import { satuanGulaDarah } from "@/lib/labels";
+import { validGulaDarah } from "@/lib/validasi";
 import { admin as adminApi, posbindu as posbinduApi, wilayah as wilayahApi, ApiError } from "@/lib/api";
 import type { AdminPengguna, KunjunganPosbindu, SesiPosbindu, SesiPosbinduDetail, WargaCari, Wilayah } from "@/types";
 
@@ -68,6 +71,8 @@ export default function PosbinduPage() {
   const [cari, setCari] = useState("");
   const [statusFilter, setStatusFilter] = useState<"semua" | KodeStatusSesi>("semua");
   const [kunjungan, setKunjungan] = useState<KunjunganPosbindu[]>([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState<Meta | null>(null);
   const [loading, setLoading] = useState(true);
   const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState("");
@@ -108,9 +113,17 @@ export default function PosbinduPage() {
     setLoading(true);
     try {
       if (bolehKelola) {
-        setSesi(await posbinduApi.sesiList());
+        const res = await posbinduApi.sesiListPaged({
+          page,
+          per_page: 12,
+          search: cari.trim() || undefined,
+        });
+        setSesi(res.data);
+        setMeta(res.meta);
       } else {
-        setKunjungan(await posbinduApi.kunjungan());
+        const res = await posbinduApi.kunjunganPaged({ page, per_page: 12 });
+        setKunjungan(res.data);
+        setMeta(res.meta);
       }
       setError("");
     } catch (err) {
@@ -119,17 +132,25 @@ export default function PosbinduPage() {
     } finally {
       setLoading(false);
     }
-  }, [bolehKelola]);
+  }, [bolehKelola, page, cari]);
 
   useEffect(() => {
     if (loadingUser || !user) return;
     let aktif = true;
     const req = bolehKelola
-      ? posbinduApi.sesiList().then((res) => {
-          if (aktif) setSesi(res);
-        })
-      : posbinduApi.kunjungan().then((res) => {
-          if (aktif) setKunjungan(res);
+      ? posbinduApi
+          .sesiListPaged({ page, per_page: 12, search: cari.trim() || undefined })
+          .then((res) => {
+            if (aktif) {
+              setSesi(res.data);
+              setMeta(res.meta);
+            }
+          })
+      : posbinduApi.kunjunganPaged({ page, per_page: 12 }).then((res) => {
+          if (aktif) {
+            setKunjungan(res.data);
+            setMeta(res.meta);
+          }
         });
     req
       .then(() => {
@@ -146,7 +167,7 @@ export default function PosbinduPage() {
     return () => {
       aktif = false;
     };
-  }, [loadingUser, user, bolehKelola]);
+  }, [loadingUser, user, bolehKelola, page, cari]);
 
   useEffect(() => {
     if (!perluPilihWilayah) return;
@@ -262,9 +283,16 @@ export default function PosbinduPage() {
       setPErr("Isi sistol dan diastol secara bersamaan.");
       return;
     }
-    if (pHadir && pGula.trim() && !pJenisGula) {
-      setPErr("Pilih jenis gula darah (puasa / 2 jam PP).");
-      return;
+    if (pHadir && pGula.trim()) {
+      if (!pJenisGula) {
+        setPErr("Pilih jenis pemeriksaan gula darah (Puasa / Sewaktu / 2 Jam PP / HbA1c).");
+        return;
+      }
+      const cekGula = validGulaDarah(pGula, pJenisGula);
+      if (!cekGula.ok) {
+        setPErr(cekGula.msg || "Nilai gula darah tidak valid.");
+        return;
+      }
     }
     const uid = pWarga.id;
 
@@ -425,7 +453,10 @@ export default function PosbinduPage() {
               type="search"
               placeholder={bolehKelola ? "Cari lokasi, tanggal, atau kader…" : "Cari tanggal atau lokasi…"}
               value={cari}
-              onChange={(e) => setCari(e.target.value)}
+              onChange={(e) => {
+                setCari(e.target.value);
+                setPage(1);
+              }}
             />
           </div>
           {bolehKelola ? (
@@ -580,6 +611,8 @@ export default function PosbinduPage() {
           </div>
         )
       ) : null}
+
+      {!tampilLoading && !error && meta ? <Pagination meta={meta} onPage={setPage} /> : null}
 
       {/* Modal buat / ubah sesi */}
       <Modal
@@ -740,19 +773,26 @@ export default function PosbinduPage() {
                     <Input label="Diastol" suffix="mmHg" type="number" value={pDiastol} onChange={(e) => setPDiastol(e.target.value)} />
                     <Input
                       label="Gula darah"
-                      suffix="mg/dL"
+                      suffix={satuanGulaDarah(pJenisGula)}
                       type="number"
-                      placeholder="misalnya 110"
-                      hint="Rentang wajar 20–700 mg/dL (bukan mmol/L)"
+                      step="any"
+                      placeholder={pJenisGula === "hba1c" ? "misalnya 5.7" : "misalnya 110"}
+                      hint={
+                        pJenisGula === "hba1c"
+                          ? "Rentang HbA1c 3–25 %"
+                          : "Rentang wajar 20–700 mg/dL (bukan mmol/L)"
+                      }
                       value={pGula}
                       onChange={(e) => setPGula(e.target.value)}
                     />
                     <div>
-                      <label className="label">Jenis gula darah</label>
+                      <label className="label">Jenis Pemeriksaan Gula Darah</label>
                       <select className="select" value={pJenisGula} onChange={(e) => setPJenisGula(e.target.value)}>
-                        <option value="">-- pilih kondisi tes --</option>
-                        <option value="puasa">Puasa ≥ 8 jam (normal &lt; 100 mg/dL)</option>
-                        <option value="2jam_pp">2 jam setelah makan / sewaktu (normal &lt; 140 mg/dL)</option>
+                        <option value="">-- pilih jenis pemeriksaan --</option>
+                        <option value="puasa">Gula Darah Puasa (normal &lt; 100 mg/dL)</option>
+                        <option value="sewaktu">Gula Darah Sewaktu (normal &lt; 140 mg/dL)</option>
+                        <option value="2jam_pp">2 Jam Setelah Makan (normal &lt; 140 mg/dL)</option>
+                        <option value="hba1c">HbA1c % (normal &lt; 5,7%)</option>
                       </select>
                     </div>
                   </div>
