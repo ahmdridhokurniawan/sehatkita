@@ -255,18 +255,13 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
         </div>
       }
       footer={
-        <div className="row-between" style={{ width: "100%" }}>
-          <span className="tiny">
-            <Icon name="shield" size={14} /> Data dikirim ke backend
-          </span>
-          <div className="row" style={{ gap: 10 }}>
-            <button className="btn btn-outline" onClick={onClose} type="button">
-              Batal
-            </button>
-            <button className="btn btn-primary" onClick={kirim} disabled={simpan || tanpaPersetujuan} type="button">
-              {simpan ? "Menyimpan…" : "Simpan Catatan"}
-            </button>
-          </div>
+        <div className="row" style={{ width: "100%", justifyContent: "flex-end", gap: 10 }}>
+          <button className="btn btn-outline" onClick={onClose} type="button">
+            Batal
+          </button>
+          <button className="btn btn-primary" onClick={kirim} disabled={simpan || tanpaPersetujuan} type="button">
+            {simpan ? "Menyimpan…" : "Simpan Catatan"}
+          </button>
         </div>
       }
     >
@@ -409,7 +404,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
               Jenis Pemeriksaan Gula Darah{" "}
               {angka.gula_darah ? <span className="req">*</span> : <span className="opt">(wajib jika gula diisi)</span>}
             </label>
-            <div className="segment" role="group" aria-label="Pilih jenis pemeriksaan gula darah">
+            <div className="segment segment-compact" role="group" aria-label="Pilih jenis pemeriksaan gula darah">
               {JENIS_GULA.map((j) => (
                 <button
                   key={j.v}
@@ -456,17 +451,17 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
             kalikan <b>18</b> lebih dulu ke mg/dL.
           </div>
         </div>
-        <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
+        <div className="grid grid-2 mt-8" style={{ gap: 10 }}>
           <AngkaField f={FIELD_ANGKA[5]} value={angka[FIELD_ANGKA[5].id] || ""} err={err[FIELD_ANGKA[5].id]} onChange={ubahAngka} />
           <AngkaField f={FIELD_ANGKA[6]} value={angka[FIELD_ANGKA[6].id] || ""} err={err[FIELD_ANGKA[6].id]} onChange={ubahAngka} />
         </div>
       </fieldset>
 
-      <fieldset className="form-section">
+      <fieldset className="form-section" style={{ marginBottom: 12 }}>
         <legend>
           <span className="n">4</span> Kebiasaan Sehari-hari
         </legend>
-        <div className="grid grid-2" style={{ gap: 12 }}>
+        <div className="grid grid-2" style={{ gap: 10 }}>
           <AngkaField f={FIELD_ANGKA[7]} value={angka[FIELD_ANGKA[7].id] || ""} err={err[FIELD_ANGKA[7].id]} onChange={ubahAngka} />
           <div className="field">
             <label className="label" htmlFor="konsumsi_manis">
@@ -487,7 +482,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
             </select>
           </div>
         </div>
-        <div className="field">
+        <div className="field mt-8" style={{ marginBottom: 0 }}>
           <label className="label">
             Merokok <span className="opt">(opsional)</span>
           </label>
@@ -510,11 +505,11 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
         </div>
       </fieldset>
 
-      <fieldset className="form-section">
+      <fieldset className="form-section" style={{ marginBottom: 0 }}>
         <legend>
           <span className="n">5</span> Catatan Tambahan
         </legend>
-        <div className="field">
+        <div className="field" style={{ marginBottom: 0 }}>
           <label className="label" htmlFor="catatan">
             Catatan <span className="opt">(opsional)</span>
           </label>
@@ -526,17 +521,9 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
             placeholder="misalnya sedang minum obat tensi"
             onChange={(e) => setCatatan(e.target.value)}
           />
-          <div className="hint">{catatan.length}/500 karakter</div>
+          <div className="hint">{catatan.length}/500 karakter · Catatan tersimpan tidak bisa diedit (hapus lalu buat baru bila perlu).</div>
         </div>
       </fieldset>
-
-      <div className="alert alert-info" style={{ marginBottom: 16 }}>
-        <Icon name="info" size={18} />
-        <div className="text-xs">
-          Nilai kategori (IMT, tensi, gula darah) dihitung oleh server. Catatan yang tersimpan tidak dapat diedit —
-          perbaiki dengan menghapus lalu membuat catatan baru.
-        </div>
-      </div>
     </Modal>
   );
 }
