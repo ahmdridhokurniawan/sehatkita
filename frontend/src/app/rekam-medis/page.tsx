@@ -944,17 +944,20 @@ export default function RekamMedisPage() {
             }
           />
         ) : (
-          <div className="card mb-12" style={{ padding: 0, overflow: "hidden" }}>
+          <div className="card mb-12" style={{ padding: 0, overflowX: "auto" }}>
             <div className="tbl-wrap">
-              <table className="tbl">
+              <table className="tbl tbl-excel">
                 <thead>
                   <tr>
-                    <th>Tanggal &amp; Sumber</th>
+                    <th>Tanggal</th>
+                    <th>Sumber</th>
                     {petugas ? <th>Warga</th> : null}
-                    <th>BB / IMT</th>
-                    <th>Tekanan Darah</th>
-                    <th>Gula Darah</th>
-                    <th>Kol. / Asam Urat</th>
+                    <th className="num">BB (kg)</th>
+                    <th className="num">IMT</th>
+                    <th className="num">Tensi (mmHg)</th>
+                    <th className="num">Gula Darah</th>
+                    <th className="num">Kolesterol</th>
+                    <th className="num">Asam Urat</th>
                     <th>Status</th>
                     <th className="num">Aksi</th>
                   </tr>
@@ -967,95 +970,63 @@ export default function RekamMedisPage() {
                       (c.status_kesehatan === "berisiko" || c.status_kesehatan === "perlu_perhatian");
                     return (
                       <tr key={c.id}>
-                        <td>
-                          <strong>{tanggal(c.dicatat_pada, "short")}</strong>
-                          <div className="tiny">{LABEL_SUMBER[c.sumber] || c.sumber}</div>
-                        </td>
+                        <td>{tanggal(c.dicatat_pada, "short")}</td>
+                        <td>{LABEL_SUMBER[c.sumber] || c.sumber}</td>
                         {petugas ? (
                           <td>
                             {c.pengguna ? (
-                              <>
-                                <strong className="text-sm">{c.pengguna.name}</strong>
-                                <div className="tiny">
-                                  {bisaPilihWarga && c.pengguna.nik ? `NIK ${c.pengguna.nik}` : ""}
-                                  {c.pengguna.wilayah?.nama ? ` · ${c.pengguna.wilayah.nama}` : ""}
-                                </div>
-                              </>
+                              <span title={bisaPilihWarga && c.pengguna.nik ? `NIK ${c.pengguna.nik}` : undefined}>
+                                {c.pengguna.name}
+                              </span>
                             ) : (
-                              <span className="tiny">—</span>
+                              "—"
                             )}
                           </td>
                         ) : null}
-                        <td>
-                          <div>{c.bb_kg !== null ? `${c.bb_kg} kg` : "—"}</div>
+                        <td className="num">{c.bb_kg !== null ? c.bb_kg : "—"}</td>
+                        <td className="num">
                           {c.imt !== null ? (
-                            <div className="tiny">
-                              IMT {c.imt}
-                              {c.kategori_imt ? (
-                                <>
-                                  {" "}
-                                  <Badge tone={toneKategori(c.kategori_imt)}>
-                                    {labelKategoriIndikator(c.kategori_imt)}
-                                  </Badge>
-                                </>
-                              ) : null}
-                            </div>
-                          ) : null}
-                        </td>
-                        <td>
-                          {c.sistol !== null && c.diastol !== null ? (
-                            <>
-                              <strong>
-                                {c.sistol}/{c.diastol} mmHg
-                              </strong>
-                              {c.kategori_tensi ? (
-                                <div className="tiny">{labelKategoriIndikator(c.kategori_tensi)}</div>
-                              ) : null}
-                            </>
+                            <span title={c.kategori_imt ? labelKategoriIndikator(c.kategori_imt) : undefined}>
+                              {c.imt}
+                            </span>
                           ) : (
-                            <span className="tiny">—</span>
+                            "—"
                           )}
                         </td>
-                        <td>
+                        <td className="num">
+                          {c.sistol !== null && c.diastol !== null ? `${c.sistol}/${c.diastol}` : "—"}
+                        </td>
+                        <td className="num">
                           {c.gula_darah !== null ? (
-                            <>
-                              <strong>
-                                {c.gula_darah} {satuanGulaDarah(c.jenis_gula_darah)}
-                              </strong>
-                              <div className="tiny">
-                                {c.jenis_gula_darah
+                            <span
+                              title={
+                                c.jenis_gula_darah
                                   ? LABEL_JENIS_GULA_DARAH[c.jenis_gula_darah] ?? c.jenis_gula_darah
-                                  : "Gula darah"}
-                              </div>
-                            </>
+                                  : undefined
+                              }
+                            >
+                              {c.gula_darah} {satuanGulaDarah(c.jenis_gula_darah)}
+                            </span>
                           ) : (
-                            <span className="tiny">—</span>
+                            "—"
                           )}
                         </td>
+                        <td className="num">{c.kolesterol !== null ? `${c.kolesterol} mg/dL` : "—"}</td>
+                        <td className="num">{c.asam_urat !== null ? `${c.asam_urat} mg/dL` : "—"}</td>
                         <td>
-                          {c.kolesterol !== null || c.asam_urat !== null ? (
-                            <div className="tiny" style={{ color: "var(--text)" }}>
-                              {c.kolesterol !== null ? <div>Kol: {c.kolesterol} mg/dL</div> : null}
-                              {c.asam_urat !== null ? <div>AU: {c.asam_urat} mg/dL</div> : null}
-                            </div>
-                          ) : (
-                            <span className="tiny">—</span>
-                          )}
-                        </td>
-                        <td>
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
                             {c.perlu_verifikasi ? <Badge tone="warning">Verifikasi</Badge> : null}
                             {c.status_kesehatan ? (
                               <Badge tone={toneStatusKesehatan(c.status_kesehatan)}>
                                 {LABEL_STATUS_KESEHATAN[c.status_kesehatan]}
                               </Badge>
                             ) : (
-                              <span className="tiny">—</span>
+                              "—"
                             )}
                           </div>
                         </td>
                         <td className="num">
-                          <div className="row gap-6" style={{ justifyContent: "flex-end", flexWrap: "wrap" }}>
+                          <div className="row gap-6" style={{ justifyContent: "flex-end", flexWrap: "nowrap" }}>
                             {bisaVerifikasi && c.perlu_verifikasi ? (
                               <>
                                 <button

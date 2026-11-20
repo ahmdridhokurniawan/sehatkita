@@ -1,19 +1,19 @@
-/* Palet Kesehatan Terpadu: Medical Teal & Health Green dengan gradasi elegan. */
+/* Ambil gaya Arclo dengan palet Hijau Emerald Murni terpadu & gradasi elegan. */
 :root {
   --radius-sm: 10px;
   --radius: 16px;
   --radius-lg: 24px;
-  --grad-primary: linear-gradient(135deg, #0891B2 0%, #0E7490 52%, #155E75 100%);
-  --grad-primary-hover: linear-gradient(135deg, #06B6D4 0%, #0891B2 52%, #0E7490 100%);
-  --grad-hero: radial-gradient(420px 260px at 90% 12%, rgba(34, 211, 238, 0.22), transparent 68%), linear-gradient(135deg, #083344 0%, #0E7490 52%, #059669 100%);
+  --grad-primary: linear-gradient(135deg, #168C58 0%, #0F7347 52%, #0A5233 100%);
+  --grad-primary-hover: linear-gradient(135deg, #1B9E64 0%, #128251 52%, #0C5F3B 100%);
+  --grad-hero: radial-gradient(420px 260px at 90% 12%, rgba(74, 222, 128, 0.22), transparent 68%), linear-gradient(135deg, #072E1E 0%, #0C5738 52%, #157D50 100%);
   --grad-surface: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--surface-2) 34%, var(--surface)) 100%);
   --grad-warning: radial-gradient(360px 220px at 88% 16%, rgba(251, 191, 36, 0.18), transparent 68%), linear-gradient(135deg, #7C2D12 0%, #A14114 54%, #C25E1A 100%);
   --grad-danger: radial-gradient(360px 220px at 88% 16%, rgba(252, 165, 165, 0.18), transparent 68%), linear-gradient(135deg, #7F1D1D 0%, #9F2426 54%, #B93234 100%);
 }
 :root[data-theme="dark"] {
-  --grad-primary: linear-gradient(135deg, #22D3EE 0%, #06B6D4 55%, #0891B2 100%);
-  --grad-primary-hover: linear-gradient(135deg, #67E8F9 0%, #22D3EE 55%, #06B6D4 100%);
-  --grad-hero: radial-gradient(420px 260px at 90% 12%, rgba(34, 211, 238, 0.18), transparent 68%), linear-gradient(135deg, #062129 0%, #0C4352 54%, #0E6B5E 100%);
+  --grad-primary: linear-gradient(135deg, #4ADE80 0%, #22C55E 55%, #16A34A 100%);
+  --grad-primary-hover: linear-gradient(135deg, #6EE7A0 0%, #34D36E 55%, #1BB555 100%);
+  --grad-hero: radial-gradient(420px 260px at 90% 12%, rgba(74, 222, 128, 0.18), transparent 68%), linear-gradient(135deg, #062417 0%, #0B472D 54%, #116641 100%);
   --grad-surface: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--surface-2) 48%, var(--surface)) 100%);
   --grad-warning: linear-gradient(135deg, #6B2810 0%, #8C3B15 55%, #A64D1C 100%);
   --grad-danger: linear-gradient(135deg, #6E1A1D 0%, #8E2327 55%, #A62F33 100%);
@@ -25,15 +25,15 @@
 }
 :root:not([data-theme="dark"]) .landing {
   background:
-    radial-gradient(680px 380px at 94% 4%, rgba(8, 145, 178, 0.08), transparent 70%),
-    radial-gradient(540px 340px at 6% 92%, rgba(5, 150, 105, 0.055), transparent 72%),
-    linear-gradient(180deg, #F0FDFA 0%, var(--bg) 52%, #ECFEFF 100%);
+    radial-gradient(680px 380px at 94% 4%, rgba(22, 140, 88, 0.065), transparent 70%),
+    radial-gradient(540px 340px at 6% 92%, rgba(21, 128, 61, 0.045), transparent 72%),
+    linear-gradient(180deg, #F8FBF9 0%, var(--bg) 52%, #EFF6F1 100%);
 }
 :root[data-theme="dark"] .landing {
   background:
-    radial-gradient(680px 380px at 94% 4%, rgba(34, 211, 238, 0.08), transparent 70%),
-    radial-gradient(540px 340px at 6% 92%, rgba(52, 211, 153, 0.055), transparent 72%),
-    linear-gradient(180deg, #061518 0%, var(--bg) 55%, #091F24 100%);
+    radial-gradient(680px 380px at 94% 4%, rgba(74, 222, 128, 0.08), transparent 70%),
+    radial-gradient(540px 340px at 6% 92%, rgba(34, 197, 94, 0.055), transparent 72%),
+    linear-gradient(180deg, #061810 0%, var(--bg) 55%, #092116 100%);
 }
 
 /* Palet Dark Mode Kesehatan yang tenang & minimalis khusus halaman aplikasi (landing tetap utuh). */
@@ -45,43 +45,43 @@
 :root[data-theme="dark"] .bottom-nav,
 :root[data-theme="dark"]:has(.dash),
 :root[data-theme="dark"]:has(.auth-wrap) {
-  --primary: #22D3EE;
-  --primary-600: #06B6D4;
-  --primary-700: #0891B2;
-  --primary-050: rgba(34, 211, 238, 0.13);
-  --primary-100: rgba(34, 211, 238, 0.22);
-  --accent: #34D399;
-  --accent-600: #10B981;
-  --accent-700: #059669;
-  --accent-050: rgba(52, 211, 153, 0.13);
-  --accent-100: rgba(52, 211, 153, 0.22);
-  --green: #34D399;
-  --green-050: rgba(52, 211, 153, 0.14);
-  --safe: #34D399;
-  --safe-bg: rgba(52, 211, 153, 0.14);
-  --info: #38BDF8;
-  --info-bg: rgba(56, 189, 248, 0.14);
-  --bg: #0B1214;
-  --surface: #111B1E;
-  --surface-2: #162428;
-  --surface-3: #1D2E33;
-  --border: #22363C;
-  --border-strong: #2E4850;
-  --text: #E6F4F6;
-  --text-2: #B0CDD2;
-  --text-3: #7FA3AA;
-  --text-invert: #042F2E;
-  --on-primary: #042F2E;
-  --grad-primary: linear-gradient(135deg, #22D3EE 0%, #06B6D4 100%);
-  --grad-primary-hover: linear-gradient(135deg, #67E8F9 0%, #22D3EE 100%);
-  --grad-hero: linear-gradient(135deg, #0E2B33 0%, #15444F 100%);
+  --primary: #3DA075;
+  --primary-600: #2F8B64;
+  --primary-700: #246F4F;
+  --primary-050: rgba(61, 160, 117, 0.13);
+  --primary-100: rgba(61, 160, 117, 0.22);
+  --accent: #469B7C;
+  --accent-600: #348468;
+  --accent-700: #276A53;
+  --accent-050: rgba(70, 155, 124, 0.13);
+  --accent-100: rgba(70, 155, 124, 0.22);
+  --green: #3DA075;
+  --green-050: rgba(61, 160, 117, 0.14);
+  --safe: #43B082;
+  --safe-bg: rgba(67, 176, 130, 0.14);
+  --info: #5EB1A4;
+  --info-bg: rgba(94, 177, 164, 0.14);
+  --bg: #0F1413;
+  --surface: #151C1A;
+  --surface-2: #1B2421;
+  --surface-3: #222D2A;
+  --border: #25322D;
+  --border-strong: #32443E;
+  --text: #E8F0EC;
+  --text-2: #B6C7C0;
+  --text-3: #83978F;
+  --text-invert: #0A1410;
+  --on-primary: #F4FAF7;
+  --grad-primary: linear-gradient(135deg, #3DA075 0%, #2F8B64 100%);
+  --grad-primary-hover: linear-gradient(135deg, #4AB485 0%, #379A70 100%);
+  --grad-hero: linear-gradient(135deg, #163329 0%, #1F4B3B 100%);
   --grad-surface: var(--surface);
   --grad-warning: linear-gradient(135deg, #5D2D16 0%, #7A3E20 100%);
   --grad-danger: linear-gradient(135deg, #5C1F22 0%, #7A2B2F 100%);
-  --c-1: #22D3EE;
-  --c-2: #34D399;
-  --c-3: #5EEAD4;
-  --c-4: #0891B2;
+  --c-1: #3DA075;
+  --c-2: #5EB1A4;
+  --c-3: #7BC2A2;
+  --c-4: #2F8B64;
 }
 
 :root .dash-main {
@@ -274,8 +274,7 @@
   color: var(--primary);
 }
 :root .sidebar .snav:not(.active):hover .snav-ico svg {
-  transform: scale(1.06);
-  transition: transform 0.16s ease;
+  animation: snavIconSpin 0.55s cubic-bezier(.22, .61, .36, 1) forwards;
 }
 :root .sidebar .snav.active,
 :root .sidebar .snav.active:hover {
@@ -290,6 +289,9 @@
   background: transparent;
   border: none;
   color: var(--on-primary);
+}
+:root .sidebar .snav.active .snav-ico svg {
+  animation: snavHealthBeat 2.4s ease-in-out infinite;
 }
 @media (prefers-reduced-motion: reduce) {
   :root .sidebar .snav:not(.active):hover .snav-ico svg,

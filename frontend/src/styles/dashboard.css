@@ -2259,3 +2259,75 @@ a.sa-row:hover strong { color: var(--primary); }
   }
 }
 
+/* ---------- Penyederhanaan card di halaman aplikasi (kecuali landing page) ---------- */
+.app-dash .card {
+  background-image: none;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .03);
+}
+.app-dash .card::before {
+  display: none;
+}
+.app-dash .card:hover {
+  border-color: var(--border-strong);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .05);
+}
+:root[data-theme="dark"] .app-dash .card {
+  background-image: none;
+  background-color: var(--surface);
+  border-color: var(--border-strong);
+  box-shadow: none;
+}
+:root[data-theme="dark"] .app-dash .card:hover {
+  border-color: color-mix(in srgb, var(--primary) 38%, var(--border-strong));
+  box-shadow: none;
+}
+
+/* ---------- Tabel kolom ala Excel untuk Rekam Medis ---------- */
+.tbl-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.tbl.tbl-excel {
+  border-collapse: collapse;
+  font-size: .8125rem;
+}
+.tbl.tbl-excel th,
+.tbl.tbl-excel td {
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.tbl.tbl-excel thead th {
+  background: var(--surface-2);
+  font-size: .75rem;
+  font-weight: 700;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.tbl.tbl-excel tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--surface-2) 45%, transparent);
+}
+.tbl.tbl-excel tbody tr:hover {
+  background: color-mix(in srgb, var(--primary-050) 55%, var(--surface));
+}
+:root[data-theme="dark"] .tbl.tbl-excel th,
+:root[data-theme="dark"] .tbl.tbl-excel td {
+  border-color: var(--border-strong);
+}
+:root[data-theme="dark"] .tbl.tbl-excel thead th {
+  background: color-mix(in srgb, var(--surface-2) 90%, #000);
+}
+:root[data-theme="dark"] .tbl.tbl-excel tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, .02);
+}
+:root[data-theme="dark"] .tbl.tbl-excel tbody tr:hover {
+  background: rgba(196, 217, 123, .07);
+}
+
