@@ -65,7 +65,7 @@ class AuthController extends Controller
             'success' => true,
             'message' => 'Registrasi berhasil',
             'data' => [
-                'user' => $user,
+                'user' => $user->load('profil', 'wilayah'),
                 'token' => $sesi['token'],
                 'expires_at' => $sesi['expires_at'],
                 'token_ttl_menit' => $sesi['token_ttl_menit'],
@@ -109,7 +109,7 @@ class AuthController extends Controller
             'success' => true,
             'message' => 'Login berhasil',
             'data' => [
-                'user' => $user,
+                'user' => $user->load('profil', 'wilayah'),
                 'token' => $sesi['token'],
                 'expires_at' => $sesi['expires_at'],
                 'token_ttl_menit' => $sesi['token_ttl_menit'],

@@ -156,15 +156,22 @@ function muatUser(): Promise<User | null> {
   return pending;
 }
 
-/** Panggil saat logout / token dihapus. */
-export function clearUserCache(): void {
+/** Panggil saat logout / token dihapus, atau isi langsung user baru setelah login/register. */
+export function clearUserCache(nextUser?: User | null): void {
   cacheEpoch += 1;
-  cachedUser = null;
-  cachedUserJson = null;
-  cachedLoaded = false;
-  snapshotChecked = true;
   pending = null;
-  simpanSnapshotSesi(null);
+  snapshotChecked = true;
+  if (nextUser && getToken()) {
+    cachedUser = nextUser;
+    cachedUserJson = JSON.stringify(nextUser);
+    cachedLoaded = false;
+    simpanSnapshotSesi(nextUser);
+  } else {
+    cachedUser = null;
+    cachedUserJson = null;
+    cachedLoaded = false;
+    simpanSnapshotSesi(null);
+  }
   beritahu();
 }
 

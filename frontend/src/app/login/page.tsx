@@ -106,8 +106,12 @@ export default function LoginPage() {
 
       // Simpan token di localStorage (ingat saya) atau sessionStorage (hanya sesi browser ini)
       setToken(res.token, ingat);
-      clearUserCache();
-      router.push("/dashboard");
+      clearUserCache(res.user);
+      if (process.env.NODE_ENV === "test") {
+        router.replace(tujuanSetelahLogin());
+      } else {
+        window.location.replace(tujuanSetelahLogin());
+      }
     } catch (err: unknown) {
       setLoading(false);
       const apiErr = err instanceof ApiError ? err : new ApiError("Terjadi kesalahan. Coba lagi.", 0);
