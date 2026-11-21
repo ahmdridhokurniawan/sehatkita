@@ -304,8 +304,16 @@ export default function EdukasiPage() {
         </div>
       ) : null}
 
-      <div className="row-between wrap gap-10 mb-12">
-        <div className="input-icon" style={{ flex: "1 1 240px", minWidth: 220 }}>
+      <div
+        className="mb-16"
+        style={{
+          display: "grid",
+          gridTemplateColumns: isWarga ? "minmax(220px, 1fr) minmax(170px, 210px) minmax(170px, 210px)" : "minmax(220px, 1fr) minmax(180px, 220px)",
+          gap: 10,
+          alignItems: "center",
+        }}
+      >
+        <div className="input-icon" style={{ width: "100%" }}>
           <Icon name="search" size={18} />
           <input
             className="input"
@@ -318,40 +326,40 @@ export default function EdukasiPage() {
             }}
           />
         </div>
-        <div className="row gap-8 wrap">
+        <select
+          className="select"
+          style={{ width: "100%" }}
+          aria-label="Filter kategori edukasi"
+          value={kategori}
+          onChange={(e) => {
+            setKategori(e.target.value);
+            setPage(1);
+          }}
+        >
+          <option value="">Semua Kategori</option>
+          {(Object.keys(LABEL_KATEGORI) as EdukasiKategori[]).map((k) => (
+            <option key={k} value={k}>
+              {LABEL_KATEGORI[k]}
+            </option>
+          ))}
+        </select>
+        {isWarga ? (
           <select
             className="select"
-            aria-label="Filter kategori edukasi"
-            value={kategori}
+            style={{ width: "100%" }}
+            aria-label="Filter status baca"
+            value={statusBaca}
             onChange={(e) => {
-              setKategori(e.target.value);
+              setStatusBaca(e.target.value);
               setPage(1);
             }}
           >
-            <option value="">Semua Kategori</option>
-            {(Object.keys(LABEL_KATEGORI) as EdukasiKategori[]).map((k) => (
-              <option key={k} value={k}>
-                {LABEL_KATEGORI[k]}
-              </option>
-            ))}
+            <option value="">Semua Status</option>
+            <option value="belum">Belum dibaca</option>
+            <option value="berjalan">Sedang dipelajari</option>
+            <option value="selesai">Sudah selesai</option>
           </select>
-          {isWarga ? (
-            <select
-              className="select"
-              aria-label="Filter status baca"
-              value={statusBaca}
-              onChange={(e) => {
-                setStatusBaca(e.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="">Semua Status</option>
-              <option value="belum">Belum dibaca</option>
-              <option value="berjalan">Sedang dipelajari</option>
-              <option value="selesai">Sudah selesai</option>
-            </select>
-          ) : null}
-        </div>
+        ) : null}
       </div>
 
       {tampilLoading ? (

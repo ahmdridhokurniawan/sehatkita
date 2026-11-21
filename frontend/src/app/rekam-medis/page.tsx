@@ -64,10 +64,12 @@ function isoTanggalLokal(s?: string | null): string {
 
 const PER_HALAMAN = 10;
 
-function toneKategori(k = ""): "safe" | "warning" | "danger" {
-  if (/derajat 2|obesitas|tinggi|berisiko/i.test(k)) return "danger";
-  if (/derajat 1|gemuk|batas|prehipertensi/i.test(k)) return "warning";
-  return "safe";
+function labelSingkatGula(jenis?: string | null): string {
+  if (jenis === "puasa") return "Puasa";
+  if (jenis === "sewaktu") return "Sewaktu";
+  if (jenis === "2jam_pp") return "2 Jam PP";
+  if (jenis === "hba1c") return "HbA1c";
+  return "Puasa";
 }
 
 function toneStatusKesehatan(s?: StatusKesehatan | null): "safe" | "warning" | "danger" | "default" {
@@ -818,7 +820,11 @@ export default function RekamMedisPage() {
                           const ringkas: string[] = [];
                           if (item.bb_kg !== null) ringkas.push(`BB ${item.bb_kg} kg`);
                           if (item.sistol !== null && item.diastol !== null) ringkas.push(`Tensi ${item.sistol}/${item.diastol}`);
-                          if (item.gula_darah !== null) ringkas.push(`Gula ${item.gula_darah} mg/dL`);
+                          if (item.gula_darah !== null) {
+                            ringkas.push(
+                              `Gula ${item.gula_darah} ${satuanGulaDarah(item.jenis_gula_darah)} (${labelSingkatGula(item.jenis_gula_darah)})`,
+                            );
+                          }
                           if (item.kolesterol !== null) ringkas.push(`Kolesterol ${item.kolesterol}`);
                           if (item.asam_urat !== null) ringkas.push(`Asam Urat ${item.asam_urat}`);
                           return (
@@ -877,7 +883,11 @@ export default function RekamMedisPage() {
                           const isoItem = isoTanggalLokal(item.dicatat_pada);
                           const ringkas: string[] = [];
                           if (item.sistol !== null && item.diastol !== null) ringkas.push(`Tensi ${item.sistol}/${item.diastol}`);
-                          if (item.gula_darah !== null) ringkas.push(`Gula ${item.gula_darah}`);
+                          if (item.gula_darah !== null) {
+                            ringkas.push(
+                              `Gula ${item.gula_darah} ${satuanGulaDarah(item.jenis_gula_darah)} (${labelSingkatGula(item.jenis_gula_darah)})`,
+                            );
+                          }
                           if (item.bb_kg !== null) ringkas.push(`${item.bb_kg} kg`);
                           return (
                             <button
@@ -998,15 +1008,14 @@ export default function RekamMedisPage() {
                         </td>
                         <td className="num">
                           {c.gula_darah !== null ? (
-                            <span
-                              title={
-                                c.jenis_gula_darah
-                                  ? LABEL_JENIS_GULA_DARAH[c.jenis_gula_darah] ?? c.jenis_gula_darah
-                                  : undefined
-                              }
-                            >
-                              {c.gula_darah} {satuanGulaDarah(c.jenis_gula_darah)}
-                            </span>
+                            <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end", lineHeight: 1.25 }}>
+                              <span>
+                                {c.gula_darah} {satuanGulaDarah(c.jenis_gula_darah)}
+                              </span>
+                              <span className="tiny" style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600 }}>
+                                {labelSingkatGula(c.jenis_gula_darah)}
+                              </span>
+                            </div>
                           ) : (
                             "—"
                           )}

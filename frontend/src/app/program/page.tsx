@@ -108,7 +108,6 @@ export default function ProgramPage() {
   const [loading, setLoading] = useState(true);
   const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState("");
-  const [detail, setDetail] = useState<Program | null>(null);
   const [proses, setProses] = useState<number | null>(null);
   const [aksiErr, setAksiErr] = useState("");
 
@@ -568,10 +567,6 @@ export default function ProgramPage() {
                   <Link href={`/program/${p.id}`} className="btn btn-sm btn-outline">
                     <Icon name="file-text" size={14} /> {bolehKelola ? "Validasi Peserta" : "Detail Misi"}
                   </Link>
-
-                  <Button variant="ghost" size="sm" onClick={() => setDetail(p)} title="Ringkasan cepat">
-                    Ringkas
-                  </Button>
                   {bolehUbahProgram(p) ? (
                     <>
                       <Button
@@ -602,71 +597,6 @@ export default function ProgramPage() {
       ) : null}
 
       {!tampilLoading && !error && meta ? <Pagination meta={meta} onPage={setPage} /> : null}
-
-      <Modal
-        open={!!detail}
-        onClose={() => setDetail(null)}
-        title={detail?.judul}
-        footer={
-          detail ? (
-            <div className="row-between" style={{ width: "100%" }}>
-              <button type="button" className="btn btn-ghost" onClick={() => setDetail(null)}>
-                Tutup
-              </button>
-              <Link href={`/program/${detail.id}`} className="btn btn-primary" onClick={() => setDetail(null)}>
-                Buka Halaman Misi <Icon name="arrow-right" size={15} />
-              </Link>
-            </div>
-          ) : null
-        }
-      >
-        {detail ? (
-          <div style={{ display: "grid", gap: 12 }}>
-            <p className="tiny">{defaultDeskripsi(detail)}</p>
-            {detail.kriteria_misi ? (
-              <div className="alert alert-info">
-                <Icon name="camera" size={18} />
-                <div className="tiny">
-                  <strong>Kriteria Bukti Foto:</strong> {detail.kriteria_misi}
-                </div>
-              </div>
-            ) : null}
-            <dl className="dl">
-              <div>
-                <dt>Jenis</dt>
-                <dd>{labelJenisProgram(detail)}</dd>
-              </div>
-              <div>
-                <dt>Periode</dt>
-                <dd>
-                  {tanggal(detail.mulai, "long")} – {tanggal(detail.selesai, "long")}
-                </dd>
-              </div>
-              <div>
-                <dt>Status</dt>
-                <dd>
-                  <Badge tone={TONE_STATUS[hitungStatus(detail.mulai, detail.selesai, detail.status)]}>
-                    {LABEL_STATUS[hitungStatus(detail.mulai, detail.selesai, detail.status)]}
-                  </Badge>
-                </dd>
-              </div>
-              <div>
-                <dt>Peserta</dt>
-                <dd>
-                  {angka(detail.jumlah_peserta)} / {angka(detail.target_peserta)}
-                </dd>
-              </div>
-              <div>
-                <dt>Reward</dt>
-                <dd>
-                  +{angka(detail.exp)} EXP
-                  {detail.badge ? ` · Badge ${detail.badge}` : ""}
-                </dd>
-              </div>
-            </dl>
-          </div>
-        ) : null}
-      </Modal>
 
       <Modal
         open={buatOpen}

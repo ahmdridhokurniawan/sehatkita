@@ -218,7 +218,7 @@ export default function RegisterPage() {
       });
 
       setToken(res.token, true);
-      clearUserCache();
+      clearUserCache(res.user);
 
       // User baru (consent_at null) → redirect ke onboarding (kontrak §26)
       if (res.user.consent_at === null) {

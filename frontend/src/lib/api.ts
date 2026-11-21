@@ -339,12 +339,25 @@ async function requestPaged<T>(
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
-  const json = (await response.json()) as {
+  let json: {
     data?: T[];
     meta?: import("@/types").PaginationMeta;
     message?: string;
     errors?: Record<string, string[]>;
   };
+  try {
+    json = (await response.json()) as {
+      data?: T[];
+      meta?: import("@/types").PaginationMeta;
+      message?: string;
+      errors?: Record<string, string[]>;
+    };
+  } catch {
+    throw new ApiError(
+      `Respons backend tidak valid (status ${response.status})`,
+      response.status,
+    );
+  }
   if (response.ok) {
     return { data: json.data ?? [], meta: json.meta ?? null };
   }
@@ -361,18 +374,37 @@ async function requestPaged<T>(
  * §20 — Penanganan 401 global
  * Token kedaluwarsa / tidak valid: hapus token lalu arahkan ke /masuk.
  * ============================================================ */
+const HALAMAN_PUBLIK = new Set([
+  "/",
+  "/bantuan",
+  "/batasan-medis",
+  "/kebijakan-privasi",
+  "/kontak",
+  "/syarat-ketentuan",
+]);
+
+export function adalahHalamanPublik(pathname: string, search = ""): boolean {
+  const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  if (HALAMAN_PUBLIK.has(normalized)) return true;
+  if (normalized.startsWith("/login") || normalized.startsWith("/register")) return true;
+  if (normalized === "/kalkulator") {
+    const params = new URLSearchParams(search);
+    return params.get("app") !== "1";
+  }
+  return false;
+}
+
 let sedangRedirect = false;
 
 function tangani401(): void {
   if (typeof window === "undefined") return;
   clearToken();
   if (sedangRedirect) return;
-  const diHalamanAuth =
-    window.location.pathname.startsWith("/login") ||
-    window.location.pathname.startsWith("/register");
-  if (diHalamanAuth) return;
+  const path = window.location.pathname;
+  const search = window.location.search;
+  if (adalahHalamanPublik(path, search)) return;
   sedangRedirect = true;
-  const next = encodeURIComponent(window.location.pathname + window.location.search);
+  const next = encodeURIComponent(path + search);
   window.location.replace(`/login?next=${next}`);
 }
 
@@ -638,13 +670,27 @@ export const edukasiApi = {
     const token = getToken();
     if (token) headers["Authorization"] = `Bearer ${token}`;
     const response = await kirim(buildUrl("/edukasi", query), { method: "GET", headers });
-    const json = (await response.json()) as {
+    let json: {
       data?: EdukasiItem[];
       meta?: PaginationMeta;
       ringkasan_progres?: RingkasanProgresEdukasi | null;
       message?: string;
       errors?: Record<string, string[]>;
     };
+    try {
+      json = (await response.json()) as {
+        data?: EdukasiItem[];
+        meta?: PaginationMeta;
+        ringkasan_progres?: RingkasanProgresEdukasi | null;
+        message?: string;
+        errors?: Record<string, string[]>;
+      };
+    } catch {
+      throw new ApiError(
+        `Respons backend tidak valid (status ${response.status})`,
+        response.status,
+      );
+    }
     if (response.ok) {
       return {
         data: json.data ?? [],
@@ -687,7 +733,10 @@ export async function fetchMediaBlobUrl(pathOrUrl: string): Promise<string> {
   const token = getToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(path, { headers });
-  if (!res.ok) throw new ApiError("Gagal memuat dokumentasi", res.status);
+  if (!res.ok) {
+    if (res.status === 401) tangani401();
+    throw new ApiError("Gagal memuat dokumentasi", res.status);
+  }
   const blob = await res.blob();
   return URL.createObjectURL(blob);
 }
@@ -785,6 +834,7 @@ export const admin = {
     if (token) headers["Authorization"] = `Bearer ${token}`;
     const res = await fetch(`${API_BASE_URL}/admin/export?tipe=${tipe}`, { headers });
     if (!res.ok) {
+      if (res.status === 401) tangani401();
       let pesan = "Gagal mengunduh data.";
       try {
         const j = await res.json();

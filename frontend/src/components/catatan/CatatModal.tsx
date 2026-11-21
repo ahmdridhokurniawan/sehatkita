@@ -101,7 +101,8 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
   /* Warga & admin kelurahan hanya punya satu pilihan sumber; otomatis "mandiri". */
   const efektifSumber = !petugas && sumber === "" ? "mandiri" : sumber;
 
-  /* Dropdown sesi hanya relevan bila sumber = kader */
+  /* Dropdown sesi hanya relevan bila sumber = kader; pilih warga berlaku untuk kader & puskesmas */
+  const butuhWarga = efektifSumber === "kader" || efektifSumber === "puskesmas";
   const butuhSesi = efektifSumber === "kader";
   const muatSesi = open && butuhSesi && !sesiSelesai;
 
@@ -172,10 +173,12 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
 
     const payload: Record<string, unknown> = { dicatat_pada: waktu, sumber: efektifSumber };
 
-    // Sumber kader wajib menyertakan warga + sesi posbindu (aturan backend)
-    if (efektifSumber === "kader") {
-      if (!warga) e.user_id = "Pilih warga binaan terlebih dahulu.";
+    // Sumber kader & puskesmas wajib menyertakan warga; sumber kader juga butuh sesi posbindu
+    if (butuhWarga) {
+      if (!warga) e.user_id = "Pilih warga terlebih dahulu.";
       else payload.user_id = warga.id;
+    }
+    if (butuhSesi) {
       if (!sesiId) e.sesi_posbindu_id = "Pilih sesi posbindu.";
       else payload.sesi_posbindu_id = Number(sesiId);
     }
@@ -209,8 +212,8 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
     if (merokok !== "") payload.merokok = merokok === "true";
     if (catatan.trim()) payload.catatan = catatan.trim();
 
-    if (!adaAngka && !konsumsiManis && merokok === "") {
-      e.bb_kg = "Isi minimal satu pengukuran atau kebiasaan.";
+    if (!adaAngka) {
+      e.bb_kg = "Minimal satu pengukuran angka wajib diisi.";
     }
 
     setErr(e);
@@ -233,9 +236,17 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
         for (const [k, msgs] of Object.entries(apiErr.errors)) {
           map[k] = msgs[0] ?? "Nilai tidak valid";
         }
+        if (apiErr.errors.pengukuran?.[0] && !map.bb_kg) {
+          map.bb_kg = apiErr.errors.pengukuran[0];
+        }
         setErr(map);
       }
-      toast.warning(apiErr.errors?.consent?.[0] || apiErr.message || "Gagal menyimpan catatan.");
+      toast.warning(
+        apiErr.errors?.consent?.[0] ||
+          apiErr.errors?.pengukuran?.[0] ||
+          apiErr.message ||
+          "Gagal menyimpan catatan.",
+      );
     } finally {
       setSimpan(false);
     }
@@ -325,46 +336,46 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
           </div>
         </div>
 
-        {efektifSumber === "kader" ? (
-          <>
-            <PilihWarga
-              value={warga}
-              onChange={(w) => {
-                setWarga(w);
-                setErr((p) => ({ ...p, user_id: "" }));
-              }}
-              error={err.user_id}
-              id="catat-warga"
-              wilayahId={batasWilayah}
-            />
+        {butuhWarga ? (
+          <PilihWarga
+            value={warga}
+            onChange={(w) => {
+              setWarga(w);
+              setErr((p) => ({ ...p, user_id: "" }));
+            }}
+            error={err.user_id}
+            id="catat-warga"
+            wilayahId={batasWilayah}
+          />
+        ) : null}
 
-            <div className="field">
-              <label className="label" htmlFor="sesi_posbindu_id">
-                Sesi posbindu <span className="req">*</span>
-              </label>
-              <select
-                className={"select" + (err.sesi_posbindu_id ? " is-error" : "")}
-                id="sesi_posbindu_id"
-                value={sesiId}
-                onChange={(e) => {
-                  setSesiId(e.target.value);
-                  setErr((p) => ({ ...p, sesi_posbindu_id: "" }));
-                }}
-                disabled={muatSesi}
-              >
-                <option value="">{muatSesi ? "Memuat sesi…" : "Pilih sesi…"}</option>
-                {daftarSesi.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {tanggal(s.tanggal, "short")} · {s.lokasi}
-                  </option>
-                ))}
-              </select>
-              {err.sesi_posbindu_id ? <div className="err-msg show">{err.sesi_posbindu_id}</div> : null}
-              {!muatSesi && daftarSesi.length === 0 ? (
-                <div className="hint">Belum ada sesi posbindu di wilayah Anda. Minta admin kelurahan membuat sesi dulu.</div>
-              ) : null}
-            </div>
-          </>
+        {butuhSesi ? (
+          <div className="field">
+            <label className="label" htmlFor="sesi_posbindu_id">
+              Sesi posbindu <span className="req">*</span>
+            </label>
+            <select
+              className={"select" + (err.sesi_posbindu_id ? " is-error" : "")}
+              id="sesi_posbindu_id"
+              value={sesiId}
+              onChange={(e) => {
+                setSesiId(e.target.value);
+                setErr((p) => ({ ...p, sesi_posbindu_id: "" }));
+              }}
+              disabled={muatSesi}
+            >
+              <option value="">{muatSesi ? "Memuat sesi…" : "Pilih sesi…"}</option>
+              {daftarSesi.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {tanggal(s.tanggal, "short")} · {s.lokasi}
+                </option>
+              ))}
+            </select>
+            {err.sesi_posbindu_id ? <div className="err-msg show">{err.sesi_posbindu_id}</div> : null}
+            {!muatSesi && daftarSesi.length === 0 ? (
+              <div className="hint">Belum ada sesi posbindu di wilayah Anda. Minta admin kelurahan membuat sesi dulu.</div>
+            ) : null}
+          </div>
         ) : null}
       </fieldset>
 

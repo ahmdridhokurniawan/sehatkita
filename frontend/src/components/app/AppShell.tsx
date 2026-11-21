@@ -346,8 +346,12 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
       items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[3]],
     });
     grup.push({
-      judul: "Program & Edukasi",
-      items: [NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[6], NAV_UTAMA[8]],
+      judul: "Program",
+      items: [NAV_UTAMA[4], NAV_UTAMA[6]],
+    });
+    grup.push({
+      judul: "Edukasi",
+      items: [NAV_UTAMA[5], NAV_UTAMA[8]],
     });
     grup.push({ judul: "Data & Laporan", items: [NAV_DATA[0], NAV_DATA[1], NAV_DATA[2]] });
     grup.push({
@@ -369,8 +373,12 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
       items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[3]],
     });
     grup.push({
-      judul: "Program & Edukasi",
-      items: [NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[6], NAV_UTAMA[8]],
+      judul: "Program",
+      items: [NAV_UTAMA[4], NAV_UTAMA[6]],
+    });
+    grup.push({
+      judul: "Edukasi",
+      items: [NAV_UTAMA[5], NAV_UTAMA[8]],
     });
     grup.push({
       judul: "Data & Laporan",
@@ -410,8 +418,12 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
       items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[3]],
     });
     grup.push({
-      judul: "Program & Edukasi",
-      items: [NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[6], NAV_UTAMA[8]],
+      judul: "Program",
+      items: [NAV_UTAMA[4], NAV_UTAMA[6]],
+    });
+    grup.push({
+      judul: "Edukasi",
+      items: [NAV_UTAMA[5], NAV_UTAMA[8]],
     });
     grup.push({ judul: "Data & Laporan", items: [NAV_DATA[1], NAV_DATA[2]] });
     grup.push({ judul: "Akun", items: NAV_AKUN });
@@ -421,8 +433,12 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
       items: [NAV_UTAMA[0], NAV_UTAMA[1], NAV_UTAMA[2], NAV_UTAMA[3]],
     });
     grup.push({
-      judul: "Program & Edukasi",
-      items: [NAV_UTAMA[4], NAV_UTAMA[5], NAV_UTAMA[6], NAV_UTAMA[8]],
+      judul: "Program",
+      items: [NAV_UTAMA[4], NAV_UTAMA[6]],
+    });
+    grup.push({
+      judul: "Edukasi",
+      items: [NAV_UTAMA[5], NAV_UTAMA[8]],
     });
     grup.push({
       judul: "Layanan",

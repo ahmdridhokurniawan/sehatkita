@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
-import type { BentoAccent } from "@/components/dashboard/BentoDashboard";
+import Pagination, { type Meta } from "@/components/ui/Pagination";
 
 const PANDUAN = [
   {
@@ -60,7 +60,7 @@ const PANDUAN = [
   },
 ];
 
-const ISTILAH: { istilah: string; definisi: string; accent: BentoAccent }[] = [
+const ISTILAH: { istilah: string; definisi: string; accent: string }[] = [
   {
     istilah: "PTM (Penyakit Tidak Menular)",
     definisi:
@@ -147,18 +147,12 @@ const ISTILAH: { istilah: string; definisi: string; accent: BentoAccent }[] = [
   },
 ];
 
-const WARNA_ACCENT: Record<BentoAccent, string> = {
-  primary: "var(--primary)",
-  safe: "var(--safe)",
-  warning: "var(--warning)",
-  accent: "var(--accent)",
-  danger: "var(--danger)",
-  info: "var(--info)",
-};
+const PER_PAGE_KAMUS = 4;
 
 export default function PanduanPage() {
   const [terbuka, setTerbuka] = useState<string | null>(null);
   const [cariIstilah, setCariIstilah] = useState("");
+  const [halamanKamus, setHalamanKamus] = useState(1);
 
   const istilahTersaring = useMemo(() => {
     const q = cariIstilah.trim().toLowerCase();
@@ -169,6 +163,20 @@ export default function PanduanPage() {
         i.definisi.toLowerCase().includes(q),
     );
   }, [cariIstilah]);
+
+  const totalKamus = istilahTersaring.length;
+  const lastPageKamus = Math.max(1, Math.ceil(totalKamus / PER_PAGE_KAMUS));
+  const halamanKamusAman = Math.min(halamanKamus, lastPageKamus);
+  const kamusTampil = istilahTersaring.slice(
+    (halamanKamusAman - 1) * PER_PAGE_KAMUS,
+    halamanKamusAman * PER_PAGE_KAMUS,
+  );
+  const metaKamus: Meta = {
+    page: halamanKamusAman,
+    per_page: PER_PAGE_KAMUS,
+    total: totalKamus,
+    last_page: lastPageKamus,
+  };
 
   return (
     <AppShell noFab>
@@ -254,7 +262,10 @@ export default function PanduanPage() {
             type="search"
             placeholder="Cari istilah (mis. PTM, Sistol, IMT, Skrining, EXP)…"
             value={cariIstilah}
-            onChange={(e) => setCariIstilah(e.target.value)}
+            onChange={(e) => {
+              setCariIstilah(e.target.value);
+              setHalamanKamus(1);
+            }}
           />
         </div>
 
@@ -263,36 +274,27 @@ export default function PanduanPage() {
             <p className="tiny center">Tidak ada istilah yang cocok dengan “{cariIstilah}”.</p>
           </div>
         ) : (
-          <div className="card mt-12" style={{ padding: 0, overflow: "hidden" }}>
-            {istilahTersaring.map((item) => (
-              <div
-                key={item.istilah}
-                className="li"
-                style={{
-                  padding: "10px 14px",
-                  minHeight: "unset",
-                  alignItems: "flex-start",
-                  gap: 10,
-                }}
-              >
-                <span
-                  aria-hidden="true"
+          <>
+            <div className="card mt-12" style={{ padding: 0, overflow: "hidden" }}>
+              {kamusTampil.map((item) => (
+                <div
+                  key={item.istilah}
+                  className="li"
                   style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: WARNA_ACCENT[item.accent],
-                    marginTop: 6,
-                    flexShrink: 0,
+                    padding: "10px 14px",
+                    minHeight: "unset",
+                    alignItems: "flex-start",
                   }}
-                />
-                <div className="li-main">
-                  <strong>{item.istilah}</strong>
-                  <span style={{ display: "block", marginTop: 2, lineHeight: 1.45 }}>{item.definisi}</span>
+                >
+                  <div className="li-main">
+                    <strong>{item.istilah}</strong>
+                    <span style={{ display: "block", marginTop: 2, lineHeight: 1.45 }}>{item.definisi}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+            <Pagination meta={metaKamus} onPage={setHalamanKamus} />
+          </>
         )}
       </section>
 

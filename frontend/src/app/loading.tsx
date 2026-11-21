@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { GlassyDashboardSkeleton } from "@/components/dashboard/GlassyWidgets";
 
 const RUTE_APP_PREFIX = [
   "/dashboard",
