@@ -67,7 +67,7 @@ class AuthController extends Controller
             'data' => [
                 'user' => $user->load('profil', 'wilayah'),
                 'token' => $sesi['token'],
-                'expires_at' => $sesi['expires_at'],
+                'token_expires_at' => $sesi['expires_at'],
                 'token_ttl_menit' => $sesi['token_ttl_menit'],
             ],
         ], 201);
@@ -83,12 +83,8 @@ class AuthController extends Controller
         $email = strtolower(trim($validated['email']));
         $user = Pengguna::where('email', $email)->first();
 
-        if (! $user || ! Hash::check($validated['password'], $user->password)) {
+        if (! $user || ! $user->aktif || ! Hash::check($validated['password'], $user->password)) {
             throw ValidationException::withMessages(['email' => ['Email atau password salah']]);
-        }
-
-        if (! $user->aktif) {
-            return response()->json(['success' => false, 'message' => 'Akun dinonaktifkan'], 403);
         }
 
         $ip = (string) $request->ip();
@@ -111,7 +107,7 @@ class AuthController extends Controller
             'data' => [
                 'user' => $user->load('profil', 'wilayah'),
                 'token' => $sesi['token'],
-                'expires_at' => $sesi['expires_at'],
+                'token_expires_at' => $sesi['expires_at'],
                 'token_ttl_menit' => $sesi['token_ttl_menit'],
             ],
         ]);

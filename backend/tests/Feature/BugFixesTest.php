@@ -445,11 +445,11 @@ class BugFixesTest extends TestCase
             'password' => 'SalahBanget1!',
         ])->assertStatus(422)->assertJsonValidationErrors(['email']);
 
-        // Kredensial valid pada akun nonaktif tetap 403
+        // Kredensial valid pada akun nonaktif juga 422 (sesuai kontrak §2 & §4.2, sama dengan password salah)
         $this->postJson('/api/v1/auth/login', [
             'email'    => $nonaktif->email,
             'password' => 'Rahasia123!',
-        ])->assertStatus(403);
+        ])->assertStatus(422)->assertJsonValidationErrors(['email']);
 
         // Password tanpa huruf kecil ditolak saat admin membuat pengguna
         $this->asUser($superAdmin)->postJson('/api/v1/admin/pengguna', [

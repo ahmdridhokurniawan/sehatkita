@@ -45,7 +45,7 @@ class AuthTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('success', true)
-            ->assertJsonStructure(['data' => ['token', 'user' => ['id', 'email', 'role']]]);
+            ->assertJsonStructure(['data' => ['token', 'token_expires_at', 'token_ttl_menit', 'user' => ['id', 'email', 'role']]]);
 
         // Password tidak boleh bocor di response.
         $response->assertJsonMissingPath('data.user.password');
@@ -79,7 +79,7 @@ class AuthTest extends TestCase
         $this->postJson('/api/v1/auth/login', [
             'email'    => $user->email,
             'password' => 'rahasia123',
-        ])->assertStatus(403)
+        ])->assertStatus(422)
           ->assertJsonPath('success', false);
     }
 
