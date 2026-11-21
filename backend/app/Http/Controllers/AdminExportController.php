@@ -15,7 +15,8 @@ class AdminExportController extends Controller
     {
         $this->wajibPeran($request->user(), ['super_admin'], 'Hanya super admin.');
 
-        $tipe = $request->query('tipe', 'catatan');
+        $tipeRaw = (string) $request->query('tipe', 'catatan');
+        $tipe = in_array($tipeRaw, ['catatan', 'posbindu', 'rujukan'], true) ? $tipeRaw : 'catatan';
         $namaFile = 'sehatkita_export_'.$tipe.'_'.date('Ymd_His').'.csv';
 
         $modelAudit = match ($tipe) {

@@ -69,14 +69,14 @@ class InsightService
 
     private function tensiTinggi($catatan): array
     {
-        $duaTerakhir = $catatan->filter(fn ($c) => $c->sistol !== null)->take(-2);
+        $duaTerakhir = $catatan->filter(fn ($c) => $c->sistol !== null || $c->diastol !== null)->take(-2);
 
         if ($duaTerakhir->count() < 2) {
             return [];
         }
 
         $duaBerisiko = $duaTerakhir->every(function ($c) {
-            $hasil = $this->kalkulator->kategori('sistol', $c->sistol);
+            $hasil = $this->kalkulator->kategoriTensi($c->sistol, $c->diastol);
 
             return $hasil && $hasil['status'] !== 'normal';
         });

@@ -54,7 +54,8 @@ class PosbinduController extends Controller
             $query->whereDate('tanggal', '>=', $request->dari);
         }
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $statusSaring = $request->status === 'berlangsung' ? 'berjalan' : $request->status;
+            $query->where('status', $statusSaring);
         }
 
         $this->saringCari($query, ['lokasi', 'catatan'], $request);
@@ -181,8 +182,12 @@ class PosbinduController extends Controller
             'lokasi' => 'sometimes|string|max:150',
             'kader_id' => 'sometimes|nullable|exists:pengguna,id',
             'catatan' => 'sometimes|nullable|string',
-            'status' => ['sometimes', Rule::in(['akan_datang', 'berjalan', 'selesai'])],
+            'status' => ['sometimes', Rule::in(['akan_datang', 'berjalan', 'berlangsung', 'selesai'])],
         ]);
+
+        if (($data['status'] ?? null) === 'berlangsung') {
+            $data['status'] = 'berjalan';
+        }
 
         if (array_key_exists('kader_id', $data)) {
             $this->validasiKaderWilayah($data['kader_id'], (int) $sesi->wilayah_id);

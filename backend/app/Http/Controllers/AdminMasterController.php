@@ -122,6 +122,20 @@ class AdminMasterController extends Controller
             $query->whereHas('indikator', fn ($q) => $q->where('kode', $request->kode));
         }
 
+        $kata = trim((string) ($request->query('search') ?? $request->query('q') ?? ''));
+        if ($kata !== '') {
+            $escaped = addcslashes(mb_substr($kata, 0, 100), '%_\\');
+            $query->where(function ($q) use ($escaped) {
+                $q->where('kategori', 'like', '%'.$escaped.'%')
+                    ->orWhere('status', 'like', '%'.$escaped.'%')
+                    ->orWhere('jenis_gula_darah', 'like', '%'.$escaped.'%')
+                    ->orWhereHas('indikator', function ($iq) use ($escaped) {
+                        $iq->where('kode', 'like', '%'.$escaped.'%')
+                            ->orWhere('nama', 'like', '%'.$escaped.'%');
+                    });
+            });
+        }
+
         $list = $query->orderBy('indikator_id')->orderBy('batas_min')
             ->paginate($this->perHalaman($request));
 
