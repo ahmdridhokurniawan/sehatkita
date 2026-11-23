@@ -13,7 +13,6 @@ import {
   GlassyDashboardSkeleton,
   GlassyKpiGrid,
   GlassyProgressRing,
-  buildSparklinePath,
   type GlassyKpiItem,
 } from "@/components/dashboard/GlassyWidgets";
 import { dashboard as dashboardApi, posbindu as posbinduApi, rujukan as rujukanApi, ApiError } from "@/lib/api";
@@ -137,15 +136,6 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
   const periodeLabel = LABEL_PERIODE[d.periode] ?? d.periode;
   const rujukanBaru = d.rujukan.baru ?? 0;
 
-  const sparkTren = buildSparklinePath(
-    d.tren.map((x) => x.total_pencatatan),
-    "M2 18 C 14 14, 24 18, 36 10 C 46 5, 54 9, 64 3",
-  );
-  const sparkSesi = buildSparklinePath(
-    [...sesiTerbaru].reverse().map((s) => s.hadir || 0),
-    "M2 19 C 12 16, 22 10, 34 12 C 44 14, 54 8, 64 5",
-  );
-
   const kpiItems: GlassyKpiItem[] = [
     {
       id: "kepatuhan",
@@ -160,7 +150,6 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
             ? "Perlu dorongan"
             : "Rendah",
       pillTone: d.kepatuhan_pencatatan_persen >= 70 ? "safe" : d.kepatuhan_pencatatan_persen >= 40 ? "warning" : "danger",
-      sparkPath: "M2 19 C 14 17, 22 12, 34 13 C 46 14, 54 7, 64 5",
       href: "/laporan",
     },
     {
@@ -171,8 +160,6 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
       icon: "activity",
       pillText: `${rasioAktif}% warga aktif`,
       pillTone: "info",
-      sparkPath: sparkTren,
-      sparkColor: "var(--primary)",
       href: "/laporan",
     },
     {
@@ -183,8 +170,6 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
       icon: "send",
       pillText: rujukanBaru > 0 ? `${angka(rujukanBaru)} baru` : "Terkendali",
       pillTone: rujukanBaru > 0 ? "danger" : "safe",
-      accent: rujukanBaru > 0 ? "danger" : "primary",
-      sparkPath: "M2 16 C 14 18, 22 8, 34 11 C 46 14, 54 6, 64 7",
       href: "/rujukan/kelurahan",
     },
     {
@@ -195,7 +180,6 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
       icon: "calendar-check",
       pillText: sesiTerbaru.length > 0 ? "Berjalan" : "Kosong",
       pillTone: "warning",
-      sparkPath: sparkSesi,
       href: "/posbindu",
     },
   ];
@@ -214,71 +198,61 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
         </div>
 
         <div className="gv-head-actions">
-          <Link href="/rujukan/kelurahan" className="btn btn-sm btn-outline" style={{ borderRadius: 999 }}>
+          <Link href="/rujukan/kelurahan" className="btn btn-sm btn-outline">
             <Icon name="send" size={14} /> Rujukan Wilayah
           </Link>
-          <Link href="/laporan" className="btn btn-sm btn-primary" style={{ borderRadius: 999 }}>
+          <Link href="/laporan" className="btn btn-sm btn-primary">
             <Icon name="bar-chart" size={14} /> Laporan Wilayah
           </Link>
         </div>
       </div>
 
-      {/* BARIS 1 — HERO KEPATUHAN + PANEL TREN & RUJUKAN ANONIM GLASSY V24 */}
-      <div className="gv-top-grid">
-        <section className={`gv-hero${heroWarn ? " is-warning" : ""}`}>
-          <div className="gv-hero-main">
-            <span className="gv-hero-badge">
-              <span>
+      {/* PANEL UTAMA TERPADU */}
+      <section className="gv-surface">
+        <div className="gv-top-grid">
+          <div className={`gv-hero${heroWarn ? " is-warning" : ""}`}>
+            <div className="gv-hero-main">
+              <Badge tone={rujukanBaru > 0 ? "warning" : "safe"}>
                 {rujukanBaru > 0
                   ? `${angka(rujukanBaru)} rujukan baru perlu pantauan`
                   : "Pemantauan wilayah berjalan baik"}
-              </span>
-            </span>
+              </Badge>
 
-            <div>
-              <h2 className="gv-hero-title">
-                Kepatuhan pencatatan {d.kepatuhan_pencatatan_persen}%
-              </h2>
-              <p className="gv-hero-desc">
-                {angka(d.total_pencatatan)} catatan kesehatan warga {wilayah} terkumpul dalam {periodeLabel}. Data
-                perorangan tetap disamarkan untuk menjaga privasi.
-              </p>
+              <div>
+                <h2 className="gv-hero-title">
+                  Kepatuhan pencatatan {d.kepatuhan_pencatatan_persen}%
+                </h2>
+                <p className="gv-hero-desc">
+                  {angka(d.total_pencatatan)} catatan kesehatan warga {wilayah} terkumpul dalam {periodeLabel}. Data
+                  perorangan tetap disamarkan untuk menjaga privasi.
+                </p>
+              </div>
+
+              <div className="gv-hero-metrics">
+                <div className="gv-hero-metric">
+                  <strong>{angka(d.total_peserta)}</strong>
+                  <span>Peserta Terdaftar</span>
+                </div>
+                <div className="gv-hero-metric">
+                  <strong>{angka(d.total_pengguna_aktif)}</strong>
+                  <span>Warga Aktif ({rasioAktif}%)</span>
+                </div>
+                <div className="gv-hero-metric">
+                  <strong>{angka(totalFaktorKeluarga)}</strong>
+                  <span>Riwayat Keluarga</span>
+                </div>
+              </div>
             </div>
 
-            <div className="gv-hero-metrics">
-              <div className="gv-hero-metric">
-                <strong>{angka(d.total_peserta)}</strong>
-                <span>Peserta Terdaftar</span>
-              </div>
-              <div className="gv-hero-metric">
-                <strong>{angka(d.total_pengguna_aktif)}</strong>
-                <span>Warga Aktif ({rasioAktif}%)</span>
-              </div>
-              <div className="gv-hero-metric">
-                <strong>{angka(totalFaktorKeluarga)}</strong>
-                <span>Riwayat Keluarga</span>
-              </div>
-            </div>
-
-            <div className="gv-hero-actions">
-              <Link href="/laporan" className="gv-btn-solid">
-                Laporan Wilayah <Icon name="chevron-right" size={14} />
-              </Link>
-              <Link href="/rujukan/kelurahan" className="gv-btn-glass">
-                <Icon name="send" size={14} /> Rujukan Anonim
-              </Link>
-            </div>
+            <GlassyProgressRing
+              percent={d.kepatuhan_pencatatan_persen}
+              centerLabel="kepatuhan"
+              caption={`${angka(d.total_pengguna_aktif)}/${angka(d.total_peserta)} warga aktif`}
+              ariaLabel={`Kepatuhan pencatatan wilayah ${d.kepatuhan_pencatatan_persen}%`}
+            />
           </div>
 
-          <GlassyProgressRing
-            percent={d.kepatuhan_pencatatan_persen}
-            centerLabel="kepatuhan"
-            caption={`${angka(d.total_pengguna_aktif)}/${angka(d.total_peserta)} warga aktif`}
-            ariaLabel={`Kepatuhan pencatatan wilayah ${d.kepatuhan_pencatatan_persen}%`}
-          />
-        </section>
-
-        <section className="gv-agenda">
+          <div className="gv-agenda">
           <div className="gv-agenda-head">
             <GlassyAgendaDate />
             <Badge tone={rujukanBaru > 0 ? "warning" : "safe"}>
@@ -441,11 +415,12 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
               Lihat semua <Icon name="chevron-right" size={14} />
             </Link>
           </div>
-        </section>
-      </div>
+          </div>
+        </div>
 
-      {/* BARIS 2 — 4 KPI GLASS CARDS + SPARKLINE SVG */}
-      <GlassyKpiGrid items={kpiItems} />
+        {/* STRIP KPI TERPADU */}
+        <GlassyKpiGrid items={kpiItems} />
+      </section>
     </AppShell>
   );
 }

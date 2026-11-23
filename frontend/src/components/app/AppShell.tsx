@@ -227,12 +227,9 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
   const [keluar, setKeluar] = useState(false);
   const [konfirmasiKeluar, setKonfirmasiKeluar] = useState(false);
   const [drawerPath, setDrawerPath] = useState<string | null>(null);
-  const [cariMenu, setCariMenu] = useState("");
-  const [cariFokus, setCariFokus] = useState(false);
   const [pendingHref, setPendingHref] = useState<{ from: string; to: string } | null>(null);
   const [preview, setPreview] = useState<SidebarPreview | null>(null);
   const sidebarRef = useRef<HTMLElement | null>(null);
-  const appBodyRef = useRef<HTMLElement | null>(null);
   const sidebarNavRef = useRef<HTMLElement | null>(null);
 
   const aturSidebarNavRef = useCallback((el: HTMLElement | null) => {
@@ -452,11 +449,6 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
       ? grup[0].items.slice(0, 3).concat(grup[grup.length - 1].items[0])
       : [];
   const semuaMenu = grup.flatMap((g) => g.items);
-  const hasilMenu = cariMenu.trim()
-    ? semuaMenu.filter((m) =>
-        m.label.toLowerCase().includes(cariMenu.trim().toLowerCase()),
-      )
-    : [];
 
   const ROLE_TEKS: Record<string, string> = {
     user: "Peserta Warga",
@@ -480,119 +472,6 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
   };
 
   const sedangMemuat = loading || !user || roleTidakCocok;
-
-  useEffect(() => {
-    if (sedangMemuat) return;
-    const root = appBodyRef.current;
-    if (!root || typeof window === "undefined") return;
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches) return;
-    if (typeof IntersectionObserver === "undefined") return;
-
-    const STORY_SEL = [
-      ".app-story-stage > .row-between",
-      ".app-story-stage > .page-head",
-      ".app-story-stage > .card",
-      ".app-story-stage > .endpoint-note",
-      ".app-story-stage > div:not(.grid):not(.grid-2):not(.grid-3):not(.grid-4):not(.bento-sec):not(.modal-backdrop)",
-      ".app-story-stage .bento-sec-head",
-      ".app-story-stage .bento-kpi-grid > *",
-      ".app-story-stage .bento-mid-grid > *",
-      ".app-story-stage .bento-history-row",
-      ".app-story-stage .grid > .card",
-      ".app-story-stage .grid > .metric",
-      ".app-story-stage .grid > .stat",
-      ".app-story-stage .li",
-    ].join(", ");
-
-    const processed = new WeakSet<Element>();
-    const pending = new Set<HTMLElement>();
-    let rafId = 0;
-
-    const io = new IntersectionObserver(
-      (entries) => {
-        let wave = 0;
-        for (const entry of entries) {
-          const el = entry.target as HTMLElement;
-          if (entry.isIntersecting) {
-            el.style.setProperty("--story-delay", `${Math.min(wave, 4) * 30}ms`);
-            el.classList.remove("story-wait");
-            el.classList.add("story-in");
-            pending.delete(el);
-            io.unobserve(el);
-            wave += 1;
-          }
-        }
-      },
-      { threshold: 0.05, rootMargin: "0px 0px -4% 0px" },
-    );
-
-    const scan = () => {
-      const vh = window.innerHeight || 800;
-      const batas = vh * 0.94;
-      const nodes = Array.from(root.querySelectorAll<HTMLElement>(STORY_SEL));
-      let waveVisible = 0;
-
-      for (const el of nodes) {
-        if (processed.has(el)) continue;
-        if (
-          el.closest(
-            ".modal-backdrop, .toast, .loading-skel, .gv-skel-hero, [aria-busy='true']",
-          )
-        ) {
-          continue;
-        }
-        if (el.parentElement?.closest(".story-item")) continue;
-        processed.add(el);
-
-        el.dataset.storyDir = "up";
-        el.classList.add("story-item");
-
-        const top = el.getBoundingClientRect().top;
-        if (top <= batas) {
-          el.style.setProperty("--story-delay", `${Math.min(waveVisible, 4) * 30}ms`);
-          el.classList.add("story-in");
-          waveVisible += 1;
-        } else {
-          el.classList.add("story-wait");
-          pending.add(el);
-          io.observe(el);
-        }
-      }
-    };
-
-    const scheduleScan = () => {
-      if (rafId) window.cancelAnimationFrame(rafId);
-      rafId = window.requestAnimationFrame(scan);
-    };
-
-    const onScroll = () => {
-      if (pending.size === 0) return;
-      const batas = (window.innerHeight || 800) * 0.94;
-      let wave = 0;
-      for (const el of Array.from(pending)) {
-        if (el.getBoundingClientRect().top <= batas) {
-          el.style.setProperty("--story-delay", `${Math.min(wave, 4) * 30}ms`);
-          el.classList.remove("story-wait");
-          el.classList.add("story-in");
-          pending.delete(el);
-          io.unobserve(el);
-          wave += 1;
-        }
-      }
-    };
-
-    scan();
-    const mo = new MutationObserver(scheduleScan);
-    mo.observe(root, { childList: true, subtree: true });
-    window.addEventListener("scroll", onScroll, { passive: true });
-
-    return () => {
-      if (rafId) window.cancelAnimationFrame(rafId);
-      mo.disconnect();
-      io.disconnect();
-      window.removeEventListener("scroll", onScroll);
-    };
-  }, [pathname, sedangMemuat]);
 
   return (
     <div
@@ -796,63 +675,6 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
           </div>
 
           <div className="app-topbar-tools">
-            <div className="app-topbar-search">
-              <span className="app-topbar-search-ico">
-                <Icon name="search" size={16} />
-              </span>
-              <input
-                type="search"
-                className="app-topbar-search-input"
-                placeholder="Cari menu cepat…"
-                aria-label="Cari menu cepat"
-                value={cariMenu}
-                onFocus={() => setCariFokus(true)}
-                onBlur={() => setTimeout(() => setCariFokus(false), 160)}
-                onChange={(e) => setCariMenu(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && hasilMenu.length > 0) {
-                    setCariMenu("");
-                    setCariFokus(false);
-                    router.push(hasilMenu[0].href);
-                  }
-                }}
-              />
-              {cariFokus && cariMenu.trim() !== "" ? (
-                <div className="app-topbar-dropdown" role="listbox">
-                  {hasilMenu.length > 0 ? (
-                    hasilMenu.slice(0, 6).map((item) => (
-                      <button
-                        key={item.href}
-                        type="button"
-                        className="app-topbar-drop-item"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          setCariMenu("");
-                          setCariFokus(false);
-                          router.push(item.href);
-                        }}
-                      >
-                        <Icon name={item.icon} size={15} />
-                        <span>{item.label}</span>
-                      </button>
-                    ))
-                  ) : (
-                    <div className="tiny" style={{ padding: "8px 10px" }}>
-                      Menu tidak ditemukan.
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </div>
-
-            <Link
-              href="/insight/panduan"
-              className="app-topbar-pill"
-              title="Panduan Kesehatan"
-              aria-label="Panduan Kesehatan"
-            >
-              <Icon name="help-circle" size={18} />
-            </Link>
             <ThemeToggle className="app-topbar-pill" />
             <Link href="/profil" className="app-topbar-avatar" title="Profil & Pengaturan">
               <span className="ava-dot">{inisial(nama || "P")}</span>
@@ -864,7 +686,6 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
         <main
           className={`app-body${targetPending ? " is-navigating" : ""}`}
           id="appBody"
-          ref={appBodyRef}
         >
           {sedangMemuat ? (
             <GlassyDashboardSkeleton label="Memuat halaman…" />

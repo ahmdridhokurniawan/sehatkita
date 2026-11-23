@@ -127,6 +127,12 @@ export default function LandingPage() {
 
   return (
     <div className="landing">
+      {/* ============ AMBIENT AURORA BACKGROUND ============ */}
+      <div className="landing-aurora-bg" aria-hidden="true">
+        <div className="landing-aurora-orb aurora-1" />
+        <div className="landing-aurora-orb aurora-2" />
+      </div>
+
       <div className="scroll-progress" aria-hidden="true" />
       {/* ============ HEADER ============ */}
       <PublicHeader isLanding activeNav={navAktif} onSelectNav={setNavAktif} />

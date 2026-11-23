@@ -84,8 +84,45 @@
   --c-4: #2F8B64;
 }
 
+/* Kanvas netral tenang & minimalis khusus area aplikasi setelah login (.app-dash). */
+:root:not([data-theme="dark"]):has(.app-dash),
+:root:not([data-theme="dark"]) .app-dash {
+  --bg: #F8FAFC;
+  --surface: #FFFFFF;
+  --surface-2: #F1F5F9;
+  --surface-3: #E2E8F0;
+  --border: #E5E7EB;
+  --border-strong: #CBD5E1;
+  --text: #0F172A;
+  --text-2: #475569;
+  --text-3: #64748B;
+}
+
 :root .dash-main {
   background: var(--bg);
+}
+:root .app-dash {
+  background: var(--bg);
+}
+:root .app-dash .dash-main {
+  background: var(--bg);
+  animation: none;
+}
+:root .app-dash .dash-main::before {
+  display: none;
+}
+:root .app-dash .app-body .card::before,
+:root .app-dash .app-body .metric::before {
+  display: none;
+  animation: none;
+}
+:root .app-dash .btn:not(:disabled):hover,
+:root .app-dash .chip:hover,
+:root .app-dash .gv-kpi:hover,
+:root .app-dash .adm-menu-card:hover,
+:root .app-dash .app-topbar-pill:hover,
+:root .app-dash .app-topbar-avatar:hover {
+  transform: none;
 }
 
 /* Gaya minimalis & elegan untuk semua role: permukaan bersih tanpa gradasi berlebihan. */
@@ -148,8 +185,57 @@
   min-width: 112px;
 }
 :root .app-dash .app-body {
-  padding: 14px 20px 44px;
-  gap: 12px;
+  padding: 20px 28px 48px;
+  gap: 18px;
+}
+:root .app-dash .card,
+:root .app-dash .card.sa-board,
+:root .app-dash .gv-surface {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 4px 12px -6px rgba(15, 23, 42, .05);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  animation: none;
+}
+:root[data-theme="dark"] .app-dash .card,
+:root[data-theme="dark"] .app-dash .card.sa-board,
+:root[data-theme="dark"] .app-dash .gv-surface {
+  box-shadow: none;
+  border-color: var(--border);
+}
+:root .app-dash .card:hover {
+  border-color: var(--border);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 4px 12px -6px rgba(15, 23, 42, .05);
+}
+:root[data-theme="dark"] .app-dash .card:hover {
+  border-color: var(--border);
+  box-shadow: none;
+}
+:root .app-dash .card:not(.sa-board):not(.card-list):not(.adm-dir-panel) {
+  padding: 18px 20px;
+}
+:root .app-dash .card.sa-board,
+:root .app-dash .card.card-list,
+:root .app-dash .card.adm-dir-panel {
+  padding: 0;
+  overflow: hidden;
+}
+:root .app-dash .btn-primary {
+  background: var(--primary);
+  color: var(--on-primary);
+  border-color: transparent;
+  box-shadow: none;
+}
+:root .app-dash .btn-primary:hover:not(:disabled) {
+  background: var(--primary-600);
+}
+:root .app-dash .input,
+:root .app-dash .select,
+:root .app-dash .textarea {
+  border-radius: 10px;
+  border-color: var(--border-strong);
 }
 :root .page-head {
   margin-bottom: 6px;
@@ -183,6 +269,20 @@
 .gv-head-title, .page-head h1 { font-weight: 700; letter-spacing: -.035em; }
 .gv-kpi-value, .bento-card-val, .stat-value { font-weight: 700; }
 
+/* Kembalikan token warna emerald-mint asli untuk sidebar & preview-nya di light mode. */
+:root:not([data-theme="dark"]) .app-dash .sidebar,
+:root:not([data-theme="dark"]) .snav-preview {
+  --bg: #F6FAF7;
+  --surface: #FFFFFF;
+  --surface-2: #EEF5F0;
+  --surface-3: #DCEBE1;
+  --border: #D4E4DA;
+  --border-strong: #B3CEBD;
+  --text: #072417;
+  --text-2: #3D574A;
+  --text-3: #607C6E;
+}
+
 /* Navigasi memakai icon pill + pengelompokan rapi agar sidebar lebih hidup. */
 :root .sidebar {
   background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
@@ -193,8 +293,9 @@
 /* Sidebar netral wajib memakai teks dan ikon dari tema yang sama. */
 :root .sidebar::before { display: none; }
 :root .sidebar .sidebar-brand {
+  height: 60px;
   background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.01) 100%);
-  border-bottom-color: var(--border);
+  border-bottom: 1px solid var(--border);
 }
 :root .sidebar .sidebar-brand .txt,
 :root .sidebar .user-chip .who strong { color: var(--text); }
@@ -353,46 +454,425 @@
 .sidebar-nav { padding-top: 16px; }
 :root .snav.active::before { display: none; }
 :root .snav.active svg { color: currentColor; }
-:root .app-topbar {
-  background: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--surface-2) 26%, var(--surface)) 100%);
+:root .app-dash .app-topbar {
+  height: 60px;
+  padding: 0 28px;
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
   backdrop-filter: none;
 }
 :root .app-topbar-avatar .ava-dot { background: var(--primary-050); color: var(--primary); border: 1px solid var(--border); }
-:root .app-topbar-search-input,
-:root .app-topbar-pill,
-:root .app-topbar-avatar { background: var(--surface); border-color: var(--border); }
-
-/* Selaraskan panel hero aplikasi secara tenang & minimalis (landing tetap memakai grad-hero). */
-:root .gv-hero:not(.is-warning):not(.is-danger),
-:root .bento-hero:not(.tone-warning):not(.tone-danger) {
-  background: linear-gradient(135deg, #134E3A 0%, #19644A 100%);
-  box-shadow: var(--shadow-xs);
-}
-:root[data-theme="dark"] .dash .gv-hero:not(.is-warning):not(.is-danger),
-:root[data-theme="dark"] .dash .bento-hero:not(.tone-warning):not(.tone-danger) {
-  background: linear-gradient(135deg, #163329 0%, #1F4B3B 100%);
-  border: 1px solid var(--border-strong);
+:root .app-dash .app-topbar-pill {
+  background: transparent;
+  border-color: transparent;
   box-shadow: none;
+}
+:root .app-dash .app-topbar-pill:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: transparent;
+}
+:root .app-dash .app-topbar-avatar {
+  background: transparent;
+  border-color: var(--border);
+  box-shadow: none;
+}
+:root .app-dash .app-topbar-avatar:hover {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+
+/* Panel utama dashboard terpadu (Ringkasan | Agenda + Strip KPI datar). */
+:root .gv-surface {
+  overflow: hidden;
+}
+:root .gv-surface .gv-top-grid {
+  gap: 0;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+}
+:root .app-dash .gv-hero,
+:root .app-dash .gv-hero.is-warning,
+:root .app-dash .gv-hero.is-danger,
+:root[data-theme="dark"] .app-dash .gv-hero,
+:root[data-theme="dark"] .app-dash .gv-hero.is-warning,
+:root[data-theme="dark"] .app-dash .gv-hero.is-danger {
+  background: transparent;
+  color: var(--text);
+  border: none;
+  border-radius: 0;
+  padding: 24px 26px;
+  box-shadow: none;
+  animation: none;
+}
+:root .app-dash .gv-hero-title {
+  color: var(--text);
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+:root .app-dash .gv-hero-desc {
+  color: var(--text-2);
+  font-size: 0.84rem;
+}
+:root .app-dash .gv-hero-metrics {
+  gap: 16px 28px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+:root .app-dash .gv-hero-metric strong {
+  color: var(--text);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+:root .app-dash .gv-hero-metric span {
+  color: var(--text-3);
+}
+:root .app-dash .gv-ring-box,
+:root .app-dash .gv-ring-svg {
+  width: 96px;
+  height: 96px;
+}
+:root .app-dash .gv-ring-track {
+  stroke: var(--surface-3);
+  stroke-width: 7;
+}
+:root .app-dash .gv-ring-fill {
+  stroke: var(--primary);
+  stroke-width: 7;
+}
+:root .app-dash .gv-hero.is-warning .gv-ring-fill {
+  stroke: var(--warning);
+}
+:root .app-dash .gv-hero.is-danger .gv-ring-fill {
+  stroke: var(--danger);
+}
+:root .app-dash .gv-ring-center strong {
+  color: var(--text);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+:root .app-dash .gv-ring-center span {
+  color: var(--text-3);
+  font-size: 0.65rem;
+}
+:root .app-dash .gv-ring-cap {
+  background: transparent;
+  border: none;
+  color: var(--text-3);
+  font-size: 0.72rem;
+  padding: 0;
+}
+:root .gv-surface .gv-agenda {
+  background: transparent;
+  border: none;
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+  padding: 22px 24px;
+  box-shadow: none;
+  animation: none;
+}
+:root .app-dash .gv-agenda-daynum {
+  font-size: 1.55rem;
+  font-weight: 700;
+}
+:root .app-dash .gv-agenda-foot {
+  border-top: 1px solid var(--border);
+}
+:root .gv-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--border);
+}
+:root .gv-kpi-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 22px;
+  border-right: 1px solid var(--border);
+  text-decoration: none;
+  color: var(--text);
+  min-width: 0;
+  transition: background .15s ease;
+}
+:root .gv-kpi-cell:last-child {
+  border-right: none;
+}
+:root a.gv-kpi-cell:hover {
+  background: var(--surface-2);
+}
+:root .gv-kpi-cell-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+:root .gv-kpi-cell-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+:root .gv-kpi-cell .gv-kpi-val {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -.03em;
+  color: var(--text);
+}
+:root .gv-kpi-cell-sub {
+  font-size: 0.74rem;
+  color: var(--text-3);
 }
 :root .cta-band {
   background: var(--grad-hero);
   box-shadow: var(--shadow-md);
 }
 :root .bento-hero::after { opacity: .055; }
-:root .gv-hero-badge,
-:root .gv-ring-cap { background: rgba(255, 255, 255, .12); border-color: rgba(255, 255, 255, .22); }
-:root .gv-btn-solid { box-shadow: none; }
-:root .gv-hero.is-warning .gv-btn-solid { color: #7C2D12; }
-:root .gv-hero.is-danger .gv-btn-solid { color: #7F1D1D; }
-:root .gv-btn-glass { backdrop-filter: none; }
 :root .btn-primary { background: var(--grad-primary); color: var(--on-primary); border-color: transparent; box-shadow: var(--shadow-xs); }
 :root .btn-primary:hover:not(:disabled) { background: var(--grad-primary-hover); }
 :root .btn-outline { background: var(--surface); }
 :root .cta-band .btn-outline { background: transparent; border-color: rgba(255, 255, 255, .4); color: #fff; }
-:root .gv-tab-strip { background: var(--surface-2); padding: 5px; border-color: var(--border); }
+:root .gv-tab-strip { background: var(--surface-2); padding: 4px; border-color: var(--border); }
 :root .gv-tab-btn.is-active { background: var(--surface); color: var(--primary); box-shadow: var(--shadow-xs); }
 .gv-tab-btn { min-height: 36px; }
+
+/* Direktori Admin, Ekspor, Profil, & Kalkulator minimalis. */
+:root .stat-strip.is-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+:root .adm-dir-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 0;
+  overflow: hidden;
+}
+:root .adm-dir-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 20px;
+  text-decoration: none;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  transition: background .15s ease;
+}
+:root .adm-dir-item:nth-child(2n) {
+  border-right: none;
+}
+:root .adm-dir-item:nth-last-child(-n+2) {
+  border-bottom: none;
+}
+:root .adm-dir-item:hover {
+  background: var(--surface-2);
+}
+:root .adm-dir-ico {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--primary);
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+:root .adm-dir-body {
+  min-width: 0;
+  flex: 1;
+}
+:root .adm-dir-body strong {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+:root .adm-dir-body p {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-2);
+  line-height: 1.45;
+}
+:root .adm-dir-arrow {
+  color: var(--text-3);
+  flex: none;
+}
+:root .adm-export-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 4px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color .14s ease;
+}
+:root .adm-export-row:last-child {
+  border-bottom: none;
+}
+:root .adm-export-row:hover:not(:disabled) {
+  color: var(--primary);
+}
+:root .adm-export-row:disabled {
+  opacity: .6;
+  cursor: wait;
+}
+:root .prof-band {
+  padding: 20px 24px;
+}
+:root .tabs.kalk-tabs {
+  gap: 4px;
+  padding-bottom: 0;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+:root .tabs.kalk-tabs .tab {
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  padding: 10px 14px;
+  margin-bottom: -1px;
+  font-size: 0.85rem;
+  color: var(--text-2);
+  box-shadow: none;
+}
+:root .tabs.kalk-tabs .tab:hover {
+  background: transparent;
+  color: var(--text);
+}
+:root .tabs.kalk-tabs .tab.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  background: transparent;
+  box-shadow: none;
+}
+:root .kalk-preset-bar {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-2);
+}
+:root .kalk-preset-btn {
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text);
+  box-shadow: 0 2px 6px -2px rgba(15, 23, 42, 0.08);
+  cursor: pointer;
+  transition: background .16s ease, border-color .16s ease, color .16s ease, transform .14s ease, box-shadow .16s ease;
+}
+:root .kalk-preset-btn:hover {
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px -3px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+:root .kalk-preset-btn:active {
+  transform: scale(0.97);
+}
+:root[data-theme="dark"] .kalk-preset-btn {
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--border-strong) 85%, var(--text));
+}
+:root .grid.kalk-stack {
+  gap: 16px;
+}
+:root .kalk-metric-card {
+  display: grid;
+  gap: 4px;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1.5px solid var(--border-strong);
+  border-left: 5px solid var(--primary);
+  border-radius: 14px;
+  box-shadow: 0 4px 14px -3px rgba(15, 23, 42, 0.09), 0 2px 6px -2px rgba(15, 23, 42, 0.05);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+:root .kalk-metric-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.12), 0 3px 8px -2px rgba(15, 23, 42, 0.06);
+}
+:root[data-theme="dark"] .kalk-metric-card {
+  background: var(--surface-2);
+  border-color: color-mix(in srgb, var(--border-strong) 85%, var(--text));
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.35);
+}
+:root .kalk-note {
+  padding: 14px 16px;
+  background: var(--surface-2);
+  border: 1.5px solid var(--border-strong);
+  border-left: 5px solid var(--primary);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.06);
+  color: var(--text-2);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+:root .card.kalk-panel,
+:root .app-dash .card.kalk-panel {
+  padding: 22px 24px;
+  border: 2px solid var(--border-strong);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px -3px rgba(15, 23, 42, 0.08), var(--shadow-sm);
+}
+:root[data-theme="dark"] .card.kalk-panel,
+:root[data-theme="dark"] .app-dash .card.kalk-panel {
+  border-color: color-mix(in srgb, var(--border-strong) 85%, var(--text));
+  box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.45);
+}
+:root .kalk-hint-box {
+  border: 1.5px solid var(--border-strong);
+}
+:root .kalk-grid-2 {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  align-items: stretch;
+}
+:root .kalk-grid-4 {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+}
+@media (max-width: 1023px) {
+  :root .kalk-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 599px) {
+  :root .kalk-grid-4 {
+    grid-template-columns: 1fr;
+  }
+}
+:root .kalk-input-grid {
+  gap: 12px 14px;
+  align-items: end;
+}
+@media (min-width: 860px) {
+  :root .kalk-input-grid.kalk-input-5 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+  :root .kalk-input-grid.kalk-input-5 > :nth-child(1),
+  :root .kalk-input-grid.kalk-input-5 > :nth-child(2),
+  :root .kalk-input-grid.kalk-input-5 > :nth-child(3),
+  :root .kalk-input-grid.kalk-input-5 > :nth-child(4) {
+    grid-column: span 2;
+  }
+  :root .kalk-input-grid.kalk-input-5 > :nth-child(5) {
+    grid-column: span 4;
+  }
+}
 
 /* Halaman publik memakai ritme tipografi dan ruang yang lebih lapang. */
 :root .site-header {
@@ -451,30 +931,63 @@
 .gv-hero-actions > *, .page-head .acts > * { flex-shrink: 0; }
 @media (min-width: 1180px) {
   .dash-content { padding: 20px 24px 44px; }
-  .gv-top-grid, .bento-mid-grid { gap: 14px; }
+  .bento-mid-grid { gap: 14px; }
+}
+@media (max-width: 1120px) {
+  :root .gv-surface .gv-top-grid {
+    grid-template-columns: 1fr;
+  }
+  :root .gv-surface .gv-agenda {
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+  :root .gv-kpi-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  :root .gv-kpi-strip .gv-kpi-cell:nth-child(2n) {
+    border-right: none;
+  }
+  :root .gv-kpi-strip .gv-kpi-cell:nth-child(-n+2) {
+    border-bottom: 1px solid var(--border);
+  }
+}
+@media (max-width: 760px) {
+  :root .adm-dir-panel {
+    grid-template-columns: 1fr;
+  }
+  :root .adm-dir-item {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  :root .adm-dir-item:last-child {
+    border-bottom: none;
+  }
 }
 @media (max-width: 680px) {
   :root .landing .hero { padding-top: 20px; padding-bottom: 24px; }
-  .gv-hero { padding: 20px; }
+  :root .app-dash .gv-hero { padding: 18px; }
   .gv-hero-actions { gap: 8px; }
   .gv-head-title { font-size: 1.35rem; }
   .bento-sec-head { flex-wrap: wrap; }
   .bento-sec-action { margin-left: auto; }
   .gv-tab-btn { min-height: 44px; }
 }
-/* Gradasi status warning/danger dan kontras teks pada panel berwarna. */
-:root .gv-kpi.is-accent:not(.is-primary):not(.is-safe),
-:root .gv-hero.is-danger,
-:root .bento-hero.tone-danger {
-  background: var(--grad-danger);
+@media (max-width: 560px) {
+  :root .gv-kpi-strip {
+    grid-template-columns: 1fr;
+  }
+  :root .gv-kpi-strip .gv-kpi-cell {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding: 14px 18px;
+  }
+  :root .gv-kpi-strip .gv-kpi-cell:last-child {
+    border-bottom: none;
+  }
+  :root .stat-strip.is-2 {
+    grid-template-columns: 1fr;
+  }
 }
-:root .gv-hero.is-warning,
-:root .bento-hero.tone-warning {
-  background: var(--grad-warning);
-}
-:root:not([data-theme="dark"]) .gv-kpi.is-accent .gv-kpi-meta span,
-:root:not([data-theme="dark"]) .gv-hero-sub,
-:root:not([data-theme="dark"]) .gv-hero-metric span { color: #fff; }
 
 /* Simetri dan perataan konsisten di semua role, kartu, daftar, dan tabel. */
 :root .gv-kpi-grid,
@@ -485,6 +998,7 @@
 :root .gv-kpi,
 :root .bento-card,
 :root .stat { height: 100%; }
+:root .gv-hero-main { align-items: flex-start; }
 :root .card-head {
   display: flex;
   align-items: center;
@@ -533,12 +1047,12 @@
   .bottom-nav a, .bottom-nav button { min-height: 48px; }
 }
 @media (max-width: 640px) {
-  .app-topbar {
+  :root .app-dash .app-topbar {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 10px;
-    padding: 12px;
-    min-height: 72px;
+    padding: 10px 14px;
+    min-height: 58px;
     height: auto;
   }
   .app-topbar-left { min-width: 0; overflow: hidden; }
@@ -548,8 +1062,7 @@
   .app-topbar-tools { flex-wrap: nowrap; gap: 4px; }
   .app-topbar-tools .app-topbar-pill { width: 44px; height: 44px; min-width: 44px; }
   .app-topbar-avatar { min-width: 44px; min-height: 44px; justify-content: center; }
-  .app-topbar-tools .app-topbar-pill[href="/insight/panduan"] { display: none; }
-  .app-dash .app-body { padding-inline: 12px; }
+  :root .app-dash .app-body { padding: 14px 14px calc(96px + env(safe-area-inset-bottom)); gap: 14px; }
   .gv-head, .page-head { align-items: flex-start; gap: 12px; }
   .gv-head-actions, .page-head .acts { width: 100%; flex-wrap: wrap; }
   .gv-head-actions > *, .page-head .acts > * { min-width: 0; max-width: 100%; flex-shrink: 1; white-space: normal; }

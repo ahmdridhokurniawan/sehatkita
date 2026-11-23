@@ -214,6 +214,7 @@ function KalkulatorContent() {
   // Tampilan dashboard (<AppShell>) hanya aktif bila user masuk dan membukanya lewat menu aplikasi (?app=1).
   const dalamAplikasi = Boolean(user && searchParams.get("app") === "1");
   const [tab, setTab] = useState<TabKalkulator>("imt");
+  const [panduanBuka, setPanduanBuka] = useState(false);
 
   // Input bersama & spesifik (terisi contoh siap coba)
   const [jk, setJk] = useState<"L" | "P">("L");
@@ -489,15 +490,16 @@ function KalkulatorContent() {
             Simulasi dan contoh perhitungan praktis untuk membantu memantau target kesehatan harian Anda.
           </p>
         </div>
-        <div className="row wrap gap-6">
-          <button type="button" className="btn btn-sm btn-outline" onClick={() => pakaiContoh("ideal")}>
-            Contoh Normal
+        <div className="kalk-preset-bar">
+          <span>Contoh:</span>
+          <button type="button" className="kalk-preset-btn" onClick={() => pakaiContoh("ideal")}>
+            Normal
           </button>
-          <button type="button" className="btn btn-sm btn-outline" onClick={() => pakaiContoh("turun_bb")}>
-            Contoh Diet
+          <button type="button" className="kalk-preset-btn" onClick={() => pakaiContoh("turun_bb")}>
+            Diet
           </button>
-          <button type="button" className="btn btn-sm btn-outline" onClick={() => pakaiContoh("pantau_tensi")}>
-            Contoh Waspada
+          <button type="button" className="kalk-preset-btn" onClick={() => pakaiContoh("pantau_tensi")}>
+            Waspada
           </button>
         </div>
       </div>
@@ -519,23 +521,18 @@ function KalkulatorContent() {
       </div>
 
       <div className="grid kalk-stack">
-        {/* PANEL INPUT (ATAS FULL-WIDTH) */}
+        {/* PANEL INPUT & HASIL TERPADU */}
         <section className="card kalk-panel">
-          <div className="row gap-10 mb-8">
-            <span className="li-ico" style={{ background: "var(--primary-050)", color: "var(--primary)" }}>
-              <Icon name={TAB_LIST.find((t) => t.id === tab)?.icon || "calculator"} size={18} />
-            </span>
-            <div>
-              <h2 className="h4">Parameter Perhitungan</h2>
-              <p className="tiny">Ubah angka di bawah ini — hasil langsung terhitung otomatis.</p>
-            </div>
+          <div className="mb-12">
+            <h2 className="h4">Parameter Perhitungan</h2>
+            <p className="tiny">Ubah angka di bawah ini — hasil langsung terhitung otomatis.</p>
           </div>
 
-          <div className="kalk-input-grid">
+          <div className={tab === "kalori" ? "kalk-input-grid kalk-input-5" : "kalk-input-grid"}>
             {(tab === "imt" || tab === "kalori") && (
               <div className="field">
                 <span className="label">Jenis Kelamin</span>
-                <div className="segment">
+                <div className="segment segment-compact">
                   <button
                     type="button"
                     className={jk === "L" ? "active" : ""}
@@ -758,11 +755,10 @@ function KalkulatorContent() {
               </>
             )}
         </div>
+        </section>
 
-        <div className="divider" />
-
-        {/* BAGIAN HASIL */}
-        <div>
+        {/* CARD 2 — HASIL PERHITUNGAN */}
+        <section className="card kalk-panel">
           {tab === "imt" && (
             <>
               <div className="row-between wrap gap-8 mb-12">
@@ -771,13 +767,13 @@ function KalkulatorContent() {
               </div>
               {hasilImt ? (
                 <div style={{ display: "grid", gap: 12 }}>
-                  <div className="stat-strip">
-                    <div className="stat-cell" style={{ borderLeftColor: "var(--primary)" }}>
+                  <div className="kalk-grid-2">
+                    <div className="kalk-metric-card" style={{ borderLeftColor: "var(--primary)" }}>
                       <span className="stat-cell-label">Skor IMT Anda</span>
                       <span className="stat-cell-val">{hasilImt.imt}</span>
                       <span className="stat-cell-sub">kg/m² · Normal: 18,5–25,0</span>
                     </div>
-                    <div className="stat-cell" style={{ borderLeftColor: "var(--safe)" }}>
+                    <div className="kalk-metric-card" style={{ borderLeftColor: "var(--safe)" }}>
                       <span className="stat-cell-label">BB Ideal (Broca)</span>
                       <span className="stat-cell-val">{hasilImt.bbIdealBroca} kg</span>
                       <span className="stat-cell-sub">
@@ -785,18 +781,15 @@ function KalkulatorContent() {
                       </span>
                     </div>
                   </div>
-                  <div className="alert alert-info">
-                    <Icon name="info" size={18} />
-                    <div className="tiny">
-                      {hasilImt.saran}{" "}
-                      {hasilKalori ? (
-                        <>
-                          Rekomendasi target kalori Kemenkes sekitar{" "}
-                          <strong>{Math.round(Number(hasilImt.bbIdealBroca) * 30)} kkal/hari</strong> (atau{" "}
-                          <strong>{hasilKalori.tdee} kkal</strong> sesuai tingkat aktivitas Anda).
-                        </>
-                      ) : null}
-                    </div>
+                  <div className="kalk-note">
+                    {hasilImt.saran}{" "}
+                    {hasilKalori ? (
+                      <>
+                        Rekomendasi target kalori Kemenkes sekitar{" "}
+                        <strong>{Math.round(Number(hasilImt.bbIdealBroca) * 30)} kkal/hari</strong> (atau{" "}
+                        <strong>{hasilKalori.tdee} kkal</strong> sesuai tingkat aktivitas Anda).
+                      </>
+                    ) : null}
                   </div>
                 </div>
               ) : (
@@ -812,25 +805,25 @@ function KalkulatorContent() {
                 <Badge tone="primary">Mifflin-St Jeor</Badge>
               </div>
               {hasilKalori ? (
-                <div className="stat-strip">
-                  <div className="stat-cell" style={{ borderLeftColor: "var(--primary)" }}>
+                <div className="kalk-grid-4">
+                  <div className="kalk-metric-card" style={{ borderLeftColor: "var(--primary)" }}>
                     <span className="stat-cell-label">Kalori Harian (TDEE)</span>
                     <span className="stat-cell-val">{hasilKalori.tdee} kkal</span>
                     <span className="stat-cell-sub">BMR istirahat: {hasilKalori.bmr} kkal</span>
                   </div>
-                  <div className="stat-cell" style={{ borderLeftColor: "var(--safe)" }}>
+                  <div className="kalk-metric-card" style={{ borderLeftColor: "var(--safe)" }}>
                     <span className="stat-cell-label">Kebutuhan Protein</span>
                     <span className="stat-cell-val">
                       {hasilKalori.proteinMin}–{hasilKalori.proteinIdeal} g
                     </span>
                     <span className="stat-cell-sub">Per hari untuk massa otot &amp; imun</span>
                   </div>
-                  <div className="stat-cell" style={{ borderLeftColor: "var(--info)" }}>
+                  <div className="kalk-metric-card" style={{ borderLeftColor: "var(--info)" }}>
                     <span className="stat-cell-label">Target Turun Berat</span>
                     <span className="stat-cell-val">{hasilKalori.defisit} kkal</span>
                     <span className="stat-cell-sub">Defisit aman per hari</span>
                   </div>
-                  <div className="stat-cell" style={{ borderLeftColor: "var(--warning)" }}>
+                  <div className="kalk-metric-card" style={{ borderLeftColor: "var(--warning)" }}>
                     <span className="stat-cell-label">Target Naik Massa</span>
                     <span className="stat-cell-val">{hasilKalori.surplus} kkal</span>
                     <span className="stat-cell-sub">Surplus terukur per hari</span>
@@ -850,13 +843,13 @@ function KalkulatorContent() {
               </div>
               {hasilAir ? (
                 <div style={{ display: "grid", gap: 12 }}>
-                  <div className="stat-strip">
-                    <div className="stat-cell" style={{ borderLeftColor: "var(--info)" }}>
+                  <div className="kalk-grid-2">
+                    <div className="kalk-metric-card" style={{ borderLeftColor: "var(--info)" }}>
                       <span className="stat-cell-label">Kebutuhan Air Total</span>
                       <span className="stat-cell-val">{hasilAir.liter} L</span>
                       <span className="stat-cell-sub">{hasilAir.totalMl} mL per hari</span>
                     </div>
-                    <div className="stat-cell" style={{ borderLeftColor: "var(--safe)" }}>
+                    <div className="kalk-metric-card" style={{ borderLeftColor: "var(--safe)" }}>
                       <span className="stat-cell-label">Setara Gelas (250 mL)</span>
                       <span className="stat-cell-val">{hasilAir.gelas} gelas</span>
                       <span className="stat-cell-sub">
@@ -864,11 +857,8 @@ function KalkulatorContent() {
                       </span>
                     </div>
                   </div>
-                  <div className="alert alert-safe">
-                    <Icon name="droplet" size={18} />
-                    <div className="tiny">
-                      Rumus: <strong>30–35 mL × BB (kg)</strong> + <strong>350 mL</strong> tiap 30 menit olahraga.
-                    </div>
+                  <div className="kalk-note">
+                    Rumus: <strong>30–35 mL × BB (kg)</strong> + <strong>350 mL</strong> tiap 30 menit olahraga.
                   </div>
                 </div>
               ) : (
@@ -885,13 +875,13 @@ function KalkulatorContent() {
               </div>
               {hasilJantung ? (
                 <div style={{ display: "grid", gap: 12 }}>
-                  <div className="stat-strip">
-                    <div className="stat-cell" style={{ borderLeftColor: "var(--danger)" }}>
+                  <div className="kalk-grid-2">
+                    <div className="kalk-metric-card" style={{ borderLeftColor: "var(--danger)" }}>
                       <span className="stat-cell-label">Detak Maksimal (HR Max)</span>
                       <span className="stat-cell-val">{hasilJantung.hrMax} dpm</span>
                       <span className="stat-cell-sub">Usia {hasilJantung.usia} thn</span>
                     </div>
-                    <div className="stat-cell" style={{ borderLeftColor: "var(--primary)" }}>
+                    <div className="kalk-metric-card" style={{ borderLeftColor: "var(--primary)" }}>
                       <span className="stat-cell-label">Target Latihan Optimal</span>
                       <span className="stat-cell-val">
                         {hasilJantung.targetMin}–{hasilJantung.targetMax} dpm
@@ -928,9 +918,9 @@ function KalkulatorContent() {
                 <Badge tone="warning">Skrining Mandiri</Badge>
               </div>
               {hasilKlinis.tensiInfo || hasilKlinis.gulaInfo ? (
-                <div className="stat-strip">
+                <div className="kalk-grid-2">
                   {hasilKlinis.tensiInfo ? (
-                    <div className="stat-cell" style={{ borderLeftColor: "var(--warning)" }}>
+                    <div className="kalk-metric-card" style={{ borderLeftColor: "var(--warning)" }}>
                       <div className="row-between gap-8 wrap">
                         <span className="stat-cell-label">Tekanan Darah &amp; MAP</span>
                         <Badge tone={hasilKlinis.tensiInfo.tone}>{hasilKlinis.tensiInfo.kategori}</Badge>
@@ -941,7 +931,7 @@ function KalkulatorContent() {
                   ) : null}
 
                   {hasilKlinis.gulaInfo ? (
-                    <div className="stat-cell" style={{ borderLeftColor: "var(--info)" }}>
+                    <div className="kalk-metric-card" style={{ borderLeftColor: "var(--info)" }}>
                       <div className="row-between gap-8 wrap">
                         <span className="stat-cell-label">Gula Darah</span>
                         <Badge tone={hasilKlinis.gulaInfo.tone}>{hasilKlinis.gulaInfo.kategori}</Badge>
@@ -1002,24 +992,42 @@ function KalkulatorContent() {
               )}
             </div>
           </div>
-        </div>
         </section>
 
-        {/* CARD PANDUAN & REFERENSI MEDIS TERPISAH DARI KALKULATOR */}
+        {/* CARD 3 — PANDUAN & REFERENSI */}
         <section className="card kalk-panel" aria-label="Panduan dan Referensi Medis">
-          <div className="row gap-10 mb-8">
-            <span className="li-ico" style={{ background: "var(--primary-050)", color: "var(--primary)" }}>
-              <Icon name="book-open" size={18} />
+          <button
+            type="button"
+            aria-expanded={panduanBuka}
+            onClick={() => setPanduanBuka((v) => !v)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+              width: "100%",
+              textAlign: "left",
+              background: "transparent",
+              border: "none",
+              padding: 0,
+              color: "var(--text)",
+              cursor: "pointer",
+            }}
+          >
+            <span>
+              <strong className="text-sm">Panduan Istilah &amp; Referensi Medis</strong>
+              <span className="tiny" style={{ display: "block", marginTop: 2 }}>
+                Penjelasan singkat arti setiap angka dan dasar rujukan klinis kalkulator.
+              </span>
             </span>
-            <div>
-              <h2 className="h4">Panduan Istilah &amp; Referensi Medis</h2>
-              <p className="tiny">Penjelasan singkat arti setiap angka dan dasar rujukan klinis kalkulator.</p>
+            <Icon name={panduanBuka ? "chevron-up" : "chevron-down"} size={16} className="shrink-0" />
+          </button>
+          {panduanBuka ? (
+            <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
+              <PanduanIstilah info={TAB_PENJELASAN[tab]} />
+              <ReferensiMedisBox />
             </div>
-          </div>
-          <div style={{ display: "grid", gap: 12 }}>
-            <PanduanIstilah info={TAB_PENJELASAN[tab]} />
-            <ReferensiMedisBox />
-          </div>
+          ) : null}
         </section>
       </div>
     </>

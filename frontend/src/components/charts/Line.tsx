@@ -229,27 +229,38 @@ export default function Line({ labels, series, unit = "", yDecimals = 0, height 
       </svg>
 
       {idxAman !== null && nilaiAktif.length > 0 ? (
-        <div
-          className="chart-tip"
-          style={{
-            left: `${Math.min(86, Math.max(14, (tipX / w) * 100))}%`,
-            top: Math.max(46, tipTopY),
-          }}
-        >
-          <strong>{labels[idxAman]}</strong>
-          {nilaiAktif.map((item, idx) => (
-            <div className="chart-tip-row" key={idx}>
-              <i style={{ background: item.warna }} />
-              <span>
-                {series.length > 1 ? `${item.nama}: ` : ""}
-                <b>
-                  {angka(item.val, yDecimals)}
-                  {unit ? ` ${unit}` : ""}
-                </b>
-              </span>
+        (() => {
+          const flipY = tipTopY < 64;
+          const nearLeft = tipX < pad.l + 36;
+          const nearRight = tipX > w - pad.r - 36;
+          const leftPos = nearLeft ? `${pad.l}px` : nearRight ? `${w - pad.r}px` : `${(tipX / w) * 100}%`;
+          const tx = nearLeft ? "0%" : nearRight ? "-100%" : "-50%";
+          const ty = flipY ? "0px" : "calc(-100% - 10px)";
+          return (
+            <div
+              className="chart-tip"
+              style={{
+                left: leftPos,
+                top: flipY ? tipTopY + 12 : tipTopY,
+                transform: `translate(${tx}, ${ty})`,
+              }}
+            >
+              {labels[idxAman] ? <strong>{labels[idxAman]}</strong> : null}
+              {nilaiAktif.map((item, idx) => (
+                <div className="chart-tip-row" key={idx}>
+                  <i style={{ background: item.warna }} />
+                  <span>
+                    {series.length > 1 ? `${item.nama}: ` : ""}
+                    <b>
+                      {angka(item.val, yDecimals)}
+                      {unit ? ` ${unit}` : ""}
+                    </b>
+                  </span>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          );
+        })()
       ) : null}
 
       {series.length > 1 ? (

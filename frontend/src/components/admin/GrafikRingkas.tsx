@@ -73,150 +73,159 @@ export default function GrafikRingkas({ plain = false }: { plain?: boolean }) {
   const max = Math.max(1, ...BAR_GROUPS.map((b) => Number(stats?.[b.key] ?? 0)));
 
   return (
-    <div className="adm-top-grid">
-      {/* KARTU KIRI — GRAFIK BATANG PROPORSIONAL + RATA-RATA KLINIS */}
-      <section className="gv-agenda">
-        <div className="gv-agenda-head">
-          <div>
-            <h2 className="sa-panel-title">Grafik Ringkas Platform</h2>
-            <p className="sa-panel-sub">Perbandingan jumlah data aktif lintas modul</p>
+    <section className="card sa-board">
+      <div className="sa-board-cols">
+        {/* KOLOM KIRI — GRAFIK BATANG PROPORSIONAL + RATA-RATA KLINIS */}
+        <div className="sa-col">
+          <div className="sa-panel-head">
+            <div>
+              <h2 className="sa-panel-title">Grafik Ringkas Platform</h2>
+              <p className="sa-panel-sub">Perbandingan jumlah data aktif lintas modul</p>
+            </div>
+            <Link href="/admin/statistik" className="bento-sec-action">
+              Statistik lengkap <Icon name="chevron-right" size={14} />
+            </Link>
           </div>
-          <Link href="/admin/statistik" className="bento-sec-action">
-            Statistik lengkap <Icon name="chevron-right" size={14} />
-          </Link>
-        </div>
 
-        {tampilLoading ? (
-          <>
-            <div className="adm-bar-chart" aria-busy="true" aria-label="Memuat grafik statistik">
-              {[72, 26, 44, 58, 86].map((h, i) => (
-                <div key={i} className="adm-bar-col">
-                  <div className="skeleton" style={{ width: 28, height: 14, borderRadius: 6 }} />
-                  <div className="adm-bar-track">
-                    <div className="skeleton" style={{ width: "100%", height: `${h}%`, borderRadius: 9 }} />
-                  </div>
-                  <div className="skeleton" style={{ width: 52, height: 11, borderRadius: 6 }} />
-                </div>
-              ))}
-            </div>
-            <div className="adm-mini-stats">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="adm-mini-item" style={{ gap: 6 }}>
-                  <div className="skeleton" style={{ width: "60%", height: 10 }} />
-                  <div className="skeleton" style={{ width: "80%", height: 15 }} />
-                </div>
-              ))}
-            </div>
-          </>
-        ) : error ? (
-          <p className="tiny text-danger py-16">{error}</p>
-        ) : stats ? (
-          <>
-            <div className="adm-bar-chart">
-              {BAR_GROUPS.map((b) => {
-                const v = Number(stats?.[b.key] ?? 0);
-                const pct = v > 0 ? Math.max(10, Math.round((v / max) * 100)) : 4;
-                return (
-                  <div key={b.key} className="adm-bar-col" title={`${b.label}: ${angka(v)}`}>
-                    <span className="adm-bar-num">{angka(v)}</span>
+          {tampilLoading ? (
+            <>
+              <div className="adm-bar-chart" aria-busy="true" aria-label="Memuat grafik statistik">
+                {[72, 26, 44, 58, 86].map((h, i) => (
+                  <div key={i} className="adm-bar-col">
+                    <div className="skeleton" style={{ width: 28, height: 14, borderRadius: 6 }} />
                     <div className="adm-bar-track">
-                      <div
-                        className="adm-bar-fill"
-                        style={{ height: `${pct}%`, background: b.color }}
-                      />
+                      <div className="skeleton" style={{ width: "100%", height: `${h}%`, borderRadius: 9 }} />
                     </div>
-                    <span className="adm-bar-lbl">{b.label}</span>
+                    <div className="skeleton" style={{ width: 52, height: 11, borderRadius: 6 }} />
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+              <div className="stat-strip mt-16">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="stat-cell" style={{ gap: 6 }}>
+                    <div className="skeleton" style={{ width: "60%", height: 10 }} />
+                    <div className="skeleton" style={{ width: "80%", height: 15 }} />
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : error ? (
+            <p className="tiny text-danger py-16">{error}</p>
+          ) : stats ? (
+            <>
+              <div className="adm-bar-chart">
+                {BAR_GROUPS.map((b) => {
+                  const v = Number(stats?.[b.key] ?? 0);
+                  const pct = v > 0 ? Math.max(10, Math.round((v / max) * 100)) : 4;
+                  return (
+                    <div key={b.key} className="adm-bar-col" title={`${b.label}: ${angka(v)}`}>
+                      <span className="adm-bar-num">{angka(v)}</span>
+                      <div className="adm-bar-track">
+                        <div
+                          className="adm-bar-fill"
+                          style={{ height: `${pct}%`, background: b.color }}
+                        />
+                      </div>
+                      <span className="adm-bar-lbl">{b.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
 
-            <div className="adm-mini-stats">
-              <div className="adm-mini-item">
-                <span>Rata-rata IMT</span>
-                <strong>{stats.avg_imt != null ? `${angka(stats.avg_imt, 1)} kg/m²` : "—"}</strong>
+              <div className="stat-strip mt-16">
+                <div className="stat-cell">
+                  <span className="stat-cell-label">Rata-rata IMT</span>
+                  <strong className="stat-cell-val">
+                    {stats.avg_imt != null ? angka(stats.avg_imt, 1) : "—"}
+                  </strong>
+                  <span className="stat-cell-sub">kg/m²</span>
+                </div>
+                <div className="stat-cell">
+                  <span className="stat-cell-label">Rata-rata Tensi</span>
+                  <strong className="stat-cell-val">
+                    {stats.avg_sistol != null && stats.avg_diastol != null
+                      ? `${angka(stats.avg_sistol, 0)}/${angka(stats.avg_diastol, 0)}`
+                      : "—"}
+                  </strong>
+                  <span className="stat-cell-sub">mmHg</span>
+                </div>
+                <div className="stat-cell">
+                  <span className="stat-cell-label">Cakupan Kota</span>
+                  <strong className="stat-cell-val">{angka(stats.total_wilayah)}</strong>
+                  <span className="stat-cell-sub">{angka(stats.total_faskes)} faskes aktif</span>
+                </div>
               </div>
-              <div className="adm-mini-item">
-                <span>Rata-rata Tensi</span>
-                <strong>
-                  {stats.avg_sistol != null && stats.avg_diastol != null
-                    ? `${angka(stats.avg_sistol, 0)}/${angka(stats.avg_diastol, 0)} mmHg`
-                    : "—"}
-                </strong>
-              </div>
-              <div className="adm-mini-item">
-                <span>Cakupan Kota</span>
-                <strong>
-                  {angka(stats.total_wilayah)} wilayah · {angka(stats.total_faskes)} faskes
-                </strong>
-              </div>
-            </div>
-          </>
-        ) : null}
-      </section>
-
-      {/* KARTU KANAN — AKTIVITAS 7 HARI + EKSPOR CSV */}
-      <section className="gv-agenda">
-        <div className="gv-agenda-head">
-          <div>
-            <h2 className="sa-panel-title">Aktivitas 7 Hari &amp; Ekspor</h2>
-            <p className="sa-panel-sub">Pertumbuhan mingguan &amp; unduh data CSV</p>
-          </div>
-          <Badge tone="info">7 hari terakhir</Badge>
+            </>
+          ) : null}
         </div>
 
-        {!tampilLoading && stats ? (
-          <div className="adm-7d-grid">
-            <div className="adm-mini-item">
-              <span>Pengguna Baru</span>
-              <strong>+{angka(stats.new_users_7d)} akun</strong>
+        {/* KOLOM KANAN — AKTIVITAS 7 HARI + EKSPOR CSV */}
+        <div className="sa-col sa-col-split">
+          <div className="sa-panel-head">
+            <div>
+              <h2 className="sa-panel-title">Aktivitas 7 Hari &amp; Ekspor</h2>
+              <p className="sa-panel-sub">Pertumbuhan mingguan &amp; unduh data CSV</p>
             </div>
-            <div className="adm-mini-item">
-              <span>Catatan Baru</span>
-              <strong>+{angka(stats.new_catatan_7d)} catatan</strong>
-            </div>
-            <div className="adm-mini-item">
-              <span>Rujukan Baru</span>
-              <strong>+{angka(stats.new_rujukan_7d)} kasus</strong>
-            </div>
-            <div className="adm-mini-item">
-              <span>Log Audit</span>
-              <strong>{angka(stats.total_audit_logs_7d)} aktivitas</strong>
-            </div>
+            <Badge tone="info">7 hari terakhir</Badge>
           </div>
-        ) : (
-          <div className="adm-7d-grid" aria-busy="true" aria-label="Memuat ringkasan mingguan">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="adm-mini-item" style={{ gap: 6 }}>
-                <div className="skeleton" style={{ width: "58%", height: 10 }} />
-                <div className="skeleton" style={{ width: "74%", height: 15 }} />
+
+          {!tampilLoading && stats ? (
+            <div className="stat-strip is-2">
+              <div className="stat-cell">
+                <span className="stat-cell-label">Pengguna Baru</span>
+                <strong className="stat-cell-val">+{angka(stats.new_users_7d)}</strong>
+                <span className="stat-cell-sub">akun terdaftar</span>
               </div>
+              <div className="stat-cell">
+                <span className="stat-cell-label">Catatan Baru</span>
+                <strong className="stat-cell-val">+{angka(stats.new_catatan_7d)}</strong>
+                <span className="stat-cell-sub">rekam medis</span>
+              </div>
+              <div className="stat-cell">
+                <span className="stat-cell-label">Rujukan Baru</span>
+                <strong className="stat-cell-val">+{angka(stats.new_rujukan_7d)}</strong>
+                <span className="stat-cell-sub">kasus baru</span>
+              </div>
+              <div className="stat-cell">
+                <span className="stat-cell-label">Log Audit</span>
+                <strong className="stat-cell-val">{angka(stats.total_audit_logs_7d)}</strong>
+                <span className="stat-cell-sub">aktivitas</span>
+              </div>
+            </div>
+          ) : (
+            <div className="stat-strip is-2" aria-busy="true" aria-label="Memuat ringkasan mingguan">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="stat-cell" style={{ gap: 6 }}>
+                  <div className="skeleton" style={{ width: "58%", height: 10 }} />
+                  <div className="skeleton" style={{ width: "74%", height: 15 }} />
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-16" style={{ borderTop: "1px solid var(--border)" }}>
+            {EKSPOR_ITEMS.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className="adm-export-row"
+                onClick={() => ekspor(item.key)}
+                disabled={!!mengunduh}
+              >
+                <span className="row gap-8 items-center">
+                  <Icon name={item.icon} size={15} className="text-primary" />
+                  <span>{item.label}</span>
+                </span>
+                <span className="row gap-4 items-center tiny">
+                  <Icon name="download" size={14} />
+                  <span>{mengunduh === item.key ? "Mengunduh…" : "CSV"}</span>
+                </span>
+              </button>
             ))}
+            {kesalahan ? <p className="tiny text-danger mt-8">{kesalahan}</p> : null}
           </div>
-        )}
-
-        <div className="adm-export-list">
-          {EKSPOR_ITEMS.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              className="adm-export-btn"
-              onClick={() => ekspor(item.key)}
-              disabled={!!mengunduh}
-            >
-              <span className="row gap-8 items-center">
-                <Icon name={item.icon} size={15} className="text-primary" />
-                <span>{item.label}</span>
-              </span>
-              <span className="row gap-4 items-center tiny">
-                <Icon name="download" size={14} />
-                <span>{mengunduh === item.key ? "Mengunduh…" : "CSV"}</span>
-              </span>
-            </button>
-          ))}
-          {kesalahan ? <p className="tiny text-danger">{kesalahan}</p> : null}
         </div>
-      </section>
-    </div>
+      </div>
+    </section>
   );
 }

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
-import Badge from "@/components/ui/Badge";
 import GrafikRingkas from "@/components/admin/GrafikRingkas";
 
 const ADMIN_MENU: {
@@ -81,57 +80,38 @@ export default function AdminPage() {
             Kelola pengguna, faskes, ambang klinis, verifikasi catatan, dan audit aktivitas kota.
           </p>
         </div>
-
-        <div className="gv-head-actions">
-          <Badge tone="primary">Super Admin · {ADMIN_MENU.length} Modul</Badge>
-        </div>
       </div>
 
       <GrafikRingkas />
 
       <section aria-labelledby="judul-menu-admin">
-        <div className="row-between wrap gap-8 mb-12">
-          <div>
-            <h2 id="judul-menu-admin" className="sa-panel-title">Menu Administrasi</h2>
-            <p className="sa-panel-sub">Pilih modul pengelolaan master data, layanan, dan pemantauan sistem</p>
-          </div>
-          <Badge tone="default">{ADMIN_MENU.length} modul</Badge>
+        <div className="mb-12">
+          <h2 id="judul-menu-admin" className="sa-panel-title">Menu Administrasi</h2>
+          <p className="sa-panel-sub">Pilih modul pengelolaan master data, layanan, dan pemantauan sistem</p>
         </div>
 
-        <div className="adm-menu-grid">
-          {ADMIN_MENU.map((item, idx) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="adm-menu-card"
-              style={{ animationDelay: `${idx * 35}ms` }}
-            >
-              <div className="gv-kpi-top">
-                <span className="gv-kpi-ico">
-                  <Icon name={item.icon} size={17} />
-                </span>
-                <Badge tone="default">{item.tag}</Badge>
-              </div>
-              <div>
-                <h3 className="adm-menu-title">{item.label}</h3>
-                <p className="adm-menu-desc">{item.desc}</p>
-              </div>
-              <span className="adm-menu-foot">
-                Buka modul <Icon name="chevron-right" size={14} />
+        <div className="card adm-dir-panel">
+          {ADMIN_MENU.map((item) => (
+            <Link key={item.href} href={item.href} className="adm-dir-item">
+              <span className="adm-dir-ico">
+                <Icon name={item.icon} size={17} />
               </span>
+              <div className="adm-dir-body">
+                <strong>{item.label}</strong>
+                <p>{item.desc}</p>
+              </div>
+              <Icon name="chevron-right" size={16} className="adm-dir-arrow" />
             </Link>
           ))}
         </div>
       </section>
 
-      <div className="gv-quick-bar">
-        <span className="tiny">
-          <Icon name="shield" size={13} /> Hanya Super Admin yang dapat mengubah master data dan konfigurasi sistem.
-        </span>
-        <Link href="/dashboard" className="gv-quick-pill">
-          <Icon name="home" size={13} /> Kembali ke Beranda
+      <p className="tiny center mt-8">
+        Hanya Super Admin yang dapat mengubah master data dan konfigurasi sistem.{" "}
+        <Link href="/dashboard" className="text-primary">
+          Kembali ke Beranda
         </Link>
-      </div>
+      </p>
     </AppShell>
   );
 }

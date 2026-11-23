@@ -39,16 +39,6 @@ const TONE: Record<string, { cls: string; ico: string; label: string; ringkas: s
 
 const URUTAN = ["bahaya", "peringatan", "info"];
 
-/** Inisial dari kode insight, mis. "gula_darah_tinggi" → "GD". */
-function inisialKode(kode: string) {
-  return kode
-    .split(/[_\-\s]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("");
-}
-
 export default function InsightPage() {
   const [filter, setFilter] = useState("semua");
   const [semua, setSemua] = useState<Insight[]>([]);
@@ -56,7 +46,6 @@ export default function InsightPage() {
   const [loading, setLoading] = useState(true);
   const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState("");
-  const [sorot, setSorot] = useState("");
   const daftarRef = useRef<HTMLDivElement | null>(null);
 
   const muat = useCallback(async () => {
@@ -108,10 +97,9 @@ export default function InsightPage() {
   const total = semua.length;
   const bahaya = hitung("bahaya");
 
-  /** Klik kartu ringkasan: saring ke tingkat itu, beri kilau, gulir ke daftar. */
+  /** Klik kolom ringkasan: saring ke tingkat itu lalu gulir ke daftar. */
   function pilihTingkat(t: string) {
     setFilter(filter === t ? "semua" : t);
-    setSorot(t);
     window.setTimeout(
       () => daftarRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
       70,
@@ -138,18 +126,15 @@ export default function InsightPage() {
         </Link>
       </header>
 
-      <div className="ins-summary grid grid-3">
-        {URUTAN.map((t, idx) => {
+      <div className="ins-summary">
+        {URUTAN.map((t) => {
           const tone = TONE[t];
           const n = hitung(t);
           return (
             <button
               key={t}
               type="button"
-              className={`ins-sum-card tone-${tone.cls}${filter === t ? " aktif" : ""}${
-                sorot === t ? " sorot" : ""
-              }`}
-              style={{ ["--i" as string]: idx }}
+              className={`ins-sum-card tone-${tone.cls}${filter === t ? " aktif" : ""}`}
               onClick={() => pilihTingkat(t)}
               aria-pressed={filter === t}
             >
@@ -159,7 +144,6 @@ export default function InsightPage() {
               <span className="ins-sum-num">{tampilLoading ? "–" : n}</span>
               <span className="ins-sum-label">{tone.label}</span>
               <span className="ins-sum-sub">{n === 0 ? "tidak ada" : tone.ringkas}</span>
-              <span className="ins-sum-bar" aria-hidden="true" />
             </button>
           );
         })}
@@ -185,7 +169,7 @@ export default function InsightPage() {
       ) : (
         <div className="ins-list">
           {daftar.length === 0 ? (
-            <div className="card card-flat">
+            <div style={{ padding: "20px 16px" }}>
               <EmptyState
                 title="Tidak ada peringatan dini"
                 desc={
@@ -204,9 +188,7 @@ export default function InsightPage() {
                 <article
                   key={`${i.kode}-${i.level}-${idx}`}
                   className={`ins-card tone-${tone.cls}`}
-                  style={{ ["--i" as string]: Math.min(idx, 8) }}
                 >
-                  <span className="ins-card-rail" aria-hidden="true" />
                   <div className="ins-card-body">
                     <div className="ins-card-top">
                       <span className="ins-ico">
@@ -218,9 +200,6 @@ export default function InsightPage() {
                           {tone.label} · {tanggal(i.dibuat_pada, "short")}
                         </span>
                       </div>
-                      <span className="ins-badge" aria-hidden="true">
-                        {inisialKode(i.kode)}
-                      </span>
                     </div>
                     <p className="ins-teks">{i.teks}</p>
                   </div>

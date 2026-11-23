@@ -11,7 +11,6 @@ import {
   GlassyDashboardSkeleton,
   GlassyKpiGrid,
   GlassyProgressRing,
-  buildSparklinePath,
   type GlassyKpiItem,
 } from "@/components/dashboard/GlassyWidgets";
 import { tanggal, angka, todayLocalISO } from "@/lib/format";
@@ -99,15 +98,6 @@ export default function DashboardKader({ user: _user }: { user: User }) {
   const rujukanSelesai = daftarRujukan.filter((r) => r.status === "selesai");
   const sesiGrafik = sesi.slice(0, 7).reverse();
 
-  const sparkHadir = buildSparklinePath(
-    sesiGrafik.map((s) => s.hadir || 0),
-    "M2 18 C 14 14, 24 18, 36 10 C 46 6, 54 9, 64 4",
-  );
-  const sparkPeserta = buildSparklinePath(
-    sesiGrafik.map((s) => s.jumlah_peserta || 0),
-    "M2 20 C 14 19, 20 12, 32 14 C 42 16, 50 6, 64 5",
-  );
-
   const kpiItems: GlassyKpiItem[] = [
     {
       id: "kehadiran",
@@ -117,7 +107,6 @@ export default function DashboardKader({ user: _user }: { user: User }) {
       icon: "users",
       pillText: rasioHadir >= 70 ? "Target tercapai" : "Perlu dorongan",
       pillTone: rasioHadir >= 70 ? "safe" : "warning",
-      sparkPath: sparkHadir,
       href: "/posbindu",
     },
     {
@@ -128,8 +117,6 @@ export default function DashboardKader({ user: _user }: { user: User }) {
       icon: "calendar",
       pillText: `${angka(sesi.length)} total sesi`,
       pillTone: "info",
-      sparkPath: sparkPeserta,
-      sparkColor: "var(--primary)",
       href: "/posbindu",
     },
     {
@@ -140,8 +127,6 @@ export default function DashboardKader({ user: _user }: { user: User }) {
       icon: "send",
       pillText: rujukanTerbuka.length > 0 ? "Perlu tindak lanjut" : "Semua selesai",
       pillTone: rujukanTerbuka.length > 0 ? "danger" : "safe",
-      accent: rujukanTerbuka.length > 0 ? "danger" : "safe",
-      sparkPath: "M2 16 C 14 18, 22 9, 34 11 C 46 14, 54 6, 64 7",
       href: "/rujukan",
     },
     {
@@ -152,7 +137,6 @@ export default function DashboardKader({ user: _user }: { user: User }) {
       icon: "calendar-check",
       pillText: sesiAkanDatangList.length > 0 ? "Terjadwal" : "Buat jadwal",
       pillTone: "info",
-      sparkPath: "M2 19 C 12 16, 22 10, 34 12 C 44 14, 54 8, 64 5",
       href: "/posbindu",
     },
   ];
@@ -178,74 +162,64 @@ export default function DashboardKader({ user: _user }: { user: User }) {
         </div>
 
         <div className="gv-head-actions">
-          <Link href="/rujukan" className="btn btn-sm btn-outline" style={{ borderRadius: 999 }}>
+          <Link href="/rujukan" className="btn btn-sm btn-outline">
             <Icon name="send" size={14} /> Daftar Rujukan
           </Link>
-          <Link href="/posbindu" className="btn btn-sm btn-primary" style={{ borderRadius: 999 }}>
+          <Link href="/posbindu" className="btn btn-sm btn-primary">
             <Icon name="calendar-check" size={14} /> Kelola Posbindu
           </Link>
         </div>
       </div>
 
-      {/* BARIS 1 — HERO KEHADIRAN + PANEL AGENDA POSBINDU GLASSY V24 */}
-      <div className="gv-top-grid">
-        <section className={`gv-hero${heroWarn ? " is-warning" : ""}`}>
-          <div className="gv-hero-main">
-            <span className="gv-hero-badge">
-              <span>
+      {/* PANEL UTAMA TERPADU */}
+      <section className="gv-surface">
+        <div className="gv-top-grid">
+          <div className={`gv-hero${heroWarn ? " is-warning" : ""}`}>
+            <div className="gv-hero-main">
+              <Badge tone={rujukanTerbuka.length > 0 ? "warning" : "safe"}>
                 {rujukanTerbuka.length > 0
                   ? `${angka(rujukanTerbuka.length)} rujukan perlu tindak lanjut`
                   : "Semua rujukan binaan aman"}
-              </span>
-            </span>
+              </Badge>
 
-            <div>
-              <h2 className="gv-hero-title">
-                {sesiBerikutnya
-                  ? `Sesi berikutnya: ${tanggal(sesiBerikutnya.tanggal, "short")}`
-                  : "Belum ada jadwal Posbindu terbaru"}
-              </h2>
-              <p className="gv-hero-desc">
-                {sesiBerikutnya?.lokasi
-                  ? `Lokasi di ${sesiBerikutnya.lokasi} · ${angka(hadirBulanIni)} dari ${angka(pesertaBulanIni)} warga hadir bulan ini.`
-                  : "Pantau kehadiran warga di setiap sesi Posbindu dan tindak lanjuti rujukan aktif secara berkala."}
-              </p>
+              <div>
+                <h2 className="gv-hero-title">
+                  {sesiBerikutnya
+                    ? `Sesi berikutnya: ${tanggal(sesiBerikutnya.tanggal, "short")}`
+                    : "Belum ada jadwal Posbindu terbaru"}
+                </h2>
+                <p className="gv-hero-desc">
+                  {sesiBerikutnya?.lokasi
+                    ? `Lokasi di ${sesiBerikutnya.lokasi} · ${angka(hadirBulanIni)} dari ${angka(pesertaBulanIni)} warga hadir bulan ini.`
+                    : "Pantau kehadiran warga di setiap sesi Posbindu dan tindak lanjuti rujukan aktif secara berkala."}
+                </p>
+              </div>
+
+              <div className="gv-hero-metrics">
+                <div className="gv-hero-metric">
+                  <strong>{angka(sesi.length)}</strong>
+                  <span>Total Sesi</span>
+                </div>
+                <div className="gv-hero-metric">
+                  <strong>{angka(hadirBulanIni)}</strong>
+                  <span>Hadir Bulan Ini</span>
+                </div>
+                <div className="gv-hero-metric">
+                  <strong>{angka(rujukanSelesai.length)}</strong>
+                  <span>Rujukan Selesai</span>
+                </div>
+              </div>
             </div>
 
-            <div className="gv-hero-metrics">
-              <div className="gv-hero-metric">
-                <strong>{angka(sesi.length)}</strong>
-                <span>Total Sesi</span>
-              </div>
-              <div className="gv-hero-metric">
-                <strong>{angka(hadirBulanIni)}</strong>
-                <span>Hadir Bulan Ini</span>
-              </div>
-              <div className="gv-hero-metric">
-                <strong>{angka(rujukanSelesai.length)}</strong>
-                <span>Rujukan Selesai</span>
-              </div>
-            </div>
-
-            <div className="gv-hero-actions">
-              <Link href="/posbindu" className="gv-btn-solid">
-                Kelola Posbindu <Icon name="chevron-right" size={14} />
-              </Link>
-              <Link href="/rujukan" className="gv-btn-glass">
-                <Icon name="send" size={14} /> Tindak Lanjut Rujukan
-              </Link>
-            </div>
+            <GlassyProgressRing
+              percent={rasioHadir}
+              centerLabel="kehadiran"
+              caption={`${angka(totalHadir)}/${angka(totalPeserta)} warga`}
+              ariaLabel={`Rasio Kehadiran Posbindu ${rasioHadir}%`}
+            />
           </div>
 
-          <GlassyProgressRing
-            percent={rasioHadir}
-            centerLabel="kehadiran"
-            caption={`${angka(totalHadir)}/${angka(totalPeserta)} warga`}
-            ariaLabel={`Rasio Kehadiran Posbindu ${rasioHadir}%`}
-          />
-        </section>
-
-        <section className="gv-agenda">
+          <div className="gv-agenda">
           <div className="gv-agenda-head">
             <GlassyAgendaDate />
             <Badge tone={rujukanTerbuka.length > 0 ? "warning" : "safe"}>
@@ -364,11 +338,12 @@ export default function DashboardKader({ user: _user }: { user: User }) {
               Lihat semua <Icon name="chevron-right" size={14} />
             </Link>
           </div>
-        </section>
-      </div>
+          </div>
+        </div>
 
-      {/* BARIS 2 — 4 KPI GLASS CARDS + SPARKLINE SVG */}
-      <GlassyKpiGrid items={kpiItems} />
+        {/* STRIP KPI TERPADU */}
+        <GlassyKpiGrid items={kpiItems} />
+      </section>
     </AppShell>
   );
 }

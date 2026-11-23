@@ -12,7 +12,6 @@ import {
   GlassyDashboardSkeleton,
   GlassyKpiGrid,
   GlassyProgressRing,
-  buildSparklinePath,
   type GlassyKpiItem,
   type GlassyPillTone,
 } from "@/components/dashboard/GlassyWidgets";
@@ -139,7 +138,7 @@ export default function DashboardUser({ user }: { user: User }) {
 
   if (tampilLoading) {
     return (
-      <AppShell greet="Halo" onFab={() => setCatatTerbuka(true)}>
+      <AppShell greet="Halo" noFab>
         <GlassyDashboardSkeleton label="Memuat beranda warga…" />
       </AppShell>
     );
@@ -147,7 +146,7 @@ export default function DashboardUser({ user }: { user: User }) {
 
   if (!data || error) {
     return (
-      <AppShell greet="Halo" onFab={() => setCatatTerbuka(true)}>
+      <AppShell greet="Halo" noFab>
         <div className="card mt-16">
           <div className="alert alert-danger">
             <Icon name="alert-circle" />
@@ -183,23 +182,16 @@ export default function DashboardUser({ user }: { user: User }) {
         ? "warning"
         : "safe";
 
-  const nilaiSeri = (kode: string) =>
-    (trenData?.series.find((s) => s.indikator === kode)?.titik ?? []).map((t) => t.nilai);
-
-  const sparkBb = buildSparklinePath(nilaiSeri("bb_kg"), "M2 15 C 14 14, 28 13, 42 12 C 54 11, 58 10, 64 9");
-  const sparkTensi = buildSparklinePath(nilaiSeri("sistol"), "M2 16 C 14 18, 22 10, 34 12 C 46 14, 54 7, 64 8");
-  const sparkGula = buildSparklinePath(nilaiSeri("gula_darah"), "M2 19 C 12 16, 24 12, 36 13 C 46 14, 54 9, 64 6");
-
   const kpiItems: GlassyKpiItem[] = [
     {
       id: "kondisi",
-      title: "Status Kesehatan",
-      subtitle: `Skor Risiko ${skor_risiko}`,
-      value: `${persenSehat}%`,
+      title: "Skor Risiko",
+      subtitle: "Skor risiko PTM terkini",
+      value: skor_risiko,
+      unit: "/ 100",
       icon: "shield-check",
       pillText: LABEL_STATUS[status_kesehatan] || "Kondisi Baik",
       pillTone: pillKondisiTone,
-      sparkPath: "M2 18 C 14 15, 24 16, 36 11 C 46 6, 54 8, 64 4",
       href: "/insight",
     },
     {
@@ -213,8 +205,6 @@ export default function DashboardUser({ user }: { user: User }) {
         ? labelKategoriIndikator(indikator_terkini.kategori_imt)
         : "Belum dihitung",
       pillTone: indikator_terkini?.kategori_imt ? toneKategori(indikator_terkini.kategori_imt) : "info",
-      sparkPath: sparkBb,
-      sparkColor: "var(--primary)",
       href: "/rekam-medis",
     },
     {
@@ -231,11 +221,6 @@ export default function DashboardUser({ user }: { user: User }) {
         ? labelKategoriIndikator(indikator_terkini.kategori_tensi)
         : "Belum diukur",
       pillTone: indikator_terkini?.kategori_tensi ? toneKategori(indikator_terkini.kategori_tensi) : "info",
-      accent:
-        indikator_terkini?.kategori_tensi && toneKategori(indikator_terkini.kategori_tensi) === "danger"
-          ? "danger"
-          : "primary",
-      sparkPath: sparkTensi,
       href: "/rekam-medis",
     },
     {
@@ -255,7 +240,6 @@ export default function DashboardUser({ user }: { user: User }) {
       pillTone: indikator_terkini?.kategori_gula_darah
         ? toneKategori(indikator_terkini.kategori_gula_darah)
         : "warning",
-      sparkPath: sparkGula,
       href: "/rekam-medis",
     },
   ];
@@ -336,7 +320,7 @@ export default function DashboardUser({ user }: { user: User }) {
       : `${angka(gamifikasi?.exp_total ?? 0)} poin aktivitas`;
 
   return (
-    <AppShell greet="Halo" onFab={() => setCatatTerbuka(true)}>
+    <AppShell greet="Halo" noFab>
       {!user.profil ? (
         <div className="alert alert-warning row-between wrap gap-12">
           <div className="row gap-10 items-center">
@@ -354,20 +338,19 @@ export default function DashboardUser({ user }: { user: User }) {
         <div>
           <h1 className="gv-head-title">Ringkasan Kesehatan</h1>
           <p className="gv-head-sub">
-            Level {gamifikasi?.level_gamifikasi ?? 1} · {angka(gamifikasi?.exp_total ?? 0)} poin aktivitas
-            {gamifikasi?.rank_kelurahan != null ? ` · Peringkat #${gamifikasi.rank_kelurahan} kelurahan` : ""}
-            {indikator_terkini?.dicatat_pada ? ` · Pembaruan ${relatif(indikator_terkini.dicatat_pada)}` : ""}
+            {indikator_terkini?.dicatat_pada
+              ? `Pembaruan terakhir ${relatif(indikator_terkini.dicatat_pada)}`
+              : "Belum ada catatan pemeriksaan"}
           </p>
         </div>
 
         <div className="gv-head-actions">
-          <Link href="/rekam-medis" className="btn btn-sm btn-outline" style={{ borderRadius: 999 }}>
+          <Link href="/rekam-medis" className="btn btn-sm btn-outline">
             <Icon name="clipboard" size={14} /> Rekam Medis
           </Link>
           <button
             type="button"
             className="btn btn-sm btn-primary"
-            style={{ borderRadius: 999 }}
             onClick={() => setCatatTerbuka(true)}
           >
             <Icon name="plus" size={15} /> Catat Kesehatan
@@ -375,74 +358,72 @@ export default function DashboardUser({ user }: { user: User }) {
         </div>
       </div>
 
-      {/* BARIS 1 — HERO KONDISI + PANEL AGENDA & TREN GLASSY V24 */}
-      <div className="gv-top-grid">
-        <section className={`gv-hero${heroToneClass}`}>
-          <div className="gv-hero-main">
-            <span className="gv-hero-badge">
-              <span>{LABEL_STATUS[status_kesehatan] || "Kondisi Baik"}</span>
-            </span>
+      {/* PANEL UTAMA TERPADU */}
+      <section className="gv-surface">
+        <div className="gv-top-grid">
+          <div className={`gv-hero${heroToneClass}`}>
+            <div className="gv-hero-main">
+              <Badge tone={pillKondisiTone}>
+                {LABEL_STATUS[status_kesehatan] || "Kondisi Baik"}
+              </Badge>
 
-            <div>
-              <h2 className="gv-hero-title">
-                {rujukan_aktif
-                  ? `Ada rujukan aktif ke ${rujukan_aktif.faskes?.nama || "Fasilitas Kesehatan"}`
-                  : status_kesehatan === "normal"
-                    ? "Kondisi kesehatan terpantau baik"
-                    : "Perlu pemantauan pemeriksaan berkala"}
-              </h2>
-              <p className="gv-hero-desc">
-                {indikator_terkini?.dicatat_pada
-                  ? `Catatan terakhir diperbarui ${relatif(indikator_terkini.dicatat_pada)} · ${angka(notifikasiItems.length)} peringatan aktif dan ${angka(targetAktif)} target berjalan.`
-                  : "Mulai catat berat badan, tekanan darah, dan gula darah agar kondisi kesehatan Anda terpantau rutin."}
-              </p>
+              <div>
+                <h2 className="gv-hero-title">
+                  {rujukan_aktif
+                    ? `Ada rujukan aktif ke ${rujukan_aktif.faskes?.nama || "Fasilitas Kesehatan"}`
+                    : status_kesehatan === "normal"
+                      ? "Kondisi kesehatan terpantau baik"
+                      : "Perlu pemantauan pemeriksaan berkala"}
+                </h2>
+                <p className="gv-hero-desc">
+                  {indikator_terkini?.dicatat_pada
+                    ? `Catatan terakhir diperbarui ${relatif(indikator_terkini.dicatat_pada)} · ${angka(notifikasiItems.length)} peringatan aktif dan ${angka(targetAktif)} target berjalan.`
+                    : "Mulai catat berat badan, tekanan darah, dan gula darah agar kondisi kesehatan Anda terpantau rutin."}
+                </p>
+              </div>
+
+              <div className="gv-hero-metrics">
+                <div className="gv-hero-metric">
+                  <strong>
+                    {indikator_terkini?.bb_kg != null ? `${indikator_terkini.bb_kg} kg` : "—"}
+                  </strong>
+                  <span>Berat Badan ({subSelisihBb})</span>
+                </div>
+                <div className="gv-hero-metric">
+                  <strong>Level {gamifikasi?.level_gamifikasi ?? 1}</strong>
+                  <span>
+                    {angka(gamifikasi?.exp_total ?? 0)} EXP ·{" "}
+                    {gamifikasi?.achievement?.ringkasan.diraih ?? gamifikasi?.badge.length ?? 0}/
+                    {gamifikasi?.achievement?.ringkasan.total ?? 8} lencana
+                  </span>
+                </div>
+                <div className="gv-hero-metric">
+                  <strong>
+                    {rujukan_aktif ? LABEL_STATUS_RUJUKAN[rujukan_aktif.status] || rujukan_aktif.status : "Aman"}
+                  </strong>
+                  <span>Status Rujukan</span>
+                </div>
+              </div>
+
+              <div className="gv-hero-actions">
+                <Link href="/peringkat" className="btn btn-sm btn-outline">
+                  <Icon name="trophy" size={14} /> Achievement
+                </Link>
+                <Link href="/edukasi" className="btn btn-sm btn-outline">
+                  <Icon name="book-open" size={14} /> Edukasi
+                </Link>
+              </div>
             </div>
 
-            <div className="gv-hero-metrics">
-              <div className="gv-hero-metric">
-                <strong>
-                  {indikator_terkini?.bb_kg != null ? `${indikator_terkini.bb_kg} kg` : "—"}
-                </strong>
-                <span>Berat Badan ({subSelisihBb})</span>
-              </div>
-              <div className="gv-hero-metric">
-                <strong>Level {gamifikasi?.level_gamifikasi ?? 1}</strong>
-                <span>
-                  {angka(gamifikasi?.exp_total ?? 0)} EXP ·{" "}
-                  {gamifikasi?.achievement?.ringkasan.diraih ?? gamifikasi?.badge.length ?? 0}/
-                  {gamifikasi?.achievement?.ringkasan.total ?? 8} lencana
-                </span>
-              </div>
-              <div className="gv-hero-metric">
-                <strong>
-                  {rujukan_aktif ? LABEL_STATUS_RUJUKAN[rujukan_aktif.status] || rujukan_aktif.status : "Aman"}
-                </strong>
-                <span>Status Rujukan</span>
-              </div>
-            </div>
-
-            <div className="gv-hero-actions">
-              <button type="button" className="gv-btn-solid" onClick={() => setCatatTerbuka(true)}>
-                <Icon name="plus" size={14} /> Catat Kesehatan
-              </button>
-              <Link href="/peringkat" className="gv-btn-glass">
-                <Icon name="trophy" size={14} /> Achievement
-              </Link>
-              <Link href="/edukasi" className="gv-btn-glass">
-                <Icon name="book-open" size={14} /> Edukasi
-              </Link>
-            </div>
+            <GlassyProgressRing
+              percent={persenSehat}
+              centerLabel="skor sehat"
+              caption={ringCaption}
+              ariaLabel={`Status Kesehatan ${persenSehat}%`}
+            />
           </div>
 
-          <GlassyProgressRing
-            percent={persenSehat}
-            centerLabel="skor sehat"
-            caption={ringCaption}
-            ariaLabel={`Status Kesehatan ${persenSehat}%`}
-          />
-        </section>
-
-        <section className="gv-agenda">
+          <div className="gv-agenda">
           <div className="gv-agenda-head">
             <GlassyAgendaDate />
             <Badge tone={notifikasiItems.length > 0 ? "warning" : "safe"}>
@@ -584,11 +565,12 @@ export default function DashboardUser({ user }: { user: User }) {
               Lihat semua <Icon name="chevron-right" size={14} />
             </Link>
           </div>
-        </section>
-      </div>
+          </div>
+        </div>
 
-      {/* BARIS 2 — 4 KPI GLASS CARDS + SPARKLINE SVG */}
-      <GlassyKpiGrid items={kpiItems} />
+        {/* STRIP KPI TERPADU */}
+        <GlassyKpiGrid items={kpiItems} />
+      </section>
 
       <CatatModal
         open={catatTerbuka}

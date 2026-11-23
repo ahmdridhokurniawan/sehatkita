@@ -285,21 +285,22 @@ export default function EdukasiPage() {
       </div>
 
       {isWarga && ringkasan ? (
-        <div className="card mb-16">
-          <div className="row-between wrap gap-12 mb-8">
-            <div>
-              <strong className="text-sm">Progres Belajar Pribadi</strong>
-              <p className="tiny">
-                {angka(ringkasan.selesai)} dari {angka(ringkasan.total_materi)} materi selesai dipahami
-                {ringkasan.berjalan > 0 ? ` · ${angka(ringkasan.berjalan)} sedang dibaca` : ""}
-              </p>
+        <div className="summary-strip mb-12" style={{ justifyContent: "space-between" }}>
+          <span className="summary-strip-item">
+            Progres Belajar{" "}
+            <strong>
+              {angka(ringkasan.selesai)}/{angka(ringkasan.total_materi)}
+            </strong>{" "}
+            materi
+            {ringkasan.berjalan > 0 ? ` · ${angka(ringkasan.berjalan)} sedang dibaca` : ""}
+          </span>
+          <div className="row items-center gap-10" style={{ flex: "1 1 220px", justifyContent: "flex-end" }}>
+            <div className="progress" style={{ flex: "1 1 160px", maxWidth: 260, height: 6 }}>
+              <i style={{ width: `${ringkasan.persen_keseluruhan}%`, background: "var(--primary)" }} />
             </div>
             <Badge tone={ringkasan.persen_keseluruhan >= 75 ? "safe" : "primary"}>
               {ringkasan.persen_keseluruhan}% tuntas
             </Badge>
-          </div>
-          <div className="progress" style={{ height: 8 }}>
-            <i style={{ width: `${ringkasan.persen_keseluruhan}%`, background: "var(--primary)" }} />
           </div>
         </div>
       ) : null}
@@ -373,38 +374,37 @@ export default function EdukasiPage() {
           desc="Materi edukasi belum tersedia atau tidak cocok dengan filter Anda."
         />
       ) : (
-        <div className="grid grid-3" style={{ gap: 14 }}>
+        <div className="card card-list">
           {items.map((item) => {
             const prog = item.progres_saya;
             return (
               <article
                 key={item.id}
-                className="card"
-                style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 12 }}
+                className="li"
+                style={{
+                  padding: "16px 20px",
+                  alignItems: "flex-start",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: 14,
+                }}
               >
-                <div style={{ display: "grid", gap: 8 }}>
-                  <div className="row-between wrap gap-6">
+                <div className="li-main">
+                  <div className="row items-center wrap gap-8">
                     <Badge tone="info">{LABEL_KATEGORI[item.kategori] || item.kategori}</Badge>
-                    <span className="tiny row gap-4">
+                    <span className="tiny row gap-4 items-center">
                       <Icon name="clock" size={12} /> {item.estimasi_menit} mnt
                     </span>
                   </div>
-                  <h2 className="h4" style={{ margin: 0 }}>
+                  <h2 className="h4" style={{ margin: "6px 0 4px" }}>
                     {item.judul}
                   </h2>
                   <p className="tiny" style={{ color: "var(--text-2)", lineHeight: 1.5 }}>
                     {item.ringkasan}
                   </p>
-                </div>
-
-                <div style={{ display: "grid", gap: 10 }}>
                   {isWarga ? (
-                    <div>
-                      <div className="row-between tiny mb-4">
-                        <span>{prog?.sudah_dibaca ? "Selesai dipahami" : "Progres saya"}</span>
-                        <strong>{prog?.progres_persen ?? 0}%</strong>
-                      </div>
-                      <div className="progress" style={{ height: 6 }}>
+                    <div className="row items-center gap-10 mt-8" style={{ maxWidth: 320 }}>
+                      <div className="progress" style={{ flex: 1, maxWidth: 240, height: 5 }}>
                         <i
                           style={{
                             width: `${prog?.progres_persen ?? 0}%`,
@@ -412,24 +412,28 @@ export default function EdukasiPage() {
                           }}
                         />
                       </div>
+                      <span className="tiny">
+                        {prog?.sudah_dibaca ? "Selesai dipahami" : "Progres saya"}{" "}
+                        <strong>{prog?.progres_persen ?? 0}%</strong>
+                      </span>
                     </div>
                   ) : null}
+                </div>
 
-                  <div className="row-between wrap gap-6">
-                    <Button variant="primary" size="sm" icon="book-open" onClick={() => bukaBaca(item)}>
-                      {isWarga ? (prog?.sudah_dibaca ? "Baca Ulang" : "Baca & Catat") : "Baca Materi"}
-                    </Button>
-                    {bolehUbahItem(item) ? (
-                      <div className="row gap-6">
-                        <Button variant="ghost" size="sm" onClick={() => bukaEdit(item)}>
-                          <Icon name="pencil" size={14} />
-                        </Button>
-                        <Button variant="danger" size="sm" onClick={() => setHapusTarget(item)}>
-                          <Icon name="trash" size={14} />
-                        </Button>
-                      </div>
-                    ) : null}
-                  </div>
+                <div className="row gap-6 items-center" style={{ flexShrink: 0 }}>
+                  <Button variant="outline" size="sm" icon="book-open" onClick={() => bukaBaca(item)}>
+                    {isWarga ? (prog?.sudah_dibaca ? "Baca Ulang" : "Baca & Catat") : "Baca Materi"}
+                  </Button>
+                  {bolehUbahItem(item) ? (
+                    <>
+                      <Button variant="ghost" size="sm" onClick={() => bukaEdit(item)}>
+                        <Icon name="pencil" size={14} />
+                      </Button>
+                      <Button variant="danger" size="sm" onClick={() => setHapusTarget(item)}>
+                        <Icon name="trash" size={14} />
+                      </Button>
+                    </>
+                  ) : null}
                 </div>
               </article>
             );

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Icon from "@/components/ui/Icon";
 
 export type GlassyPillTone = "safe" | "info" | "warning" | "danger";
 export type GlassyAccent = "danger" | "primary" | "safe";
@@ -14,7 +13,7 @@ export type GlassyKpiItem = {
   pillText: string;
   pillTone?: GlassyPillTone;
   accent?: GlassyAccent;
-  sparkPath: string;
+  sparkPath?: string;
   sparkColor?: string;
   href?: string;
 };
@@ -78,18 +77,18 @@ export function GlassyProgressRing({
   ariaLabel?: string;
 }) {
   const clamped = Math.max(0, Math.min(100, Math.round(percent)));
-  const radius = 50;
+  const radius = 40;
   const circumference = 2 * Math.PI * radius;
   const ringOffset = circumference * (1 - clamped / 100);
 
   return (
     <div className="gv-hero-ring-wrap">
       <div className="gv-ring-box" aria-label={ariaLabel || `${clamped}% ${centerLabel}`}>
-        <svg viewBox="0 0 120 120" className="gv-ring-svg">
-          <circle cx="60" cy="60" r={radius} className="gv-ring-track" />
+        <svg viewBox="0 0 96 96" className="gv-ring-svg">
+          <circle cx="48" cy="48" r={radius} className="gv-ring-track" />
           <circle
-            cx="60"
-            cy="60"
+            cx="48"
+            cy="48"
             r={radius}
             className="gv-ring-fill"
             strokeDasharray={circumference}
@@ -126,65 +125,42 @@ export function GlassyAgendaDate() {
   );
 }
 
-const DEFAULT_SPARK_COLOR: Record<GlassyPillTone, string> = {
-  safe: "var(--safe)",
-  info: "var(--info)",
-  warning: "var(--warning)",
-  danger: "var(--danger)",
-};
-
 /**
- * Strip 4 KPI Glassmorphism sejajar dengan pil indikator dan inline SVG sparkline.
+ * Strip 4 KPI terpadu bersekat garis tipis dengan pil indikator status.
  */
 export function GlassyKpiGrid({ items }: { items: GlassyKpiItem[] }) {
   return (
-    <div className="gv-kpi-grid">
-      {items.map((item, idx) => {
+    <div className="gv-kpi-strip">
+      {items.map((item) => {
         const pillClass =
           item.pillTone && item.pillTone !== "safe"
             ? `gv-kpi-pill is-${item.pillTone}`
             : "gv-kpi-pill";
-        const cardClass = item.accent
-          ? `gv-kpi is-accent${item.accent === "danger" ? "" : ` is-${item.accent}`}`
-          : "gv-kpi";
-        const sparkColor =
-          item.sparkColor ??
-          (item.accent ? "rgba(255,255,255,.92)" : DEFAULT_SPARK_COLOR[item.pillTone ?? "safe"]);
 
         const body = (
           <>
-            <div className="gv-kpi-top">
-              <span className="gv-kpi-ico">
-                <Icon name={item.icon} size={17} />
-              </span>
+            <div className="gv-kpi-cell-head">
+              <span className="gv-kpi-cell-title">{item.title}</span>
               <span className={pillClass}>{item.pillText}</span>
             </div>
             <div className="gv-kpi-val">
               {item.value}
               {item.unit ? <span className="gv-kpi-unit">{item.unit}</span> : null}
             </div>
-            <div className="gv-kpi-bottom">
-              <div className="gv-kpi-meta">
-                <strong>{item.title}</strong>
-                <span>{item.subtitle}</span>
-              </div>
-              <GlassySparkline path={item.sparkPath} color={sparkColor} />
-            </div>
+            <span className="gv-kpi-cell-sub">{item.subtitle}</span>
           </>
         );
 
-        const style = { animationDelay: `${idx * 45}ms` };
-
         if (item.href) {
           return (
-            <Link key={item.id} href={item.href} className={cardClass} style={style}>
+            <Link key={item.id} href={item.href} className="gv-kpi-cell">
               {body}
             </Link>
           );
         }
 
         return (
-          <div key={item.id} className={cardClass} style={style}>
+          <div key={item.id} className="gv-kpi-cell">
             {body}
           </div>
         );
@@ -194,11 +170,11 @@ export function GlassyKpiGrid({ items }: { items: GlassyKpiItem[] }) {
 }
 
 /**
- * Kerangka skeleton Glassy Dashboard V24 untuk seluruh peran saat memuat data awal.
+ * Kerangka skeleton dashboard terpadu untuk seluruh peran saat memuat data awal.
  */
 export function GlassyDashboardSkeleton({ label = "Memuat ringkasan…" }: { label?: string }) {
   return (
-    <div role="status" aria-live="polite" aria-busy="true" aria-label={label} style={{ display: "grid", gap: 14 }}>
+    <div role="status" aria-live="polite" aria-busy="true" aria-label={label} style={{ display: "grid", gap: 16 }}>
       {/* HEADER SKELETON */}
       <div className="gv-head">
         <div style={{ display: "grid", gap: 8 }}>
@@ -211,93 +187,83 @@ export function GlassyDashboardSkeleton({ label = "Memuat ringkasan…" }: { lab
         </div>
       </div>
 
-      {/* BARIS 1 — HERO + AGENDA SKELETON */}
-      <div className="gv-top-grid">
-        <div className="gv-skel-hero">
-          <div className="gv-hero-main">
-            <div className="skeleton skel-pill" style={{ width: 158, height: 24 }} />
-            <div style={{ display: "grid", gap: 8 }}>
-              <div className="skeleton" style={{ width: "74%", height: 26, borderRadius: 10 }} />
-              <div className="skeleton" style={{ width: "88%", height: 13, borderRadius: 8 }} />
-              <div className="skeleton" style={{ width: "66%", height: 13, borderRadius: 8 }} />
+      {/* PANEL UTAMA TERPADU SKELETON */}
+      <section className="gv-surface">
+        <div className="gv-top-grid">
+          <div className="gv-hero">
+            <div className="gv-hero-main">
+              <div className="skeleton skel-pill" style={{ width: 142, height: 22 }} />
+              <div style={{ display: "grid", gap: 8 }}>
+                <div className="skeleton" style={{ width: "72%", height: 24, borderRadius: 8 }} />
+                <div className="skeleton" style={{ width: "86%", height: 13, borderRadius: 6 }} />
+              </div>
+              <div className="gv-hero-metrics">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="gv-hero-metric" style={{ gap: 6 }}>
+                    <div className="skeleton" style={{ width: 64, height: 20, borderRadius: 6 }} />
+                    <div className="skeleton" style={{ width: 92, height: 11, borderRadius: 6 }} />
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="gv-hero-metrics">
+
+            <div className="gv-hero-ring-wrap">
+              <div className="skeleton skel-circle" style={{ width: 96, height: 96 }} />
+              <div className="skeleton" style={{ width: 100, height: 12, borderRadius: 6 }} />
+            </div>
+          </div>
+
+          <div className="gv-agenda">
+            <div className="gv-agenda-head">
+              <div className="gv-agenda-date">
+                <div className="skeleton" style={{ width: 38, height: 36, borderRadius: 8 }} />
+                <div style={{ display: "grid", gap: 6 }}>
+                  <div className="skeleton" style={{ width: 64, height: 12 }} />
+                  <div className="skeleton" style={{ width: 96, height: 10 }} />
+                </div>
+              </div>
+              <div className="skeleton skel-pill" style={{ width: 76, height: 22 }} />
+            </div>
+
+            <div className="gv-tab-strip">
               {[0, 1, 2].map((i) => (
-                <div key={i} className="gv-hero-metric" style={{ gap: 6 }}>
-                  <div className="skeleton" style={{ width: 64, height: 22, borderRadius: 8 }} />
-                  <div className="skeleton" style={{ width: 92, height: 11, borderRadius: 6 }} />
+                <div key={i} className="skeleton" style={{ height: 28, borderRadius: 8 }} />
+              ))}
+            </div>
+
+            <div className="gv-agenda-body">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="skel-row">
+                  <div className="skeleton skel-circle" style={{ width: 30, height: 30 }} />
+                  <div style={{ flex: 1, display: "grid", gap: 5 }}>
+                    <div className="skeleton" style={{ width: i === 1 ? "64%" : "52%", height: 12 }} />
+                    <div className="skeleton" style={{ width: "80%", height: 10 }} />
+                  </div>
+                  <div className="skeleton skel-pill" style={{ width: 52, height: 20 }} />
                 </div>
               ))}
             </div>
-            <div className="gv-hero-actions">
-              <div className="skeleton skel-pill" style={{ width: 140, height: 34 }} />
-              <div className="skeleton skel-pill" style={{ width: 130, height: 34 }} />
-            </div>
-          </div>
 
-          <div className="gv-hero-ring-wrap">
-            <div className="skeleton skel-circle" style={{ width: 126, height: 126 }} />
-            <div className="skeleton skel-pill" style={{ width: 124, height: 22 }} />
+            <div className="gv-agenda-foot">
+              <div className="skeleton" style={{ width: 140, height: 12 }} />
+              <div className="skeleton" style={{ width: 76, height: 12 }} />
+            </div>
           </div>
         </div>
 
-        <div className="gv-agenda">
-          <div className="gv-agenda-head">
-            <div className="gv-agenda-date">
-              <div className="skeleton" style={{ width: 42, height: 40, borderRadius: 10 }} />
-              <div style={{ display: "grid", gap: 6 }}>
-                <div className="skeleton" style={{ width: 64, height: 13 }} />
-                <div className="skeleton" style={{ width: 98, height: 11 }} />
+        <div className="gv-kpi-strip">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="gv-kpi-cell">
+              <div className="gv-kpi-cell-head">
+                <div className="skeleton" style={{ width: "52%", height: 12 }} />
+                <div className="skeleton skel-pill" style={{ width: 58, height: 20 }} />
               </div>
+              <div className="skeleton" style={{ width: "44%", height: 26, borderRadius: 6 }} />
+              <div className="skeleton" style={{ width: "68%", height: 11 }} />
             </div>
-            <div className="skeleton skel-pill" style={{ width: 76, height: 22 }} />
-          </div>
-
-          <div className="gv-tab-strip">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="skeleton" style={{ height: 28, borderRadius: 10 }} />
-            ))}
-          </div>
-
-          <div className="gv-agenda-body">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="skel-row">
-                <div className="skeleton skel-circle" style={{ width: 32, height: 32 }} />
-                <div style={{ flex: 1, display: "grid", gap: 5 }}>
-                  <div className="skeleton" style={{ width: i === 1 ? "64%" : "52%", height: 12 }} />
-                  <div className="skeleton" style={{ width: "80%", height: 10 }} />
-                </div>
-                <div className="skeleton skel-pill" style={{ width: 52, height: 20 }} />
-              </div>
-            ))}
-          </div>
-
-          <div className="gv-agenda-foot">
-            <div className="skeleton" style={{ width: 140, height: 12 }} />
-            <div className="skeleton" style={{ width: 76, height: 12 }} />
-          </div>
+          ))}
         </div>
-      </div>
-
-      {/* BARIS 2 — 4 KPI GLASS CARDS SKELETON */}
-      <div className="gv-kpi-grid">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="gv-kpi gv-skel-kpi">
-            <div className="gv-kpi-top">
-              <div className="skeleton" style={{ width: 34, height: 34, borderRadius: 11 }} />
-              <div className="skeleton skel-pill" style={{ width: 68, height: 22 }} />
-            </div>
-            <div className="skeleton" style={{ width: "52%", height: 30, borderRadius: 8 }} />
-            <div className="gv-kpi-bottom">
-              <div style={{ flex: 1, display: "grid", gap: 6 }}>
-                <div className="skeleton" style={{ width: "74%", height: 13 }} />
-                <div className="skeleton" style={{ width: "56%", height: 11 }} />
-              </div>
-              <div className="skeleton" style={{ width: 66, height: 24, borderRadius: 8 }} />
-            </div>
-          </div>
-        ))}
-      </div>
+      </section>
     </div>
   );
 }

@@ -158,8 +158,6 @@ export default function DashboardSuperAdmin({ user: _user }: { user: User }) {
       icon: "users",
       pillText: `+${angka(stats?.new_users_7d ?? 0)} baru`,
       pillTone: "safe",
-      sparkPath: "M2 20 C 14 19, 20 12, 32 14 C 42 16, 50 6, 64 4",
-      sparkColor: "var(--primary)",
       href: "/admin/pengguna",
     },
     {
@@ -170,8 +168,6 @@ export default function DashboardSuperAdmin({ user: _user }: { user: User }) {
       icon: "clipboard",
       pillText: `+${angka(stats?.new_catatan_7d ?? 0)} (7 hari)`,
       pillTone: "safe",
-      sparkPath: "M2 18 C 14 14, 24 18, 36 10 C 46 5, 54 9, 64 3",
-      sparkColor: "var(--safe)",
       href: "/admin/statistik",
     },
     {
@@ -181,8 +177,7 @@ export default function DashboardSuperAdmin({ user: _user }: { user: User }) {
       value: angka(stats?.total_rujukan ?? 0),
       icon: "send",
       pillText: `+${angka(stats?.new_rujukan_7d ?? 0)} baru`,
-      accent: "danger",
-      sparkPath: "M2 16 C 14 18, 22 8, 34 11 C 46 14, 54 6, 64 7",
+      pillTone: "danger",
       href: "/admin/statistik",
     },
     {
@@ -193,8 +188,6 @@ export default function DashboardSuperAdmin({ user: _user }: { user: User }) {
       icon: "shield-check",
       pillText: aduanMenunggu > 0 ? `${angka(aduanMenunggu)} aduan` : "7 hari terakhir",
       pillTone: aduanMenunggu > 0 ? "warning" : "info",
-      sparkPath: "M2 19 C 12 16, 22 10, 34 12 C 44 14, 54 8, 64 5",
-      sparkColor: "var(--info)",
       href: "/admin/log-audit",
     },
   ];
@@ -219,73 +212,74 @@ export default function DashboardSuperAdmin({ user: _user }: { user: User }) {
         </div>
 
         <div className="gv-head-actions">
-          <Link href="/admin/log-audit" className="btn btn-sm btn-outline" style={{ borderRadius: 999 }}>
+          <Link href="/admin/log-audit" className="btn btn-sm btn-outline">
             <Icon name="activity" size={14} /> Log Audit
           </Link>
-          <Link href="/admin/pengguna" className="btn btn-sm btn-primary" style={{ borderRadius: 999 }}>
+          <Link href="/admin/pengguna" className="btn btn-sm btn-primary">
             <Icon name="users" size={14} /> Kelola Pengguna
           </Link>
         </div>
       </div>
 
-      {/* BARIS 1 — HERO GRADIENT + PANEL TINJAUAN GLASSY V24 */}
-      <div className="gv-top-grid">
-        <section className={`gv-hero${perluVerifikasi > 0 ? " is-warning" : ""}`}>
-          <div className="gv-hero-main">
-            <span className="gv-hero-badge">
-              <span>{statusIntegritas.label}</span>
-            </span>
+      {/* PANEL UTAMA TERPADU */}
+      <section className="gv-surface">
+        <div className="gv-top-grid">
+          <div className={`gv-hero${perluVerifikasi > 0 ? " is-warning" : ""}`}>
+            <div className="gv-hero-main">
+              <Badge tone={perluVerifikasi > 0 ? "warning" : "safe"}>
+                {statusIntegritas.label}
+              </Badge>
 
-            <div>
-              <h2 className="gv-hero-title">
-                {perluVerifikasi > 0
-                  ? `${angka(perluVerifikasi)} catatan perlu verifikasi`
-                  : "Platform berjalan stabil & tervalidasi"}
-              </h2>
-              <p className="gv-hero-desc">
-                {angka(totalCatatan)} catatan kesehatan tercatat bersama{" "}
-                {angka(stats?.total_program_participants ?? 0)} peserta tantangan di seluruh wilayah.
-              </p>
+              <div>
+                <h2 className="gv-hero-title">
+                  {perluVerifikasi > 0
+                    ? `${angka(perluVerifikasi)} catatan perlu verifikasi`
+                    : "Platform berjalan stabil & tervalidasi"}
+                </h2>
+                <p className="gv-hero-desc">
+                  {angka(totalCatatan)} catatan kesehatan tercatat bersama{" "}
+                  {angka(stats?.total_program_participants ?? 0)} peserta tantangan di seluruh wilayah.
+                </p>
+              </div>
+
+              <div className="gv-hero-metrics">
+                <div className="gv-hero-metric">
+                  <strong>{stats?.avg_imt != null ? angka(stats.avg_imt, 1) : "—"}</strong>
+                  <span>Rata-rata IMT (kg/m²)</span>
+                </div>
+                <div className="gv-hero-metric">
+                  <strong>
+                    {stats?.avg_sistol != null && stats?.avg_diastol != null
+                      ? `${angka(stats.avg_sistol, 0)}/${angka(stats.avg_diastol, 0)}`
+                      : "—"}
+                  </strong>
+                  <span>Rata-rata Tensi (mmHg)</span>
+                </div>
+                <div className="gv-hero-metric">
+                  <strong>{angka(stats?.total_program ?? 0)}</strong>
+                  <span>Tantangan Aktif</span>
+                </div>
+              </div>
+
+              <div className="gv-hero-actions">
+                <Link href="/admin/statistik" className="btn btn-sm btn-outline">
+                  Statistik Lengkap <Icon name="chevron-right" size={14} />
+                </Link>
+                <Link href="/admin/verifikasi" className="btn btn-sm btn-outline">
+                  <Icon name="shield-check" size={14} /> Verifikasi Catatan
+                </Link>
+              </div>
             </div>
 
-            <div className="gv-hero-metrics">
-              <div className="gv-hero-metric">
-                <strong>{stats?.avg_imt != null ? angka(stats.avg_imt, 1) : "—"}</strong>
-                <span>Rata-rata IMT (kg/m²)</span>
-              </div>
-              <div className="gv-hero-metric">
-                <strong>
-                  {stats?.avg_sistol != null && stats?.avg_diastol != null
-                    ? `${angka(stats.avg_sistol, 0)}/${angka(stats.avg_diastol, 0)}`
-                    : "—"}
-                </strong>
-                <span>Rata-rata Tensi (mmHg)</span>
-              </div>
-              <div className="gv-hero-metric">
-                <strong>{angka(stats?.total_program ?? 0)}</strong>
-                <span>Tantangan Aktif</span>
-              </div>
-            </div>
-
-            <div className="gv-hero-actions">
-              <Link href="/admin/statistik" className="gv-btn-solid">
-                Statistik Lengkap <Icon name="chevron-right" size={14} />
-              </Link>
-              <Link href="/admin/verifikasi" className="gv-btn-glass">
-                <Icon name="shield-check" size={14} /> Verifikasi Catatan
-              </Link>
-            </div>
+            <GlassyProgressRing
+              percent={rasioTerverifikasi}
+              centerLabel="tervalidasi"
+              caption={`${angka(stats?.total_wilayah ?? 0)} wilayah · ${angka(stats?.total_faskes ?? 0)} faskes`}
+              ariaLabel={`Catatan tervalidasi ${rasioTerverifikasi}%`}
+            />
           </div>
 
-          <GlassyProgressRing
-            percent={rasioTerverifikasi}
-            centerLabel="tervalidasi"
-            caption={`${angka(stats?.total_wilayah ?? 0)} wilayah · ${angka(stats?.total_faskes ?? 0)} faskes`}
-            ariaLabel={`Catatan tervalidasi ${rasioTerverifikasi}%`}
-          />
-        </section>
-
-        <section className="gv-agenda">
+          <div className="gv-agenda">
           <div className="gv-agenda-head">
             <GlassyAgendaDate />
             <Badge tone={totalTinjauan > 0 ? "warning" : "safe"}>
@@ -460,11 +454,12 @@ export default function DashboardSuperAdmin({ user: _user }: { user: User }) {
               Lihat semua <Icon name="chevron-right" size={14} />
             </Link>
           </div>
-        </section>
-      </div>
+          </div>
+        </div>
 
-      {/* BARIS 2 — 4 KPI GLASS CARDS + SPARKLINE SVG */}
-      <GlassyKpiGrid items={kpiItems} />
+        {/* STRIP KPI TERPADU */}
+        <GlassyKpiGrid items={kpiItems} />
+      </section>
     </AppShell>
   );
 }

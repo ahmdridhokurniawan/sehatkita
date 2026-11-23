@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Icon from "@/components/ui/Icon";
 
 export type BentoAccent = "primary" | "safe" | "warning" | "accent" | "danger" | "info";
 
@@ -19,101 +18,47 @@ export type BentoCardItem = {
   href?: string;
 };
 
-/** Cincin SVG mini di pojok kanan kartu metrik. */
-function BentoRing({ percent = 0, label, accent = "primary" }: {
-  percent?: number;
-  label?: string;
-  accent?: BentoAccent;
-}) {
-  const clamped = Math.max(0, Math.min(100, Math.round(percent)));
-  const r = 19;
-  const c = 2 * Math.PI * r;
-  const dashOffset = c - (clamped / 100) * c;
-  const colorVar: Record<BentoAccent, string> = {
-    primary: "var(--primary)",
-    safe: "var(--safe)",
-    warning: "var(--warning)",
-    accent: "var(--accent)",
-    danger: "var(--danger)",
-    info: "var(--info)",
-  };
-
-  return (
-    <div className="bento-ring" aria-label={label || `${clamped}%`}>
-      <svg width={48} height={48} viewBox="0 0 48 48" aria-hidden="true">
-        <circle
-          cx={24}
-          cy={24}
-          r={r}
-          fill="none"
-          stroke="var(--surface-2)"
-          strokeWidth={3.5}
-        />
-        <circle
-          cx={24}
-          cy={24}
-          r={r}
-          fill="none"
-          stroke={colorVar[accent]}
-          strokeWidth={3.5}
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={dashOffset}
-        />
-      </svg>
-      <span className="bento-ring-txt">{label ?? `${clamped}%`}</span>
-    </div>
-  );
-}
-
-/** Kartu metrik dengan aksen pita warna di tepi kanan & cincin progres opsional. */
-function BentoCard({ item }: { item: BentoCardItem }) {
-  const inner = (
-    <>
-      <div className="bento-card-top">
-        <span className="bento-card-ico">
-          <Icon name={item.icon} size={18} />
-        </span>
-        {item.ringPercent !== undefined ? (
-          <BentoRing
-            percent={item.ringPercent}
-            label={item.ringLabel}
-            accent={item.accent || "primary"}
-          />
-        ) : null}
-      </div>
-      <div>
-        <div className="bento-card-label">{item.label}</div>
-        <div className="bento-card-val-row mt-4">
-          <span className="bento-card-val">{item.value}</span>
-          {item.unit ? <span className="bento-card-unit">{item.unit}</span> : null}
-        </div>
-        {item.subtitle ? <div className="bento-card-sub mt-4">{item.subtitle}</div> : null}
-      </div>
-    </>
-  );
-
-  if (item.href) {
-    return (
-      <Link href={item.href} className="bento-card" data-accent={item.accent || "primary"}>
-        {inner}
-      </Link>
-    );
-  }
-  return (
-    <div className="bento-card" data-accent={item.accent || "primary"}>
-      {inner}
-    </div>
-  );
-}
-
-/** Baris 4 kartu metrik utama di bagian atas dashboard. */
+/** Strip metrik ringkas utama di bagian atas halaman terpadu. */
 export function BentoKpiRow({ items }: { items: BentoCardItem[] }) {
   return (
-    <div className="bento-kpi-grid">
-      {items.map((item) => (
-        <BentoCard key={item.id} item={item} />
-      ))}
+    <div className="card" style={{ padding: "6px 10px" }}>
+      <div className="kpi-strip-flat" style={{ border: "none", padding: 0 }}>
+        {items.map((item) => {
+          const content = (
+            <>
+              <span className="kpi-strip-label">{item.label}</span>
+              <strong className="kpi-strip-val">
+                {item.value}
+                {item.unit ? (
+                  <span className="tiny fw-600" style={{ marginLeft: 4 }}>
+                    {item.unit}
+                  </span>
+                ) : null}
+              </strong>
+              {item.subtitle ? <span className="kpi-strip-sub">{item.subtitle}</span> : null}
+            </>
+          );
+
+          if (item.href) {
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                className="kpi-strip-item"
+                style={{ textDecoration: "none", color: "inherit" }}
+              >
+                {content}
+              </Link>
+            );
+          }
+
+          return (
+            <div key={item.id} className="kpi-strip-item">
+              {content}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

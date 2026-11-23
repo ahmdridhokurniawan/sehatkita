@@ -307,107 +307,6 @@ export default function ProfilPage() {
         )}
       </div>
 
-      <div className="card mb-16">
-        <div className="row-between" style={{ gap: 14, alignItems: "center", flexWrap: "wrap" }}>
-          <div className="row" style={{ gap: 14, alignItems: "center", minWidth: 0 }}>
-            <div
-              className="ava"
-              aria-hidden="true"
-              style={{
-                width: 52,
-                height: 52,
-                fontSize: "1.05rem",
-                background: "var(--primary)",
-                color: "var(--on-primary)",
-              }}
-            >
-              {inisial(user?.name || "Pengguna")}
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <strong className="h3" style={{ fontSize: "1.08rem" }}>
-                  {user?.name || "Memuat…"}
-                </strong>
-                {user?.role ? (
-                  <span className="badge badge-primary">{LABEL_ROLE[user.role] || user.role}</span>
-                ) : null}
-                {!loading && (!user || user.role === "user") ? (
-                  <span className={`badge ${profil.profil_lengkap ? "badge-safe" : "badge-warning"}`}>
-                    {profil.profil_lengkap ? "Profil lengkap" : "Profil belum lengkap"}
-                  </span>
-                ) : null}
-              </div>
-              <div className="tiny mt-4">
-                {user?.email || "—"}
-                {user?.wilayah?.nama ? ` · ${user.wilayah.nama}` : ""}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div
-          className="grid grid-3 mt-16"
-          style={{
-            gap: 12,
-            borderTop: "1px solid color-mix(in srgb, var(--border) 72%, transparent)",
-            paddingTop: 14,
-          }}
-        >
-          {adalahWarga && (
-            <div>
-              <div className="tiny">NIK (16 Digit)</div>
-              <div className="row" style={{ gap: 6, alignItems: "center", marginTop: 2, flexWrap: "wrap" }}>
-                <span
-                  className="text-sm fw-600"
-                  style={{ fontVariantNumeric: "tabular-nums", letterSpacing: nikTerlihat ? ".03em" : undefined }}
-                >
-                  {nikTampil}
-                </span>
-                {nikNilai ? (
-                  <>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      style={{ minHeight: 26, padding: "2px 7px", fontSize: ".72rem" }}
-                      onClick={() => setNikTerlihat((v) => !v)}
-                      aria-label={nikTerlihat ? "Sembunyikan NIK" : "Tampilkan NIK"}
-                    >
-                      <Icon name={nikTerlihat ? "eye-off" : "eye"} size={13} />
-                      {nikTerlihat ? "Tutup" : "Lihat"}
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      style={{ minHeight: 26, padding: "2px 7px", fontSize: ".72rem" }}
-                      onClick={salinNik}
-                      aria-label="Salin NIK"
-                    >
-                      <Icon name={nikDisalin ? "check" : "copy"} size={13} />
-                      {nikDisalin ? "Tersalin" : "Salin"}
-                    </button>
-                  </>
-                ) : null}
-              </div>
-            </div>
-          )}
-          <Baris label="Nama Lengkap" value={user?.name || "—"} />
-          <Baris label="Email" value={user?.email || "—"} />
-          <Baris label="Kelurahan / Wilayah" value={user?.wilayah?.nama || "—"} />
-          {adalahWarga && (
-            <>
-              <Baris
-                label="Persetujuan Data"
-                value={user?.consent_at ? `Aktif (${formatTanggal(user.consent_at)})` : "Belum aktif"}
-              />
-              <Baris
-                label="Tampil di Peringkat"
-                value={loading ? "…" : profil.tampil_di_peringkat ? "Ditampilkan" : "Peserta anonim"}
-              />
-            </>
-          )}
-        </div>
-      </div>
-
       {adalahWarga && !consentAktif && (
         <div className="alert alert-warning mb-12">
           <Icon name="alert-triangle" size={18} />
@@ -436,237 +335,344 @@ export default function ProfilPage() {
         </div>
       )}
 
-      {loading ? (
-        <Loading variant="cards" text="Memuat profil…" />
-      ) : !adalahWarga ? null : modeUbah && form ? (
-        <div className="card">
-          <div className="row-between mb-12">
-            <strong className="text-sm">Ubah Data Diri</strong>
-            <span className="tiny">
-              <span className="req">*</span> wajib diisi
-            </span>
-          </div>
-          <form onSubmit={simpan}>
-            <div className="grid grid-2" style={{ gap: 12 }}>
-              <Input
-                label="Tanggal Lahir"
-                type="date"
-                max={todayLocalISO()}
-                required
-                value={form.tgl_lahir}
-                error={errors.tgl_lahir}
-                onChange={(e) => ubahForm("tgl_lahir", e.target.value)}
-              />
-              <Select
-                label="Jenis Kelamin"
-                required
-                value={form.jenis_kelamin}
-                error={errors.jenis_kelamin}
-                onChange={(e) => ubahForm("jenis_kelamin", e.target.value)}
+      <section className="card sa-board">
+        <div className="prof-band">
+          <div className="row-between" style={{ gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+            <div className="row" style={{ gap: 14, alignItems: "center", minWidth: 0 }}>
+              <div
+                className="ava"
+                aria-hidden="true"
+                style={{
+                  width: 52,
+                  height: 52,
+                  fontSize: "1.05rem",
+                  background: "var(--primary)",
+                  color: "var(--on-primary)",
+                }}
               >
-                <option value="">-- Pilih --</option>
-                {Object.entries(JENIS_KELAMIN).map(([, nilai]) => (
-                  <option key={nilai} value={nilai}>
-                    {LABEL_JENIS_KELAMIN[nilai]}
-                  </option>
-                ))}
-              </Select>
-            </div>
-
-            <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
-              <Input
-                label="Tinggi Badan (cm)"
-                required
-                inputMode="decimal"
-                placeholder="170"
-                value={form.tinggi_cm}
-                error={errors.tinggi_cm}
-                onChange={(e) => ubahForm("tinggi_cm", e.target.value)}
-              />
-              <Select
-                label="Tingkat Aktivitas"
-                required
-                value={form.tingkat_aktivitas}
-                error={errors.tingkat_aktivitas}
-                onChange={(e) => ubahForm("tingkat_aktivitas", e.target.value)}
-              >
-                <option value="">-- Pilih --</option>
-                {Object.entries(TINGKAT_AKTIVITAS).map(([, nilai]) => (
-                  <option key={nilai} value={nilai}>
-                    {LABEL_TINGKAT_AKTIVITAS[nilai]}
-                  </option>
-                ))}
-              </Select>
-            </div>
-
-            <div className="mt-12">
-              <Checkbox
-                label="Saya merokok"
-                checked={form.merokok}
-                onChange={(e) => ubahForm("merokok", e.target.checked)}
-              />
-            </div>
-
-            <div className="mt-12">
-              <p className="label">
-                Riwayat Penyakit Keluarga <span className="opt">(opsional)</span>
-              </p>
-              <div className="grid grid-2" style={{ gap: 4 }}>
-                {RIWAYAT_KELUARGA_OPTIONS.map((opt) => (
-                  <Checkbox
-                    key={opt.value}
-                    label={opt.label}
-                    checked={form.riwayat_keluarga.includes(opt.value)}
-                    onChange={() => toggleRiwayat(opt.value)}
-                  />
-                ))}
+                {inisial(user?.name || "Pengguna")}
               </div>
-              {errors.riwayat_keluarga ? <div className="err-msg show">{errors.riwayat_keluarga}</div> : null}
+              <div style={{ minWidth: 0 }}>
+                <div className="row" style={{ gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <strong className="h3" style={{ fontSize: "1.08rem" }}>
+                    {user?.name || "Memuat…"}
+                  </strong>
+                  {user?.role ? (
+                    <span className="badge badge-primary">{LABEL_ROLE[user.role] || user.role}</span>
+                  ) : null}
+                  {!loading && (!user || user.role === "user") ? (
+                    <span className={`badge ${profil.profil_lengkap ? "badge-safe" : "badge-warning"}`}>
+                      {profil.profil_lengkap ? "Profil lengkap" : "Profil belum lengkap"}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="tiny mt-4">
+                  {user?.email || "—"}
+                  {user?.wilayah?.nama ? ` · ${user.wilayah.nama}` : ""}
+                </div>
+              </div>
             </div>
-
-            <div className="mt-12">
-              <Checkbox
-                label={
-                  <div>
-                    <div className="text-sm fw-600">Tampilkan nama di peringkat</div>
-                    <div className="tiny">
-                      Bila dimatikan, kamu tetap ikut peringkat tetapi tampil sebagai &quot;Peserta anonim&quot;.
-                    </div>
-                  </div>
-                }
-                checked={form.tampil_di_peringkat}
-                onChange={(e) => ubahForm("tampil_di_peringkat", e.target.checked)}
-              />
-            </div>
-
-            <div className="row gap-8 mt-16">
-              <Button type="submit" icon="check" disabled={saving}>
-                {saving ? "Menyimpan…" : "Simpan Perubahan"}
-              </Button>
-              <Button type="button" variant="outline" onClick={batalUbah} disabled={saving}>
-                Batal
-              </Button>
-            </div>
-          </form>
-        </div>
-      ) : (
-        <div className="card">
-          <strong className="text-sm">Data Diri</strong>
-          <div className="grid grid-3 mt-12" style={{ gap: 12 }}>
-            <Baris label="Tanggal lahir" value={formatTanggal(profil.tgl_lahir)} />
-            <Baris label="Usia" value={profil.usia == null ? "—" : `${profil.usia} tahun`} />
-            <Baris
-              label="Jenis kelamin"
-              value={
-                profil.jenis_kelamin ? LABEL_JENIS_KELAMIN[profil.jenis_kelamin] : "—"
-              }
-            />
-            <Baris
-              label="Tinggi badan"
-              value={profil.tinggi_cm == null ? "—" : `${profil.tinggi_cm} cm`}
-            />
-            <Baris
-              label="Tingkat aktivitas"
-              value={
-                profil.tingkat_aktivitas
-                  ? LABEL_TINGKAT_AKTIVITAS[profil.tingkat_aktivitas]
-                  : "—"
-              }
-            />
-            <Baris
-              label="Merokok"
-              value={profil.merokok == null ? "—" : profil.merokok ? "Ya" : "Tidak"}
-            />
           </div>
 
-          <div className="mt-16" style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
-            <p className="tiny">Riwayat penyakit keluarga</p>
-            <div className="row gap-6 mt-8" style={{ flexWrap: "wrap" }}>
-              {profil.riwayat_keluarga.length === 0 ? (
-                <span className="text-sm">Tidak ada</span>
-              ) : (
-                profil.riwayat_keluarga.map((r) => (
-                  <span className="badge badge-primary" key={r}>
-                    {labelRiwayat(r)}
+          <div
+            className="grid grid-3 mt-16"
+            style={{
+              gap: 12,
+              borderTop: "1px solid var(--border)",
+              paddingTop: 14,
+            }}
+          >
+            {adalahWarga && (
+              <div>
+                <div className="tiny">NIK (16 Digit)</div>
+                <div className="row" style={{ gap: 6, alignItems: "center", marginTop: 2, flexWrap: "wrap" }}>
+                  <span
+                    className="text-sm fw-600"
+                    style={{ fontVariantNumeric: "tabular-nums", letterSpacing: nikTerlihat ? ".03em" : undefined }}
+                  >
+                    {nikTampil}
                   </span>
-                ))
-              )}
-            </div>
+                  {nikNilai ? (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        style={{ minHeight: 26, padding: "2px 7px", fontSize: ".72rem" }}
+                        onClick={() => setNikTerlihat((v) => !v)}
+                        aria-label={nikTerlihat ? "Sembunyikan NIK" : "Tampilkan NIK"}
+                      >
+                        <Icon name={nikTerlihat ? "eye-off" : "eye"} size={13} />
+                        {nikTerlihat ? "Tutup" : "Lihat"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        style={{ minHeight: 26, padding: "2px 7px", fontSize: ".72rem" }}
+                        onClick={salinNik}
+                        aria-label="Salin NIK"
+                      >
+                        <Icon name={nikDisalin ? "check" : "copy"} size={13} />
+                        {nikDisalin ? "Tersalin" : "Salin"}
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            )}
+            <Baris label="Nama Lengkap" value={user?.name || "—"} />
+            <Baris label="Email" value={user?.email || "—"} />
+            <Baris label="Kelurahan / Wilayah" value={user?.wilayah?.nama || "—"} />
+            {adalahWarga && (
+              <>
+                <Baris
+                  label="Persetujuan Data"
+                  value={user?.consent_at ? `Aktif (${formatTanggal(user.consent_at)})` : "Belum aktif"}
+                />
+                <Baris
+                  label="Tampil di Peringkat"
+                  value={loading ? "…" : profil.tampil_di_peringkat ? "Ditampilkan" : "Peserta anonim"}
+                />
+              </>
+            )}
           </div>
         </div>
-      )}
 
-      <div className="card card-list mt-16">
-        {adalahWarga && (
-          <Link href="/setelan" className="li">
-            <span className="li-ico">
-              <Icon name="settings" size={18} />
-            </span>
-            <div className="li-main">
-              <strong className="text-sm">Pengaturan</strong>
-              <span className="tiny">Privasi &amp; persetujuan data</span>
-            </div>
-            <span className="li-side">
-              <Icon name="chevron-right" size={18} />
-            </span>
-          </Link>
-        )}
+        {loading || adalahWarga ? (
+          <div className="prof-band board-band">
+            {loading ? (
+              <Loading variant="cards" text="Memuat profil…" />
+            ) : modeUbah && form ? (
+              <>
+                <div className="row-between mb-12">
+                  <strong className="text-sm">Ubah Data Diri</strong>
+                  <span className="tiny">
+                    <span className="req">*</span> wajib diisi
+                  </span>
+                </div>
+                <form onSubmit={simpan}>
+                  <div className="grid grid-2" style={{ gap: 12 }}>
+                    <Input
+                      label="Tanggal Lahir"
+                      type="date"
+                      max={todayLocalISO()}
+                      required
+                      value={form.tgl_lahir}
+                      error={errors.tgl_lahir}
+                      onChange={(e) => ubahForm("tgl_lahir", e.target.value)}
+                    />
+                    <Select
+                      label="Jenis Kelamin"
+                      required
+                      value={form.jenis_kelamin}
+                      error={errors.jenis_kelamin}
+                      onChange={(e) => ubahForm("jenis_kelamin", e.target.value)}
+                    >
+                      <option value="">-- Pilih --</option>
+                      {Object.entries(JENIS_KELAMIN).map(([, nilai]) => (
+                        <option key={nilai} value={nilai}>
+                          {LABEL_JENIS_KELAMIN[nilai]}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
 
-        {adalahWarga && (
-          <div className="li row-between wrap" style={{ gap: 12 }}>
-            <div className="row gap-10 items-center">
+                  <div className="grid grid-2 mt-12" style={{ gap: 12 }}>
+                    <Input
+                      label="Tinggi Badan (cm)"
+                      required
+                      inputMode="decimal"
+                      placeholder="170"
+                      value={form.tinggi_cm}
+                      error={errors.tinggi_cm}
+                      onChange={(e) => ubahForm("tinggi_cm", e.target.value)}
+                    />
+                    <Select
+                      label="Tingkat Aktivitas"
+                      required
+                      value={form.tingkat_aktivitas}
+                      error={errors.tingkat_aktivitas}
+                      onChange={(e) => ubahForm("tingkat_aktivitas", e.target.value)}
+                    >
+                      <option value="">-- Pilih --</option>
+                      {Object.entries(TINGKAT_AKTIVITAS).map(([, nilai]) => (
+                        <option key={nilai} value={nilai}>
+                          {LABEL_TINGKAT_AKTIVITAS[nilai]}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+
+                  <div className="mt-12">
+                    <Checkbox
+                      label="Saya merokok"
+                      checked={form.merokok}
+                      onChange={(e) => ubahForm("merokok", e.target.checked)}
+                    />
+                  </div>
+
+                  <div className="mt-12">
+                    <p className="label">
+                      Riwayat Penyakit Keluarga <span className="opt">(opsional)</span>
+                    </p>
+                    <div className="grid grid-2" style={{ gap: 4 }}>
+                      {RIWAYAT_KELUARGA_OPTIONS.map((opt) => (
+                        <Checkbox
+                          key={opt.value}
+                          label={opt.label}
+                          checked={form.riwayat_keluarga.includes(opt.value)}
+                          onChange={() => toggleRiwayat(opt.value)}
+                        />
+                      ))}
+                    </div>
+                    {errors.riwayat_keluarga ? <div className="err-msg show">{errors.riwayat_keluarga}</div> : null}
+                  </div>
+
+                  <div className="mt-12">
+                    <Checkbox
+                      label={
+                        <div>
+                          <div className="text-sm fw-600">Tampilkan nama di peringkat</div>
+                          <div className="tiny">
+                            Bila dimatikan, kamu tetap ikut peringkat tetapi tampil sebagai &quot;Peserta anonim&quot;.
+                          </div>
+                        </div>
+                      }
+                      checked={form.tampil_di_peringkat}
+                      onChange={(e) => ubahForm("tampil_di_peringkat", e.target.checked)}
+                    />
+                  </div>
+
+                  <div className="row gap-8 mt-16">
+                    <Button type="submit" icon="check" disabled={saving}>
+                      {saving ? "Menyimpan…" : "Simpan Perubahan"}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={batalUbah} disabled={saving}>
+                      Batal
+                    </Button>
+                  </div>
+                </form>
+              </>
+            ) : (
+              <>
+                <strong className="text-sm">Data Diri</strong>
+                <div className="grid grid-3 mt-12" style={{ gap: 12 }}>
+                  <Baris label="Tanggal lahir" value={formatTanggal(profil.tgl_lahir)} />
+                  <Baris label="Usia" value={profil.usia == null ? "—" : `${profil.usia} tahun`} />
+                  <Baris
+                    label="Jenis kelamin"
+                    value={
+                      profil.jenis_kelamin ? LABEL_JENIS_KELAMIN[profil.jenis_kelamin] : "—"
+                    }
+                  />
+                  <Baris
+                    label="Tinggi badan"
+                    value={profil.tinggi_cm == null ? "—" : `${profil.tinggi_cm} cm`}
+                  />
+                  <Baris
+                    label="Tingkat aktivitas"
+                    value={
+                      profil.tingkat_aktivitas
+                        ? LABEL_TINGKAT_AKTIVITAS[profil.tingkat_aktivitas]
+                        : "—"
+                    }
+                  />
+                  <Baris
+                    label="Merokok"
+                    value={profil.merokok == null ? "—" : profil.merokok ? "Ya" : "Tidak"}
+                  />
+                </div>
+
+                <div className="mt-16" style={{ borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+                  <p className="tiny">Riwayat penyakit keluarga</p>
+                  <div className="row gap-6 mt-8" style={{ flexWrap: "wrap" }}>
+                    {profil.riwayat_keluarga.length === 0 ? (
+                      <span className="text-sm">Tidak ada</span>
+                    ) : (
+                      profil.riwayat_keluarga.map((r) => (
+                        <span className="badge badge-primary" key={r}>
+                          {labelRiwayat(r)}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        ) : null}
+
+        <div className="board-band">
+          {adalahWarga && (
+            <Link href="/setelan" className="li" style={{ paddingInline: 24 }}>
               <span className="li-ico">
-                <Icon name="send" size={18} />
+                <Icon name="settings" size={18} />
               </span>
               <div className="li-main">
-                <strong className="text-sm">Notifikasi Telegram</strong>
-                {tgLoading ? (
-                  <span className="tiny">Memuat status…</span>
-                ) : tgErr ? (
-                  <span className="err-text">{tgErr}</span>
-                ) : telegramStatus?.terhubung ? (
-                  <span className="tiny">
-                    Terhubung ke <strong>{telegramStatus.chat_id}</strong>
-                  </span>
+                <strong className="text-sm">Pengaturan</strong>
+                <span className="tiny">Privasi &amp; persetujuan data</span>
+              </div>
+              <span className="li-side">
+                <Icon name="chevron-right" size={18} />
+              </span>
+            </Link>
+          )}
+
+          {adalahWarga && (
+            <div className="li row-between wrap" style={{ gap: 12, paddingInline: 24 }}>
+              <div className="row gap-10 items-center">
+                <span className="li-ico">
+                  <Icon name="send" size={18} />
+                </span>
+                <div className="li-main">
+                  <strong className="text-sm">Notifikasi Telegram</strong>
+                  {tgLoading ? (
+                    <span className="tiny">Memuat status…</span>
+                  ) : tgErr ? (
+                    <span className="err-text">{tgErr}</span>
+                  ) : telegramStatus?.terhubung ? (
+                    <span className="tiny">
+                      Terhubung ke <strong>{telegramStatus.chat_id}</strong>
+                    </span>
+                  ) : (
+                    <span className="tiny">Pengingat &amp; info program via bot</span>
+                  )}
+                </div>
+              </div>
+              {!tgLoading && !tgErr ? (
+                telegramStatus?.terhubung ? (
+                  <Button variant="danger" size="sm" onClick={putuskanTelegram} loading={tgPutus}>
+                    Putuskan
+                  </Button>
                 ) : (
-                  <span className="tiny">Pengingat &amp; info program via bot</span>
-                )}
+                  <a
+                    href={telegramStatus?.link_telegram ?? "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-primary btn-sm"
+                  >
+                    Hubungkan Telegram
+                  </a>
+                )
+              ) : null}
+            </div>
+          )}
+
+          <div className="li row-between wrap" style={{ gap: 12, paddingInline: 24 }}>
+            <div className="row gap-10 items-center">
+              <span className="li-ico" style={{ background: "var(--danger-bg)", color: "var(--danger)" }}>
+                <Icon name="log-out" size={18} />
+              </span>
+              <div className="li-main">
+                <strong className="text-sm" style={{ color: "var(--danger)" }}>Keluar</strong>
+                <span className="tiny">Akhiri sesi di perangkat ini</span>
               </div>
             </div>
-            {!tgLoading && !tgErr ? (
-              telegramStatus?.terhubung ? (
-                <Button variant="danger" size="sm" onClick={putuskanTelegram} loading={tgPutus}>
-                  Putuskan
-                </Button>
-              ) : (
-                <a
-                  href={telegramStatus?.link_telegram ?? "#"}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn btn-primary btn-sm"
-                >
-                  Hubungkan Telegram
-                </a>
-              )
-            ) : null}
+            <Button variant="danger" size="sm" icon="log-out" onClick={() => setKonfirmasiKeluar(true)}>
+              Keluar
+            </Button>
           </div>
-        )}
-
-        <div className="li row-between wrap" style={{ gap: 12 }}>
-          <div className="row gap-10 items-center">
-            <span className="li-ico" style={{ background: "var(--danger-bg)", color: "var(--danger)" }}>
-              <Icon name="log-out" size={18} />
-            </span>
-            <div className="li-main">
-              <strong className="text-sm" style={{ color: "var(--danger)" }}>Keluar</strong>
-              <span className="tiny">Akhiri sesi di perangkat ini</span>
-            </div>
-          </div>
-          <Button variant="danger" size="sm" icon="log-out" onClick={() => setKonfirmasiKeluar(true)}>
-            Keluar
-          </Button>
         </div>
-      </div>
+      </section>
 
       <Modal
         open={konfirmasiKeluar}
