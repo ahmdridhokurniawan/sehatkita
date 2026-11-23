@@ -37,6 +37,8 @@ class PeringkatController extends Controller
         if ($user->role === 'user') {
             $saya = [
                 'rank' => $this->peringkat->rankUser($user),
+                'jumlah_badge' => $user->badge()->count(),
+                'badges' => $user->badge()->pluck('badge')->values()->all(),
                 'exp_total' => (int) $user->exp_total,
             ];
             $riwayatSaya = $this->peringkat->riwayatUser($user);

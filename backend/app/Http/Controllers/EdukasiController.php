@@ -7,6 +7,7 @@ use App\Models\Pengguna;
 use App\Models\ProgresEdukasi;
 use App\Services\BadgeKeaktifanService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 // Mengurus materi edukasi kesehatan PTM (terpisah dari tantangan) serta progres belajar mandiri warga.
@@ -115,7 +116,18 @@ class EdukasiController extends Controller
             'estimasi_menit' => 'nullable|integer|min:1|max:120',
             'urutan' => 'nullable|integer|min:0|max:9999',
             'aktif' => 'sometimes|boolean',
+            'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'video' => 'nullable|file|mimetypes:video/mp4,video/webm,video/quicktime|max:51200',
+            'media_video_url' => 'nullable|url|max:500',
         ]);
+
+        if ($request->hasFile('foto')) {
+            $data['media_foto_path'] = $request->file('foto')->store('edukasi/foto', 'public');
+        }
+        if ($request->hasFile('video')) {
+            $data['media_video_path'] = $request->file('video')->store('edukasi/video', 'public');
+        }
+        unset($data['foto'], $data['video']);
 
         if ($user->role !== 'super_admin') {
             abort_unless($user->wilayah_id, 422, 'Akun Anda belum memiliki wilayah penugasan.');
@@ -159,7 +171,35 @@ class EdukasiController extends Controller
             'estimasi_menit' => 'sometimes|integer|min:1|max:120',
             'urutan' => 'sometimes|integer|min:0|max:9999',
             'aktif' => 'sometimes|boolean',
+            'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'video' => 'nullable|file|mimetypes:video/mp4,video/webm,video/quicktime|max:51200',
+            'media_video_url' => 'nullable|url|max:500',
+            'hapus_foto' => 'sometimes|boolean',
+            'hapus_video' => 'sometimes|boolean',
         ]);
+
+        if ($request->boolean('hapus_foto') && $edukasi->media_foto_path) {
+            Storage::disk('public')->delete($edukasi->media_foto_path);
+            $data['media_foto_path'] = null;
+        }
+        if ($request->hasFile('foto')) {
+            if ($edukasi->media_foto_path) {
+                Storage::disk('public')->delete($edukasi->media_foto_path);
+            }
+            $data['media_foto_path'] = $request->file('foto')->store('edukasi/foto', 'public');
+        }
+
+        if ($request->boolean('hapus_video') && $edukasi->media_video_path) {
+            Storage::disk('public')->delete($edukasi->media_video_path);
+            $data['media_video_path'] = null;
+        }
+        if ($request->hasFile('video')) {
+            if ($edukasi->media_video_path) {
+                Storage::disk('public')->delete($edukasi->media_video_path);
+            }
+            $data['media_video_path'] = $request->file('video')->store('edukasi/video', 'public');
+        }
+        unset($data['foto'], $data['video'], $data['hapus_foto'], $data['hapus_video']);
 
         if ($user->role !== 'super_admin') {
             unset($data['wilayah_id']);
@@ -185,6 +225,13 @@ class EdukasiController extends Controller
 
         if ($user->role !== 'super_admin') {
             abort_unless((int) $edukasi->wilayah_id === (int) $user->wilayah_id, 403, 'Anda hanya dapat menghapus materi edukasi wilayah Anda.');
+        }
+
+        if ($edukasi->media_foto_path) {
+            Storage::disk('public')->delete($edukasi->media_foto_path);
+        }
+        if ($edukasi->media_video_path) {
+            Storage::disk('public')->delete($edukasi->media_video_path);
         }
 
         $edukasi->delete();
@@ -289,6 +336,9 @@ class EdukasiController extends Controller
             'judul' => $e->judul,
             'ringkasan' => $e->ringkasan,
             'konten' => $e->konten,
+            'media_foto_url' => $e->media_foto_path ? asset('storage/'.$e->media_foto_path) : null,
+            'media_video_file_url' => $e->media_video_path ? asset('storage/'.$e->media_video_path) : null,
+            'media_video_url' => $e->media_video_url,
             'kategori' => $e->kategori,
             'estimasi_menit' => (int) $e->estimasi_menit,
             'urutan' => (int) $e->urutan,

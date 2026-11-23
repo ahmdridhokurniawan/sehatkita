@@ -77,13 +77,15 @@ export default function PilihWarga({
   if (value) {
     return (
       <div className="field">
-        <label className="label">{label}</label>
-        <div className="card card-flat" style={{ padding: 12 }}>
+        <label className="label" style={{ marginBottom: 8, display: "block" }}>{label}</label>
+        <div className="card card-flat" style={{ padding: "12px 14px", marginTop: 4 }}>
           <div className="row-between">
             <div>
-              <strong className="text-sm">{value.name}</strong>
-              <div className="tiny">
-                {value.nik ? `NIK ${value.nik}` : "NIK belum terdaftar"}
+              <strong className="text-sm">
+                {value.nik ? `${value.nik} — ${value.name}` : value.name}
+              </strong>
+              <div className="tiny" style={{ marginTop: 2 }}>
+                {value.nik ? `NIK: ${value.nik}` : "NIK belum terdaftar"}
                 {value.wilayah ? ` · ${value.wilayah}` : ""}
               </div>
             </div>
@@ -155,10 +157,10 @@ export default function PilihWarga({
                 }}
               >
                 <span>
-                  <strong className="text-sm">{w.name}</strong>
+                  <strong className="text-sm">
+                    {w.nik ? `${w.nik} — ${w.name}` : w.name}
+                  </strong>
                   <span className="tiny">
-                    {" · "}
-                    {w.nik ? `NIK ${w.nik}` : "Tanpa NIK"}
                     {w.wilayah ? ` · ${w.wilayah}` : ""}
                   </span>
                 </span>

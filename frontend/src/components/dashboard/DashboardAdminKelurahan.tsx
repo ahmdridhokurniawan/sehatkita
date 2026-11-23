@@ -7,6 +7,7 @@ import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
 import Bar from "@/components/charts/Bar";
 import Line from "@/components/charts/Line";
+import { RekapKepuasanMasyarakat } from "@/components/dashboard/KepuasanMasyarakatWidget";
 import { ErrorState } from "@/components/ui/Empty";
 import {
   GlassyAgendaDate,
@@ -421,6 +422,25 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
         {/* STRIP KPI TERPADU */}
         <GlassyKpiGrid items={kpiItems} />
       </section>
+
+      <div className="row gap-8 mt-16" style={{ flexWrap: "wrap" }}>
+        <Link href="/posbindu" className="btn btn-sm btn-outline">
+          <Icon name="calendar-check" size={14} /> Kelola Posbindu
+        </Link>
+        <Link href="/edukasi" className="btn btn-sm btn-outline">
+          <Icon name="book-open" size={14} /> Edukasi
+        </Link>
+        <Link href="/program" className="btn btn-sm btn-outline">
+          <Icon name="trophy" size={14} /> Program &amp; Tantangan
+        </Link>
+        <Link href="/laporan" className="btn btn-sm btn-outline">
+          <Icon name="file-text" size={14} /> Laporan PDF &amp; Excel
+        </Link>
+      </div>
+
+      <div className="mt-16">
+        <RekapKepuasanMasyarakat wilayahId={user.wilayah_id} />
+      </div>
     </AppShell>
   );
 }

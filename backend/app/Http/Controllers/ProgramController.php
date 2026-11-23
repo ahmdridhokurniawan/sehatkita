@@ -113,6 +113,8 @@ class ProgramController extends Controller
             'target_peserta' => 'nullable|integer|min:1',
             'mulai' => 'required|date',
             'selesai' => 'required|date|after_or_equal:mulai',
+            'target_nilai' => 'nullable|numeric|gt:0|max:1000000',
+            'satuan_target' => 'nullable|string|max:40',
             'exp_reward' => 'required|integer|min:1|max:10000',
             'badge_reward' => 'nullable|string|max:100',
         ], [
@@ -217,6 +219,8 @@ class ProgramController extends Controller
             'jenis' => ['sometimes', Rule::in(['olahraga', 'edukasi', 'pemeriksaan', 'lainnya'])],
             'kategori_aktivitas' => 'sometimes|nullable|string|max:50',
             'target_peserta' => 'sometimes|nullable|integer|min:1',
+            'target_nilai' => 'sometimes|nullable|numeric|gt:0|max:1000000',
+            'satuan_target' => 'sometimes|nullable|string|max:40',
             'mulai' => 'sometimes|date',
             'selesai' => 'sometimes|required|date|after_or_equal:mulai',
             'status' => ['sometimes', Rule::in(['akan_datang', 'berjalan', 'selesai'])],
@@ -763,12 +767,36 @@ class ProgramController extends Controller
         }
 
         $data = $request->validate([
-            'progres_persen' => 'required|integer|min:0|max:100',
+            'progres_persen' => 'nullable|integer|min:0|max:100',
+            'capaian_nilai' => 'nullable|numeric|min:0|max:1000000',
+            'tambah_capaian' => 'nullable|numeric|min:0|max:1000000',
             'catatan_progres' => 'nullable|string|max:500',
         ]);
 
+        $targetNilai = $program->target_nilai !== null ? (float) $program->target_nilai : null;
+        $capaianBaru = (float) ($peserta->capaian_nilai ?? 0);
+
+        if ($targetNilai !== null && $targetNilai > 0 && (array_key_exists('tambah_capaian', $data) || array_key_exists('capaian_nilai', $data))) {
+            if (($data['tambah_capaian'] ?? null) !== null) {
+                $capaianBaru += (float) $data['tambah_capaian'];
+            } elseif (($data['capaian_nilai'] ?? null) !== null) {
+                $capaianBaru = (float) $data['capaian_nilai'];
+            }
+            $persenBaru = (int) min(100, max(0, round(($capaianBaru / $targetNilai) * 100)));
+        } elseif (($data['progres_persen'] ?? null) !== null) {
+            $persenBaru = (int) $data['progres_persen'];
+            if ($targetNilai !== null && $targetNilai > 0) {
+                $capaianBaru = round(($persenBaru / 100) * $targetNilai, 2);
+            }
+        } else {
+            throw ValidationException::withMessages([
+                'progres_persen' => ['Isi capaian target atau persentase progres.'],
+            ]);
+        }
+
         $peserta->update([
-            'progres_persen' => (int) $data['progres_persen'],
+            'progres_persen' => $persenBaru,
+            'capaian_nilai' => $capaianBaru,
             'catatan_progres' => array_key_exists('catatan_progres', $data)
                 ? $data['catatan_progres']
                 : $peserta->catatan_progres,
@@ -828,6 +856,8 @@ class ProgramController extends Controller
             'jenis' => $p->jenis,
             'kategori_aktivitas' => $p->kategori_aktivitas,
             'target_peserta' => $p->target_peserta,
+            'target_nilai' => $p->target_nilai !== null ? (float) $p->target_nilai : null,
+            'satuan_target' => $p->satuan_target,
             'jumlah_peserta' => (int) ($p->jumlah_peserta ?? $p->peserta()->where('status', '!=', 'berhenti')->count()),
             'mulai' => $p->mulai?->toDateString(),
             'selesai' => $p->selesai?->toDateString(),
@@ -852,6 +882,7 @@ class ProgramController extends Controller
             'email' => $p->pengguna?->email,
             'status' => $p->status,
             'progres_persen' => (int) ($p->progres_persen ?? ($p->status === 'selesai' ? 100 : 0)),
+            'capaian_nilai' => (float) ($p->capaian_nilai ?? 0),
             'catatan_progres' => $p->catatan_progres,
             'progres_diperbarui_pada' => $p->progres_diperbarui_pada?->toIso8601String(),
             'bukti_foto_url' => $urls[0] ?? null,
@@ -877,6 +908,7 @@ class ProgramController extends Controller
             'id' => $p->id,
             'status' => $p->status,
             'progres_persen' => (int) ($p->progres_persen ?? ($p->status === 'selesai' ? 100 : 0)),
+            'capaian_nilai' => (float) ($p->capaian_nilai ?? 0),
             'catatan_progres' => $p->catatan_progres,
             'progres_diperbarui_pada' => $p->progres_diperbarui_pada?->toIso8601String(),
             'bukti_foto_url' => $urls[0] ?? null,

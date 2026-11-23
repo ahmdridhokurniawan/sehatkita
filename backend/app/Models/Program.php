@@ -19,6 +19,8 @@ class Program extends Model
         'jenis',
         'kategori_aktivitas',
         'target_peserta',
+        'target_nilai',
+        'satuan_target',
         'mulai',
         'selesai',
         'status',
@@ -56,6 +58,7 @@ class Program extends Model
             'mulai' => 'date',
             'selesai' => 'date',
             'target_peserta' => 'integer',
+            'target_nilai' => 'float',
             'exp_reward' => 'integer',
             'level' => 'integer',
         ];

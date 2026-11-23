@@ -165,6 +165,7 @@ export default function ProgramDetailPage() {
 
   // State progres mandiri warga
   const [progPersen, setProgPersen] = useState<number>(0);
+  const [tambahCapaian, setTambahCapaian] = useState<string>("");
   const [progCatatan, setProgCatatan] = useState<string>("");
   const [progSaving, setProgSaving] = useState<boolean>(false);
 
@@ -280,13 +281,31 @@ export default function ProgramDetailPage() {
 
   async function simpanProgresMandiri() {
     if (!program) return;
+    const punyaTarget = Boolean(program.target_nilai && program.target_nilai > 0);
+    const nilaiTambah = Number(tambahCapaian);
+
+    if (punyaTarget && (!tambahCapaian.trim() || Number.isNaN(nilaiTambah) || nilaiTambah <= 0)) {
+      toast.warning(`Masukkan jumlah capaian (${program.satuan_target || "unit"}) lebih dari 0.`);
+      return;
+    }
+
     setProgSaving(true);
     try {
-      const updated = await programApi.perbaruiProgres(program.id, {
-        progres_persen: progPersen,
-        catatan_progres: progCatatan.trim() || undefined,
-      });
+      const updated = await programApi.perbaruiProgres(
+        program.id,
+        punyaTarget
+          ? {
+              tambah_capaian: nilaiTambah,
+              catatan_progres: progCatatan.trim() || undefined,
+            }
+          : {
+              progres_persen: progPersen,
+              catatan_progres: progCatatan.trim() || undefined,
+            },
+      );
       setProgram((prev) => (prev ? { ...prev, peserta_saya: updated } : prev));
+      if (updated.progres_persen !== undefined) setProgPersen(updated.progres_persen);
+      setTambahCapaian("");
       toast.success("Progres pribadi tantangan disimpan.");
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Gagal menyimpan progres mandiri");
@@ -617,21 +636,44 @@ export default function ProgramDetailPage() {
               </div>
               {statusSaya !== "selesai" ? (
                 <div style={{ display: "grid", gap: 10 }}>
-                  <div>
-                    <label className="label" htmlFor="prog-tantangan-range">
-                      Capaian Progres ({progPersen}%)
-                    </label>
-                    <input
-                      id="prog-tantangan-range"
-                      type="range"
-                      min={0}
-                      max={100}
-                      step={5}
-                      value={progPersen}
-                      onChange={(e) => setProgPersen(Number(e.target.value))}
-                      style={{ width: "100%" }}
-                    />
-                  </div>
+                  {program.target_nilai && program.target_nilai > 0 ? (
+                    <div className="field">
+                      <label className="label" htmlFor="prog-tambah-capaian">
+                        Tambah Capaian ({program.satuan_target || "unit"}) — Target{" "}
+                        {program.target_nilai} {program.satuan_target || "unit"}
+                      </label>
+                      <input
+                        id="prog-tambah-capaian"
+                        type="number"
+                        min={1}
+                        step="any"
+                        className="input"
+                        placeholder={`Contoh: 10 (dari ${program.target_nilai} = +${Math.min(100, Math.round((10 / program.target_nilai) * 100))}%)`}
+                        value={tambahCapaian}
+                        onChange={(e) => setTambahCapaian(e.target.value)}
+                      />
+                      <div className="hint mt-4">
+                        Capaian saat ini: <strong>{pSaya?.capaian_nilai ?? 0}</strong> / {program.target_nilai}{" "}
+                        {program.satuan_target || "unit"} ({progPersen}% otomatis).
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="label" htmlFor="prog-tantangan-range">
+                        Capaian Progres ({progPersen}%)
+                      </label>
+                      <input
+                        id="prog-tantangan-range"
+                        type="range"
+                        min={0}
+                        max={100}
+                        step={5}
+                        value={progPersen}
+                        onChange={(e) => setProgPersen(Number(e.target.value))}
+                        style={{ width: "100%" }}
+                      />
+                    </div>
+                  )}
                   <div className="field">
                     <label className="label" htmlFor="prog-tantangan-catatan">
                       Catatan Progres <span className="opt">(opsional)</span>

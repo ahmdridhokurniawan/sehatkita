@@ -379,57 +379,7 @@ export default function RekamMedisPage() {
         </div>
       ) : null}
 
-      {/* Kartu grafik — hanya untuk warga pribadi atau petugas yang sudah memilih warga */}
-      {!isAdminKel ? (
-        <div className="card">
-          <div className="row-between mb-12">
-            <strong className="text-sm">{ind.label}</strong>
-            <Segmented
-              items={PERIODE}
-              value={periode}
-              onChange={(val) => setPeriode(val as "1m" | "3m" | "6m" | "1y")}
-            />
-          </div>
-          {bisaPilihWarga && !wargaDipilih ? (
-            <EmptyState
-              icon="users"
-              title="Pilih warga terlebih dahulu"
-              desc="Cari dan pilih warga lewat nama atau NIK di atas untuk menampilkan grafik tren per individu."
-            />
-          ) : seri.length < 2 ? (
-            <EmptyState
-              icon="line-chart"
-              title="Belum cukup data"
-              desc="Grafik muncul setelah minimal dua pengukuran. Satu titik data belum dapat membentuk tren."
-            />
-          ) : (
-            <Line
-              labels={seri.map((p) => tanggal(p.tanggal, "short"))}
-              series={[{ name: ind.label, data: seri.map((p) => p.nilai) }]}
-              unit={ind.unit}
-              height={190}
-              yDecimals={ind.dec}
-            />
-          )}
-          <div className="mt-12">
-            <label className="label" htmlFor="pilihIndikator">
-              Tampilkan indikator
-            </label>
-            <select
-              className="select"
-              id="pilihIndikator"
-              value={indikator}
-              onChange={(e) => setIndikator(e.target.value)}
-            >
-              {INDIKATOR.map((i) => (
-                <option value={i.k} key={i.k}>
-                  {i.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-      ) : null}
+      {/* Grafik tren kesehatan kini ditampilkan langsung di halaman Beranda agar lebih ringkas */}
 
       <div className="app-section-title mt-20">
         <h2>Riwayat Catatan</h2>
@@ -1041,20 +991,24 @@ export default function RekamMedisPage() {
                                 <button
                                   type="button"
                                   className="btn btn-sm btn-primary"
+                                  style={{ color: "#ffffff" }}
                                   disabled={verifikasiId === c.id}
                                   onClick={() => putuskanVerifikasi(c, true)}
                                   title="Setujui catatan"
+                                  aria-label="Setujui catatan"
                                 >
-                                  <Icon name="check" size={14} />
+                                  <Icon name="check" size={14} /> Setujui
                                 </button>
                                 <button
                                   type="button"
                                   className="btn btn-sm btn-danger"
+                                  style={{ color: "#ffffff" }}
                                   disabled={verifikasiId === c.id}
                                   onClick={() => putuskanVerifikasi(c, false)}
                                   title="Tolak catatan"
+                                  aria-label="Tolak catatan"
                                 >
-                                  <Icon name="x" size={14} />
+                                  <Icon name="x" size={14} /> Tolak
                                 </button>
                               </>
                             ) : null}
@@ -1070,8 +1024,10 @@ export default function RekamMedisPage() {
                               <button
                                 type="button"
                                 className="btn btn-sm btn-danger"
+                                style={{ color: "#ffffff" }}
                                 onClick={() => setHapusItem(c)}
                                 title="Hapus catatan"
+                                aria-label="Hapus catatan"
                               >
                                 <Icon name="trash" size={14} />
                               </button>

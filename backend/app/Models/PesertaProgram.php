@@ -15,6 +15,7 @@ class PesertaProgram extends Model
         'user_id',
         'status',
         'progres_persen',
+        'capaian_nilai',
         'catatan_progres',
         'progres_diperbarui_pada',
         'bukti_foto',
@@ -31,6 +32,7 @@ class PesertaProgram extends Model
     {
         return [
             'progres_persen' => 'integer',
+            'capaian_nilai' => 'float',
             'progres_diperbarui_pada' => 'datetime',
             'bukti_foto_daftar' => 'array',
             'dikirim_pada' => 'datetime',

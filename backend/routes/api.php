@@ -10,6 +10,7 @@ use App\Http\Controllers\DashboardWilayahController;
 use App\Http\Controllers\EdukasiController;
 use App\Http\Controllers\FaskesController;
 use App\Http\Controllers\InsightController;
+use App\Http\Controllers\KepuasanMasyarakatController;
 use App\Http\Controllers\PengaduanController;
 use App\Http\Controllers\PeringkatController;
 use App\Http\Controllers\PosbinduController;
@@ -24,10 +25,10 @@ use App\Http\Controllers\WilayahController;
 use Illuminate\Support\Facades\Route;
 
 // Daftar alamat layanan yang menghubungkan tampilan aplikasi dengan fitur-fitur di belakang layar.
-Route::prefix('v1')->whereNumber(['id', 'pesertaId', 'catatan_kesehatan'])->group(function () {
+Route::prefix('v1')->middleware('throttle:api')->whereNumber(['id', 'pesertaId', 'catatan_kesehatan'])->group(function () {
 
-    Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:10,1');
-    Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1')->name('login');
+    Route::post('/auth/register', [AuthController::class, 'register']);
+    Route::post('/auth/login', [AuthController::class, 'login'])->name('login');
     Route::get('/wilayah', [WilayahController::class, 'index']);
     Route::post('/telegram/webhook', [TelegramController::class, 'webhook']);
 
@@ -111,6 +112,9 @@ Route::prefix('v1')->whereNumber(['id', 'pesertaId', 'catatan_kesehatan'])->grou
         Route::post('/pengaduan', [PengaduanController::class, 'store']);
         Route::get('/pengaduan/{id}', [PengaduanController::class, 'show']);
         Route::patch('/pengaduan/{id}/tanggapi', [PengaduanController::class, 'tanggapi']);
+
+        Route::get('/kepuasan-masyarakat', [KepuasanMasyarakatController::class, 'index']);
+        Route::post('/kepuasan-masyarakat', [KepuasanMasyarakatController::class, 'store']);
 
         Route::get('/dashboard/pribadi', [DashboardController::class, 'pribadi']);
         Route::get('/dashboard/kelurahan', [DashboardWilayahController::class, 'dashboardKelurahan']);

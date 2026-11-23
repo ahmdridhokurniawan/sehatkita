@@ -5,7 +5,7 @@ import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
-import { BrandLockup } from "@/components/ui/BrandLogo";
+import BrandLogo from "@/components/ui/BrandLogo";
 import Modal from "@/components/ui/Modal";
 import Segmented from "@/components/ui/Segmented";
 import Pagination, { type Meta } from "@/components/ui/Pagination";
@@ -65,7 +65,7 @@ function LembarSuratRujukan({
     <div className="surat-sheet" ref={sheetRef}>
       <div className="surat-head">
         <div className="surat-logo-kiri">
-          <BrandLockup variant="sm" />
+          <BrandLogo size={54} />
         </div>
         <div className="surat-kop-tengah">
           <p className="surat-instansi">PEMERINTAH KOTA BANJARBARU</p>
@@ -74,6 +74,16 @@ function LembarSuratRujukan({
           <p className="surat-alamat">
             Kota Banjarbaru, Kalimantan Selatan · Program Pengendalian Penyakit Tidak Menular (PTM)
           </p>
+        </div>
+        <div className="surat-logo-kanan">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-banjarbaru-transparan.png"
+            alt="Logo Kota Banjarbaru"
+            className="brand-city"
+            width={46}
+            height={60}
+          />
         </div>
       </div>
 
@@ -264,8 +274,9 @@ const CSS_CETAK_SURAT = `
     bottom: -5px;
     border-bottom: 1px solid #163022;
   }
-  .surat-logo-kiri { flex: none; }
+  .surat-logo-kiri { flex: none; display: flex; align-items: center; }
   .surat-kop-tengah { flex: 1; text-align: center; }
+  .surat-logo-kanan { flex: none; display: flex; align-items: center; justify-content: flex-end; }
   .brand-logos { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
   .brand-city { display: block; object-fit: contain; }
   .brand-mark { display: inline-flex; align-items: center; }

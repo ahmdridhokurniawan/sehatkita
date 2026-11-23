@@ -86,6 +86,24 @@ class BadgeKeaktifanService
             'kategori' => 'keaktifan',
             'syarat' => 'Raih minimal 4 lencana keaktifan',
         ],
+        [
+            'kode' => 'rutin_posbindu',
+            'nama' => 'Rutin Posbindu',
+            'deskripsi' => 'Aktif mengikuti skrining Posbindu secara berkala.',
+            'ikon' => 'shield',
+            'tier' => 'emas',
+            'kategori' => 'posbindu',
+            'syarat' => 'Hadir minimal 3 kegiatan Posbindu',
+        ],
+        [
+            'kode' => 'sahabat_sehat',
+            'nama' => 'Sahabat Sehat',
+            'deskripsi' => 'Berpartisipasi memberi masukan kepuasan layanan Posbindu.',
+            'ikon' => 'sparkles',
+            'tier' => 'perunggu',
+            'kategori' => 'keaktifan',
+            'syarat' => 'Kirim minimal 1 survei kepuasan masyarakat',
+        ],
     ];
 
     public function evaluasiUntukUser(Pengguna $user): array
@@ -127,6 +145,12 @@ class BadgeKeaktifanService
         if ($hadirPosbindu >= 1) {
             $layak[] = 'aktif_posbindu';
         }
+        if ($hadirPosbindu >= 3) {
+            $layak[] = 'rutin_posbindu';
+        }
+        if (\App\Models\KepuasanMasyarakat::where('user_id', $user->id)->exists()) {
+            $layak[] = 'sahabat_sehat';
+        }
         if ($targetTercapai >= 1) {
             $layak[] = 'penakluk_target';
         }
@@ -155,6 +179,10 @@ class BadgeKeaktifanService
                 );
                 $baru[] = $kode;
             }
+        }
+
+        if ($baru !== [] && $user->wilayah_id) {
+            app(PeringkatService::class)->lupakanCache((int) $user->wilayah_id);
         }
 
         return $baru;

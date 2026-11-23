@@ -355,11 +355,7 @@ class CatatanKesehatanController extends Controller
             ]);
         }
 
-        if (($data['gula_darah'] ?? null) !== null && ($data['jenis_gula_darah'] ?? null) === null) {
-            throw ValidationException::withMessages([
-                'jenis_gula_darah' => ['Jenis pemeriksaan gula darah wajib diisi bila gula darah diukur.'],
-            ]);
-        }
+        // jenis_gula_darah bersifat opsional; HealthCalculatorService memakai fallback standar bila null.
 
         if (($data['jenis_gula_darah'] ?? null) === 'hba1c' && ($data['gula_darah'] ?? null) !== null && (float) $data['gula_darah'] > 25) {
             throw ValidationException::withMessages([

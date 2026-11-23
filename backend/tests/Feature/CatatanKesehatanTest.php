@@ -112,7 +112,7 @@ class CatatanKesehatanTest extends TestCase
             ])->assertStatus(422)->assertJsonValidationErrors('sistol');
     }
 
-    public function test_gula_darah_tanpa_jenis_ditolak(): void
+    public function test_gula_darah_tanpa_jenis_opsional_diterima(): void
     {
         $user = $this->pengguna();
         $this->denganProfil($user);
@@ -122,7 +122,9 @@ class CatatanKesehatanTest extends TestCase
                 'dicatat_pada' => now()->toDateString(),
                 'sumber'       => 'mandiri',
                 'gula_darah'   => 110,
-            ])->assertStatus(422)->assertJsonValidationErrors('jenis_gula_darah');
+            ])->assertStatus(201)
+            ->assertJsonPath('data.gula_darah', 110)
+            ->assertJsonPath('data.jenis_gula_darah', null);
     }
 
     public function test_tanggal_masa_depan_ditolak(): void

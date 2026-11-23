@@ -182,8 +182,11 @@ export default function PeringkatPage() {
                       </strong>
                     </div>
                     <div className="stat-cell">
-                      <span className="stat-cell-label">Total EXP</span>
-                      <strong className="stat-cell-val">{angka(data.saya.exp_total)}</strong>
+                      <span className="stat-cell-label">Total Lencana (Badge)</span>
+                      <strong className="stat-cell-val">
+                        {angka(data.saya.jumlah_badge ?? data.saya.badges?.length ?? 0)} Badge
+                      </strong>
+                      <span className="tiny">({angka(data.saya.exp_total)} EXP)</span>
                     </div>
                   </div>
                   {data.saya.rank === null ? (
@@ -229,11 +232,14 @@ export default function PeringkatPage() {
                             </span>
                           ) : null}
                         </div>
-                        <span className="tiny">Level {b.level_gamifikasi}</span>
+                        <span className="tiny">
+                          Level {b.level_gamifikasi} · {b.exp_total} EXP
+                        </span>
                       </div>
-                      <div className="li-side" style={{ display: "inline-flex", alignItems: "baseline", gap: 4 }}>
-                        <strong className="text-sm">{b.exp_total}</strong>
-                        <span className="tiny">EXP</span>
+                      <div className="li-side" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <Icon name="award" size={14} className="text-primary" />
+                        <strong className="text-sm">{b.jumlah_badge ?? b.badges?.length ?? 0}</strong>
+                        <span className="tiny">Badge</span>
                       </div>
                     </div>
                   );

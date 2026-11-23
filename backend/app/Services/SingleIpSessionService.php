@@ -6,17 +6,22 @@ use App\Models\Pengguna;
 use Illuminate\Support\Facades\Cache;
 use Laravel\Sanctum\PersonalAccessToken;
 
-// Mengelola masa aktif token Bearer 30 menit dan batasan 1 alamat IP untuk 1 pengguna aktif.
+// Mengelola masa aktif token Bearer 24 jam (1440 menit), penyimpanan sesi di Redis/Cache, dan batasan 1 IP untuk 1 pengguna aktif.
 class SingleIpSessionService
 {
     public function ttlMenit(): int
     {
-        return max(1, (int) config('sanctum.expiration', 30));
+        return max(1, (int) config('sanctum.expiration', 1440));
     }
 
     public function cacheKey(string $ip): string
     {
         return 'auth:ip_session:'.sha1($ip);
+    }
+
+    public function userSessionKey(int $userId): string
+    {
+        return 'auth:user_session:'.$userId;
     }
 
     public function cekKonflikIp(string $ip, int $userId): bool
@@ -95,6 +100,15 @@ class SingleIpSessionService
             ], $expiresAt);
         }
 
+        Cache::put($this->userSessionKey($user->id), [
+            'user_id' => $user->id,
+            'role' => $user->role,
+            'token_id' => $newToken->accessToken->id,
+            'ip_address' => $ip !== '' ? $ip : null,
+            'logged_in_at' => now()->toIso8601String(),
+            'expires_at' => $expiresAt->toIso8601String(),
+        ], $expiresAt);
+
         return [
             'token' => $newToken->plainTextToken,
             'expires_at' => $expiresAt->toIso8601String(),
@@ -117,6 +131,7 @@ class SingleIpSessionService
             Cache::forget($this->cacheKey((string) $itemIp));
         }
 
+        Cache::forget($this->userSessionKey($user->id));
         $user->tokens()->delete();
     }
 }

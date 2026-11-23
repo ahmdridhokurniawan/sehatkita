@@ -83,23 +83,26 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
   const [err, setErr] = useState<Record<string, string>>({});
   const [simpan, setSimpan] = useState(false);
 
-  /* Sumber yang boleh dipilih (mengikuti aturan backend `tentukanPemilik`):
-     - user: hanya "mandiri"
-     - admin_kelurahan: read-only (tidak boleh mencatat)
-     - kader: hanya "kader" (butuh warga + sesi posbindu)
-     - super_admin: ketiganya */
-  const sumberTersedia = useMemo(() => {
-    if (user?.role === "super_admin") return SUMBER;
-    if (user?.role === "kader") return SUMBER.filter((s) => s.v === "kader");
-    if (user?.role === "admin_kelurahan") return [];
-    return SUMBER.filter((s) => s.v === "mandiri");
+  /* Sumber otomatis mengikuti peran akun yang sedang login (tanpa dropdown pilih role). */
+  const sumberOtomatis = useMemo(() => {
+    if (user?.role === "super_admin") return "puskesmas";
+    if (user?.role === "kader") return "kader";
+    return "mandiri";
   }, [user?.role]);
 
-  /* Kader hanya boleh mencatat warga wilayah kerjanya (backend `dalamBinaan`) */
-  const batasWilayah = user?.role === "kader" ? user.wilayah_id : null;
+  const labelSumberOtomatis = useMemo(() => {
+    return SUMBER.find((s) => s.v === sumberOtomatis)?.l ?? "Mandiri (pencatatan sendiri)";
+  }, [sumberOtomatis]);
 
-  /* Warga & admin kelurahan hanya punya satu pilihan sumber; otomatis "mandiri". */
-  const efektifSumber = !petugas && sumber === "" ? "mandiri" : sumber;
+  const batasWilayah = user?.role === "kader" ? user.wilayah_id : null;
+  const efektifSumber = sumber || sumberOtomatis;
+
+  useEffect(() => {
+    if (open) {
+      setWaktu(nowLocal());
+      setSumber(sumberOtomatis);
+    }
+  }, [open, sumberOtomatis]);
 
   /* Dropdown sesi hanya relevan bila sumber = kader; pilih warga berlaku untuk kader & puskesmas */
   const butuhWarga = efektifSumber === "kader" || efektifSumber === "puskesmas";
@@ -151,9 +154,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
         setErr((prev) => ({ ...prev, gula_darah: "", jenis_gula_darah: "" }));
         return;
       }
-      const jenisAktif = jenisGula || "puasa";
-      if (!jenisGula) setJenisGula(jenisAktif);
-      const cek = validGulaDarah(bersih, jenisAktif);
+      const cek = validGulaDarah(bersih, jenisGula || "puasa");
       setErr((prev) => ({
         ...prev,
         gula_darah: cek.ok ? "" : cek.msg || "",
@@ -203,9 +204,8 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
       if (payload.diastol == null) e.diastol = "Isi Diastol berpasangan dengan Sistol.";
     }
 
-    if (payload.gula_darah != null) {
-      if (!jenisGula) e.jenis_gula_darah = "Pilih jenis pemeriksaan gula darah (Puasa / Sewaktu / 2 Jam PP / HbA1c).";
-      else payload.jenis_gula_darah = jenisGula;
+    if (payload.gula_darah != null && jenisGula) {
+      payload.jenis_gula_darah = jenisGula;
     }
 
     if (konsumsiManis) payload.konsumsi_manis = konsumsiManis;
@@ -290,13 +290,13 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
         </div>
       ) : null}
 
-      <fieldset className="form-section">
-        <legend>
+      <fieldset className="form-section" style={{ paddingTop: 18 }}>
+        <legend style={{ marginBottom: 12 }}>
           <span className="n">1</span> Waktu &amp; Sumber
         </legend>
-        <div className="grid grid-2" style={{ gap: 12 }}>
+        <div className="grid grid-2" style={{ gap: 16, marginTop: 6 }}>
           <div className="field">
-            <label className="label" htmlFor="dicatat_pada">
+            <label className="label" htmlFor="dicatat_pada" style={{ marginBottom: 8, display: "block" }}>
               Waktu pemeriksaan <span className="req">*</span>
             </label>
             <input
@@ -310,29 +310,25 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
                 setErr((p) => ({ ...p, dicatat_pada: "" }));
               }}
             />
+            <div className="hint" style={{ marginTop: 6 }}>
+              Otomatis disesuaikan dengan waktu pemeriksaan dilakukan sekarang.
+            </div>
             {err.dicatat_pada ? <div className="err-msg show">{err.dicatat_pada}</div> : null}
           </div>
           <div className="field">
-            <label className="label" htmlFor="sumber">
+            <label className="label" htmlFor="sumber" style={{ marginBottom: 8, display: "block" }}>
               Sumber data <span className="req">*</span>
             </label>
-            <select
-              className={"select" + (err.sumber ? " is-error" : "")}
+            <div
               id="sumber"
-              value={efektifSumber}
-              onChange={(e) => {
-                setSumber(e.target.value);
-                setErr((p) => ({ ...p, sumber: "" }));
-              }}
+              className="card card-flat"
+              style={{ padding: "10px 14px", fontSize: "0.9rem", fontWeight: 600 }}
             >
-              <option value="">Pilih sumber…</option>
-              {sumberTersedia.map((s) => (
-                <option key={s.v} value={s.v}>
-                  {s.l}
-                </option>
-              ))}
-            </select>
-            {err.sumber ? <div className="err-msg show">{err.sumber}</div> : null}
+              {labelSumberOtomatis}
+            </div>
+            <div className="hint" style={{ marginTop: 6 }}>
+              Otomatis mengikuti peran akun yang sedang masuk ({user?.role ?? "warga"}).
+            </div>
           </div>
         </div>
 
@@ -412,8 +408,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
           />
           <div className="field">
             <label className="label" htmlFor="jenis_gula_darah">
-              Jenis Pemeriksaan Gula Darah{" "}
-              {angka.gula_darah ? <span className="req">*</span> : <span className="opt">(wajib jika gula diisi)</span>}
+              Jenis Pemeriksaan Gula Darah <span className="opt">(opsional)</span>
             </label>
             <div className="segment segment-compact" role="group" aria-label="Pilih jenis pemeriksaan gula darah">
               {JENIS_GULA.map((j) => (

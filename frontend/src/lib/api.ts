@@ -35,6 +35,8 @@ import type {
   Indikator,
   Insight,
   InsightQuery,
+  KepuasanMasyarakatItem,
+  KepuasanRingkasan,
   KunjunganPosbindu,
   KunjunganQuery,
   LaporanKelurahan,
@@ -638,8 +640,15 @@ export const program = {
       { method: "DELETE" },
     ),
   /** §12.7c PATCH progres mandiri tantangan */
-  perbaruiProgres: (id: number, payload: { progres_persen: number; catatan_progres?: string }) =>
-    request<PesertaSaya>(`/program/${id}/progres`, { method: "PATCH", body: payload }),
+  perbaruiProgres: (
+    id: number,
+    payload: {
+      progres_persen?: number;
+      capaian_nilai?: number;
+      tambah_capaian?: number;
+      catatan_progres?: string;
+    },
+  ) => request<PesertaSaya>(`/program/${id}/progres`, { method: "PATCH", body: payload }),
   /** §12.6 GET daftar peserta  */
   peserta: (id: number) =>
     request<PesertaProgram[]>(`/program/${id}/peserta`),
@@ -704,10 +713,15 @@ export const edukasiApi = {
     throw new ApiError(json.message ?? "Terjadi kesalahan", response.status, json.errors);
   },
   detail: (id: number) => request<EdukasiItem>(`/edukasi/${id}`),
-  buat: (payload: EdukasiInput) =>
+  buat: (payload: EdukasiInput | FormData) =>
     request<EdukasiItem>("/edukasi", { method: "POST", body: payload }),
-  ubah: (id: number, payload: Partial<EdukasiInput>) =>
-    request<EdukasiItem>(`/edukasi/${id}`, { method: "PUT", body: payload }),
+  ubah: (id: number, payload: Partial<EdukasiInput> | FormData) => {
+    if (payload instanceof FormData) {
+      payload.append("_method", "PUT");
+      return request<EdukasiItem>(`/edukasi/${id}`, { method: "POST", body: payload });
+    }
+    return request<EdukasiItem>(`/edukasi/${id}`, { method: "PUT", body: payload });
+  },
   hapus: (id: number) => request<null>(`/edukasi/${id}`, { method: "DELETE" }),
   simpanProgres: (
     id: number,
@@ -827,12 +841,15 @@ export const admin = {
       requestPaged<LogAudit>("/admin/log-audit", { query }),
   },
   statistik: () => request<AdminStatistik>("/admin/statistik"),
-  /** §S3 — unduh CSV stream. Mengembalikan Blob untuk di-download. */
-  ekspor: async (tipe: "catatan" | "posbindu" | "rujukan"): Promise<Blob> => {
+  /** §S3 — unduh CSV atau Excel (.xls) stream. Mengembalikan Blob untuk di-download. */
+  ekspor: async (
+    tipe: "catatan" | "posbindu" | "rujukan",
+    format: "csv" | "excel" = "csv",
+  ): Promise<Blob> => {
     const token = getToken();
     const headers: Record<string, string> = {};
     if (token) headers["Authorization"] = `Bearer ${token}`;
-    const res = await fetch(`${API_BASE_URL}/admin/export?tipe=${tipe}`, { headers });
+    const res = await fetch(`${API_BASE_URL}/admin/export?tipe=${tipe}&format=${format}`, { headers });
     if (!res.ok) {
       if (res.status === 401) tangani401();
       let pesan = "Gagal mengunduh data.";
@@ -868,4 +885,36 @@ export const pengaduanApi = {
     request<Pengaduan>("/pengaduan", { method: "POST", body: payload }),
   tanggapi: (id: number, payload: PengaduanTanggapiInput) =>
     request<Pengaduan>(`/pengaduan/${id}/tanggapi`, { method: "PATCH", body: payload }),
+};
+
+/** Survei Kepuasan Masyarakat */
+export const kepuasanMasyarakatApi = {
+  list: async (query?: { wilayah_id?: number; rating?: number; page?: number; per_page?: number }) => {
+    const headers: Record<string, string> = { Accept: "application/json" };
+    const token = getToken();
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await kirim(buildUrl("/kepuasan-masyarakat", query), { method: "GET", headers });
+    const json = (await res.json()) as {
+      data?: KepuasanMasyarakatItem[];
+      meta?: PaginationMeta;
+      ringkasan?: KepuasanRingkasan;
+      message?: string;
+    };
+    if (!res.ok) {
+      if (res.status === 401) tangani401();
+      throw new ApiError(json.message ?? "Gagal memuat kepuasan masyarakat", res.status);
+    }
+    return {
+      data: json.data ?? [],
+      meta: json.meta ?? null,
+      ringkasan: json.ringkasan ?? {
+        total_responden: 0,
+        rata_rata_rating: 0,
+        indeks_kepuasan_persen: 0,
+        distribusi_bintang: { "5": 0, "4": 0, "3": 0, "2": 0, "1": 0 },
+      },
+    };
+  },
+  kirim: (payload: { rating: number; aspek_pelayanan?: string; komentar?: string }) =>
+    request<KepuasanMasyarakatItem>("/kepuasan-masyarakat", { method: "POST", body: payload }),
 };

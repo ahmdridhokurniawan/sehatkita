@@ -17,7 +17,10 @@ class AdminExportController extends Controller
 
         $tipeRaw = (string) $request->query('tipe', 'catatan');
         $tipe = in_array($tipeRaw, ['catatan', 'posbindu', 'rujukan'], true) ? $tipeRaw : 'catatan';
-        $namaFile = 'sehatkita_export_'.$tipe.'_'.date('Ymd_His').'.csv';
+        $formatRaw = (string) $request->query('format', 'csv');
+        $format = in_array($formatRaw, ['csv', 'excel'], true) ? $formatRaw : 'csv';
+        $ext = $format === 'excel' ? 'xls' : 'csv';
+        $namaFile = 'sehatkita_export_'.$tipe.'_'.date('Ymd_His').'.'.$ext;
 
         $modelAudit = match ($tipe) {
             'posbindu' => KunjunganPosbindu::class,
@@ -26,30 +29,44 @@ class AdminExportController extends Controller
         };
         $this->catatAudit($request->user(), 'baca_data_individu', $modelAudit, null);
 
-        return response()->stream(function () use ($tipe, $request) {
+        $headers = [
+            'Content-Type' => $format === 'excel'
+                ? 'application/vnd.ms-excel; charset=UTF-8'
+                : 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$namaFile}\"",
+            'Cache-Control' => 'no-store, no-cache',
+        ];
+
+        return response()->stream(function () use ($tipe, $format, $request) {
             $handle = fopen('php://output', 'w');
 
-            fwrite($handle, "\xEF\xBB\xBF");
+            if ($format === 'excel') {
+                fwrite($handle, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+                fwrite($handle, "<Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\" xmlns:ss=\"urn:schemas-microsoft-com:office:spreadsheet\">\n");
+                fwrite($handle, "<Worksheet ss:Name=\"".ucfirst($tipe)."\"><Table>\n");
+            } else {
+                fwrite($handle, "\xEF\xBB\xBF");
+            }
 
             if ($tipe === 'posbindu') {
-                $this->exportPosbindu($handle, $request);
+                $this->exportPosbindu($handle, $format, $request);
             } elseif ($tipe === 'rujukan') {
-                $this->exportRujukan($handle, $request);
+                $this->exportRujukan($handle, $format, $request);
             } else {
-                $this->exportCatatanKesehatan($handle, $request);
+                $this->exportCatatanKesehatan($handle, $format, $request);
+            }
+
+            if ($format === 'excel') {
+                fwrite($handle, "</Table></Worksheet></Workbook>\n");
             }
 
             fclose($handle);
-        }, 200, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$namaFile}\"",
-            'Cache-Control' => 'no-store, no-cache',
-        ]);
+        }, 200, $headers);
     }
 
-    private function exportCatatanKesehatan($handle, Request $request): void
+    private function exportCatatanKesehatan($handle, string $format, Request $request): void
     {
-        fputcsv($handle, [
+        $this->tulisBaris($handle, $format, [
             'ID', 'Tanggal', 'Nama Warga', 'NIK', 'Kelurahan',
             'BB (kg)', 'TB (cm)', 'IMT', 'Kategori IMT',
             'Sistol (mmHg)', 'Diastol (mmHg)', 'Kategori Tensi',
@@ -70,9 +87,9 @@ class AdminExportController extends Controller
             });
         }
 
-        $query->chunk(100, function ($rows) use ($handle) {
+        $query->chunk(100, function ($rows) use ($handle, $format) {
             foreach ($rows as $r) {
-                fputcsv($handle, [
+                $this->tulisBaris($handle, $format, [
                     $r->id,
                     $r->dicatat_pada?->format('Y-m-d') ?? $r->dicatat_pada,
                     $this->amanCsv($r->pengguna?->name),
@@ -97,9 +114,9 @@ class AdminExportController extends Controller
         });
     }
 
-    private function exportPosbindu($handle, Request $request): void
+    private function exportPosbindu($handle, string $format, Request $request): void
     {
-        fputcsv($handle, ['ID Kunjungan', 'Tanggal Sesi', 'Lokasi Posbindu', 'Kelurahan', 'Nama Warga', 'NIK', 'Kader Petugas', 'Status Kehadiran']);
+        $this->tulisBaris($handle, $format, ['ID Kunjungan', 'Tanggal Sesi', 'Lokasi Posbindu', 'Kelurahan', 'Nama Warga', 'NIK', 'Kader Petugas', 'Status Kehadiran']);
 
         $query = KunjunganPosbindu::with(['sesi.wilayah', 'sesi.kader', 'pengguna'])->latest('id');
 
@@ -108,9 +125,9 @@ class AdminExportController extends Controller
             $query->whereHas('sesi', fn ($q) => $q->where('wilayah_id', $wId));
         }
 
-        $query->chunk(100, function ($rows) use ($handle) {
+        $query->chunk(100, function ($rows) use ($handle, $format) {
             foreach ($rows as $k) {
-                fputcsv($handle, [
+                $this->tulisBaris($handle, $format, [
                     $k->id,
                     $k->sesi?->tanggal?->format('Y-m-d') ?? $k->sesi?->tanggal ?? '—',
                     $this->amanCsv($k->sesi?->lokasi),
@@ -124,9 +141,9 @@ class AdminExportController extends Controller
         });
     }
 
-    private function exportRujukan($handle, Request $request): void
+    private function exportRujukan($handle, string $format, Request $request): void
     {
-        fputcsv($handle, ['ID Rujukan', 'Tanggal Dibuat', 'Nama Warga', 'NIK', 'Kelurahan', 'Faskes Tujuan', 'Alasan Rujukan', 'Status']);
+        $this->tulisBaris($handle, $format, ['ID Rujukan', 'Tanggal Dibuat', 'Nama Warga', 'NIK', 'Kelurahan', 'Faskes Tujuan', 'Alasan Rujukan', 'Status']);
 
         $query = Rujukan::with(['pengguna.wilayah', 'faskes'])->latest('id');
 
@@ -135,9 +152,9 @@ class AdminExportController extends Controller
             $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $wId));
         }
 
-        $query->chunk(100, function ($rows) use ($handle) {
+        $query->chunk(100, function ($rows) use ($handle, $format) {
             foreach ($rows as $ruj) {
-                fputcsv($handle, [
+                $this->tulisBaris($handle, $format, [
                     $ruj->id,
                     $ruj->created_at?->format('Y-m-d') ?? '—',
                     $this->amanCsv($ruj->pengguna?->name),
@@ -149,6 +166,22 @@ class AdminExportController extends Controller
                 ]);
             }
         });
+    }
+
+    private function tulisBaris($handle, string $format, array $kolom): void
+    {
+        if ($format === 'excel') {
+            $sel = '';
+            foreach ($kolom as $nilai) {
+                $aman = htmlspecialchars((string) $nilai, ENT_XML1 | ENT_QUOTES, 'UTF-8');
+                $sel .= "<Cell><Data ss:Type=\"String\">{$aman}</Data></Cell>";
+            }
+            fwrite($handle, "<Row>{$sel}</Row>\n");
+
+            return;
+        }
+
+        fputcsv($handle, $kolom);
     }
 
     private function amanCsv(mixed $nilai): string

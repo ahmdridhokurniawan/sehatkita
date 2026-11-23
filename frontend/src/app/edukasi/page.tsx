@@ -16,7 +16,6 @@ import { useMinLoading } from "@/hooks/useMinLoading";
 import { edukasiApi, wilayah as wilayahApi, ApiError } from "@/lib/api";
 import { angka, tanggal } from "@/lib/format";
 import type {
-  EdukasiInput,
   EdukasiItem,
   EdukasiKategori,
   RingkasanProgresEdukasi,
@@ -70,6 +69,9 @@ export default function EdukasiPage() {
   const [fMenit, setFMenit] = useState("5");
   const [fWilayahId, setFWilayahId] = useState("");
   const [fAktif, setFAktif] = useState(true);
+  const [fVideoUrl, setFVideoUrl] = useState("");
+  const [fFotoFile, setFFotoFile] = useState<File | null>(null);
+  const [fVideoFile, setFVideoFile] = useState<File | null>(null);
   const [savingCrud, setSavingCrud] = useState(false);
   const [formErr, setFormErr] = useState("");
   const [hapusTarget, setHapusTarget] = useState<EdukasiItem | null>(null);
@@ -193,6 +195,9 @@ export default function EdukasiPage() {
     setFMenit("5");
     setFWilayahId("");
     setFAktif(true);
+    setFVideoUrl("");
+    setFFotoFile(null);
+    setFVideoFile(null);
     setFormErr("");
     setFormOpen(true);
   }
@@ -206,6 +211,9 @@ export default function EdukasiPage() {
     setFMenit(String(item.estimasi_menit || 5));
     setFWilayahId(item.wilayah_id ? String(item.wilayah_id) : "");
     setFAktif(item.aktif);
+    setFVideoUrl(item.media_video_url || "");
+    setFFotoFile(null);
+    setFVideoFile(null);
     setFormErr("");
     setFormOpen(true);
   }
@@ -216,25 +224,34 @@ export default function EdukasiPage() {
       setFormErr("Judul, ringkasan, dan isi materi wajib diisi.");
       return;
     }
-    const payload: EdukasiInput = {
-      judul: fJudul.trim(),
-      ringkasan: fRingkasan.trim(),
-      konten: fKonten.trim(),
-      kategori: fKategori,
-      estimasi_menit: Math.max(1, Number(fMenit) || 5),
-      aktif: fAktif,
-    };
+
+    const formData = new FormData();
+    formData.append("judul", fJudul.trim());
+    formData.append("ringkasan", fRingkasan.trim());
+    formData.append("konten", fKonten.trim());
+    formData.append("kategori", fKategori);
+    formData.append("estimasi_menit", String(Math.max(1, Number(fMenit) || 5)));
+    formData.append("aktif", fAktif ? "1" : "0");
     if (user?.role === "super_admin") {
-      payload.wilayah_id = fWilayahId ? Number(fWilayahId) : null;
+      formData.append("wilayah_id", fWilayahId ? String(Number(fWilayahId)) : "");
+    }
+    if (fVideoUrl.trim()) {
+      formData.append("media_video_url", fVideoUrl.trim());
+    }
+    if (fFotoFile) {
+      formData.append("foto", fFotoFile);
+    }
+    if (fVideoFile) {
+      formData.append("video", fVideoFile);
     }
 
     setSavingCrud(true);
     try {
       if (editItem) {
-        await edukasiApi.ubah(editItem.id, payload);
+        await edukasiApi.ubah(editItem.id, formData);
         toast.success("Materi edukasi diperbarui.");
       } else {
-        await edukasiApi.buat(payload);
+        await edukasiApi.buat(formData);
         toast.success("Materi edukasi baru diterbitkan.");
       }
       setFormOpen(false);
@@ -459,6 +476,38 @@ export default function EdukasiPage() {
               {bacaItem.created_at ? <span className="tiny">· {tanggal(bacaItem.created_at, "short")}</span> : null}
             </div>
 
+            {bacaItem.media_foto_url ? (
+              <div style={{ borderRadius: 12, overflow: "hidden", border: "1px solid var(--border)" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={bacaItem.media_foto_url}
+                  alt={bacaItem.judul}
+                  style={{ width: "100%", maxHeight: 320, objectFit: "cover", display: "block" }}
+                />
+              </div>
+            ) : null}
+
+            {bacaItem.media_video_file_url ? (
+              <video
+                src={bacaItem.media_video_file_url}
+                controls
+                style={{ width: "100%", maxHeight: 340, borderRadius: 12, background: "#000" }}
+              />
+            ) : bacaItem.media_video_url ? (
+              <div className="alert alert-info">
+                <Icon name="video" size={16} />
+                <a
+                  href={bacaItem.media_video_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm fw-600"
+                  style={{ textDecoration: "underline" }}
+                >
+                  Tonton Video Materi Edukasi
+                </a>
+              </div>
+            ) : null}
+
             <div className="flat-sub" style={{ whiteSpace: "pre-line", lineHeight: 1.65 }}>
               {bacaItem.konten}
             </div>
@@ -490,7 +539,40 @@ export default function EdukasiPage() {
                   />
                 </div>
 
-                <label className="check">
+                <div className="grid grid-2" style={{ gap: 12 }}>
+            <div className="field">
+              <label className="label" htmlFor="edu-foto">Foto materi (opsional, maks 5MB)</label>
+              <input
+                id="edu-foto"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="input"
+                onChange={(e) => setFFotoFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+            <div className="field">
+              <label className="label" htmlFor="edu-video">Video materi (opsional, MP4/WebM maks 50MB)</label>
+              <input
+                id="edu-video"
+                type="file"
+                accept="video/mp4,video/webm,video/quicktime"
+                className="input"
+                onChange={(e) => setFVideoFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="edu-video-url">Tautan video YouTube / eksternal (opsional)</label>
+            <input
+              id="edu-video-url"
+              type="url"
+              className="input"
+              placeholder="https://www.youtube.com/watch?v=..."
+              value={fVideoUrl}
+              onChange={(e) => setFVideoUrl(e.target.value)}
+            />
+          </div>
+          <label className="check">
                   <input
                     type="checkbox"
                     checked={progSelesai}
@@ -621,6 +703,39 @@ export default function EdukasiPage() {
               maxLength={10000}
               value={fKonten}
               onChange={(e) => setFKonten(e.target.value)}
+            />
+          </div>
+          <div className="grid grid-2" style={{ gap: 12 }}>
+            <div className="field">
+              <label className="label" htmlFor="edu-foto">Foto materi (opsional, maks 5MB)</label>
+              <input
+                id="edu-foto"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="input"
+                onChange={(e) => setFFotoFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+            <div className="field">
+              <label className="label" htmlFor="edu-video">Video materi (opsional, MP4/WebM maks 50MB)</label>
+              <input
+                id="edu-video"
+                type="file"
+                accept="video/mp4,video/webm,video/quicktime"
+                className="input"
+                onChange={(e) => setFVideoFile(e.target.files?.[0] ?? null)}
+              />
+            </div>
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="edu-video-url">Tautan video YouTube / eksternal (opsional)</label>
+            <input
+              id="edu-video-url"
+              type="url"
+              className="input"
+              placeholder="https://www.youtube.com/watch?v=..."
+              value={fVideoUrl}
+              onChange={(e) => setFVideoUrl(e.target.value)}
             />
           </div>
           <label className="check">

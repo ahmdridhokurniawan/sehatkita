@@ -123,7 +123,10 @@ export default function ProgramPage() {
   const [fKategori, setFKategori] = useState("");
   const [fWilayah, setFWilayah] = useState("");
   const [kelurahan, setKelurahan] = useState<Wilayah[]>([]);
+  const [filterJenis, setFilterJenis] = useState<string>("");
   const [fTarget, setFTarget] = useState("50");
+  const [fTargetNilai, setFTargetNilai] = useState("");
+  const [fSatuanTarget, setFSatuanTarget] = useState("");
   const [fMulai, setFMulai] = useState("");
   const [fSelesai, setFSelesai] = useState("");
   const [fExp, setFExp] = useState("50");
@@ -148,6 +151,8 @@ export default function ProgramPage() {
     setFKategori("");
     setFWilayah("");
     setFTarget("50");
+    setFTargetNilai("");
+    setFSatuanTarget("");
     setFMulai("");
     setFSelesai("");
     setFExp("50");
@@ -166,6 +171,8 @@ export default function ProgramPage() {
     setFKategori(p.kategori_aktivitas || "");
     setFWilayah(p.wilayah_id != null ? String(p.wilayah_id) : "");
     setFTarget(String(p.target_peserta || 1));
+    setFTargetNilai(p.target_nilai != null ? String(p.target_nilai) : "");
+    setFSatuanTarget(p.satuan_target || "");
     setFMulai((p.mulai || "").slice(0, 10));
     setFSelesai((p.selesai || "").slice(0, 10));
     setFExp(String(p.exp ?? 50));
@@ -182,6 +189,7 @@ export default function ProgramPage() {
         page,
         per_page: 10,
         exclude_jenis: "edukasi",
+        jenis: (filterJenis || undefined) as JenisProgram | undefined,
         search: cari.trim() || undefined,
       });
       setProgram(res.data);
@@ -192,7 +200,7 @@ export default function ProgramPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, cari]);
+  }, [page, cari, filterJenis]);
 
   useEffect(() => {
     if (loadingUser || !user) return;
@@ -202,6 +210,7 @@ export default function ProgramPage() {
         page,
         per_page: 10,
         exclude_jenis: "edukasi",
+        jenis: (filterJenis || undefined) as JenisProgram | undefined,
         search: cari.trim() || undefined,
       })
       .then((res) => {
@@ -219,7 +228,7 @@ export default function ProgramPage() {
     return () => {
       aktif = false;
     };
-  }, [loadingUser, user, page, cari]);
+  }, [loadingUser, user, page, cari, filterJenis]);
 
   useEffect(() => {
     if (!loadingUser && role === "super_admin") {
@@ -286,6 +295,8 @@ export default function ProgramPage() {
         jenis: fJenis,
         kategori_aktivitas: kategoriVal,
         target_peserta: Number(fTarget) || 1,
+        target_nilai: fTargetNilai.trim() ? Number(fTargetNilai) : undefined,
+        satuan_target: fSatuanTarget.trim() || undefined,
         mulai: fMulai,
         selesai: fSelesai,
         exp: Math.round(expAngka),
@@ -419,6 +430,28 @@ export default function ProgramPage() {
             setPage(1);
           }}
         />
+      </div>
+
+      <div className="chip-row mb-12" style={{ flexWrap: "wrap", gap: 8 }}>
+        {[
+          { v: "", l: "Semua Kategori" },
+          { v: "olahraga", l: "Olahraga" },
+          { v: "edukasi", l: "Edukasi" },
+          { v: "pemeriksaan", l: "Pemeriksaan" },
+          { v: "lainnya", l: "Lainnya" },
+        ].map((kat) => (
+          <button
+            key={kat.v || "semua"}
+            type="button"
+            className={`chip${filterJenis === kat.v ? " is-active" : ""}`}
+            onClick={() => {
+              setFilterJenis(kat.v);
+              setPage(1);
+            }}
+          >
+            {kat.l}
+          </button>
+        ))}
       </div>
 
       {tampilLoading ? <Loading /> : null}
@@ -720,6 +753,24 @@ export default function ProgramPage() {
               </select>
             </div>
           ) : null}
+          <div className="grid grid-2" style={{ gap: 12 }}>
+            <Input
+              label="Target capaian angka (opsional)"
+              type="number"
+              min={1}
+              placeholder="misalnya 50 (untuk hitung % otomatis)"
+              value={fTargetNilai}
+              onChange={(e) => setFTargetNilai(e.target.value)}
+            />
+            <Input
+              label="Satuan target (opsional)"
+              type="text"
+              maxLength={40}
+              placeholder="misalnya kali, menit, km"
+              value={fSatuanTarget}
+              onChange={(e) => setFSatuanTarget(e.target.value)}
+            />
+          </div>
           <div className="grid grid-2" style={{ gap: 12 }}>
             <Input
               label="Reward EXP"

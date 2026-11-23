@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import AppShell from "@/components/app/AppShell";
+import GrafikTrenRekamMedis from "@/components/charts/GrafikTrenRekamMedis";
+import { RekapKepuasanMasyarakat } from "@/components/dashboard/KepuasanMasyarakatWidget";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
 import {
@@ -460,6 +462,26 @@ export default function DashboardSuperAdmin({ user: _user }: { user: User }) {
         {/* STRIP KPI TERPADU */}
         <GlassyKpiGrid items={kpiItems} />
       </section>
+
+      <div className="row gap-8 mt-16" style={{ flexWrap: "wrap" }}>
+        <Link href="/laporan" className="btn btn-sm btn-outline">
+          <Icon name="file-text" size={14} /> Laporan &amp; Ekspor Excel
+        </Link>
+        <Link href="/edukasi" className="btn btn-sm btn-outline">
+          <Icon name="book-open" size={14} /> Kelola Edukasi
+        </Link>
+        <Link href="/admin/verifikasi" className="btn btn-sm btn-outline">
+          <Icon name="check-circle" size={14} /> Verifikasi Catatan
+        </Link>
+        <Link href="/rujukan" className="btn btn-sm btn-outline">
+          <Icon name="send" size={14} /> Rujukan
+        </Link>
+      </div>
+
+      <div className="mt-16" style={{ display: "grid", gap: 16 }}>
+        <GrafikTrenRekamMedis user={_user} />
+        <RekapKepuasanMasyarakat />
+      </div>
     </AppShell>
   );
 }

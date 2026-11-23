@@ -72,11 +72,13 @@ class PeringkatService
     private function peserta(int $wilayahId): Collection
     {
         return Pengguna::query()
-            ->with('profil')
+            ->with(['profil', 'badge'])
+            ->withCount('badge')
             ->where('wilayah_id', $wilayahId)
             ->where('role', 'user')
             ->where('aktif', true)
             ->whereNotNull('consent_at')
+            ->orderByDesc('badge_count')
             ->orderByDesc('exp_total')
             ->orderBy('id')
             ->get()
@@ -99,6 +101,8 @@ class PeringkatService
                         return [
                             'rank' => $i + 1,
                             'nama' => $tampil ? $u->name : 'Peserta anonim',
+                            'jumlah_badge' => (int) ($u->badge_count ?? $u->badge->count()),
+                            'badges' => $u->badge->pluck('badge')->values()->all(),
                             'exp_total' => (int) $u->exp_total,
                             'level_gamifikasi' => (int) $u->level_gamifikasi,
                         ];

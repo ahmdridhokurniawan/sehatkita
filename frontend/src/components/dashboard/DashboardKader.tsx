@@ -6,6 +6,8 @@ import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
 import Bar from "@/components/charts/Bar";
+import GrafikTrenRekamMedis from "@/components/charts/GrafikTrenRekamMedis";
+import { FormKepuasanMasyarakat } from "@/components/dashboard/KepuasanMasyarakatWidget";
 import {
   GlassyAgendaDate,
   GlassyDashboardSkeleton,
@@ -344,6 +346,26 @@ export default function DashboardKader({ user: _user }: { user: User }) {
         {/* STRIP KPI TERPADU */}
         <GlassyKpiGrid items={kpiItems} />
       </section>
+
+      <div className="row gap-8 mt-16" style={{ flexWrap: "wrap" }}>
+        <Link href="/rekam-medis" className="btn btn-sm btn-outline">
+          <Icon name="clipboard" size={14} /> Rekam Medis Warga
+        </Link>
+        <Link href="/posbindu" className="btn btn-sm btn-outline">
+          <Icon name="calendar-check" size={14} /> Posbindu
+        </Link>
+        <Link href="/program" className="btn btn-sm btn-outline">
+          <Icon name="trophy" size={14} /> Verifikasi Tantangan
+        </Link>
+        <Link href="/edukasi" className="btn btn-sm btn-outline">
+          <Icon name="book-open" size={14} /> Edukasi
+        </Link>
+      </div>
+
+      <div className="mt-16" style={{ display: "grid", gap: 16 }}>
+        <GrafikTrenRekamMedis user={_user} />
+        <FormKepuasanMasyarakat />
+      </div>
     </AppShell>
   );
 }

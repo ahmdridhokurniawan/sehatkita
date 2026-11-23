@@ -57,18 +57,18 @@ class RevisiPembimbingTest extends TestCase
         return $u;
     }
 
-    public function test_token_bearer_dibatasi_30_menit_dan_1_ip_1_user(): void
+    public function test_token_bearer_dibatasi_24_jam_dan_1_ip_1_user(): void
     {
         $userA = $this->buatUser('user');
         $userB = $this->buatUser('user');
 
-        // 1. User A login dari IP 10.0.0.10 -> dapat token 30 menit
+        // 1. User A login dari IP 10.0.0.10 -> dapat token 24 jam (1440 menit)
         $resA = $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.10'])
             ->postJson('/api/v1/auth/login', [
                 'email' => $userA->email,
                 'password' => 'Rahasia123!',
             ])->assertOk()
-            ->assertJsonPath('data.token_ttl_menit', 30);
+            ->assertJsonPath('data.token_ttl_menit', 1440);
 
         $tokenA = $resA->json('data.token');
         $this->assertNotEmpty($tokenA);

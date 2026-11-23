@@ -560,7 +560,7 @@ export default function PosbinduPage() {
                       </div>
                     </div>
                     <div className="row gap-6">
-                      {bolehBuatSesi ? (
+                      {bolehBuatSesi && s.status !== "selesai" ? (
                         <button className="btn btn-sm btn-ghost" onClick={() => bukaEditSesi(s)} type="button">
                           <Icon name="edit" size={14} /> Ubah
                         </button>

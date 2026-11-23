@@ -263,6 +263,43 @@ export default function LaporanKelurahanPage() {
     });
   }
 
+  function eksporLaporanExcel() {
+    if (!d) return;
+    const esc = (v: unknown) =>
+      String(v ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    const row = (cells: unknown[]) =>
+      `<Row>${cells.map((c) => `<Cell><Data ss:Type="String">${esc(c)}</Data></Cell>`).join("")}</Row>`;
+
+    const xml = [
+      '<?xml version="1.0" encoding="UTF-8"?>',
+      '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">',
+      '<Worksheet ss:Name="Laporan Wilayah"><Table>',
+      row(["Laporan Wilayah", d.wilayah?.nama ?? "Kelurahan", "Periode", LABEL_PERIODE[periode]]),
+      row(["Metrik", "Nilai"]),
+      row(["Total Peserta Terdaftar", d.total_peserta]),
+      row(["Warga Aktif", d.total_pengguna_aktif]),
+      row(["Total Pencatatan", d.total_pencatatan]),
+      row(["Kepatuhan Pencatatan (%)", `${d.kepatuhan_pencatatan_persen}%`]),
+      row(["Rujukan Baru", d.rujukan?.baru ?? 0]),
+      row(["Rujukan Dihubungi", d.rujukan?.dihubungi ?? 0]),
+      row(["Rujukan Selesai", d.rujukan?.selesai ?? 0]),
+      ...d.distribusi_imt.map((item) => row([`IMT ${item.kategori}`, item.jumlah ?? 0])),
+      "</Table></Worksheet></Workbook>",
+    ].join("\n");
+
+    const blob = new Blob([xml], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `laporan_${(d.wilayah?.nama ?? "wilayah").toLowerCase().replace(/\s+/g, "_")}_${periode}.xls`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <AppShell greet="Laporan Kelurahan" roles={["admin_kelurahan", "super_admin"]}>
       <div className="print-head">
@@ -340,6 +377,15 @@ export default function LaporanKelurahanPage() {
               onClick={cetakLaporanPdf}
             >
               <Icon name="download" size={16} /> Cetak / PDF
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              style={{ minHeight: 38, height: 38, whiteSpace: "nowrap" }}
+              disabled={!d || loading}
+              onClick={eksporLaporanExcel}
+            >
+              <Icon name="file-text" size={16} /> Ekspor Excel
             </button>
           </div>
         </div>

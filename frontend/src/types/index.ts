@@ -474,6 +474,7 @@ export interface PesertaSaya {
   id: number;
   status: StatusPeserta;
   progres_persen?: number;
+  capaian_nilai?: number;
   catatan_progres?: string | null;
   progres_diperbarui_pada?: string | null;
   bukti_foto_url?: string | null;
@@ -493,6 +494,8 @@ export interface Program {
   jenis: JenisProgram;
   kategori_aktivitas?: string | null;
   target_peserta: number;
+  target_nilai?: number | null;
+  satuan_target?: string | null;
   jumlah_peserta: number;
   mulai: string;
   selesai: string | null;
@@ -522,6 +525,8 @@ export interface ProgramInput {
   jenis: JenisProgram;
   kategori_aktivitas?: string | null;
   target_peserta?: number;
+  target_nilai?: number | null;
+  satuan_target?: string | null;
   mulai: string;
   selesai?: string;
   badge?: string;
@@ -760,6 +765,8 @@ export interface AdminStatistik {
 export interface PeringkatBaris {
   rank: number;
   nama: string;
+  jumlah_badge?: number;
+  badges?: string[];
   exp_total: number;
   level_gamifikasi: number;
 }
@@ -794,8 +801,25 @@ export interface Peringkat {
   periode?: PeriodePeringkat;
   peserta_peringkat: number;
   daftar: PeringkatBaris[];
-  saya: { rank: number | null; exp_total: number } | null;
+  saya: { rank: number | null; jumlah_badge?: number; badges?: string[]; exp_total: number } | null;
   riwayat_saya?: RiwayatPeringkatItem[];
+}
+
+export interface KepuasanMasyarakatItem {
+  id: number;
+  rating: number;
+  aspek_pelayanan: string | null;
+  komentar: string | null;
+  pengguna: { id: number; name: string } | null;
+  wilayah: { id: number; nama: string } | null;
+  created_at: string | null;
+}
+
+export interface KepuasanRingkasan {
+  total_responden: number;
+  rata_rata_rating: number;
+  indeks_kepuasan_persen: number;
+  distribusi_bintang: Record<string, number>;
 }
 
 /* ============================================================
@@ -824,6 +848,9 @@ export interface EdukasiItem {
   judul: string;
   ringkasan: string;
   konten: string;
+  media_foto_url?: string | null;
+  media_video_file_url?: string | null;
+  media_video_url?: string | null;
   kategori: EdukasiKategori;
   estimasi_menit: number;
   urutan: number;
@@ -839,6 +866,9 @@ export interface EdukasiInput {
   judul: string;
   ringkasan: string;
   konten: string;
+  media_foto_url?: string | null;
+  media_video_file_url?: string | null;
+  media_video_url?: string | null;
   kategori: EdukasiKategori;
   estimasi_menit?: number;
   urutan?: number;

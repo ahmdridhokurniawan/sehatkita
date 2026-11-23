@@ -83,19 +83,19 @@ class AuthTest extends TestCase
           ->assertJsonPath('success', false);
     }
 
-    public function test_login_dibatasi_setelah_5_percobaan(): void
+    public function test_login_dibatasi_setelah_100_percobaan(): void
     {
         $user = $this->pengguna();
 
-        // 5 percobaan pertama: ditolak karena password salah (422).
-        for ($i = 0; $i < 5; $i++) {
+        // Percobaan ke-1 s.d. ke-100 diizinkan melewati rate limit (422 karena password salah).
+        for ($i = 0; $i < 100; $i++) {
             $this->postJson('/api/v1/auth/login', [
                 'email'    => $user->email,
                 'password' => 'salah',
             ])->assertStatus(422);
         }
 
-        // Percobaan ke-6 kena throttle.
+        // Percobaan ke-101 kena throttle 429.
         $this->postJson('/api/v1/auth/login', [
             'email'    => $user->email,
             'password' => 'salah',

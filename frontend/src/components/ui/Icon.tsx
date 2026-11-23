@@ -27,6 +27,7 @@ export default function Icon({ name, size = 20, className, strokeWidth = 2 }: Pr
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
+      style={{ flexShrink: 0, display: "inline-block", verticalAlign: "middle" }}
       aria-hidden="true"
       dangerouslySetInnerHTML={{ __html: path }}
     />
