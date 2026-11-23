@@ -37,6 +37,7 @@ const STATUS_TONE: Record<StatusPengaduan, "warning" | "info" | "safe" | "danger
 export default function HalamanPengaduan() {
   const [list, setList] = useState<Pengaduan[]>([]);
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [loading, setLoading] = useState(true);
   const tampilLoading = useMinLoading(loading);
@@ -53,7 +54,7 @@ export default function HalamanPengaduan() {
     setLoading(true);
     setError(null);
     try {
-      const res = await pengaduanApi.listPaged({ page, per_page: 10 });
+      const res = await pengaduanApi.listPaged({ page, per_page: perPage });
       setList(res.data);
       setMeta(res.meta);
     } catch (e) {
@@ -61,12 +62,12 @@ export default function HalamanPengaduan() {
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, [page, perPage]);
 
   useEffect(() => {
     let aktif = true;
     pengaduanApi
-      .listPaged({ page, per_page: 10 })
+      .listPaged({ page, per_page: perPage })
       .then((res) => {
         if (!aktif) return;
         setList(res.data);
@@ -82,7 +83,7 @@ export default function HalamanPengaduan() {
     return () => {
       aktif = false;
     };
-  }, [page]);
+  }, [page, perPage]);
 
   const kirim = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -283,7 +284,17 @@ export default function HalamanPengaduan() {
             ))}
           </div>
         )}
-        {!tampilLoading && !error && meta ? <Pagination meta={meta} onPage={setPage} /> : null}
+        {!tampilLoading && !error && meta ? (
+          <Pagination
+            meta={meta}
+            onPage={setPage}
+            perPage={perPage}
+            onPerPage={(n) => {
+              setPerPage(n);
+              setPage(1);
+            }}
+          />
+        ) : null}
       </section>
     </AppShell>
   );

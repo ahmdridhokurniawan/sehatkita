@@ -66,6 +66,7 @@ export default function AdminIndikatorPage() {
   const [tab, setTab] = useState<"indikator" | "ambang">("indikator");
   const [cari, setCari] = useState("");
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
 
   const [indikator, setIndikator] = useState<Indikator[]>([]);
   const [indMeta, setIndMeta] = useState<Meta | null>(null);
@@ -101,8 +102,8 @@ export default function AdminIndikatorPage() {
     try {
       const q = cari.trim() || undefined;
       const [indRes, ambRes, allIndRes] = await Promise.all([
-        adminApi.indikator.listPaged({ page: tab === "indikator" ? page : 1, per_page: 20, search: tab === "indikator" ? q : undefined }),
-        adminApi.ambangKategori.listPaged({ page: tab === "ambang" ? page : 1, per_page: 20, search: tab === "ambang" ? q : undefined }),
+        adminApi.indikator.listPaged({ page: tab === "indikator" ? page : 1, per_page: perPage, search: tab === "indikator" ? q : undefined }),
+        adminApi.ambangKategori.listPaged({ page: tab === "ambang" ? page : 1, per_page: perPage, search: tab === "ambang" ? q : undefined }),
         adminApi.indikator.list({ per_page: 100 }),
       ]);
       setIndikator(indRes.data || []);
@@ -116,7 +117,7 @@ export default function AdminIndikatorPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, tab, cari]);
+  }, [page, perPage, tab, cari]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -467,7 +468,17 @@ export default function AdminIndikatorPage() {
               ))}
           </div>
 
-          {activeMeta && <Pagination meta={activeMeta} onPage={setPage} />}
+          {activeMeta && (
+            <Pagination
+              meta={activeMeta}
+              onPage={setPage}
+              perPage={perPage}
+              onPerPage={(n) => {
+                setPerPage(n);
+                setPage(1);
+              }}
+            />
+          )}
 
           <p className="tiny center mt-16 mb-16">
             <Icon name="info" size={13} /> Ambang menentukan kategori yang dipakai saat menilai catatan baru.

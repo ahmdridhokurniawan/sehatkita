@@ -153,6 +153,7 @@ export default function PanduanPage() {
   const [terbuka, setTerbuka] = useState<string | null>(null);
   const [cariIstilah, setCariIstilah] = useState("");
   const [halamanKamus, setHalamanKamus] = useState(1);
+  const [perPageKamus, setPerPageKamus] = useState(PER_PAGE_KAMUS);
 
   const istilahTersaring = useMemo(() => {
     const q = cariIstilah.trim().toLowerCase();
@@ -165,15 +166,15 @@ export default function PanduanPage() {
   }, [cariIstilah]);
 
   const totalKamus = istilahTersaring.length;
-  const lastPageKamus = Math.max(1, Math.ceil(totalKamus / PER_PAGE_KAMUS));
+  const lastPageKamus = Math.max(1, Math.ceil(totalKamus / perPageKamus));
   const halamanKamusAman = Math.min(halamanKamus, lastPageKamus);
   const kamusTampil = istilahTersaring.slice(
-    (halamanKamusAman - 1) * PER_PAGE_KAMUS,
-    halamanKamusAman * PER_PAGE_KAMUS,
+    (halamanKamusAman - 1) * perPageKamus,
+    halamanKamusAman * perPageKamus,
   );
   const metaKamus: Meta = {
     page: halamanKamusAman,
-    per_page: PER_PAGE_KAMUS,
+    per_page: perPageKamus,
     total: totalKamus,
     last_page: lastPageKamus,
   };
@@ -293,7 +294,16 @@ export default function PanduanPage() {
                 </div>
               ))}
             </div>
-            <Pagination meta={metaKamus} onPage={setHalamanKamus} />
+            <Pagination
+              meta={metaKamus}
+              onPage={setHalamanKamus}
+              perPage={perPageKamus}
+              perPageOptions={[4, 8, 12, 20]}
+              onPerPage={(n) => {
+                setPerPageKamus(n);
+                setHalamanKamus(1);
+              }}
+            />
           </>
         )}
       </section>

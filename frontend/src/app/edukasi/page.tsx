@@ -44,6 +44,7 @@ export default function EdukasiPage() {
   const [meta, setMeta] = useState<Meta | null>(null);
   const [ringkasan, setRingkasan] = useState<RingkasanProgresEdukasi | null>(null);
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [kategori, setKategori] = useState<string>("");
   const [statusBaca, setStatusBaca] = useState<string>("");
   const [cari, setCari] = useState("");
@@ -81,7 +82,7 @@ export default function EdukasiPage() {
     try {
       const res = await edukasiApi.listPaged({
         page,
-        per_page: 9,
+        per_page: perPage,
         kategori: kategori || undefined,
         status_baca: isWarga && statusBaca ? statusBaca : undefined,
         search: cari.trim() || undefined,
@@ -95,7 +96,7 @@ export default function EdukasiPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, kategori, statusBaca, cari, isWarga]);
+  }, [page, perPage, kategori, statusBaca, cari, isWarga]);
 
   useEffect(() => {
     if (!user) return;
@@ -103,7 +104,7 @@ export default function EdukasiPage() {
     edukasiApi
       .listPaged({
         page,
-        per_page: 9,
+        per_page: perPage,
         kategori: kategori || undefined,
         status_baca: isWarga && statusBaca ? statusBaca : undefined,
         search: cari.trim() || undefined,
@@ -124,7 +125,7 @@ export default function EdukasiPage() {
     return () => {
       aktif = false;
     };
-  }, [user, page, kategori, statusBaca, cari, isWarga]);
+  }, [user, page, perPage, kategori, statusBaca, cari, isWarga]);
 
   useEffect(() => {
     if (user?.role !== "super_admin") return;
@@ -458,7 +459,17 @@ export default function EdukasiPage() {
         </div>
       )}
 
-      {!tampilLoading && !error && meta ? <Pagination meta={meta} onPage={setPage} /> : null}
+      {!tampilLoading && !error && meta ? (
+        <Pagination
+          meta={meta}
+          onPage={setPage}
+          perPage={perPage}
+          onPerPage={(n) => {
+            setPerPage(n);
+            setPage(1);
+          }}
+        />
+      ) : null}
 
       {/* Modal baca materi & catat progres pribadi */}
       <Modal

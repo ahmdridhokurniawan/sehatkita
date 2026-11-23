@@ -7,25 +7,17 @@ import Icon from "@/components/ui/Icon";
 import { useToast } from "@/components/ui/Toast";
 import PilihWarga from "@/components/warga/PilihWarga";
 import { useUser } from "@/hooks/useUser";
-import { RANGE, validAngka, validGulaDarah, validTglPemeriksaan } from "@/lib/validasi";
+import { RANGE, validAngka, validGulaDarah } from "@/lib/validasi";
 import { satuanGulaDarah } from "@/lib/labels";
 import { catatanKesehatan, posbindu as posbinduApi, ApiError } from "@/lib/api";
 import { tanggal } from "@/lib/format";
 import type { CatatanKesehatanInput, SesiPosbindu, WargaCari } from "@/types";
 
 /* ------------------------------------------------------------------
-   Form "Catat Kesehatan" — diporting dari prototype catatan-form.js.
-   Aturan yang ditekankan pembimbing:
-   - Hanya Waktu & Sumber yang WAJIB (ditandai *), sisanya opsional.
+   Form "Catat Kesehatan"
+   - Waktu pemeriksaan & sumber data diset otomatis sesuai role login.
    - Field angka: hanya boleh angka (huruf ditolak saat mengetik).
-   - Waktu pemeriksaan tidak boleh di masa depan.
    ------------------------------------------------------------------ */
-
-const SUMBER = [
-  { v: "mandiri", l: "Mandiri (pencatatan sendiri)" },
-  { v: "kader", l: "Posbindu / Kader" },
-  { v: "puskesmas", l: "Fasilitas Kesehatan" },
-];
 
 const JENIS_GULA = [
   { v: "puasa", l: "Puasa" },
@@ -66,11 +58,8 @@ type Props = {
 export default function CatatModal({ open, onClose, onSaved }: Props) {
   const toast = useToast();
   const { user } = useUser();
-  const petugas = user?.role === "kader" || user?.role === "admin_kelurahan" || user?.role === "super_admin";
   const tanpaPersetujuan = Boolean(user?.role === "user" && !user.consent_at);
 
-  const [waktu, setWaktu] = useState(nowLocal);
-  const [sumber, setSumber] = useState("");
   const [warga, setWarga] = useState<WargaCari | null>(null);
   const [sesiId, setSesiId] = useState("");
   const [daftarSesi, setDaftarSesi] = useState<SesiPosbindu[]>([]);
@@ -83,26 +72,14 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
   const [err, setErr] = useState<Record<string, string>>({});
   const [simpan, setSimpan] = useState(false);
 
-  /* Sumber otomatis mengikuti peran akun yang sedang login (tanpa dropdown pilih role). */
-  const sumberOtomatis = useMemo(() => {
+  /* Sumber otomatis mengikuti peran akun yang sedang login (tanpa dropdown/tampilan waktu & sumber). */
+  const efektifSumber = useMemo(() => {
     if (user?.role === "super_admin") return "puskesmas";
     if (user?.role === "kader") return "kader";
     return "mandiri";
   }, [user?.role]);
 
-  const labelSumberOtomatis = useMemo(() => {
-    return SUMBER.find((s) => s.v === sumberOtomatis)?.l ?? "Mandiri (pencatatan sendiri)";
-  }, [sumberOtomatis]);
-
   const batasWilayah = user?.role === "kader" ? user.wilayah_id : null;
-  const efektifSumber = sumber || sumberOtomatis;
-
-  useEffect(() => {
-    if (open) {
-      setWaktu(nowLocal());
-      setSumber(sumberOtomatis);
-    }
-  }, [open, sumberOtomatis]);
 
   /* Dropdown sesi hanya relevan bila sumber = kader; pilih warga berlaku untuk kader & puskesmas */
   const butuhWarga = efektifSumber === "kader" || efektifSumber === "puskesmas";
@@ -129,8 +106,6 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
   }, [open, butuhSesi, sesiSelesai]);
 
   function reset() {
-    setWaktu(nowLocal());
-    setSumber(petugas ? "" : "mandiri");
     setWarga(null);
     setSesiId("");
     setAngka({});
@@ -154,7 +129,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
         setErr((prev) => ({ ...prev, gula_darah: "", jenis_gula_darah: "" }));
         return;
       }
-      const cek = validGulaDarah(bersih, jenisGula || "puasa");
+      const cek = validGulaDarah(bersih, jenisGula || "puasa", true);
       setErr((prev) => ({
         ...prev,
         gula_darah: cek.ok ? "" : cek.msg || "",
@@ -168,11 +143,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
 
   async function kirim() {
     const e: Record<string, string> = {};
-    const vWaktu = validTglPemeriksaan(waktu);
-    if (!vWaktu.ok) e.dicatat_pada = vWaktu.msg || "Waktu wajib diisi.";
-    if (!efektifSumber) e.sumber = "Sumber wajib dipilih.";
-
-    const payload: Record<string, unknown> = { dicatat_pada: waktu, sumber: efektifSumber };
+    const payload: Record<string, unknown> = { dicatat_pada: nowLocal(), sumber: efektifSumber };
 
     // Sumber kader & puskesmas wajib menyertakan warga; sumber kader juga butuh sesi posbindu
     if (butuhWarga) {
@@ -190,8 +161,8 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
       if (t === "") continue;
       const v =
         f.id === "gula_darah"
-          ? validGulaDarah(t, jenisGula || "puasa")
-          : validAngka(f.id, t);
+          ? validGulaDarah(t, jenisGula || "puasa", true)
+          : validAngka(f.id, t, true);
       if (!v.ok) e[f.id] = v.msg || "Nilai tidak valid.";
       else {
         payload[f.id] = v.value;
@@ -224,8 +195,15 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
 
     setSimpan(true);
     try {
-      await catatanKesehatan.create(payload as unknown as CatatanKesehatanInput);
-      toast.success("Catatan kesehatan tersimpan.", { title: "Berhasil" });
+      const saved = await catatanKesehatan.create(payload as unknown as CatatanKesehatanInput);
+      if (saved?.perlu_verifikasi) {
+        toast.info(
+          "Nilai di luar rentang wajar: catatan disimpan sebagai data anomali dan menunggu verifikasi Admin Kelurahan / Super Admin.",
+          { title: "Menunggu Verifikasi" },
+        );
+      } else {
+        toast.success("Catatan kesehatan tersimpan.", { title: "Berhasil" });
+      }
       onSaved?.(payload);
       reset();
       onClose();
@@ -261,7 +239,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
         <div>
           <h3 className="h3">Catat Kesehatan</h3>
           <p className="tiny" style={{ marginTop: 4 }}>
-            Hanya <b>Waktu</b> dan <b>Sumber</b> yang wajib. Isi pengukuran sesuai data yang Anda miliki.
+            Waktu &amp; sumber pencatatan otomatis disesuaikan. Isi pengukuran sesuai data yang Anda miliki.
           </p>
         </div>
       }
@@ -290,49 +268,11 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
         </div>
       ) : null}
 
-      <fieldset className="form-section" style={{ paddingTop: 18 }}>
-        <legend style={{ marginBottom: 12 }}>
-          <span className="n">1</span> Waktu &amp; Sumber
-        </legend>
-        <div className="grid grid-2" style={{ gap: 16, marginTop: 6 }}>
-          <div className="field">
-            <label className="label" htmlFor="dicatat_pada" style={{ marginBottom: 8, display: "block" }}>
-              Waktu pemeriksaan <span className="req">*</span>
-            </label>
-            <input
-              className={"input" + (err.dicatat_pada ? " is-error" : "")}
-              type="datetime-local"
-              id="dicatat_pada"
-              max={`${nowLocal().slice(0, 10)}T23:59`}
-              value={waktu}
-              onChange={(e) => {
-                setWaktu(e.target.value);
-                setErr((p) => ({ ...p, dicatat_pada: "" }));
-              }}
-            />
-            <div className="hint" style={{ marginTop: 6 }}>
-              Otomatis disesuaikan dengan waktu pemeriksaan dilakukan sekarang.
-            </div>
-            {err.dicatat_pada ? <div className="err-msg show">{err.dicatat_pada}</div> : null}
-          </div>
-          <div className="field">
-            <label className="label" htmlFor="sumber" style={{ marginBottom: 8, display: "block" }}>
-              Sumber data <span className="req">*</span>
-            </label>
-            <div
-              id="sumber"
-              className="card card-flat"
-              style={{ padding: "10px 14px", fontSize: "0.9rem", fontWeight: 600 }}
-            >
-              {labelSumberOtomatis}
-            </div>
-            <div className="hint" style={{ marginTop: 6 }}>
-              Otomatis mengikuti peran akun yang sedang masuk ({user?.role ?? "warga"}).
-            </div>
-          </div>
-        </div>
-
-        {butuhWarga ? (
+      {butuhWarga ? (
+        <fieldset className="form-section" style={{ paddingTop: 18 }}>
+          <legend style={{ marginBottom: 12 }}>
+            <span className="n">1</span> Data Peserta {butuhSesi ? "& Sesi Posbindu" : ""}
+          </legend>
           <PilihWarga
             value={warga}
             onChange={(w) => {
@@ -343,41 +283,41 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
             id="catat-warga"
             wilayahId={batasWilayah}
           />
-        ) : null}
 
-        {butuhSesi ? (
-          <div className="field">
-            <label className="label" htmlFor="sesi_posbindu_id">
-              Sesi posbindu <span className="req">*</span>
-            </label>
-            <select
-              className={"select" + (err.sesi_posbindu_id ? " is-error" : "")}
-              id="sesi_posbindu_id"
-              value={sesiId}
-              onChange={(e) => {
-                setSesiId(e.target.value);
-                setErr((p) => ({ ...p, sesi_posbindu_id: "" }));
-              }}
-              disabled={muatSesi}
-            >
-              <option value="">{muatSesi ? "Memuat sesi…" : "Pilih sesi…"}</option>
-              {daftarSesi.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {tanggal(s.tanggal, "short")} · {s.lokasi}
-                </option>
-              ))}
-            </select>
-            {err.sesi_posbindu_id ? <div className="err-msg show">{err.sesi_posbindu_id}</div> : null}
-            {!muatSesi && daftarSesi.length === 0 ? (
-              <div className="hint">Belum ada sesi posbindu di wilayah Anda. Minta admin kelurahan membuat sesi dulu.</div>
-            ) : null}
-          </div>
-        ) : null}
-      </fieldset>
+          {butuhSesi ? (
+            <div className="field">
+              <label className="label" htmlFor="sesi_posbindu_id">
+                Sesi posbindu <span className="req">*</span>
+              </label>
+              <select
+                className={"select" + (err.sesi_posbindu_id ? " is-error" : "")}
+                id="sesi_posbindu_id"
+                value={sesiId}
+                onChange={(e) => {
+                  setSesiId(e.target.value);
+                  setErr((p) => ({ ...p, sesi_posbindu_id: "" }));
+                }}
+                disabled={muatSesi}
+              >
+                <option value="">{muatSesi ? "Memuat sesi…" : "Pilih sesi…"}</option>
+                {daftarSesi.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {tanggal(s.tanggal, "short")} · {s.lokasi}
+                  </option>
+                ))}
+              </select>
+              {err.sesi_posbindu_id ? <div className="err-msg show">{err.sesi_posbindu_id}</div> : null}
+              {!muatSesi && daftarSesi.length === 0 ? (
+                <div className="hint">Belum ada sesi posbindu di wilayah Anda. Minta admin kelurahan membuat sesi dulu.</div>
+              ) : null}
+            </div>
+          ) : null}
+        </fieldset>
+      ) : null}
 
       <fieldset className="form-section">
         <legend>
-          <span className="n">2</span> Pengukuran Tubuh &amp; Tensi
+          <span className="n">{butuhWarga ? 2 : 1}</span> Pengukuran Tubuh &amp; Tensi
         </legend>
         <div className="grid grid-2" style={{ gap: 12 }}>
           <AngkaField f={FIELD_ANGKA[0]} value={angka[FIELD_ANGKA[0].id] || ""} err={err[FIELD_ANGKA[0].id]} onChange={ubahAngka} />
@@ -391,7 +331,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
 
       <fieldset className="form-section">
         <legend>
-          <span className="n">3</span> Pemeriksaan Laboratorium
+          <span className="n">{butuhWarga ? 3 : 2}</span> Pemeriksaan Laboratorium
         </legend>
         <div className="grid grid-2" style={{ gap: 12 }}>
           <AngkaField
@@ -421,7 +361,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
                     setJenisGula(nextJenis);
                     const gulaVal = (angka.gula_darah || "").trim();
                     if (gulaVal !== "" && nextJenis) {
-                      const cek = validGulaDarah(gulaVal, nextJenis);
+                      const cek = validGulaDarah(gulaVal, nextJenis, true);
                       setErr((p) => ({
                         ...p,
                         jenis_gula_darah: "",
@@ -465,7 +405,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
 
       <fieldset className="form-section" style={{ marginBottom: 12 }}>
         <legend>
-          <span className="n">4</span> Kebiasaan Sehari-hari
+          <span className="n">{butuhWarga ? 4 : 3}</span> Kebiasaan Sehari-hari
         </legend>
         <div className="grid grid-2" style={{ gap: 10 }}>
           <AngkaField f={FIELD_ANGKA[7]} value={angka[FIELD_ANGKA[7].id] || ""} err={err[FIELD_ANGKA[7].id]} onChange={ubahAngka} />
@@ -513,7 +453,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
 
       <fieldset className="form-section" style={{ marginBottom: 0 }}>
         <legend>
-          <span className="n">5</span> Catatan Tambahan
+          <span className="n">{butuhWarga ? 5 : 4}</span> Catatan Tambahan
         </legend>
         <div className="field" style={{ marginBottom: 0 }}>
           <label className="label" htmlFor="catatan">

@@ -90,6 +90,7 @@ export default function AdminPenggunaPage() {
   const [filter, setFilter] = useState<string>("semua");
   const [cari, setCari] = useState("");
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [daftar, setDaftar] = useState<AdminPengguna[]>([]);
   const [loading, setLoading] = useState(true);
@@ -118,7 +119,7 @@ export default function AdminPenggunaPage() {
     try {
       const res = await adminApi.pengguna.listPaged({
         page,
-        per_page: 20,
+        per_page: perPage,
         role: filter !== "semua" ? filter : undefined,
         search: cari.trim() || undefined,
       });
@@ -130,7 +131,7 @@ export default function AdminPenggunaPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, filter, cari]);
+  }, [page, perPage, filter, cari]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -461,7 +462,17 @@ export default function AdminPenggunaPage() {
             )}
           </div>
 
-          {meta && <Pagination meta={meta} onPage={setPage} />}
+          {meta && (
+            <Pagination
+              meta={meta}
+              onPage={setPage}
+              perPage={perPage}
+              onPerPage={(n) => {
+                setPerPage(n);
+                setPage(1);
+              }}
+            />
+          )}
 
           <p className="tiny center mt-16 mb-16">
             <Icon name="info" size={13} /> Menonaktifkan akun tidak menghapus datanya; akun langsung

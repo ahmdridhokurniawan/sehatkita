@@ -18,8 +18,8 @@ class DatabaseSeeder extends Seeder
             IndikatorSeeder::class,
             FaskesSeeder::class,
             PenggunaWilayahSeeder::class,
-            WargaDummySeeder::class,
             EdukasiSeeder::class,
+            WargaDummySeeder::class,
         ]);
     }
 }

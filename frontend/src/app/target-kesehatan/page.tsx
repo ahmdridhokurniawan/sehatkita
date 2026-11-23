@@ -34,6 +34,7 @@ export default function TargetKesehatanPage() {
   const toast = useToast();
   const [daftar, setDaftar] = useState<TargetKesehatan[]>([]);
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [loading, setLoading] = useState(true);
   const [celebrate, setCelebrate] = useState(false);
@@ -52,7 +53,7 @@ export default function TargetKesehatanPage() {
   const muat = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await targetKesehatan.listPaged({ page, per_page: 12 });
+      const res = await targetKesehatan.listPaged({ page, per_page: perPage });
       setDaftar(res.data || []);
       setMeta(res.meta);
       setError("");
@@ -61,12 +62,12 @@ export default function TargetKesehatanPage() {
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, [page, perPage]);
 
   useEffect(() => {
     let aktif = true;
     targetKesehatan
-      .listPaged({ page, per_page: 12 })
+      .listPaged({ page, per_page: perPage })
       .then((res) => {
         if (!aktif) return;
         setDaftar(res.data || []);
@@ -82,7 +83,7 @@ export default function TargetKesehatanPage() {
     return () => {
       aktif = false;
     };
-  }, [page]);
+  }, [page, perPage]);
 
   const tercapai = useMemo(() => daftar.filter((t) => t.tercapai).length, [daftar]);
   const lewatTenggat = useMemo(
@@ -336,7 +337,17 @@ export default function TargetKesehatanPage() {
         </div>
       )}
 
-      {!tampilLoading && meta ? <Pagination meta={meta} onPage={setPage} /> : null}
+      {!tampilLoading && meta ? (
+        <Pagination
+          meta={meta}
+          onPage={setPage}
+          perPage={perPage}
+          onPerPage={(n) => {
+            setPerPage(n);
+            setPage(1);
+          }}
+        />
+      ) : null}
 
       <Modal
         open={formBuka}

@@ -103,6 +103,7 @@ export default function ProgramPage() {
 
   const [program, setProgram] = useState<Program[]>([]);
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [cari, setCari] = useState("");
   const [loading, setLoading] = useState(true);
@@ -190,7 +191,7 @@ export default function ProgramPage() {
     try {
       const res = await programApi.listPaged({
         page,
-        per_page: 10,
+        per_page: perPage,
         exclude_jenis: "edukasi",
         jenis: (filterJenis || undefined) as JenisProgram | undefined,
         search: cari.trim() || undefined,
@@ -203,7 +204,7 @@ export default function ProgramPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, cari, filterJenis]);
+  }, [page, perPage, cari, filterJenis]);
 
   useEffect(() => {
     if (loadingUser || !user) return;
@@ -211,7 +212,7 @@ export default function ProgramPage() {
     programApi
       .listPaged({
         page,
-        per_page: 10,
+        per_page: perPage,
         exclude_jenis: "edukasi",
         jenis: (filterJenis || undefined) as JenisProgram | undefined,
         search: cari.trim() || undefined,
@@ -231,7 +232,7 @@ export default function ProgramPage() {
     return () => {
       aktif = false;
     };
-  }, [loadingUser, user, page, cari, filterJenis]);
+  }, [loadingUser, user, page, perPage, cari, filterJenis]);
 
   useEffect(() => {
     if (!loadingUser && role === "super_admin") {
@@ -643,7 +644,17 @@ export default function ProgramPage() {
         </div>
       ) : null}
 
-      {!tampilLoading && !error && meta ? <Pagination meta={meta} onPage={setPage} /> : null}
+      {!tampilLoading && !error && meta ? (
+        <Pagination
+          meta={meta}
+          onPage={setPage}
+          perPage={perPage}
+          onPerPage={(n) => {
+            setPerPage(n);
+            setPage(1);
+          }}
+        />
+      ) : null}
 
       <Modal
         open={buatOpen}

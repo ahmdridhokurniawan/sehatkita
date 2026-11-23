@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import AppShell from "@/components/app/AppShell";
 import TombolKembaliAdmin from "@/components/admin/TombolKembaliAdmin";
@@ -24,6 +25,29 @@ const MEDALI = [
   { warna: "#64748B", bg: "rgba(100, 116, 139, 0.12)", label: "Juara 2" },
   { warna: "#9A5B25", bg: "rgba(154, 91, 37, 0.12)", label: "Juara 3" },
 ];
+
+const GAYA_BADGE_KATEGORI: Record<string, { label: string; warna: string; bg: string }> = {
+  pencatatan: { label: "Pencatatan", warna: "#10B981", bg: "rgba(16, 185, 129, 0.14)" },
+  posbindu: { label: "Posbindu", warna: "#F43F5E", bg: "rgba(244, 63, 94, 0.14)" },
+  target: { label: "Target", warna: "#8B5CF6", bg: "rgba(139, 92, 246, 0.14)" },
+  tantangan: { label: "Tantangan", warna: "#F59E0B", bg: "rgba(245, 158, 11, 0.14)" },
+  edukasi: { label: "Edukasi", warna: "#0EA5E9", bg: "rgba(14, 165, 233, 0.14)" },
+  keaktifan: { label: "Keaktifan", warna: "#EAB308", bg: "rgba(234, 179, 8, 0.14)" },
+  program: { label: "Program", warna: "#14B8A6", bg: "rgba(20, 184, 166, 0.14)" },
+};
+
+const IKON_BADGE_KODE: Record<string, string> = {
+  langkah_pertama: "activity",
+  rajin_mencatat: "clipboard",
+  konsisten_sehat: "flame",
+  aktif_posbindu: "heart-pulse",
+  rutin_posbindu: "shield",
+  penakluk_target: "target",
+  pejuang_tantangan: "trophy",
+  pembelajar_sehat: "book-open",
+  warga_teladan: "star",
+  sahabat_sehat: "sparkles",
+};
 
 export default function PeringkatPage() {
   const { user, loading: loadingUser } = useUser();
@@ -232,9 +256,36 @@ export default function PeringkatPage() {
                             </span>
                           ) : null}
                         </div>
-                        <span className="tiny">
-                          Level {b.level_gamifikasi} · {b.exp_total} EXP
-                        </span>
+                        <div className="row wrap items-center gap-6 mt-2">
+                          <span className="tiny">
+                            Level {b.level_gamifikasi} · {b.exp_total} EXP
+                          </span>
+                          {b.badges && b.badges.length > 0 ? (
+                            <span className="row items-center gap-4" title={b.badges.join(", ")}>
+                              {b.badges.slice(0, 5).map((kode) => (
+                                <span
+                                  key={kode}
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    width: 20,
+                                    height: 20,
+                                    borderRadius: 999,
+                                    background: "var(--primary-050)",
+                                    color: "var(--primary)",
+                                  }}
+                                  title={kode.replace(/_/g, " ")}
+                                >
+                                  <Icon name={IKON_BADGE_KODE[kode] || "award"} size={12} />
+                                </span>
+                              ))}
+                              {b.badges.length > 5 ? (
+                                <span className="tiny">+{b.badges.length - 5}</span>
+                              ) : null}
+                            </span>
+                          ) : null}
+                        </div>
                       </div>
                       <div className="li-side" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                         <Icon name="award" size={14} className="text-primary" />
@@ -298,8 +349,11 @@ export default function PeringkatPage() {
                       </div>
                       <div className="grid grid-2" style={{ gap: 12 }}>
                         {achievement.daftar.map((item) => {
-                          const tierLabel =
-                            item.tier === "emas" ? "Emas" : item.tier === "perak" ? "Perak" : "Perunggu";
+                          const gaya = GAYA_BADGE_KATEGORI[item.kategori] ?? {
+                            label: item.kategori || "Lencana",
+                            warna: "var(--primary)",
+                            bg: "var(--primary-050)",
+                          };
                           return (
                             <div
                               key={item.kode}
@@ -315,8 +369,8 @@ export default function PeringkatPage() {
                               <span
                                 className="li-ico shrink-0"
                                 style={{
-                                  background: item.diraih ? "var(--primary-050)" : "var(--surface-2)",
-                                  color: item.diraih ? "var(--primary)" : "var(--text-3)",
+                                  background: item.diraih ? gaya.bg : "var(--surface-2)",
+                                  color: item.diraih ? gaya.warna : "var(--text-3)",
                                 }}
                               >
                                 <Icon name={item.ikon || "award"} size={18} />
@@ -325,7 +379,7 @@ export default function PeringkatPage() {
                                 <div className="row-between wrap gap-6">
                                   <strong className="text-sm">{item.nama}</strong>
                                   <Badge tone={item.diraih ? "safe" : "default"}>
-                                    {item.diraih ? `${tierLabel} · Diraih` : tierLabel}
+                                    {item.diraih ? `${gaya.label} · Diraih` : gaya.label}
                                   </Badge>
                                 </div>
                                 <p className="tiny mt-2">{item.deskripsi}</p>
@@ -382,14 +436,26 @@ export default function PeringkatPage() {
           ) : null}
 
           <div
-            className="tiny mt-16 mb-16"
-            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, textAlign: "center" }}
+            className="alert alert-info mt-16 mb-16"
+            style={{ alignItems: "center", justifyContent: "flex-start", textAlign: "left", gap: 10 }}
           >
-            <Icon name="shield" size={14} className="shrink-0" />
-            <span>
-              {user?.role === "user"
-                ? 'Demi privasi, nama Anda disamarkan menjadi "Peserta anonim" kecuali opsi "Tampilkan nama di peringkat" diaktifkan pada menu Profil.'
-                : 'Demi privasi, peserta yang tidak mengaktifkan "Tampilkan nama di peringkat" pada profilnya akan ditampilkan sebagai "Peserta anonim".'}
+            <Icon name="shield" size={16} />
+            <span className="tiny">
+              {user?.role === "user" ? (
+                <>
+                  Demi privasi, nama Anda disamarkan sebagai <strong>Peserta anonim</strong> kecuali opsi{" "}
+                  <strong>Tampilkan nama di peringkat</strong> diaktifkan di{" "}
+                  <Link href="/profil" style={{ fontWeight: 600, textDecoration: "underline" }}>
+                    Profil
+                  </Link>
+                  .
+                </>
+              ) : (
+                <>
+                  Demi privasi, peserta yang tidak mengaktifkan <strong>Tampilkan nama di peringkat</strong>{" "}
+                  ditampilkan sebagai <strong>Peserta anonim</strong>.
+                </>
+              )}
             </span>
           </div>
         </>

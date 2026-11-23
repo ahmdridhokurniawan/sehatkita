@@ -6,16 +6,14 @@ import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
-import Segmented from "@/components/ui/Segmented";
 import Pagination, { type Meta } from "@/components/ui/Pagination";
-import Line from "@/components/charts/Line";
 import CatatModal from "@/components/catatan/CatatModal";
 import PilihWarga from "@/components/warga/PilihWarga";
 import { EmptyState, Loading } from "@/components/ui/Empty";
 import { useToast } from "@/components/ui/Toast";
 import { useUser } from "@/hooks/useUser";
 import { useMinLoading } from "@/hooks/useMinLoading";
-import { admin as adminApi, catatanKesehatan, rekamMedis, ApiError } from "@/lib/api";
+import { admin as adminApi, catatanKesehatan, ApiError } from "@/lib/api";
 import { tanggal } from "@/lib/format";
 import {
   LABEL_JENIS_GULA_DARAH,
@@ -25,25 +23,7 @@ import {
   satuanGulaDarah,
 } from "@/lib/labels";
 import type { StatusKesehatan } from "@/lib/enums";
-import type { CatatanKesehatan, RekamMedis as RekamMedisType, WargaCari } from "@/types";
-
-const INDIKATOR = [
-  { k: "bb_kg", label: "Berat Badan", unit: "kg", dec: 0 },
-  { k: "imt", label: "IMT", unit: "kg/m²", dec: 1 },
-  { k: "sistol", label: "Sistol", unit: "mmHg", dec: 0 },
-  { k: "diastol", label: "Diastol", unit: "mmHg", dec: 0 },
-  { k: "gula_darah", label: "Gula Darah", unit: "mg/dL", dec: 0 },
-  { k: "kolesterol", label: "Kolesterol", unit: "mg/dL", dec: 0 },
-  { k: "asam_urat", label: "Asam Urat", unit: "mg/dL", dec: 1 },
-  { k: "lingkar_perut", label: "Lingkar Perut", unit: "cm", dec: 0 },
-] as const;
-
-const PERIODE = [
-  { value: "1m", label: "1 Bulan" },
-  { value: "3m", label: "3 Bulan" },
-  { value: "6m", label: "6 Bulan" },
-  { value: "1y", label: "1 Tahun" },
-];
+import type { CatatanKesehatan, WargaCari } from "@/types";
 
 const NAMA_BULAN_KAL = [
   "Januari", "Februari", "Maret", "April", "Mei", "Juni",
@@ -123,8 +103,6 @@ export default function RekamMedisPage() {
   const bisaCatat = !isAdminKel;
   const bisaHapus = !isAdminKel;
   const bisaVerifikasi = isAdminKel || user?.role === "super_admin";
-  const [periode, setPeriode] = useState<"1m" | "3m" | "6m" | "1y">("3m");
-  const [indikator, setIndikator] = useState<string>("bb_kg");
   const [wargaDipilih, setWargaDipilih] = useState<WargaCari | null>(null);
   const [filterStatus, setFilterStatus] = useState<"semua" | "berisiko" | "perlu_perhatian" | "verifikasi">("semua");
   const [cari, setCari] = useState("");
@@ -138,6 +116,7 @@ export default function RekamMedisPage() {
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const [halaman, setHalaman] = useState(1);
+  const [perPage, setPerPage] = useState(PER_HALAMAN);
   const [detail, setDetail] = useState<CatatanKesehatan | null>(null);
   const [catatTerbuka, setCatatTerbuka] = useState(false);
   const [hapusItem, setHapusItem] = useState<CatatanKesehatan | null>(null);
@@ -164,7 +143,6 @@ export default function RekamMedisPage() {
 
   // Fetch data awal & refresh manual
   const [catatan, setCatatan] = useState<CatatanKesehatan[]>([]);
-  const [grafik, setGrafik] = useState<RekamMedisType | null>(null);
   const [loading, setLoading] = useState(true);
   const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState<string | null>(null);
@@ -195,39 +173,11 @@ export default function RekamMedisPage() {
     };
   }, [user, targetUserId]);
 
-  useEffect(() => {
-    if (!user || isAdminKel) return;
-    if (bisaPilihWarga && !wargaDipilih) {
-      return;
-    }
-    let aktif = true;
-    rekamMedis
-      .get({ indikator, periode, user_id: wargaDipilih?.id })
-      .then((gData) => {
-        if (!aktif) return;
-        setGrafik(gData);
-      })
-      .catch((err: unknown) => {
-        if (!aktif) return;
-        const apiErr = err instanceof ApiError ? err : null;
-        console.error("Rekam medis chart error:", err);
-        setError((prev) => prev || apiErr?.message || "Gagal memuat grafik");
-      });
-    return () => {
-      aktif = false;
-    };
-  }, [user, isAdminKel, bisaPilihWarga, wargaDipilih, indikator, periode]);
-
   async function muat() {
     try {
       setLoading(true);
-      const butuhGrafik = !isAdminKel && (!bisaPilihWarga || Boolean(wargaDipilih));
-      const [cList, gData] = await Promise.all([
-        catatanKesehatan.list({ per_page: 100, user_id: targetUserId }),
-        butuhGrafik ? rekamMedis.get({ indikator, periode, user_id: wargaDipilih?.id }) : Promise.resolve(null),
-      ]);
+      const cList = await catatanKesehatan.list({ per_page: 100, user_id: targetUserId });
       setCatatan(cList);
-      setGrafik(gData);
       setError(null);
     } catch (err: unknown) {
       const apiErr = err instanceof ApiError ? err : null;
@@ -237,15 +187,6 @@ export default function RekamMedisPage() {
       setLoading(false);
     }
   }
-
-  const ind = INDIKATOR.find((i) => i.k === indikator) || INDIKATOR[0];
-
-  // Grafik
-  const seri = useMemo(() => {
-    if (!grafik?.series?.[0]) return [];
-    const s = grafik.series[0];
-    return s.titik.map((t) => ({ tanggal: t.tanggal, nilai: t.nilai }));
-  }, [grafik]);
 
   const jumlahBerisiko = useMemo(
     () => catatan.filter((c) => c.status_kesehatan === "berisiko").length,
@@ -329,22 +270,24 @@ export default function RekamMedisPage() {
   }, [cari, catatan, dariTgl, sampaiTgl, filterStatus, bisaPilihWarga]);
 
   const total = tersaring.length;
-  const lastPage = Math.max(1, Math.ceil(total / PER_HALAMAN));
+  const lastPage = Math.max(1, Math.ceil(total / perPage));
   const halamanAman = Math.min(halaman, lastPage);
-  const baris = tersaring.slice((halamanAman - 1) * PER_HALAMAN, halamanAman * PER_HALAMAN);
+  const baris = tersaring.slice((halamanAman - 1) * perPage, halamanAman * perPage);
 
-  const meta: Meta = { page: halamanAman, per_page: PER_HALAMAN, total, last_page: lastPage };
+  const meta: Meta = { page: halamanAman, per_page: perPage, total, last_page: lastPage };
 
   if (tampilLoading) {
     return (
-      <AppShell noFab={!bisaCatat} onFab={bisaCatat ? () => setCatatTerbuka(true) : undefined}>
+      <AppShell noFab>
         <Loading text="Data rekam medis sedang dimuat…" variant="cards" />
       </AppShell>
     );
   }
 
+  const jumlahNormal = catatan.filter((c) => c.status_kesehatan === "normal").length;
+
   return (
-    <AppShell noFab={!bisaCatat} onFab={bisaCatat ? () => setCatatTerbuka(true) : undefined}>
+    <AppShell noFab>
       {error && (
         <div className="alert alert-warning mb-16">
           <Icon name="alert-circle" />
@@ -352,14 +295,59 @@ export default function RekamMedisPage() {
         </div>
       )}
 
-      <div className="row-between mb-16">
+      <div
+        className="mb-16"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: 12,
+        }}
+      >
         <div>
-          <h1 className="h3">Rekam Medis</h1>
-          <p className="tiny">
+          <h1 className="h3" style={{ margin: 0 }}>Rekam Medis</h1>
+          <p className="tiny mt-4" style={{ marginBottom: 0 }}>
             {isAdminKel
               ? "Riwayat pemeriksaan warga kelurahan (hanya lihat, tidak bisa diubah)."
-              : "Riwayat pemeriksaan dan grafik perkembangan indikator."}
+              : "Riwayat pemeriksaan kesehatan Anda. Grafik tren tersedia langsung di Beranda."}
           </p>
+        </div>
+        {bisaCatat ? (
+          <button
+            className="btn btn-sm btn-primary"
+            type="button"
+            style={{ flexShrink: 0 }}
+            onClick={() => setCatatTerbuka(true)}
+          >
+            <Icon name="plus" size={16} /> Catat Kesehatan
+          </button>
+        ) : null}
+      </div>
+
+      <div
+        className="mb-16"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+          gap: 12,
+        }}
+      >
+        <div className="card" style={{ padding: "14px 16px" }}>
+          <div className="tiny">Total Catatan</div>
+          <div className="metric-val">{catatan.length}</div>
+        </div>
+        <div className="card" style={{ padding: "14px 16px" }}>
+          <div className="tiny">Normal</div>
+          <div className="metric-val" style={{ color: "var(--safe)" }}>{jumlahNormal}</div>
+        </div>
+        <div className="card" style={{ padding: "14px 16px" }}>
+          <div className="tiny">Perlu Perhatian</div>
+          <div className="metric-val" style={{ color: "var(--warning)" }}>{jumlahPerhatian}</div>
+        </div>
+        <div className="card" style={{ padding: "14px 16px" }}>
+          <div className="tiny">Berisiko</div>
+          <div className="metric-val" style={{ color: "var(--danger)" }}>{jumlahBerisiko}</div>
         </div>
       </div>
 
@@ -369,29 +357,17 @@ export default function RekamMedisPage() {
             value={wargaDipilih}
             onChange={(w) => {
               setWargaDipilih(w);
-              if (!w) setGrafik(null);
               setHalaman(1);
             }}
             id="rekam-medis-warga"
-            label="Filter per warga (opsional, cari nama atau NIK untuk melihat grafik tren warga)"
+            label="Filter per warga (opsional, cari NIK atau nama warga)"
             wilayahId={user?.role === "kader" ? user.wilayah_id : null}
           />
         </div>
       ) : null}
 
-      {/* Grafik tren kesehatan kini ditampilkan langsung di halaman Beranda agar lebih ringkas */}
-
-      <div className="app-section-title mt-20">
+      <div className="app-section-title mt-8">
         <h2>Riwayat Catatan</h2>
-        {bisaCatat ? (
-          <button
-            className="btn btn-sm btn-primary"
-            type="button"
-            onClick={() => setCatatTerbuka(true)}
-          >
-            <Icon name="plus" size={16} /> Catat
-          </button>
-        ) : null}
       </div>
       <div className="chip-row mt-12">
         <button
@@ -904,22 +880,22 @@ export default function RekamMedisPage() {
             }
           />
         ) : (
-          <div className="card mb-12" style={{ padding: 0, overflowX: "auto" }}>
+          <div className="card mb-12" style={{ padding: 0, overflow: "hidden" }}>
             <div className="tbl-wrap">
-              <table className="tbl tbl-excel">
+              <table className="tbl compact tbl-excel" style={{ width: "100%", fontVariantNumeric: "tabular-nums" }}>
                 <thead>
                   <tr>
-                    <th>Tanggal</th>
-                    <th>Sumber</th>
-                    {petugas ? <th>Warga</th> : null}
-                    <th className="num">BB (kg)</th>
-                    <th className="num">IMT</th>
-                    <th className="num">Tensi (mmHg)</th>
-                    <th className="num">Gula Darah</th>
-                    <th className="num">Kolesterol</th>
-                    <th className="num">Asam Urat</th>
-                    <th>Status</th>
-                    <th className="num">Aksi</th>
+                    <th style={{ textAlign: "left" }}>Tanggal</th>
+                    <th style={{ textAlign: "left" }}>Sumber</th>
+                    {petugas ? <th style={{ textAlign: "left" }}>Warga</th> : null}
+                    <th style={{ textAlign: "center" }}>BB (kg)</th>
+                    <th style={{ textAlign: "center" }}>IMT</th>
+                    <th style={{ textAlign: "center" }}>Tensi</th>
+                    <th style={{ textAlign: "center" }}>Gula</th>
+                    <th style={{ textAlign: "center" }}>Kol.</th>
+                    <th style={{ textAlign: "center" }}>As. Urat</th>
+                    <th style={{ textAlign: "center" }}>Status</th>
+                    <th style={{ textAlign: "center" }}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -928,14 +904,27 @@ export default function RekamMedisPage() {
                       bisaPilihWarga &&
                       Boolean(c.pengguna) &&
                       (c.status_kesehatan === "berisiko" || c.status_kesehatan === "perlu_perhatian");
+                    const bbTampil = c.bb_kg !== null ? Number(c.bb_kg).toFixed(1) : "—";
+                    const imtTampil = c.imt !== null ? Number(c.imt).toFixed(1) : "—";
+                    const gulaTampil =
+                      c.gula_darah !== null
+                        ? `${Number(c.gula_darah)}${c.jenis_gula_darah ? ` · ${labelSingkatGula(c.jenis_gula_darah)}` : ""}`
+                        : "—";
+                    const toneSumber =
+                      c.sumber === "puskesmas" ? "info" : c.sumber === "kader" ? "primary" : "default";
+
                     return (
                       <tr key={c.id}>
-                        <td>{tanggal(c.dicatat_pada, "short")}</td>
-                        <td>{LABEL_SUMBER[c.sumber] || c.sumber}</td>
+                        <td style={{ fontWeight: 500, textAlign: "left" }}>
+                          {tanggal(c.dicatat_pada, "short")}
+                        </td>
+                        <td style={{ textAlign: "left" }}>
+                          <Badge tone={toneSumber}>{LABEL_SUMBER[c.sumber] || c.sumber}</Badge>
+                        </td>
                         {petugas ? (
-                          <td>
+                          <td style={{ maxWidth: 140, overflow: "hidden", textOverflow: "ellipsis", textAlign: "left" }}>
                             {c.pengguna ? (
-                              <span title={bisaPilihWarga && c.pengguna.nik ? `NIK ${c.pengguna.nik}` : undefined}>
+                              <span title={bisaPilihWarga && c.pengguna.nik ? `NIK ${c.pengguna.nik}` : c.pengguna.name}>
                                 {c.pengguna.name}
                               </span>
                             ) : (
@@ -943,37 +932,38 @@ export default function RekamMedisPage() {
                             )}
                           </td>
                         ) : null}
-                        <td className="num">{c.bb_kg !== null ? c.bb_kg : "—"}</td>
-                        <td className="num">
+                        <td style={{ textAlign: "center" }}>{bbTampil}</td>
+                        <td style={{ textAlign: "center" }}>
                           {c.imt !== null ? (
                             <span title={c.kategori_imt ? labelKategoriIndikator(c.kategori_imt) : undefined}>
-                              {c.imt}
+                              {imtTampil}
                             </span>
                           ) : (
                             "—"
                           )}
                         </td>
-                        <td className="num">
+                        <td style={{ textAlign: "center" }}>
                           {c.sistol !== null && c.diastol !== null ? `${c.sistol}/${c.diastol}` : "—"}
                         </td>
-                        <td className="num">
-                          {c.gula_darah !== null ? (
-                            <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end", lineHeight: 1.25 }}>
-                              <span>
-                                {c.gula_darah} {satuanGulaDarah(c.jenis_gula_darah)}
-                              </span>
-                              <span className="tiny" style={{ fontSize: 11, color: "var(--ink-3)", fontWeight: 600 }}>
-                                {labelSingkatGula(c.jenis_gula_darah)}
-                              </span>
-                            </div>
-                          ) : (
-                            "—"
-                          )}
+                        <td style={{ textAlign: "center" }}>
+                          <span
+                            title={
+                              c.gula_darah !== null
+                                ? `${c.gula_darah} ${satuanGulaDarah(c.jenis_gula_darah)}`
+                                : undefined
+                            }
+                          >
+                            {gulaTampil}
+                          </span>
                         </td>
-                        <td className="num">{c.kolesterol !== null ? `${c.kolesterol} mg/dL` : "—"}</td>
-                        <td className="num">{c.asam_urat !== null ? `${c.asam_urat} mg/dL` : "—"}</td>
-                        <td>
-                          <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                        <td style={{ textAlign: "center" }}>
+                          {c.kolesterol !== null ? c.kolesterol : "—"}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          {c.asam_urat !== null ? Number(c.asam_urat).toFixed(1) : "—"}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          <div style={{ display: "inline-flex", gap: 4, alignItems: "center", justifyContent: "center" }}>
                             {c.perlu_verifikasi ? <Badge tone="warning">Verifikasi</Badge> : null}
                             {c.status_kesehatan ? (
                               <Badge tone={toneStatusKesehatan(c.status_kesehatan)}>
@@ -984,8 +974,8 @@ export default function RekamMedisPage() {
                             )}
                           </div>
                         </td>
-                        <td className="num">
-                          <div className="row gap-6" style={{ justifyContent: "flex-end", flexWrap: "nowrap" }}>
+                        <td style={{ textAlign: "center" }}>
+                          <div className="row gap-6" style={{ justifyContent: "center", flexWrap: "nowrap" }}>
                             {bisaVerifikasi && c.perlu_verifikasi ? (
                               <>
                                 <button
@@ -1042,7 +1032,15 @@ export default function RekamMedisPage() {
             </div>
           </div>
         )}
-        <Pagination meta={meta} onPage={setHalaman} />
+        <Pagination
+          meta={meta}
+          onPage={setHalaman}
+          perPage={perPage}
+          onPerPage={(n) => {
+            setPerPage(n);
+            setHalaman(1);
+          }}
+        />
       </div>
 
       {/* Modal detail */}

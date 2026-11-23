@@ -352,6 +352,7 @@ export default function RujukanPage() {
   const [filter, setFilter] = useState<string>("semua");
   const [cari, setCari] = useState("");
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [daftarRujukan, setDaftarRujukan] = useState<Rujukan[]>([]);
   const [daftarFaskes, setDaftarFaskes] = useState<Faskes[]>([]);
@@ -383,7 +384,7 @@ export default function RujukanPage() {
     try {
       const res = await rujukanApi.listPaged({
         page,
-        per_page: 12,
+        per_page: perPage,
         status: filter !== "semua" ? (filter as StatusRujukan) : undefined,
         search: cari.trim() || undefined,
       });
@@ -396,14 +397,14 @@ export default function RujukanPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, filter, cari]);
+  }, [page, perPage, filter, cari]);
 
   useEffect(() => {
     let aktif = true;
     rujukanApi
       .listPaged({
         page,
-        per_page: 12,
+        per_page: perPage,
         status: filter !== "semua" ? (filter as StatusRujukan) : undefined,
         search: cari.trim() || undefined,
       })
@@ -422,7 +423,7 @@ export default function RujukanPage() {
     return () => {
       aktif = false;
     };
-  }, [page, filter, cari]);
+  }, [page, perPage, filter, cari]);
 
   useEffect(() => {
     if (!bisaBuat) return;
@@ -739,7 +740,17 @@ export default function RujukanPage() {
             )}
           </div>
 
-          {meta ? <Pagination meta={meta} onPage={setPage} /> : null}
+          {meta ? (
+            <Pagination
+              meta={meta}
+              onPage={setPage}
+              perPage={perPage}
+              onPerPage={(n) => {
+                setPerPage(n);
+                setPage(1);
+              }}
+            />
+          ) : null}
 
           <p className="tiny center mt-16 mb-16">
             <Icon name="info" size={13} /> Rujukan ini saran sistem, bukan diagnosis medis.

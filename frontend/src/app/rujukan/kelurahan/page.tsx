@@ -55,6 +55,7 @@ export default function RujukanKelurahanPage() {
   const [filterStatus, setFilterStatus] = useState<StatusRujukan | null>(null);
   const [cari, setCari] = useState("");
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [loading, setLoading] = useState(true);
   const tampilLoading = useMinLoading(loading);
@@ -71,7 +72,7 @@ export default function RujukanKelurahanPage() {
     try {
       const res = await rujukanApi.listPaged({
         page,
-        per_page: 12,
+        per_page: perPage,
         status: filterStatus ?? undefined,
         search: cari.trim() || undefined,
       });
@@ -83,14 +84,14 @@ export default function RujukanKelurahanPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, filterStatus, cari]);
+  }, [page, perPage, filterStatus, cari]);
 
   useEffect(() => {
     let aktif = true;
     rujukanApi
       .listPaged({
         page,
-        per_page: 12,
+        per_page: perPage,
         status: filterStatus ?? undefined,
         search: cari.trim() || undefined,
       })
@@ -109,7 +110,7 @@ export default function RujukanKelurahanPage() {
     return () => {
       aktif = false;
     };
-  }, [page, filterStatus, cari]);
+  }, [page, perPage, filterStatus, cari]);
 
   function bukaModalStatus(r: Rujukan) {
     const opsi = opsiLanjut(r.status);
@@ -333,7 +334,17 @@ export default function RujukanKelurahanPage() {
             />
           </div>
         )}
-        {!tampilLoading && !error && meta ? <Pagination meta={meta} onPage={setPage} /> : null}
+        {!tampilLoading && !error && meta ? (
+          <Pagination
+            meta={meta}
+            onPage={setPage}
+            perPage={perPage}
+            onPerPage={(n) => {
+              setPerPage(n);
+              setPage(1);
+            }}
+          />
+        ) : null}
       </section>
 
       <section>

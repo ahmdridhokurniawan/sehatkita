@@ -13,14 +13,26 @@ export type Meta = {
 type Props = {
   meta: Meta;
   onPage: (page: number) => void;
+  perPage?: number;
+  onPerPage?: (perPage: number) => void;
+  perPageOptions?: number[];
 };
 
-/** Paginasi — mengikuti .pagination prototype; toleran dua bentuk meta. */
-export default function Pagination({ meta, onPage }: Props) {
-  if (!meta || meta.last_page <= 1) return null;
+const DEFAULT_OPTIONS = [5, 10, 15, 25, 50];
+
+/** Paginasi — selalu tampil bila ada data; mendukung ubah jumlah data per halaman. */
+export default function Pagination({
+  meta,
+  onPage,
+  perPage,
+  onPerPage,
+  perPageOptions = DEFAULT_OPTIONS,
+}: Props) {
+  if (!meta || meta.total <= 0) return null;
   const cur = meta.page || meta.current_page || 1;
-  const last = meta.last_page;
-  const per = meta.per_page;
+  const last = Math.max(1, meta.last_page || 1);
+  const per = perPage ?? meta.per_page ?? 10;
+  const opsi = Array.from(new Set([...perPageOptions, per])).sort((a, b) => a - b);
 
   const pages: (number | "‹" | "›")[] = [];
   pages.push("‹");
@@ -34,10 +46,32 @@ export default function Pagination({ meta, onPage }: Props) {
   const sampai = Math.min(cur * per, meta.total);
 
   return (
-    <div className="pagination">
-      <span className="tiny">
-        Menampilkan {dari}–{sampai} dari {angka(meta.total)} data
-      </span>
+    <div className="pagination" style={{ flexWrap: "wrap", gap: 10 }}>
+      <div className="row" style={{ alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <span className="tiny">
+          Menampilkan {dari}–{sampai} dari {angka(meta.total)} data
+        </span>
+        {onPerPage ? (
+          <label className="row tiny" style={{ alignItems: "center", gap: 6 }}>
+            <span>Per halaman:</span>
+            <select
+              className="select"
+              aria-label="Jumlah data per halaman"
+              value={per}
+              onChange={(e) => onPerPage(Number(e.target.value))}
+              style={{ width: "auto", minWidth: 68, padding: "4px 8px", height: 32, fontSize: "0.82rem" }}
+            >
+              {opsi.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <span className="tiny">({per} / halaman)</span>
+        )}
+      </div>
       <div className="pages">
         {pages.map((p, i) => {
           const isPrev = p === "‹";
@@ -47,6 +81,7 @@ export default function Pagination({ meta, onPage }: Props) {
           return (
             <button
               key={i}
+              type="button"
               className={p === cur ? "active" : ""}
               disabled={disabled}
               onClick={() => !disabled && onPage(pageNum)}

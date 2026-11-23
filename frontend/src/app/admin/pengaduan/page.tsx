@@ -37,6 +37,7 @@ const PENGOLAHAN: { kode: Exclude<StatusPengaduan, "menunggu">; label: string }[
 export default function HalamanAdminPengaduan() {
   const [list, setList] = useState<Pengaduan[]>([]);
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [loading, setLoading] = useState(true);
   const tampilLoading = useMinLoading(loading);
@@ -55,7 +56,7 @@ export default function HalamanAdminPengaduan() {
     try {
       const res = await pengaduanApi.listPaged({
         page,
-        per_page: 10,
+        per_page: perPage,
         status: filter || undefined,
       });
       setList(res.data);
@@ -65,12 +66,12 @@ export default function HalamanAdminPengaduan() {
     } finally {
       setLoading(false);
     }
-  }, [filter, page]);
+  }, [filter, page, perPage]);
 
   useEffect(() => {
     let aktif = true;
     pengaduanApi
-      .listPaged({ page, per_page: 10, status: filter || undefined })
+      .listPaged({ page, per_page: perPage, status: filter || undefined })
       .then((res) => {
         if (!aktif) return;
         setList(res.data);
@@ -86,7 +87,7 @@ export default function HalamanAdminPengaduan() {
     return () => {
       aktif = false;
     };
-  }, [filter, page]);
+  }, [filter, page, perPage]);
 
   const buka = (p: Pengaduan) => {
     setAktif(p);
@@ -175,7 +176,17 @@ export default function HalamanAdminPengaduan() {
         </div>
       )}
 
-      {!tampilLoading && !error && meta ? <Pagination meta={meta} onPage={setPage} /> : null}
+      {!tampilLoading && !error && meta ? (
+        <Pagination
+          meta={meta}
+          onPage={setPage}
+          perPage={perPage}
+          onPerPage={(n) => {
+            setPerPage(n);
+            setPage(1);
+          }}
+        />
+      ) : null}
 
       <Modal open={!!aktif} onClose={() => setAktif(null)} title="Tanggapi Pengaduan">
         {aktif ? (

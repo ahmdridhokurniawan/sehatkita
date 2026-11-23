@@ -35,6 +35,7 @@ export default function AdminVerifikasiPage() {
   const [daftar, setDaftar] = useState<Baris[]>([]);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [loading, setLoading] = useState(true);
   const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState("");
@@ -62,7 +63,7 @@ export default function AdminVerifikasiPage() {
   const muat = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await adminApi.verifikasi.list({ page, per_page: 20 });
+      const res = await adminApi.verifikasi.list({ page, per_page: perPage });
       setDaftar(res.data as Baris[]);
       setMeta(res.meta ?? null);
       setError("");
@@ -71,12 +72,12 @@ export default function AdminVerifikasiPage() {
     } finally {
       setLoading(false);
     }
-  }, [page]);
+  }, [page, perPage]);
 
   useEffect(() => {
     let aktif = true;
     adminApi.verifikasi
-      .list({ page, per_page: 20 })
+      .list({ page, per_page: perPage })
       .then((res) => {
         if (!aktif) return;
         setDaftar(res.data as Baris[]);
@@ -92,7 +93,7 @@ export default function AdminVerifikasiPage() {
     return () => {
       aktif = false;
     };
-  }, [page]);
+  }, [page, perPage]);
 
   async function putuskan(id: number, setuju: boolean) {
     setProses(id);
@@ -211,7 +212,17 @@ export default function AdminVerifikasiPage() {
         </>
       )}
 
-      {meta && <Pagination meta={meta} onPage={setPage} />}
+      {meta && (
+        <Pagination
+          meta={meta}
+          onPage={setPage}
+          perPage={perPage}
+          onPerPage={(n) => {
+            setPerPage(n);
+            setPage(1);
+          }}
+        />
+      )}
 
       <p className="tiny center mt-16">
         <Icon name="info" size={13} /> Menolak catatan akan menghapusnya dari riwayat pengguna.

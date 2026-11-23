@@ -54,6 +54,7 @@ export default function AdminFaskesPage() {
   const [filter, setFilter] = useState<string>("semua");
   const [cari, setCari] = useState("");
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [daftar, setDaftar] = useState<Faskes[]>([]);
   const [loading, setLoading] = useState(true);
@@ -74,7 +75,7 @@ export default function AdminFaskesPage() {
     try {
       const res = await adminApi.faskes.listPaged({
         page,
-        per_page: 20,
+        per_page: perPage,
         jenis: filter !== "semua" ? filter : undefined,
         search: cari.trim() || undefined,
       });
@@ -86,7 +87,7 @@ export default function AdminFaskesPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, filter, cari]);
+  }, [page, perPage, filter, cari]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -314,7 +315,17 @@ export default function AdminFaskesPage() {
             )}
           </div>
 
-          {meta && <Pagination meta={meta} onPage={setPage} />}
+          {meta && (
+            <Pagination
+              meta={meta}
+              onPage={setPage}
+              perPage={perPage}
+              onPerPage={(n) => {
+                setPerPage(n);
+                setPage(1);
+              }}
+            />
+          )}
         </>
       )}
 

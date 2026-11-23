@@ -32,6 +32,7 @@ export default function AdminLogAuditPage() {
   const [daftar, setDaftar] = useState<LogAudit[]>([]);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [filter, setFilter] = useState<string>("semua");
   const [cari, setCari] = useState("");
   const [loading, setLoading] = useState(true);
@@ -43,7 +44,7 @@ export default function AdminLogAuditPage() {
     try {
       const res = await adminApi.logAudit.listPaged({
         page,
-        per_page: 20,
+        per_page: perPage,
         aksi: filter !== "semua" ? filter : undefined,
         search: cari.trim() || undefined,
       });
@@ -56,7 +57,7 @@ export default function AdminLogAuditPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, filter, cari]);
+  }, [page, perPage, filter, cari]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -172,7 +173,15 @@ export default function AdminLogAuditPage() {
 
         {meta ? (
           <div className="mt-12">
-            <Pagination meta={meta} onPage={setPage} />
+            <Pagination
+              meta={meta}
+              onPage={setPage}
+              perPage={perPage}
+              onPerPage={(n) => {
+                setPerPage(n);
+                setPage(1);
+              }}
+            />
           </div>
         ) : null}
 

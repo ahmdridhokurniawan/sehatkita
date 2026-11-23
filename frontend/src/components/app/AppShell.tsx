@@ -196,6 +196,7 @@ const NAV_UTAMA: NavItem[] = [
   { href: "/insight", icon: "zap", label: "Peringatan Dini", short: "Peringatan", desc: "Peringatan dini kondisi risiko & saran tindak lanjut personal" },
   { href: "/insight/panduan", icon: "file-text", label: "Panduan", desc: "Panduan ambang batas indikator PTM & edukasi kesehatan" },
   { href: "/pengaduan", icon: "alert-circle", label: "Pengaduan", desc: "Kirim laporan kendala, saran atau pengaduan layanan" },
+  { href: "/progres-pribadi", icon: "trending-up", label: "Progres Pribadi", short: "Progres", desc: "Ringkasan capaian tantangan, target, edukasi & lencana" },
 ];
 
 const NAV_DATA: NavItem[] = [
@@ -431,7 +432,7 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
     });
     grup.push({
       judul: "Program",
-      items: [NAV_UTAMA[4], NAV_UTAMA[6]],
+      items: [NAV_UTAMA[4], NAV_UTAMA[10], NAV_UTAMA[6]],
     });
     grup.push({
       judul: "Edukasi",

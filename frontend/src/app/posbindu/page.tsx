@@ -72,6 +72,7 @@ export default function PosbinduPage() {
   const [statusFilter, setStatusFilter] = useState<"semua" | KodeStatusSesi>("semua");
   const [kunjungan, setKunjungan] = useState<KunjunganPosbindu[]>([]);
   const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [meta, setMeta] = useState<Meta | null>(null);
   const [loading, setLoading] = useState(true);
   const tampilLoading = useMinLoading(loading);
@@ -115,13 +116,13 @@ export default function PosbinduPage() {
       if (bolehKelola) {
         const res = await posbinduApi.sesiListPaged({
           page,
-          per_page: 12,
+          per_page: perPage,
           search: cari.trim() || undefined,
         });
         setSesi(res.data);
         setMeta(res.meta);
       } else {
-        const res = await posbinduApi.kunjunganPaged({ page, per_page: 12 });
+        const res = await posbinduApi.kunjunganPaged({ page, per_page: perPage });
         setKunjungan(res.data);
         setMeta(res.meta);
       }
@@ -132,21 +133,21 @@ export default function PosbinduPage() {
     } finally {
       setLoading(false);
     }
-  }, [bolehKelola, page, cari]);
+  }, [bolehKelola, page, perPage, cari]);
 
   useEffect(() => {
     if (loadingUser || !user) return;
     let aktif = true;
     const req = bolehKelola
       ? posbinduApi
-          .sesiListPaged({ page, per_page: 12, search: cari.trim() || undefined })
+          .sesiListPaged({ page, per_page: perPage, search: cari.trim() || undefined })
           .then((res) => {
             if (aktif) {
               setSesi(res.data);
               setMeta(res.meta);
             }
           })
-      : posbinduApi.kunjunganPaged({ page, per_page: 12 }).then((res) => {
+      : posbinduApi.kunjunganPaged({ page, per_page: perPage }).then((res) => {
           if (aktif) {
             setKunjungan(res.data);
             setMeta(res.meta);
@@ -167,7 +168,7 @@ export default function PosbinduPage() {
     return () => {
       aktif = false;
     };
-  }, [loadingUser, user, bolehKelola, page, cari]);
+  }, [loadingUser, user, bolehKelola, page, perPage, cari]);
 
   useEffect(() => {
     if (!perluPilihWilayah) return;
@@ -612,7 +613,17 @@ export default function PosbinduPage() {
         )
       ) : null}
 
-      {!tampilLoading && !error && meta ? <Pagination meta={meta} onPage={setPage} /> : null}
+      {!tampilLoading && !error && meta ? (
+        <Pagination
+          meta={meta}
+          onPage={setPage}
+          perPage={perPage}
+          onPerPage={(n) => {
+            setPerPage(n);
+            setPage(1);
+          }}
+        />
+      ) : null}
 
       {/* Modal buat / ubah sesi */}
       <Modal
