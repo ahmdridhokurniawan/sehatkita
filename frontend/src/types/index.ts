@@ -485,6 +485,8 @@ export interface PesertaSaya {
   diverifikasi_pada?: string | null;
   selesai_pada?: string | null;
 }
+export type ModeProgresProgram = "otomatis" | "manual" | "tanpa_progres";
+
 export interface Program {
   id: number;
   wilayah_id?: number | null;
@@ -494,6 +496,7 @@ export interface Program {
   jenis: JenisProgram;
   kategori_aktivitas?: string | null;
   target_peserta: number;
+  mode_progres?: ModeProgresProgram;
   target_nilai?: number | null;
   satuan_target?: string | null;
   jumlah_peserta: number;
@@ -525,6 +528,7 @@ export interface ProgramInput {
   jenis: JenisProgram;
   kategori_aktivitas?: string | null;
   target_peserta?: number;
+  mode_progres?: ModeProgresProgram;
   target_nilai?: number | null;
   satuan_target?: string | null;
   mulai: string;

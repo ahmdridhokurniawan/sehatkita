@@ -17,7 +17,7 @@ import { program as programApi, wilayah as wilayahApi, ApiError } from "@/lib/ap
 import { JENIS_PROGRAM } from "@/lib/enums";
 import { LABEL_STATUS_PESERTA } from "@/lib/labels";
 import type { JenisProgram, StatusPeserta, StatusProgram } from "@/lib/enums";
-import type { Program, Wilayah } from "@/types";
+import type { ModeProgresProgram, Program, Wilayah } from "@/types";
 
 const LABEL_STATUS: Record<string, string> = {
   berjalan: "Berjalan",
@@ -125,6 +125,7 @@ export default function ProgramPage() {
   const [kelurahan, setKelurahan] = useState<Wilayah[]>([]);
   const [filterJenis, setFilterJenis] = useState<string>("");
   const [fTarget, setFTarget] = useState("50");
+  const [fModeProgres, setFModeProgres] = useState<ModeProgresProgram>("manual");
   const [fTargetNilai, setFTargetNilai] = useState("");
   const [fSatuanTarget, setFSatuanTarget] = useState("");
   const [fMulai, setFMulai] = useState("");
@@ -151,6 +152,7 @@ export default function ProgramPage() {
     setFKategori("");
     setFWilayah("");
     setFTarget("50");
+    setFModeProgres("manual");
     setFTargetNilai("");
     setFSatuanTarget("");
     setFMulai("");
@@ -171,6 +173,7 @@ export default function ProgramPage() {
     setFKategori(p.kategori_aktivitas || "");
     setFWilayah(p.wilayah_id != null ? String(p.wilayah_id) : "");
     setFTarget(String(p.target_peserta || 1));
+    setFModeProgres(p.mode_progres ?? (p.target_nilai ? "otomatis" : "manual"));
     setFTargetNilai(p.target_nilai != null ? String(p.target_nilai) : "");
     setFSatuanTarget(p.satuan_target || "");
     setFMulai((p.mulai || "").slice(0, 10));
@@ -268,6 +271,9 @@ export default function ProgramPage() {
     if (fJenis === "lainnya" && !fKategori.trim()) {
       e.kategori_aktivitas = "Tulis atau pilih kategori tantangan lainnya.";
     }
+    if (fModeProgres === "otomatis" && (!fTargetNilai.trim() || Number(fTargetNilai) <= 0)) {
+      e.target_nilai = "Target capaian angka wajib diisi lebih dari 0 untuk mode otomatis.";
+    }
     if (!fExp.trim() || Number.isNaN(expAngka) || expAngka < 1) {
       e.exp = "Reward EXP wajib diisi minimal 1 poin.";
     }
@@ -295,8 +301,9 @@ export default function ProgramPage() {
         jenis: fJenis,
         kategori_aktivitas: kategoriVal,
         target_peserta: Number(fTarget) || 1,
-        target_nilai: fTargetNilai.trim() ? Number(fTargetNilai) : undefined,
-        satuan_target: fSatuanTarget.trim() || undefined,
+        mode_progres: fModeProgres,
+        target_nilai: fModeProgres === "otomatis" && fTargetNilai.trim() ? Number(fTargetNilai) : undefined,
+        satuan_target: fModeProgres === "otomatis" && fSatuanTarget.trim() ? fSatuanTarget.trim() : undefined,
         mulai: fMulai,
         selesai: fSelesai,
         exp: Math.round(expAngka),
@@ -474,7 +481,7 @@ export default function ProgramPage() {
       ) : null}
 
       {!tampilLoading && !error && tersaring.length > 0 ? (
-        <div className="card card-list">
+        <div style={{ display: "grid", gap: 14 }}>
           {tersaring.map((p) => {
             const st = hitungStatus(p.mulai, p.selesai, p.status);
             const ikon = IKON_JENIS[p.jenis] || IKON_JENIS.lainnya;
@@ -484,9 +491,16 @@ export default function ProgramPage() {
               : 0;
             return (
               <div
-                className="li"
+                className="card"
                 key={p.id}
-                style={{ flexDirection: "column", alignItems: "stretch", gap: 10 }}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "stretch",
+                  gap: 12,
+                  padding: "18px 20px",
+                  borderLeft: `4px solid ${ikon.color}`,
+                }}
               >
                 <div className="row-between" style={{ gap: 10, alignItems: "flex-start" }}>
                   <div className="row gap-10" style={{ alignItems: "flex-start", minWidth: 0 }}>
@@ -561,7 +575,7 @@ export default function ProgramPage() {
                   ) : null}
                 </div>
 
-                {bolehIkut && p.diikuti && p.peserta_saya ? (
+                {bolehIkut && p.diikuti && p.peserta_saya && (p.mode_progres ?? (p.target_nilai ? "otomatis" : "manual")) !== "tanpa_progres" ? (
                   <div>
                     <div className="row-between tiny mb-4">
                       <span>Progres pribadi saya</span>
@@ -753,24 +767,43 @@ export default function ProgramPage() {
               </select>
             </div>
           ) : null}
-          <div className="grid grid-2" style={{ gap: 12 }}>
-            <Input
-              label="Target capaian angka (opsional)"
-              type="number"
-              min={1}
-              placeholder="misalnya 50 (untuk hitung % otomatis)"
-              value={fTargetNilai}
-              onChange={(e) => setFTargetNilai(e.target.value)}
-            />
-            <Input
-              label="Satuan target (opsional)"
-              type="text"
-              maxLength={40}
-              placeholder="misalnya kali, menit, km"
-              value={fSatuanTarget}
-              onChange={(e) => setFSatuanTarget(e.target.value)}
-            />
+          <div className="field">
+            <label className="label" htmlFor="prog-mode-progres">
+              Mode Progres Peserta
+            </label>
+            <select
+              id="prog-mode-progres"
+              className="select"
+              value={fModeProgres}
+              onChange={(e) => setFModeProgres(e.target.value as ModeProgresProgram)}
+            >
+              <option value="otomatis">Otomatis (hitung % dari target angka, mis. 100 push up)</option>
+              <option value="manual">Manual (warga geser persentase 0–100%)</option>
+              <option value="tanpa_progres">Tanpa Progres (kegiatan sekali hadir, mis. Senam Bersama)</option>
+            </select>
           </div>
+          {fModeProgres === "otomatis" ? (
+            <div className="grid grid-2" style={{ gap: 12 }}>
+              <Input
+                label="Target capaian angka"
+                type="number"
+                min={1}
+                placeholder="misalnya 100"
+                value={fTargetNilai}
+                onChange={(e) => setFTargetNilai(e.target.value)}
+                error={fErr.target_nilai}
+                required
+              />
+              <Input
+                label="Satuan target"
+                type="text"
+                maxLength={40}
+                placeholder="misalnya push up, km, menit"
+                value={fSatuanTarget}
+                onChange={(e) => setFSatuanTarget(e.target.value)}
+              />
+            </div>
+          ) : null}
           <div className="grid grid-2" style={{ gap: 12 }}>
             <Input
               label="Reward EXP"

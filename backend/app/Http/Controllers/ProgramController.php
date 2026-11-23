@@ -111,6 +111,7 @@ class ProgramController extends Controller
             'jenis' => ['required', Rule::in(['olahraga', 'edukasi', 'pemeriksaan', 'lainnya'])],
             'kategori_aktivitas' => ['nullable', 'string', 'max:50', Rule::requiredIf(fn () => $request->input('jenis') === 'lainnya')],
             'target_peserta' => 'nullable|integer|min:1',
+            'mode_progres' => ['nullable', Rule::in(['otomatis', 'manual', 'tanpa_progres'])],
             'mulai' => 'required|date',
             'selesai' => 'required|date|after_or_equal:mulai',
             'target_nilai' => 'nullable|numeric|gt:0|max:1000000',
@@ -126,6 +127,18 @@ class ProgramController extends Controller
             'exp_reward.min' => 'Reward EXP minimal 1 poin.',
             'kategori_aktivitas.required' => 'Kategori aktivitas wajib diisi saat memilih jenis Lainnya.',
         ]);
+
+        $modeProgres = $data['mode_progres'] ?? (($data['target_nilai'] ?? null) !== null ? 'otomatis' : 'manual');
+        if ($modeProgres === 'otomatis' && (($data['target_nilai'] ?? null) === null || (float) $data['target_nilai'] <= 0)) {
+            throw ValidationException::withMessages([
+                'target_nilai' => ['Target nilai wajib diisi bila mode progres diatur otomatis.'],
+            ]);
+        }
+        $data['mode_progres'] = $modeProgres;
+        if ($modeProgres !== 'otomatis') {
+            $data['target_nilai'] = null;
+            $data['satuan_target'] = null;
+        }
 
         if ($user->role === 'admin_kelurahan') {
             abort_unless($user->wilayah_id, 422, 'Akun admin kelurahan belum memiliki wilayah penugasan.');
@@ -219,6 +232,7 @@ class ProgramController extends Controller
             'jenis' => ['sometimes', Rule::in(['olahraga', 'edukasi', 'pemeriksaan', 'lainnya'])],
             'kategori_aktivitas' => 'sometimes|nullable|string|max:50',
             'target_peserta' => 'sometimes|nullable|integer|min:1',
+            'mode_progres' => ['sometimes', Rule::in(['otomatis', 'manual', 'tanpa_progres'])],
             'target_nilai' => 'sometimes|nullable|numeric|gt:0|max:1000000',
             'satuan_target' => 'sometimes|nullable|string|max:40',
             'mulai' => 'sometimes|date',
@@ -241,6 +255,18 @@ class ProgramController extends Controller
             throw ValidationException::withMessages([
                 'kategori_aktivitas' => ['Kategori aktivitas wajib diisi saat memilih jenis Lainnya.'],
             ]);
+        }
+
+        $modeAkhir = $data['mode_progres'] ?? $program->mode_progres ?? 'manual';
+        $targetAkhir = array_key_exists('target_nilai', $data) ? $data['target_nilai'] : $program->target_nilai;
+        if ($modeAkhir === 'otomatis' && ($targetAkhir === null || (float) $targetAkhir <= 0)) {
+            throw ValidationException::withMessages([
+                'target_nilai' => ['Target nilai wajib diisi bila mode progres diatur otomatis.'],
+            ]);
+        }
+        if ($modeAkhir !== 'otomatis') {
+            $data['target_nilai'] = null;
+            $data['satuan_target'] = null;
         }
 
         if ($user->role === 'admin_kelurahan') {
@@ -766,6 +792,12 @@ class ProgramController extends Controller
             ]);
         }
 
+        if (($program->mode_progres ?? 'manual') === 'tanpa_progres') {
+            throw ValidationException::withMessages([
+                'progres_persen' => ['Tantangan ini tidak menggunakan pencatatan progres mandiri.'],
+            ]);
+        }
+
         $data = $request->validate([
             'progres_persen' => 'nullable|integer|min:0|max:100',
             'capaian_nilai' => 'nullable|numeric|min:0|max:1000000',
@@ -856,6 +888,7 @@ class ProgramController extends Controller
             'jenis' => $p->jenis,
             'kategori_aktivitas' => $p->kategori_aktivitas,
             'target_peserta' => $p->target_peserta,
+            'mode_progres' => $p->mode_progres ?? ($p->target_nilai ? 'otomatis' : 'manual'),
             'target_nilai' => $p->target_nilai !== null ? (float) $p->target_nilai : null,
             'satuan_target' => $p->satuan_target,
             'jumlah_peserta' => (int) ($p->jumlah_peserta ?? $p->peserta()->where('status', '!=', 'berhenti')->count()),

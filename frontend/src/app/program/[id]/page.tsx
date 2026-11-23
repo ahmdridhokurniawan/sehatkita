@@ -281,21 +281,16 @@ export default function ProgramDetailPage() {
 
   async function simpanProgresMandiri() {
     if (!program) return;
-    const punyaTarget = Boolean(program.target_nilai && program.target_nilai > 0);
-    const nilaiTambah = Number(tambahCapaian);
-
-    if (punyaTarget && (!tambahCapaian.trim() || Number.isNaN(nilaiTambah) || nilaiTambah <= 0)) {
-      toast.warning(`Masukkan jumlah capaian (${program.satuan_target || "unit"}) lebih dari 0.`);
-      return;
-    }
+    const punyaTargetServer = Boolean(program.target_nilai && program.target_nilai > 0);
+    const nilaiCapaian = Number(tambahCapaian);
 
     setProgSaving(true);
     try {
       const updated = await programApi.perbaruiProgres(
         program.id,
-        punyaTarget
+        punyaTargetServer && tambahCapaian.trim() !== "" && !Number.isNaN(nilaiCapaian) && nilaiCapaian > 0
           ? {
-              tambah_capaian: nilaiTambah,
+              tambah_capaian: nilaiCapaian,
               catatan_progres: progCatatan.trim() || undefined,
             }
           : {
@@ -612,68 +607,87 @@ export default function ProgramDetailPage() {
             ) : null}
           </div>
 
-          {/* KARTU PROGRES MANDIRI WARGA */}
-          {bolehIkut && program.diikuti ? (
-            <div className="card mt-12">
-              <div className="row-between wrap gap-8 mb-8">
-                <div>
-                  <h2 className="h4">Progres Pribadi Saya</h2>
-                  <p className="tiny mt-2">
-                    Catat perkembangan mandiri Anda selama menjalankan tantangan (tidak menggantikan verifikasi petugas).
-                  </p>
+          {/* KARTU PROGRES MANDIRI WARGA (sesuai pilihan Admin: otomatis / manual / tanpa_progres) */}
+          {(() => {
+            const modeProgres =
+              program.mode_progres ??
+              (program.target_nilai && program.target_nilai > 0 ? "otomatis" : "manual");
+            if (!bolehIkut || !program.diikuti || modeProgres === "tanpa_progres") {
+              return null;
+            }
+            const targetNilai = program.target_nilai ?? 0;
+            const satuan = program.satuan_target || "unit";
+            return (
+              <div className="card mt-12">
+                <div className="row-between wrap gap-8 mb-8">
+                  <div>
+                    <h2 className="h4">Progres Pribadi Saya</h2>
+                    <p className="tiny mt-2">
+                      {modeProgres === "otomatis"
+                        ? `Target tantangan: ${targetNilai} ${satuan}. Masukkan capaian Anda untuk menghitung persentase otomatis.`
+                        : "Catat perkembangan mandiri Anda selama menjalankan tantangan (tidak menggantikan verifikasi petugas)."}
+                    </p>
+                  </div>
+                  <Badge tone={statusSaya === "selesai" ? "safe" : "primary"}>
+                    {statusSaya === "selesai" ? "100% Terverifikasi" : `${progPersen}%`}
+                  </Badge>
                 </div>
-                <Badge tone={statusSaya === "selesai" ? "safe" : "primary"}>
-                  {statusSaya === "selesai" ? "100% Terverifikasi" : `${progPersen}%`}
-                </Badge>
-              </div>
-              <div className="progress mb-10" style={{ height: 8 }}>
-                <i
-                  style={{
-                    width: `${statusSaya === "selesai" ? 100 : progPersen}%`,
-                    background: statusSaya === "selesai" ? "var(--safe)" : "var(--primary)",
-                  }}
-                />
-              </div>
-              {statusSaya !== "selesai" ? (
-                <div style={{ display: "grid", gap: 10 }}>
-                  {program.target_nilai && program.target_nilai > 0 ? (
-                    <div className="field">
-                      <label className="label" htmlFor="prog-tambah-capaian">
-                        Tambah Capaian ({program.satuan_target || "unit"}) — Target{" "}
-                        {program.target_nilai} {program.satuan_target || "unit"}
-                      </label>
-                      <input
-                        id="prog-tambah-capaian"
-                        type="number"
-                        min={1}
-                        step="any"
-                        className="input"
-                        placeholder={`Contoh: 10 (dari ${program.target_nilai} = +${Math.min(100, Math.round((10 / program.target_nilai) * 100))}%)`}
-                        value={tambahCapaian}
-                        onChange={(e) => setTambahCapaian(e.target.value)}
-                      />
-                      <div className="hint mt-4">
-                        Capaian saat ini: <strong>{pSaya?.capaian_nilai ?? 0}</strong> / {program.target_nilai}{" "}
-                        {program.satuan_target || "unit"} ({progPersen}% otomatis).
+                <div className="progress mb-10" style={{ height: 8 }}>
+                  <i
+                    style={{
+                      width: `${statusSaya === "selesai" ? 100 : progPersen}%`,
+                      background: statusSaya === "selesai" ? "var(--safe)" : "var(--primary)",
+                    }}
+                  />
+                </div>
+                {statusSaya !== "selesai" ? (
+                  <div style={{ display: "grid", gap: 12 }}>
+                    {modeProgres === "otomatis" && targetNilai > 0 ? (
+                      <div className="field">
+                        <label className="label" htmlFor="prog-tambah-capaian">
+                          Capaian Dilakukan ({satuan}) — Target {targetNilai} {satuan}
+                        </label>
+                        <input
+                          id="prog-tambah-capaian"
+                          type="number"
+                          min={0}
+                          step="any"
+                          className="input"
+                          placeholder={`Contoh: 50 (dari ${targetNilai} ${satuan} = ${Math.min(100, Math.round((50 / targetNilai) * 100))}%)`}
+                          value={tambahCapaian}
+                          onChange={(e) => {
+                            const cVal = e.target.value;
+                            setTambahCapaian(cVal);
+                            const cNum = Number(cVal);
+                            if (cVal.trim() !== "" && !Number.isNaN(cNum) && cNum >= 0) {
+                              const totalBaru = (pSaya?.capaian_nilai ?? 0) + cNum;
+                              setProgPersen(Math.min(100, Math.max(0, Math.round((totalBaru / targetNilai) * 100))));
+                            } else {
+                              setProgPersen(pSaya?.progres_persen ?? 0);
+                            }
+                          }}
+                        />
+                        <div className="hint mt-4">
+                          Tercatat di sistem: <strong>{pSaya?.capaian_nilai ?? 0}</strong> / {targetNilai} {satuan}
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <label className="label" htmlFor="prog-tantangan-range">
-                        Capaian Progres ({progPersen}%)
-                      </label>
-                      <input
-                        id="prog-tantangan-range"
-                        type="range"
-                        min={0}
-                        max={100}
-                        step={5}
-                        value={progPersen}
-                        onChange={(e) => setProgPersen(Number(e.target.value))}
-                        style={{ width: "100%" }}
-                      />
-                    </div>
-                  )}
+                    ) : (
+                      <div>
+                        <label className="label" htmlFor="prog-tantangan-range">
+                          Capaian Progres ({progPersen}%)
+                        </label>
+                        <input
+                          id="prog-tantangan-range"
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={5}
+                          value={progPersen}
+                          onChange={(e) => setProgPersen(Number(e.target.value))}
+                          style={{ width: "100%" }}
+                        />
+                      </div>
+                    )}
                   <div className="field">
                     <label className="label" htmlFor="prog-tantangan-catatan">
                       Catatan Progres <span className="opt">(opsional)</span>
@@ -693,6 +707,25 @@ export default function ProgramDetailPage() {
                       Simpan Progres Pribadi
                     </Button>
                   </div>
+                  {(pSaya?.progres_diperbarui_pada || (pSaya?.progres_persen ?? 0) > 0 || pSaya?.catatan_progres) ? (
+                    <div className="card card-flat" style={{ padding: "12px 14px", marginTop: 4 }}>
+                      <div className="row-between wrap gap-8">
+                        <strong className="text-xs">
+                          Progres Tersimpan: {pSaya?.progres_persen ?? progPersen}%
+                        </strong>
+                        {pSaya?.progres_diperbarui_pada ? (
+                          <span className="tiny">
+                            Diperbarui {tanggal(pSaya.progres_diperbarui_pada, "short")}
+                          </span>
+                        ) : null}
+                      </div>
+                      {pSaya?.catatan_progres ? (
+                        <p className="tiny mt-4" style={{ marginBottom: 0 }}>
+                          Catatan: {pSaya.catatan_progres}
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               ) : (
                 pSaya?.catatan_progres ? (
@@ -700,7 +733,8 @@ export default function ProgramDetailPage() {
                 ) : null
               )}
             </div>
-          ) : null}
+            );
+          })()}
 
           {/* KARTU VALIDASI & UNGGAH DOKUMENTASI FOTO (WARGA) */}
           {bolehIkut && program.diikuti ? (

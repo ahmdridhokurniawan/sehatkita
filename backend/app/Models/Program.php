@@ -19,6 +19,7 @@ class Program extends Model
         'jenis',
         'kategori_aktivitas',
         'target_peserta',
+        'mode_progres',
         'target_nilai',
         'satuan_target',
         'mulai',
