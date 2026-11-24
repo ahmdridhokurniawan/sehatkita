@@ -1221,8 +1221,9 @@ table.tbl tbody tr:hover { background: var(--surface-2); }
 /* Transisi halus non-blocking saat berpindah rute ditangani oleh NavigationLoader via WAAPI */
 
 /* ---------- 14. TOAST ---------- */
-.toast-wrap { position: fixed; top: 18px; right: 18px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; max-width: min(380px, calc(100vw - 36px)); }
+.toast-wrap { position: fixed; top: 18px; right: 18px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; max-width: min(380px, calc(100vw - 36px)); pointer-events: none; }
 .toast {
+  pointer-events: auto;
   display: flex; gap: 11px; align-items: flex-start; padding: 13px 15px;
   background: var(--surface); border: 1px solid var(--border);
   border-left: 4px solid var(--primary); border-radius: var(--radius);

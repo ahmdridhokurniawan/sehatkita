@@ -61,6 +61,20 @@ class ProgramController extends Controller
         $this->saringCari($query, ['judul', 'kategori_aktivitas'], $request);
 
         $isWarga = $user->role === 'user';
+        $progresFilter = $request->query('progres');
+        if ($isWarga && in_array($progresFilter, ['belum_diikuti', 'proses', 'selesai'], true)) {
+            match ($progresFilter) {
+                'belum_diikuti' => $query->whereDoesntHave('peserta', fn ($q) => $q->where('user_id', $user->id)->where('status', '!=', 'berhenti')),
+                'proses' => $query->whereHas('peserta', fn ($q) => $q->where('user_id', $user->id)
+                    ->where('status', '!=', 'berhenti')
+                    ->where('status', '!=', 'selesai')
+                    ->whereRaw('COALESCE(progres_persen, 0) < 100')),
+                'selesai' => $query->whereHas('peserta', fn ($q) => $q->where('user_id', $user->id)
+                    ->where(fn ($sub) => $sub->where('status', 'selesai')
+                        ->orWhere(fn ($sub2) => $sub2->where('status', '!=', 'berhenti')->whereRaw('COALESCE(progres_persen, 0) >= 100')))),
+            };
+        }
+
         $kondisiSelesai = "status = 'selesai' OR (selesai IS NOT NULL AND DATE(selesai) < ?)";
         $params = [$hariIni];
 
@@ -628,6 +642,12 @@ class ProgramController extends Controller
                 403,
                 'Hanya kader/admin yang dapat memverifikasi penyelesaian tantangan.'
             );
+
+            if ($this->statusProgram($program, now()->toDateString()) === 'selesai') {
+                throw ValidationException::withMessages([
+                    'status' => ['Tantangan sudah selesai, tidak dapat memverifikasi peserta lagi.'],
+                ]);
+            }
 
             if ($user->role !== 'super_admin' && $program->wilayah_id) {
                 abort_unless((int) $program->wilayah_id === (int) $user->wilayah_id, 403,

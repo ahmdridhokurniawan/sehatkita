@@ -27,8 +27,8 @@ use Illuminate\Support\Facades\Route;
 // Daftar alamat layanan yang menghubungkan tampilan aplikasi dengan fitur-fitur di belakang layar.
 Route::prefix('v1')->middleware('throttle:api')->whereNumber(['id', 'pesertaId', 'catatan_kesehatan'])->group(function () {
 
-    Route::post('/auth/register', [AuthController::class, 'register']);
-    Route::post('/auth/login', [AuthController::class, 'login'])->name('login');
+    Route::post('/auth/register', [AuthController::class, 'register'])->middleware('throttle:register');
+    Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login')->name('login');
     Route::get('/wilayah', [WilayahController::class, 'index']);
     Route::post('/telegram/webhook', [TelegramController::class, 'webhook']);
 

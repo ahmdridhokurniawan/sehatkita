@@ -159,7 +159,7 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
       subtitle: periodeLabel,
       value: angka(d.total_pencatatan),
       icon: "activity",
-      pillText: `${rasioAktif}% warga aktif`,
+      pillText: `${rasioAktif}% aktif`,
       pillTone: "info",
       href: "/laporan",
     },
@@ -236,12 +236,21 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
                 </div>
                 <div className="gv-hero-metric">
                   <strong>{angka(d.total_pengguna_aktif)}</strong>
-                  <span>Warga Aktif ({rasioAktif}%)</span>
+                  <span>Warga Aktif</span>
                 </div>
                 <div className="gv-hero-metric">
                   <strong>{angka(totalFaktorKeluarga)}</strong>
                   <span>Riwayat Keluarga</span>
                 </div>
+              </div>
+
+              <div className="gv-hero-actions">
+                <Link href="/rujukan/kelurahan" className="btn btn-sm btn-outline">
+                  Tinjau Rujukan <Icon name="chevron-right" size={14} />
+                </Link>
+                <Link href="/pengaduan" className="btn btn-sm btn-outline">
+                  <Icon name="alert-circle" size={14} /> Pengaduan Warga
+                </Link>
               </div>
             </div>
 
@@ -307,7 +316,7 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
                       labels={d.tren.map((x) => x.periode)}
                       series={[{ name: "Catatan", data: d.tren.map((x) => x.total_pencatatan) }]}
                       unit="catatan"
-                      height={158}
+                      height={128}
                     />
                   ) : (
                     <p className="tiny center py-16">Belum ada catatan pada periode ini.</p>
@@ -316,7 +325,7 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
                   <Bar
                     labels={d.distribusi_imt.map((x) => labelImt(x.kategori))}
                     values={d.distribusi_imt.map((x) => x.jumlah)}
-                    height={158}
+                    height={128}
                   />
                 ) : (
                   <p className="tiny center py-16">Belum ada data IMT pada periode ini.</p>
@@ -338,7 +347,7 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
                 </div>
               ) : (
                 <div className="sa-feed">
-                  {rujukan.slice(0, 4).map((r) => {
+                  {rujukan.slice(0, 3).map((r) => {
                     const tone = TONE_RUJUKAN[r.status] || "warning";
                     return (
                       <Link key={r.id} href="/rujukan/kelurahan" className="sa-feed-item">
@@ -371,7 +380,7 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
               <p className="tiny center py-16">Belum ada sesi Posbindu tercatat.</p>
             ) : (
               <div className="sa-feed">
-                {sesiTerbaru.slice(0, 4).map((s) => (
+                {sesiTerbaru.slice(0, 3).map((s) => (
                   <Link key={s.id} href="/posbindu" className="sa-row">
                     <span className="sa-feed-ico" style={{ background: "var(--warning-bg)", color: "var(--warning)" }}>
                       <Icon name="calendar-check" size={15} />

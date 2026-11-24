@@ -1612,18 +1612,12 @@ button.li:hover,
   animation: authRiseIn .46s var(--ease) both;
 }
 .auth-card.auth-card-wide { max-width: 540px; }
-.auth-card .auth-topbar { animation: authRiseIn .38s var(--ease) 30ms both; }
-.auth-card .auth-head { animation: authRiseIn .42s var(--ease) 70ms both; }
-.auth-card form > *:not(.err-msg) { animation: authRiseIn .42s var(--ease) 260ms both; }
-.auth-card form > *:not(.err-msg):nth-child(1) { animation-delay: 105ms; }
-.auth-card form > *:not(.err-msg):nth-child(2) { animation-delay: 140ms; }
-.auth-card form > *:not(.err-msg):nth-child(3) { animation-delay: 175ms; }
-.auth-card form > *:not(.err-msg):nth-child(4) { animation-delay: 210ms; }
-.auth-card form > *:not(.err-msg):nth-child(5) { animation-delay: 240ms; }
-.auth-card form > *:not(.err-msg):nth-child(6) { animation-delay: 265ms; }
-.auth-card form > *:not(.err-msg):nth-child(7) { animation-delay: 285ms; }
+.auth-card .auth-topbar { animation: authRiseIn .24s var(--ease) both; }
+.auth-card .auth-head { animation: authRiseIn .26s var(--ease) 20ms both; }
+.auth-card form > *:not(.err-msg) { animation: authRiseIn .26s var(--ease) 40ms both; }
 .auth-card .auth-foot-note,
-.auth-card .demo-accounts { animation: authRiseIn .44s var(--ease) 240ms both; }
+.auth-card .demo-accounts { animation: authRiseIn .28s var(--ease) 60ms both; }
+.auth-card .auth-foot-note a { display: inline-block; padding: 4px 2px; }
 .auth-card .alert { animation: authRiseIn .26s var(--ease) both; }
 .auth-grid-2 {
   display: grid;

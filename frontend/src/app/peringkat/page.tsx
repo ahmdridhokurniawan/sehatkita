@@ -6,6 +6,7 @@ import AppShell from "@/components/app/AppShell";
 import TombolKembaliAdmin from "@/components/admin/TombolKembaliAdmin";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
+import Pagination from "@/components/ui/Pagination";
 import { EmptyState, ErrorState, Loading } from "@/components/ui/Empty";
 import { useUser } from "@/hooks/useUser";
 import { useMinLoading } from "@/hooks/useMinLoading";
@@ -49,6 +50,18 @@ const IKON_BADGE_KODE: Record<string, string> = {
   sahabat_sehat: "sparkles",
 };
 
+const TUJUAN_KEAKTIFAN: Record<string, { href: string; label: string }> = {
+  langkah_pertama: { href: "/rekam-medis", label: "Catat Pemeriksaan →" },
+  rajin_mencatat: { href: "/rekam-medis", label: "Catat Pemeriksaan →" },
+  konsisten_sehat: { href: "/rekam-medis", label: "Catat Pemeriksaan →" },
+  aktif_posbindu: { href: "/posbindu", label: "Lihat Posbindu →" },
+  rutin_posbindu: { href: "/posbindu", label: "Lihat Posbindu →" },
+  penakluk_target: { href: "/target-kesehatan", label: "Kelola Target →" },
+  pejuang_tantangan: { href: "/program", label: "Lihat Tantangan →" },
+  pembelajar_sehat: { href: "/edukasi", label: "Buka Edukasi →" },
+  sahabat_sehat: { href: "/dashboard", label: "Isi Survei di Beranda →" },
+};
+
 export default function PeringkatPage() {
   const { user, loading: loadingUser } = useUser();
   const isWarga = user?.role === "user";
@@ -58,6 +71,9 @@ export default function PeringkatPage() {
   const tampilLoading = useMinLoading(loading);
   const [error, setError] = useState("");
   const [tabInfo, setTabInfo] = useState<"lencana" | "riwayat">("lencana");
+  const [filterLencana, setFilterLencana] = useState<"semua" | "diraih" | "belum" | "lewat">("semua");
+  const [lencanaPage, setLencanaPage] = useState(1);
+  const [lencanaPerPage, setLencanaPerPage] = useState(6);
 
   // super_admin tidak punya wilayah sendiri — wajib pilih kelurahan.
   const perluPilihWilayah = user?.role === "super_admin";
@@ -277,7 +293,7 @@ export default function PeringkatPage() {
                                   }}
                                   title={kode.replace(/_/g, " ")}
                                 >
-                                  <Icon name={IKON_BADGE_KODE[kode] || "award"} size={12} />
+                                  <Icon name={IKON_BADGE_KODE[kode] || "trophy"} size={12} />
                                 </span>
                               ))}
                               {b.badges.length > 5 ? (
@@ -343,56 +359,164 @@ export default function PeringkatPage() {
               <div className="prof-band board-band">
                 {tabInfo === "lencana" ? (
                   achievement ? (
-                    <>
-                      <div className="progress mb-12" style={{ height: 6 }}>
-                        <i style={{ width: `${achievement.ringkasan.persen}%`, background: "var(--primary)" }} />
-                      </div>
-                      <div className="grid grid-2" style={{ gap: 12 }}>
-                        {achievement.daftar.map((item) => {
-                          const gaya = GAYA_BADGE_KATEGORI[item.kategori] ?? {
-                            label: item.kategori || "Lencana",
-                            warna: "var(--primary)",
-                            bg: "var(--primary-050)",
-                          };
-                          return (
-                            <div
-                              key={item.kode}
-                              style={{
-                                padding: "12px 0",
-                                borderTop: "1px solid var(--border)",
-                                display: "flex",
-                                gap: 10,
-                                alignItems: "flex-start",
-                                opacity: item.diraih ? 1 : 0.65,
-                              }}
-                            >
-                              <span
-                                className="li-ico shrink-0"
-                                style={{
-                                  background: item.diraih ? gaya.bg : "var(--surface-2)",
-                                  color: item.diraih ? gaya.warna : "var(--text-3)",
+                    (() => {
+                      const semuaLencana = achievement.daftar;
+                      const jmlDiraih = semuaLencana.filter((d) => d.diraih).length;
+                      const jmlLewat = semuaLencana.filter((d) => !d.diraih && Boolean(d.lewat_tenggat)).length;
+                      const jmlBelum = semuaLencana.filter((d) => !d.diraih && !d.lewat_tenggat).length;
+
+                      const daftarTersaring = semuaLencana.filter((d) => {
+                        if (filterLencana === "diraih") return d.diraih;
+                        if (filterLencana === "lewat") return !d.diraih && Boolean(d.lewat_tenggat);
+                        if (filterLencana === "belum") return !d.diraih && !d.lewat_tenggat;
+                        return true;
+                      });
+
+                      const totalLencana = daftarTersaring.length;
+                      const lastPage = Math.max(1, Math.ceil(totalLencana / lencanaPerPage));
+                      const curPage = Math.min(lencanaPage, lastPage);
+                      const daftarTampil = daftarTersaring.slice(
+                        (curPage - 1) * lencanaPerPage,
+                        curPage * lencanaPerPage,
+                      );
+
+                      return (
+                        <>
+                          <div className="progress mb-12" style={{ height: 6 }}>
+                            <i style={{ width: `${achievement.ringkasan.persen}%`, background: "var(--primary)" }} />
+                          </div>
+                          <div className="chip-row mb-14" style={{ flexWrap: "wrap", gap: 6 }}>
+                            {[
+                              { k: "semua" as const, l: `Semua (${angka(semuaLencana.length)})` },
+                              { k: "diraih" as const, l: `Sudah Diraih (${angka(jmlDiraih)})` },
+                              { k: "belum" as const, l: `Belum Diraih (${angka(jmlBelum)})` },
+                              { k: "lewat" as const, l: `Lewat Tenggat (${angka(jmlLewat)})` },
+                            ].map((opt) => (
+                              <button
+                                key={opt.k}
+                                type="button"
+                                className={`chip${filterLencana === opt.k ? " is-active" : ""}`}
+                                onClick={() => {
+                                  setFilterLencana(opt.k);
+                                  setLencanaPage(1);
                                 }}
                               >
-                                <Icon name={item.ikon || "award"} size={18} />
-                              </span>
-                              <div style={{ minWidth: 0, flex: 1 }}>
-                                <div className="row-between wrap gap-6">
-                                  <strong className="text-sm">{item.nama}</strong>
-                                  <Badge tone={item.diraih ? "safe" : "default"}>
-                                    {item.diraih ? `${gaya.label} · Diraih` : gaya.label}
-                                  </Badge>
-                                </div>
-                                <p className="tiny mt-2">{item.deskripsi}</p>
-                                <p className="tiny mt-2" style={{ color: "var(--text-3)" }}>
-                                  Syarat: {item.syarat}
-                                  {item.diraih && item.diraih_pada ? ` · Diraih ${tanggal(item.diraih_pada, "short")}` : ""}
-                                </p>
-                              </div>
+                                {opt.l}
+                              </button>
+                            ))}
+                          </div>
+                          {daftarTampil.length === 0 ? (
+                            <EmptyState
+                              icon="award"
+                              title="Tidak ada lencana pada filter ini"
+                              desc="Pilih filter lain untuk melihat daftar lencana Anda."
+                            />
+                          ) : (
+                            <div className="grid grid-2" style={{ gap: 12 }}>
+                              {daftarTampil.map((item) => {
+                                const gaya = GAYA_BADGE_KATEGORI[item.kategori] ?? {
+                                  label: item.kategori || "Lencana",
+                                  warna: "var(--primary)",
+                                  bg: "var(--primary-050)",
+                                };
+                                const lewat = !item.diraih && Boolean(item.lewat_tenggat);
+                                const tujuanKeaktifan =
+                                  !item.diraih && item.sumber === "keaktifan"
+                                    ? TUJUAN_KEAKTIFAN[item.kode]
+                                    : undefined;
+
+                                return (
+                                  <div
+                                    key={item.kode}
+                                    className="card card-flat"
+                                    style={{
+                                      padding: "14px 16px",
+                                      display: "flex",
+                                      gap: 12,
+                                      alignItems: "flex-start",
+                                      opacity: item.diraih ? 1 : lewat ? 0.65 : 0.88,
+                                      borderColor: item.diraih
+                                        ? "color-mix(in srgb, var(--primary) 34%, var(--border))"
+                                        : undefined,
+                                    }}
+                                  >
+                                    <span
+                                      className="li-ico shrink-0"
+                                      style={{
+                                        background: item.diraih ? gaya.bg : "var(--surface-2)",
+                                        color: item.diraih ? gaya.warna : "var(--text-3)",
+                                        borderColor: "transparent",
+                                      }}
+                                    >
+                                      <Icon name={item.ikon || "award"} size={18} />
+                                    </span>
+                                    <div style={{ minWidth: 0, flex: 1 }}>
+                                      <div className="row-between wrap gap-6">
+                                        <strong className="text-sm">{item.nama}</strong>
+                                        <Badge tone={item.diraih ? "safe" : lewat ? "danger" : "default"}>
+                                          {item.diraih
+                                            ? `${gaya.label} · Diraih`
+                                            : lewat
+                                              ? "Lewat Tenggat"
+                                              : gaya.label}
+                                        </Badge>
+                                      </div>
+                                      <p className="tiny mt-4">{item.deskripsi}</p>
+                                      <p className="tiny mt-4" style={{ color: "var(--text-3)" }}>
+                                        Syarat: {item.syarat}
+                                        {item.diraih && item.diraih_pada ? ` · Diraih ${tanggal(item.diraih_pada, "short")}` : ""}
+                                        {!item.diraih && item.tenggat
+                                          ? ` · Tenggat ${tanggal(item.tenggat, "short")}`
+                                          : ""}
+                                      </p>
+                                      {!item.diraih && item.sumber === "program" ? (
+                                        lewat ? (
+                                          <p className="tiny mt-6" style={{ color: "var(--danger)", marginBottom: 0 }}>
+                                            Periode tantangan sudah berakhir.
+                                          </p>
+                                        ) : item.program_id ? (
+                                          <div className="mt-8">
+                                            <Link
+                                              href={`/program/${item.program_id}`}
+                                              className="btn btn-sm btn-outline"
+                                            >
+                                              Ikuti Tantangan <Icon name="chevron-right" size={14} />
+                                            </Link>
+                                          </div>
+                                        ) : null
+                                      ) : tujuanKeaktifan ? (
+                                        <div className="mt-8">
+                                          <Link href={tujuanKeaktifan.href} className="tiny text-primary fw-600">
+                                            {tujuanKeaktifan.label}
+                                          </Link>
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
-                          );
-                        })}
-                      </div>
-                    </>
+                          )}
+                          <div className="mt-14">
+                            <Pagination
+                              meta={{
+                                page: curPage,
+                                per_page: lencanaPerPage,
+                                total: totalLencana,
+                                last_page: lastPage,
+                              }}
+                              perPage={lencanaPerPage}
+                              perPageOptions={[4, 6, 8, 12, 16]}
+                              onPage={setLencanaPage}
+                              onPerPage={(next) => {
+                                setLencanaPerPage(next);
+                                setLencanaPage(1);
+                              }}
+                            />
+                          </div>
+                        </>
+                      );
+                    })()
                   ) : (
                     <p className="tiny">Data lencana belum tersedia.</p>
                   )

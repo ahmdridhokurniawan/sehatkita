@@ -13,7 +13,7 @@ import { EmptyState, Loading } from "@/components/ui/Empty";
 import { useToast } from "@/components/ui/Toast";
 import { useUser } from "@/hooks/useUser";
 import { useMinLoading } from "@/hooks/useMinLoading";
-import { admin as adminApi, catatanKesehatan, ApiError } from "@/lib/api";
+import { admin as adminApi, catatanKesehatan, wilayah as wilayahApi, ApiError } from "@/lib/api";
 import { tanggal } from "@/lib/format";
 import {
   LABEL_JENIS_GULA_DARAH,
@@ -23,7 +23,7 @@ import {
   satuanGulaDarah,
 } from "@/lib/labels";
 import type { StatusKesehatan } from "@/lib/enums";
-import type { CatatanKesehatan, WargaCari } from "@/types";
+import type { CatatanKesehatan, WargaCari, Wilayah } from "@/types";
 
 const NAMA_BULAN_KAL = [
   "Januari", "Februari", "Maret", "April", "Mei", "Juni",
@@ -99,10 +99,13 @@ export default function RekamMedisPage() {
   const { user } = useUser();
   const petugas = user?.role === "kader" || user?.role === "admin_kelurahan" || user?.role === "super_admin";
   const bisaPilihWarga = user?.role === "kader" || user?.role === "super_admin";
+  const isSuperAdmin = user?.role === "super_admin";
   const isAdminKel = user?.role === "admin_kelurahan";
   const bisaCatat = !isAdminKel;
   const bisaHapus = !isAdminKel;
-  const bisaVerifikasi = isAdminKel || user?.role === "super_admin";
+  const bisaVerifikasi = isAdminKel || isSuperAdmin;
+  const [daftarKelurahan, setDaftarKelurahan] = useState<Wilayah[]>([]);
+  const [wilayahDipilih, setWilayahDipilih] = useState<number | null>(null);
   const [wargaDipilih, setWargaDipilih] = useState<WargaCari | null>(null);
   const [filterStatus, setFilterStatus] = useState<"semua" | "berisiko" | "perlu_perhatian" | "verifikasi">("semua");
   const [cari, setCari] = useState("");
@@ -148,12 +151,32 @@ export default function RekamMedisPage() {
   const [error, setError] = useState<string | null>(null);
 
   const targetUserId = bisaPilihWarga ? wargaDipilih?.id : undefined;
+  const targetWilayahId = isSuperAdmin && wilayahDipilih ? wilayahDipilih : undefined;
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    let aktif = true;
+    wilayahApi
+      .list({ tipe: "kelurahan" })
+      .then((res) => {
+        if (!aktif) return;
+        setDaftarKelurahan(
+          [...(res ?? [])].sort((a, b) => a.nama.localeCompare(b.nama, "id")),
+        );
+      })
+      .catch(() => {
+        if (aktif) setDaftarKelurahan([]);
+      });
+    return () => {
+      aktif = false;
+    };
+  }, [isSuperAdmin]);
 
   useEffect(() => {
     if (!user) return;
     let aktif = true;
     catatanKesehatan
-      .list({ per_page: 100, user_id: targetUserId })
+      .list({ per_page: 100, user_id: targetUserId, wilayah_id: targetWilayahId })
       .then((cList) => {
         if (!aktif) return;
         setCatatan(cList);
@@ -171,12 +194,16 @@ export default function RekamMedisPage() {
     return () => {
       aktif = false;
     };
-  }, [user, targetUserId]);
+  }, [user, targetUserId, targetWilayahId]);
 
   async function muat() {
     try {
       setLoading(true);
-      const cList = await catatanKesehatan.list({ per_page: 100, user_id: targetUserId });
+      const cList = await catatanKesehatan.list({
+        per_page: 100,
+        user_id: targetUserId,
+        wilayah_id: targetWilayahId,
+      });
       setCatatan(cList);
       setError(null);
     } catch (err: unknown) {
@@ -353,16 +380,60 @@ export default function RekamMedisPage() {
 
       {bisaPilihWarga ? (
         <div className="card card-flat mb-16">
-          <PilihWarga
-            value={wargaDipilih}
-            onChange={(w) => {
-              setWargaDipilih(w);
-              setHalaman(1);
-            }}
-            id="rekam-medis-warga"
-            label="Filter per warga (opsional, cari NIK atau nama warga)"
-            wilayahId={user?.role === "kader" ? user.wilayah_id : null}
-          />
+          {isSuperAdmin ? (
+            <div className="grid grid-2" style={{ gap: 14, alignItems: "start" }}>
+              <div className="field">
+                <label className="label" htmlFor="rekam-medis-kelurahan">
+                  Filter kelurahan <span className="muted">(opsional)</span>
+                </label>
+                <select
+                  id="rekam-medis-kelurahan"
+                  className="select"
+                  value={wilayahDipilih ?? ""}
+                  onChange={(e) => {
+                    const nextWil = e.target.value ? Number(e.target.value) : null;
+                    setWilayahDipilih(nextWil);
+                    setWargaDipilih(null);
+                    setHalaman(1);
+                  }}
+                >
+                  <option value="">Semua kelurahan</option>
+                  {daftarKelurahan.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.nama}
+                    </option>
+                  ))}
+                </select>
+                <span className="hint">
+                  Pilih kelurahan untuk menampilkan daftar dropdown warga di wilayah tersebut.
+                </span>
+              </div>
+              <PilihWarga
+                key={wilayahDipilih ?? "all"}
+                value={wargaDipilih}
+                onChange={(w) => {
+                  setWargaDipilih(w);
+                  setHalaman(1);
+                }}
+                id="rekam-medis-warga"
+                label={wilayahDipilih ? "Pilih warga kelurahan" : "Filter per warga (opsional, cari NIK atau nama)"}
+                wilayahId={wilayahDipilih}
+                required={false}
+              />
+            </div>
+          ) : (
+            <PilihWarga
+              value={wargaDipilih}
+              onChange={(w) => {
+                setWargaDipilih(w);
+                setHalaman(1);
+              }}
+              id="rekam-medis-warga"
+              label="Filter per warga (opsional, cari NIK atau nama warga)"
+              wilayahId={user?.role === "kader" ? user.wilayah_id : null}
+              required={false}
+            />
+          )}
         </div>
       ) : null}
 
@@ -895,7 +966,7 @@ export default function RekamMedisPage() {
                     <th style={{ textAlign: "center" }}>Kol.</th>
                     <th style={{ textAlign: "center" }}>As. Urat</th>
                     <th style={{ textAlign: "center" }}>Status</th>
-                    <th style={{ textAlign: "center" }}>Aksi</th>
+                    <th style={{ textAlign: "left" }}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -974,8 +1045,28 @@ export default function RekamMedisPage() {
                             )}
                           </div>
                         </td>
-                        <td style={{ textAlign: "center" }}>
-                          <div className="row gap-6" style={{ justifyContent: "center", flexWrap: "nowrap" }}>
+                        <td style={{ textAlign: "left" }}>
+                          <div className="row gap-6" style={{ justifyContent: "flex-start", alignItems: "center", flexWrap: "nowrap" }}>
+                            <button type="button" className="btn btn-sm btn-outline" onClick={() => setDetail(c)}>
+                              <Icon name="eye" size={14} /> Detail
+                            </button>
+                            {bisaHapus ? (
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-danger"
+                                style={{ color: "#ffffff" }}
+                                onClick={() => setHapusItem(c)}
+                                title="Hapus catatan"
+                                aria-label="Hapus catatan"
+                              >
+                                <Icon name="trash" size={14} />
+                              </button>
+                            ) : null}
+                            {layakRujuk ? (
+                              <Link href={urlRujukDariCatatan(c)} className="btn btn-sm btn-primary">
+                                <Icon name="send" size={14} /> Rujuk
+                              </Link>
+                            ) : null}
                             {bisaVerifikasi && c.perlu_verifikasi ? (
                               <>
                                 <button
@@ -1001,26 +1092,6 @@ export default function RekamMedisPage() {
                                   <Icon name="x" size={14} /> Tolak
                                 </button>
                               </>
-                            ) : null}
-                            <button type="button" className="btn btn-sm btn-outline" onClick={() => setDetail(c)}>
-                              <Icon name="eye" size={14} /> Detail
-                            </button>
-                            {layakRujuk ? (
-                              <Link href={urlRujukDariCatatan(c)} className="btn btn-sm btn-primary">
-                                <Icon name="send" size={14} /> Rujuk
-                              </Link>
-                            ) : null}
-                            {bisaHapus ? (
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-danger"
-                                style={{ color: "#ffffff" }}
-                                onClick={() => setHapusItem(c)}
-                                title="Hapus catatan"
-                                aria-label="Hapus catatan"
-                              >
-                                <Icon name="trash" size={14} />
-                              </button>
                             ) : null}
                           </div>
                         </td>

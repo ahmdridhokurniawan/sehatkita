@@ -125,6 +125,8 @@ export default function ProgramPage() {
   const [fWilayah, setFWilayah] = useState("");
   const [kelurahan, setKelurahan] = useState<Wilayah[]>([]);
   const [filterJenis, setFilterJenis] = useState<string>("");
+  const [filterProgres, setFilterProgres] = useState<"" | "belum_diikuti" | "proses" | "selesai">("");
+  const [filterStatus, setFilterStatus] = useState<"" | StatusProgram>("");
   const [fTarget, setFTarget] = useState("50");
   const [fModeProgres, setFModeProgres] = useState<ModeProgresProgram>("manual");
   const [fTargetNilai, setFTargetNilai] = useState("");
@@ -192,8 +194,9 @@ export default function ProgramPage() {
       const res = await programApi.listPaged({
         page,
         per_page: perPage,
-        exclude_jenis: "edukasi",
         jenis: (filterJenis || undefined) as JenisProgram | undefined,
+        progres: bolehIkut && filterProgres ? filterProgres : undefined,
+        status: bolehKelola && filterStatus ? filterStatus : undefined,
         search: cari.trim() || undefined,
       });
       setProgram(res.data);
@@ -204,7 +207,7 @@ export default function ProgramPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, perPage, cari, filterJenis]);
+  }, [page, perPage, cari, filterJenis, filterProgres, filterStatus, bolehIkut, bolehKelola]);
 
   useEffect(() => {
     if (loadingUser || !user) return;
@@ -213,8 +216,9 @@ export default function ProgramPage() {
       .listPaged({
         page,
         per_page: perPage,
-        exclude_jenis: "edukasi",
         jenis: (filterJenis || undefined) as JenisProgram | undefined,
+        progres: bolehIkut && filterProgres ? filterProgres : undefined,
+        status: bolehKelola && filterStatus ? filterStatus : undefined,
         search: cari.trim() || undefined,
       })
       .then((res) => {
@@ -232,7 +236,7 @@ export default function ProgramPage() {
     return () => {
       aktif = false;
     };
-  }, [loadingUser, user, page, perPage, cari, filterJenis]);
+  }, [loadingUser, user, page, perPage, cari, filterJenis, filterProgres, filterStatus, bolehIkut, bolehKelola]);
 
   useEffect(() => {
     if (!loadingUser && role === "super_admin") {
@@ -440,41 +444,114 @@ export default function ProgramPage() {
         />
       </div>
 
-      <div className="chip-row mb-12" style={{ flexWrap: "wrap", gap: 8 }}>
-        {[
-          { v: "", l: "Semua Kategori" },
-          { v: "olahraga", l: "Olahraga" },
-          { v: "edukasi", l: "Edukasi" },
-          { v: "pemeriksaan", l: "Pemeriksaan" },
-          { v: "lainnya", l: "Lainnya" },
-        ].map((kat) => (
-          <button
-            key={kat.v || "semua"}
-            type="button"
-            className={`chip${filterJenis === kat.v ? " is-active" : ""}`}
-            onClick={() => {
-              setFilterJenis(kat.v);
-              setPage(1);
-            }}
-          >
-            {kat.l}
-          </button>
-        ))}
+      <div className="mb-12" style={{ display: "grid", gap: 8 }}>
+        <div className="chip-row" style={{ flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+          <span className="tiny fw-600" style={{ minWidth: 64 }}>Kategori:</span>
+          {[
+            { v: "", l: "Semua" },
+            { v: "olahraga", l: "Olahraga" },
+            { v: "edukasi", l: "Edukasi" },
+            { v: "pemeriksaan", l: "Pemeriksaan" },
+            { v: "lainnya", l: "Lainnya" },
+          ].map((kat) => (
+            <button
+              key={kat.v || "semua"}
+              type="button"
+              className={`chip${filterJenis === kat.v ? " is-active" : ""}`}
+              onClick={() => {
+                setFilterJenis(kat.v);
+                setPage(1);
+              }}
+            >
+              {kat.l}
+            </button>
+          ))}
+        </div>
+
+        {bolehIkut ? (
+          <div className="chip-row" style={{ flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+            <span className="tiny fw-600" style={{ minWidth: 64 }}>Progres:</span>
+            {[
+              { v: "" as const, l: "Semua" },
+              { v: "belum_diikuti" as const, l: "Belum Diikuti" },
+              { v: "proses" as const, l: "Sedang Diikuti" },
+              { v: "selesai" as const, l: "Sudah Selesai" },
+            ].map((st) => (
+              <button
+                key={st.v || "semua-progres"}
+                type="button"
+                className={`chip${filterProgres === st.v ? " is-active" : ""}`}
+                onClick={() => {
+                  setFilterProgres(st.v);
+                  setPage(1);
+                }}
+              >
+                {st.l}
+              </button>
+            ))}
+          </div>
+        ) : bolehKelola ? (
+          <div className="chip-row" style={{ flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+            <span className="tiny fw-600" style={{ minWidth: 64 }}>Status:</span>
+            {[
+              { v: "" as const, l: "Semua" },
+              { v: "berjalan" as const, l: "Berjalan" },
+              { v: "akan_datang" as const, l: "Akan Datang" },
+              { v: "selesai" as const, l: "Selesai" },
+            ].map((st) => (
+              <button
+                key={st.v || "semua-status"}
+                type="button"
+                className={`chip${filterStatus === st.v ? " is-active" : ""}`}
+                onClick={() => {
+                  setFilterStatus(st.v);
+                  setPage(1);
+                }}
+              >
+                {st.l}
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       {tampilLoading ? <Loading /> : null}
       {!tampilLoading && error ? <ErrorState message={error} onRetry={muat} /> : null}
 
       {!tampilLoading && !error && program.length === 0 ? (
-        <EmptyState
-          icon="award"
-          title="Belum ada tantangan"
-          desc={
-            bolehBuat
-              ? "Buat tantangan pertama untuk wilayah Anda."
-              : "Admin kelurahan belum membuat program untuk wilayah Anda."
-          }
-        />
+        filterJenis || filterProgres || filterStatus || cari.trim() ? (
+          <EmptyState
+            icon="search"
+            title="Tantangan tidak ditemukan"
+            desc="Tidak ada tantangan yang sesuai dengan filter atau pencarian saat ini."
+            action={
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-16"
+                onClick={() => {
+                  setFilterJenis("");
+                  setFilterProgres("");
+                  setFilterStatus("");
+                  setCari("");
+                  setPage(1);
+                }}
+              >
+                Reset Filter
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon="award"
+            title="Belum ada tantangan"
+            desc={
+              bolehBuat
+                ? "Buat tantangan pertama untuk wilayah Anda."
+                : "Admin kelurahan belum membuat program untuk wilayah Anda."
+            }
+          />
+        )
       ) : null}
 
       {!tampilLoading && !error && program.length > 0 && tersaring.length === 0 ? (
@@ -605,7 +682,7 @@ export default function ProgramPage() {
                     </Button>
                   ) : null}
 
-                  {bolehIkut && p.diikuti && statusSaya !== "selesai" ? (
+                  {bolehIkut && st !== "selesai" && p.diikuti && statusSaya !== "selesai" ? (
                     <Link href={`/program/${p.id}#bukti`} className="btn btn-sm btn-primary">
                       <Icon name="camera" size={14} />{" "}
                       {statusSaya === "menunggu_verifikasi" ? "Lihat Bukti" : "Kirim Bukti Foto"}
@@ -613,7 +690,8 @@ export default function ProgramPage() {
                   ) : null}
 
                   <Link href={`/program/${p.id}`} className="btn btn-sm btn-outline">
-                    <Icon name="file-text" size={14} /> {bolehKelola ? "Validasi Peserta" : "Detail Misi"}
+                    <Icon name="file-text" size={14} />{" "}
+                    {bolehKelola ? (st === "selesai" ? "Detail Program" : "Validasi Peserta") : "Detail Misi"}
                   </Link>
                   {bolehUbahProgram(p) ? (
                     <>
@@ -780,7 +858,7 @@ export default function ProgramPage() {
           ) : null}
           <div className="field">
             <label className="label" htmlFor="prog-mode-progres">
-              Mode Progres Peserta
+              Cara Hitung Progres
             </label>
             <select
               id="prog-mode-progres"
@@ -788,28 +866,35 @@ export default function ProgramPage() {
               value={fModeProgres}
               onChange={(e) => setFModeProgres(e.target.value as ModeProgresProgram)}
             >
-              <option value="otomatis">Otomatis (hitung % dari target angka, mis. 100 push up)</option>
-              <option value="manual">Manual (warga geser persentase 0–100%)</option>
-              <option value="tanpa_progres">Tanpa Progres (kegiatan sekali hadir, mis. Senam Bersama)</option>
+              <option value="otomatis">Target Angka — mis. 7 hari, 100 push up, 5 km</option>
+              <option value="manual">Persentase Bebas — warga isi 0–100% sendiri</option>
+              <option value="tanpa_progres">Sekali Selesai — cukup hadir atau kirim bukti</option>
             </select>
+            <span className="hint">
+              {fModeProgres === "otomatis"
+                ? "Warga mencatat angka capaian, lalu persentase ke target dihitung otomatis."
+                : fModeProgres === "manual"
+                  ? "Warga memperbarui perkiraan progres secara bebas dari 0% hingga 100%."
+                  : "Tanpa pencatatan progres berkala; warga langsung mengunggah foto bukti untuk diverifikasi."}
+            </span>
           </div>
           {fModeProgres === "otomatis" ? (
             <div className="grid grid-2" style={{ gap: 12 }}>
               <Input
-                label="Target capaian angka"
+                label="Target angka"
                 type="number"
                 min={1}
-                placeholder="misalnya 100"
+                placeholder="cth: 7 atau 100"
                 value={fTargetNilai}
                 onChange={(e) => setFTargetNilai(e.target.value)}
                 error={fErr.target_nilai}
                 required
               />
               <Input
-                label="Satuan target"
+                label="Satuan"
                 type="text"
                 maxLength={40}
-                placeholder="misalnya push up, km, menit"
+                placeholder="cth: hari, push up, km"
                 value={fSatuanTarget}
                 onChange={(e) => setFSatuanTarget(e.target.value)}
               />

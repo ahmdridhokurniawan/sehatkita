@@ -5,7 +5,6 @@ import AppShell from "@/components/app/AppShell";
 import { BrandLockup } from "@/components/ui/BrandLogo";
 import Icon from "@/components/ui/Icon";
 import Badge from "@/components/ui/Badge";
-import Bar from "@/components/charts/Bar";
 import Donut from "@/components/charts/Donut";
 import Line from "@/components/charts/Line";
 import { ErrorState, Loading } from "@/components/ui/Empty";
@@ -445,13 +444,13 @@ export default function LaporanKelurahanPage() {
           },
         ];
 
-        const warnaFaktor = ["var(--c-1)", "var(--c-2)", "var(--c-3)", "var(--c-4)", "var(--c-5)", "var(--c-6)"];
+        const warnaFaktor = ["var(--primary)", "#2563EB", "#D97706", "#7C3AED", "#0D9488", "#DC2626"];
         const statusRujukanCards = (
           [
             ["baru", "Baru Masuk", "var(--danger)"],
             ["dihubungi", "Sedang Diproses", "var(--warning)"],
             ["selesai", "Selesai Ditangani", "var(--safe)"],
-            ["ditolak", "Ditolak", "var(--info, #4B6251)"],
+            ["ditolak", "Ditolak", "var(--text-3)"],
           ] as const
         ).filter(([k]) => d.rujukan[k] !== undefined);
 
@@ -540,14 +539,15 @@ export default function LaporanKelurahanPage() {
                     <Badge tone="warning">{angka(totalFaktor)} laporan</Badge>
                   </div>
                   {d.distribusi_riwayat_keluarga.length ? (
-                    <Bar
-                      labels={d.distribusi_riwayat_keluarga.map(
-                        (x) => LABEL_FAKTOR[x.faktor ?? ""] ?? x.faktor ?? "",
-                      )}
-                      values={d.distribusi_riwayat_keluarga.map((x) => x.jumlah)}
-                      colors={d.distribusi_riwayat_keluarga.map((_, i) => warnaFaktor[i % warnaFaktor.length])}
-                      height={240}
-                      horizontal
+                    <DaftarDistribusi
+                      items={d.distribusi_riwayat_keluarga.map((x, idx) => ({
+                        key: x.faktor ?? String(idx),
+                        label: LABEL_FAKTOR[x.faktor ?? ""] ?? x.faktor ?? "",
+                        jumlah: x.jumlah,
+                        warna: warnaFaktor[idx % warnaFaktor.length],
+                      }))}
+                      total={totalFaktor}
+                      satuan="laporan"
                     />
                   ) : (
                     <p className="tiny center py-16">Belum ada riwayat keluarga tercatat.</p>
@@ -563,25 +563,16 @@ export default function LaporanKelurahanPage() {
                     <Badge tone="info">{angka(totalUsia)} peserta</Badge>
                   </div>
                   {d.distribusi_kelompok_usia.length ? (
-                    <div style={{ display: "grid", gap: 12, marginTop: 6 }}>
-                      {d.distribusi_kelompok_usia.map((item, idx) => {
-                        const pct = persen(item.jumlah, totalUsia);
-                        const warna = warnaFaktor[idx % warnaFaktor.length];
-                        return (
-                          <div key={item.kelompok}>
-                            <div className="row-between mb-4" style={{ gap: 8 }}>
-                              <span className="text-sm fw-600">{item.kelompok} tahun</span>
-                              <span className="tiny">
-                                <strong className="text-1">{angka(item.jumlah)}</strong> peserta ({pct}%)
-                              </span>
-                            </div>
-                            <div className="progress" style={{ height: 9 }}>
-                              <i style={{ width: `${pct}%`, background: warna }} />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <DaftarDistribusi
+                      items={d.distribusi_kelompok_usia.map((item, idx) => ({
+                        key: item.kelompok ?? String(idx),
+                        label: `${item.kelompok ?? "Lainnya"} tahun`,
+                        jumlah: item.jumlah,
+                        warna: warnaFaktor[idx % warnaFaktor.length],
+                      }))}
+                      total={totalUsia}
+                      satuan="peserta"
+                    />
                   ) : (
                     <p className="tiny center py-16">Kelompok dengan jumlah &lt; 5 tidak ditampilkan.</p>
                   )}
@@ -597,12 +588,25 @@ export default function LaporanKelurahanPage() {
                   <Badge tone="default">Teragregasi</Badge>
                 </div>
                 {statusRujukanCards.length ? (
-                  <div className="stat-strip">
+                  <div className="stat-strip is-4" style={{ borderTop: "none", paddingTop: 2, gap: 12 }}>
                     {statusRujukanCards.map(([kunci, label, warna]) => (
-                      <div className="stat-cell" style={{ borderLeftColor: warna }} key={kunci}>
-                        <span className="stat-cell-label">{label}</span>
-                        <strong className="stat-cell-val">{angka(d.rujukan[kunci] ?? 0)}</strong>
-                        <span className="stat-cell-sub">kasus</span>
+                      <div
+                        className="stat-cell"
+                        key={kunci}
+                        style={{
+                          background: "var(--surface-2)",
+                          border: "1px solid var(--border)",
+                          borderLeft: `3px solid ${warna}`,
+                          borderRadius: 12,
+                          padding: "12px 14px",
+                          gap: 6,
+                        }}
+                      >
+                        <span className="stat-cell-label" style={{ fontWeight: 600 }}>{label}</span>
+                        <div className="row gap-6" style={{ alignItems: "baseline" }}>
+                          <strong className="stat-cell-val">{angka(d.rujukan[kunci] ?? 0)}</strong>
+                          <span className="stat-cell-sub">kasus</span>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -642,6 +646,40 @@ export default function LaporanKelurahanPage() {
         );
       })()}
     </AppShell>
+  );
+}
+
+function DaftarDistribusi({
+  items,
+  total,
+  satuan,
+}: {
+  items: { key: string; label: string; jumlah: number; warna: string }[];
+  total: number;
+  satuan: string;
+}) {
+  return (
+    <div className="sa-dist-list">
+      {items.map((item) => {
+        const pct = persen(item.jumlah, total);
+        return (
+          <div className="sa-dist-row" key={item.key}>
+            <div className="sa-dist-top">
+              <span className="sa-dist-label">
+                <span className="sa-dist-dot" style={{ background: item.warna }} aria-hidden="true" />
+                {item.label}
+              </span>
+              <span className="sa-dist-val">
+                {angka(item.jumlah)} <em>{satuan} ({pct}%)</em>
+              </span>
+            </div>
+            <div className="sa-dist-track">
+              <div className="sa-dist-fill" style={{ width: `${pct}%`, background: item.warna }} />
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

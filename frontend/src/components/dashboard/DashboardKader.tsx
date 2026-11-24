@@ -267,7 +267,7 @@ export default function DashboardKader({ user: _user }: { user: User }) {
                 </div>
               ) : (
                 <div className="sa-feed">
-                  {rujukanTerbuka.slice(0, 4).map((r) => {
+                  {rujukanTerbuka.slice(0, 3).map((r) => {
                     const tone = TONE_STATUS_RUJUKAN[r.status] || "warning";
                     return (
                       <Link key={r.id} href="/rujukan" className="sa-feed-item">
@@ -297,7 +297,7 @@ export default function DashboardKader({ user: _user }: { user: User }) {
                 <p className="tiny center py-16">Belum ada sesi Posbindu yang ditugaskan.</p>
               ) : (
                 <div className="sa-feed">
-                  {sesi.slice(0, 4).map((s) => (
+                  {sesi.slice(0, 3).map((s) => (
                     <Link key={s.id} href="/posbindu" className="sa-row">
                       <span className="sa-feed-ico" style={{ background: "var(--warning-bg)", color: "var(--warning)" }}>
                         <Icon name="calendar-check" size={15} />
@@ -320,7 +320,7 @@ export default function DashboardKader({ user: _user }: { user: User }) {
                 labels={sesiGrafik.map((s) => tanggal(s.tanggal, "short"))}
                 values={sesiGrafik.map((s) => s.hadir || 0)}
                 unit="peserta"
-                height={170}
+                height={132}
               />
             ) : (
               <p className="tiny center py-16">Belum ada riwayat kehadiran untuk ditampilkan.</p>

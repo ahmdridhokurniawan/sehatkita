@@ -230,43 +230,6 @@ function KalkulatorContent() {
   const [gula, setGula] = useState("94");
   const [jenisGula, setJenisGula] = useState<JenisGulaDarah>("puasa");
 
-  function pakaiContoh(preset: "ideal" | "turun_bb" | "pantau_tensi") {
-    if (preset === "ideal") {
-      setJk("P");
-      setUsia("25");
-      setBerat("54");
-      setTinggi("160");
-      setAktivitas("1.375");
-      setMenitOlahraga("30");
-      setSistol("115");
-      setDiastol("75");
-      setGula("90");
-      setJenisGula("puasa");
-    } else if (preset === "turun_bb") {
-      setJk("L");
-      setUsia("34");
-      setBerat("82");
-      setTinggi("168");
-      setAktivitas("1.2");
-      setMenitOlahraga("20");
-      setSistol("128");
-      setDiastol("82");
-      setGula("112");
-      setJenisGula("puasa");
-    } else {
-      setJk("L");
-      setUsia("48");
-      setBerat("74");
-      setTinggi("165");
-      setAktivitas("1.375");
-      setMenitOlahraga("15");
-      setSistol("144");
-      setDiastol("92");
-      setGula("168");
-      setJenisGula("2jam_pp");
-    }
-  }
-
   const hasilImt = useMemo(() => {
     const bb = parseFloat(berat);
     const tbCm = parseFloat(tinggi);
@@ -489,18 +452,6 @@ function KalkulatorContent() {
           <p className="tiny mt-4">
             Simulasi dan contoh perhitungan praktis untuk membantu memantau target kesehatan harian Anda.
           </p>
-        </div>
-        <div className="kalk-preset-bar">
-          <span>Contoh:</span>
-          <button type="button" className="kalk-preset-btn" onClick={() => pakaiContoh("ideal")}>
-            Normal
-          </button>
-          <button type="button" className="kalk-preset-btn" onClick={() => pakaiContoh("turun_bb")}>
-            Diet
-          </button>
-          <button type="button" className="kalk-preset-btn" onClick={() => pakaiContoh("pantau_tensi")}>
-            Waspada
-          </button>
         </div>
       </div>
 

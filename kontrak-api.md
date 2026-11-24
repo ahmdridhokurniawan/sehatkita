@@ -473,12 +473,12 @@ Wajib: `dicatat_pada`, `sumber`, dan minimal satu pengukuran (§7.1). Untuk `sum
 
 ### 7.3 GET `/catatan-kesehatan`
 
-Query: `?page=&per_page=&indikator=imt&dari=&sampai=&search=&user_id=`
+Query: `?page=&per_page=&indikator=imt&dari=&sampai=&search=&user_id=&wilayah_id=`
 
 - `user` → hanya miliknya; `user_id` milik orang lain → **404**.
 - `kader` → seluruh warga binaannya; atau `?user_id=` spesifik (di luar binaan → **404**).
 - `admin_kelurahan` → **boleh (read-only)** untuk seluruh catatan warga di kelurahannya sendiri.
-- `super_admin` → boleh semua (audit/verifikasi), dicatat di `log_audit`.
+- `super_admin` → boleh semua (audit/verifikasi), mendukung filter opsional `?wilayah_id=` dan `?user_id=`, dicatat di `log_audit`.
 - `indikator=imt` → hanya log yang punya nilai `imt`.
 
 **200** array objek §7.2 + paginasi.

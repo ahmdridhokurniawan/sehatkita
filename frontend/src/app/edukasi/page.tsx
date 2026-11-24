@@ -550,40 +550,7 @@ export default function EdukasiPage() {
                   />
                 </div>
 
-                <div className="grid grid-2" style={{ gap: 12 }}>
-            <div className="field">
-              <label className="label" htmlFor="edu-foto">Foto materi (opsional, maks 5MB)</label>
-              <input
-                id="edu-foto"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="input"
-                onChange={(e) => setFFotoFile(e.target.files?.[0] ?? null)}
-              />
-            </div>
-            <div className="field">
-              <label className="label" htmlFor="edu-video">Video materi (opsional, MP4/WebM maks 50MB)</label>
-              <input
-                id="edu-video"
-                type="file"
-                accept="video/mp4,video/webm,video/quicktime"
-                className="input"
-                onChange={(e) => setFVideoFile(e.target.files?.[0] ?? null)}
-              />
-            </div>
-          </div>
-          <div className="field">
-            <label className="label" htmlFor="edu-video-url">Tautan video YouTube / eksternal (opsional)</label>
-            <input
-              id="edu-video-url"
-              type="url"
-              className="input"
-              placeholder="https://www.youtube.com/watch?v=..."
-              value={fVideoUrl}
-              onChange={(e) => setFVideoUrl(e.target.value)}
-            />
-          </div>
-          <label className="check">
+                <label className="check">
                   <input
                     type="checkbox"
                     checked={progSelesai}
@@ -716,27 +683,107 @@ export default function EdukasiPage() {
               onChange={(e) => setFKonten(e.target.value)}
             />
           </div>
-          <div className="grid grid-2" style={{ gap: 12 }}>
-            <div className="field">
-              <label className="label" htmlFor="edu-foto">Foto materi (opsional, maks 5MB)</label>
-              <input
-                id="edu-foto"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="input"
-                onChange={(e) => setFFotoFile(e.target.files?.[0] ?? null)}
-              />
-            </div>
-            <div className="field">
-              <label className="label" htmlFor="edu-video">Video materi (opsional, MP4/WebM maks 50MB)</label>
-              <input
-                id="edu-video"
-                type="file"
-                accept="video/mp4,video/webm,video/quicktime"
-                className="input"
-                onChange={(e) => setFVideoFile(e.target.files?.[0] ?? null)}
-              />
-            </div>
+          <div className="grid grid-2" style={{ gap: 12, alignItems: "start" }}>
+            {[
+              {
+                id: "edu-foto",
+                label: "Foto materi",
+                buttonLabel: "Pilih Foto",
+                accept: "image/jpeg,image/png,image/webp",
+                hint: "JPG, PNG, atau WebP · maks. 5 MB",
+                file: fFotoFile,
+                onChange: setFFotoFile,
+              },
+              {
+                id: "edu-video",
+                label: "Video materi",
+                buttonLabel: "Pilih Video",
+                accept: "video/mp4,video/webm,video/quicktime",
+                hint: "MP4 atau WebM · maks. 50 MB",
+                file: fVideoFile,
+                onChange: setFVideoFile,
+              },
+            ].map((item) => (
+              <div key={item.id} className="field">
+                <label className="label" htmlFor={item.id}>
+                  {item.label} <span className="muted">(opsional)</span>
+                </label>
+                <div
+                  className="input"
+                  style={{
+                    position: "relative",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "6px 8px",
+                    minHeight: 40,
+                  }}
+                >
+                  <input
+                    key={item.file ? `${item.file.name}-${item.file.size}` : "empty"}
+                    id={item.id}
+                    type="file"
+                    accept={item.accept}
+                    style={{
+                      position: "absolute",
+                      width: 1,
+                      height: 1,
+                      padding: 0,
+                      margin: -1,
+                      overflow: "hidden",
+                      clip: "rect(0, 0, 0, 0)",
+                      whiteSpace: "nowrap",
+                      border: 0,
+                    }}
+                    onChange={(e) => item.onChange(e.target.files?.[0] ?? null)}
+                  />
+                  <label
+                    htmlFor={item.id}
+                    className="btn btn-outline"
+                    style={{
+                      padding: "4px 10px",
+                      fontSize: 12,
+                      flexShrink: 0,
+                      cursor: "pointer",
+                      margin: 0,
+                    }}
+                  >
+                    {item.buttonLabel}
+                  </label>
+                  <span
+                    className="tiny"
+                    title={item.file?.name}
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      color: item.file ? "var(--text)" : "var(--text-3)",
+                    }}
+                  >
+                    {item.file ? item.file.name : "Belum ada file"}
+                  </span>
+                  {item.file ? (
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      aria-label={`Hapus ${item.label.toLowerCase()}`}
+                      onClick={() => item.onChange(null)}
+                      style={{
+                        padding: "2px 6px",
+                        fontSize: 14,
+                        lineHeight: 1,
+                        flexShrink: 0,
+                      }}
+                    >
+                      ×
+                    </button>
+                  ) : null}
+                </div>
+                <span className="hint">{item.hint}</span>
+              </div>
+            ))}
           </div>
           <div className="field">
             <label className="label" htmlFor="edu-video-url">Tautan video YouTube / eksternal (opsional)</label>

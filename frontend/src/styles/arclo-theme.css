@@ -80,19 +80,21 @@
   --grad-danger: linear-gradient(135deg, #5C1F22 0%, #7A2B2F 100%);
   --c-1: #3DA075;
   --c-2: #5EB1A4;
-  --c-3: #7BC2A2;
+  --c-3: #2B8A67;
   --c-4: #2F8B64;
+  --c-5: #246F52;
+  --c-6: #1B5841;
 }
 
-/* Kanvas netral tenang & minimalis khusus area aplikasi setelah login (.app-dash). */
+/* Kanvas netral tenang bernuansa sage lembut khusus area aplikasi setelah login (.app-dash). */
 :root:not([data-theme="dark"]):has(.app-dash),
 :root:not([data-theme="dark"]) .app-dash {
-  --bg: #F8FAFC;
+  --bg: #EBF1EF;
   --surface: #FFFFFF;
-  --surface-2: #F1F5F9;
-  --surface-3: #E2E8F0;
-  --border: #E5E7EB;
-  --border-strong: #CBD5E1;
+  --surface-2: #F3F7F5;
+  --surface-3: #E2EAE6;
+  --border: #C4D1CC;
+  --border-strong: #94A8A0;
   --text: #0F172A;
   --text-2: #475569;
   --text-3: #64748B;
@@ -107,6 +109,12 @@
 :root .app-dash .dash-main {
   background: var(--bg);
   animation: none;
+}
+:root:not([data-theme="dark"]) .app-dash .dash-main {
+  background:
+    radial-gradient(620px 300px at 95% 0%, rgba(22, 140, 88, 0.055), transparent 72%),
+    radial-gradient(480px 260px at 4% 96%, rgba(22, 140, 88, 0.035), transparent 75%),
+    var(--bg);
 }
 :root .app-dash .dash-main::before {
   display: none;
@@ -192,22 +200,40 @@
 :root .app-dash .card.sa-board,
 :root .app-dash .gv-surface {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1.5px solid var(--border);
   border-radius: 16px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 4px 12px -6px rgba(15, 23, 42, .05);
+  box-shadow: 0 2px 8px -2px rgba(15, 23, 42, .07), 0 1px 3px rgba(15, 23, 42, .04);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   animation: none;
+}
+:root:not([data-theme="dark"]) .app-dash .card.card-flat {
+  background: var(--surface-2);
+  border: 1.5px solid var(--border);
+  box-shadow: none;
+}
+:root:not([data-theme="dark"]) .app-dash .gv-kpi,
+:root:not([data-theme="dark"]) .app-dash .stat,
+:root:not([data-theme="dark"]) .app-dash .metric,
+:root:not([data-theme="dark"]) .app-dash .bento-card,
+:root:not([data-theme="dark"]) .app-dash .bento-chart-panel,
+:root:not([data-theme="dark"]) .app-dash .gv-agenda,
+:root:not([data-theme="dark"]) .app-dash .gv-chart-card,
+:root:not([data-theme="dark"]) .app-dash .gv-feed-card,
+:root:not([data-theme="dark"]) .app-dash .riwayat-item,
+:root:not([data-theme="dark"]) .app-dash .status-cell {
+  border: 1.5px solid var(--border);
+  box-shadow: 0 2px 6px -2px rgba(15, 23, 42, .06);
 }
 :root[data-theme="dark"] .app-dash .card,
 :root[data-theme="dark"] .app-dash .card.sa-board,
 :root[data-theme="dark"] .app-dash .gv-surface {
   box-shadow: none;
-  border-color: var(--border);
+  border: 1px solid var(--border);
 }
 :root .app-dash .card:hover {
-  border-color: var(--border);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, .04), 0 4px 12px -6px rgba(15, 23, 42, .05);
+  border-color: var(--border-strong);
+  box-shadow: 0 4px 12px -3px rgba(15, 23, 42, .09), 0 1px 3px rgba(15, 23, 42, .05);
 }
 :root[data-theme="dark"] .app-dash .card:hover {
   border-color: var(--border);
@@ -290,8 +316,11 @@
   color: var(--text);
   box-shadow: 6px 0 28px -18px rgba(15, 23, 42, 0.12);
 }
-/* Sidebar netral wajib memakai teks dan ikon dari tema yang sama. */
-:root .sidebar::before { display: none; }
+/* Sidebar menampilkan motif kesehatan lembut di mode terang maupun gelap. */
+:root .sidebar::before {
+  display: block;
+  opacity: 0.32;
+}
 :root .sidebar .sidebar-brand {
   height: 60px;
   background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.01) 100%);
@@ -449,6 +478,102 @@
 :root .sidebar-nav::-webkit-scrollbar { width: 3px; }
 :root .sidebar-nav::-webkit-scrollbar-thumb { background: transparent; border-radius: 99px; }
 :root .sidebar-nav:hover::-webkit-scrollbar-thumb { background: var(--border-strong); }
+
+/* Sidebar Mode Terang memakai hijau olive/forest tenang khas SehatKita (teks putih, pill aktif putih). */
+:root:not([data-theme="dark"]) .app-dash .sidebar {
+  background:
+    radial-gradient(520px 300px at 92% 8%, rgba(220, 245, 210, 0.16), transparent 68%),
+    radial-gradient(360px 260px at 8% 92%, rgba(16, 32, 18, 0.34), transparent 70%),
+    linear-gradient(160deg, #4E6B36 0%, #364E25 52%, #223318 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.16);
+  color: #F4F7F0;
+  box-shadow: 6px 0 24px -14px rgba(20, 32, 12, 0.35);
+}
+:root:not([data-theme="dark"]) .app-dash .sidebar::before {
+  opacity: 0.38;
+}
+:root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-brand {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
+  border-bottom: 1px solid rgba(236, 242, 221, 0.24);
+}
+:root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-brand .txt,
+:root:not([data-theme="dark"]) .app-dash .sidebar .user-chip .who strong {
+  color: #F4F7F0;
+}
+:root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-brand .txt small,
+:root:not([data-theme="dark"]) .app-dash .sidebar .user-chip .who span {
+  color: rgba(236, 242, 221, 0.84);
+}
+:root:not([data-theme="dark"]) .app-dash .sidebar .nav-group + .nav-group {
+  border-top: 1px solid rgba(236, 242, 221, 0.2);
+}
+:root:not([data-theme="dark"]) .app-dash .sidebar .nav-group-title {
+  color: rgba(223, 230, 201, 0.72);
+}
+:root:not([data-theme="dark"]) .app-dash .sidebar .snav,
+:root:not([data-theme="dark"]) .app-dash .sidebar .snav-ico {
+  color: rgba(244, 247, 240, 0.9);
+}
+:root:not([data-theme="dark"]) .app-dash .sidebar .snav:hover {
+  background: rgba(255, 255, 255, 0.11);
+  color: #FFFFFF;
+}
+:root:not([data-theme="dark"]) .app-dash .sidebar .snav:hover .snav-ico {
+  color: #FFFFFF;
+}
+:root:not([data-theme="dark"]) .app-dash .sidebar .snav.active,
+:root:not([data-theme="dark"]) .app-dash .sidebar .snav.active:hover {
+  background: #FFFFFF;
+  color: #23300E;
+  font-weight: 700;
+  box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.35);
+}
+:root:not([data-theme="dark"]) .app-dash .sidebar .snav.active .snav-ico,
+:root:not([data-theme="dark"]) .app-dash .sidebar .snav.active:hover .snav-ico {
+  color: #475B1D;
+}
+:root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-collapse-btn,
+:root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-close-btn,
+:root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-theme-btn.theme-toggle {
+  background: rgba(255, 255, 255, 0.09);
+  color: rgba(244, 247, 240, 0.92);
+  border-color: rgba(223, 230, 201, 0.22);
+}
+:root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-collapse-btn:hover:not(:disabled),
+:root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-close-btn:hover:not(:disabled),
+:root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-theme-btn.theme-toggle:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #FFFFFF;
+  border-color: rgba(223, 230, 201, 0.42);
+}
+:root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-foot {
+  border-top-color: rgba(236, 242, 221, 0.24);
+  background: rgba(16, 28, 12, 0.16);
+}
+:root:not([data-theme="dark"]) .app-dash .sidebar .user-chip:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(223, 230, 201, 0.22);
+}
+:root:not([data-theme="dark"]) .app-dash .sidebar .user-chip .avatar,
+:root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-role-pill {
+  background: #556B24;
+  color: #F4F7F0;
+  border-color: rgba(223, 230, 201, 0.3);
+}
+:root:not([data-theme="dark"]) .app-dash .sidebar .snav-skel-item {
+  background: rgba(236, 242, 221, 0.1);
+  border-color: rgba(223, 230, 201, 0.14);
+}
+:root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-logout-btn {
+  background: rgba(185, 28, 28, 0.85);
+  color: #FFFFFF;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+:root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-logout-btn:hover:not(:disabled) {
+  background: #991b1b;
+  color: #FFFFFF;
+  border-color: rgba(255, 255, 255, 0.32);
+}
 .sidebar-brand { padding-inline: 18px; }
 .sidebar-brand .txt small { letter-spacing: .07em; }
 .sidebar-nav { padding-top: 16px; }
@@ -458,8 +583,13 @@
   height: 60px;
   padding: 0 28px;
   background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1.5px solid var(--border);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, .04);
   backdrop-filter: none;
+}
+:root[data-theme="dark"] .app-dash .app-topbar {
+  border-bottom: 1px solid var(--border);
+  box-shadow: none;
 }
 :root .app-topbar-avatar .ava-dot { background: var(--primary-050); color: var(--primary); border: 1px solid var(--border); }
 :root .app-dash .app-topbar-pill {
@@ -500,23 +630,40 @@
   color: var(--text);
   border: none;
   border-radius: 0;
-  padding: 24px 26px;
+  padding: 18px 24px;
+  gap: 20px;
+  align-items: center;
+  align-content: center;
   box-shadow: none;
   animation: none;
 }
+:root .app-dash .gv-hero-main {
+  gap: 10px;
+}
 :root .app-dash .gv-hero-title {
   color: var(--text);
-  font-size: 1.35rem;
+  font-size: 1.48rem;
   font-weight: 700;
 }
 :root .app-dash .gv-hero-desc {
   color: var(--text-2);
-  font-size: 0.84rem;
+  font-size: 0.86rem;
+  line-height: 1.5;
 }
 :root .app-dash .gv-hero-metrics {
-  gap: 16px 28px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 16px;
+  width: 100%;
   padding-top: 12px;
   border-top: 1px solid var(--border);
+}
+:root .app-dash .gv-hero-actions {
+  width: 100%;
+  margin-top: 2px;
+}
+:root .app-dash .gv-hero-ring-wrap {
+  align-self: center;
 }
 :root .app-dash .gv-hero-metric strong {
   color: var(--text);
@@ -528,8 +675,8 @@
 }
 :root .app-dash .gv-ring-box,
 :root .app-dash .gv-ring-svg {
-  width: 96px;
-  height: 96px;
+  width: 112px;
+  height: 112px;
 }
 :root .app-dash .gv-ring-track {
   stroke: var(--surface-3);
@@ -566,9 +713,14 @@
   border: none;
   border-left: 1px solid var(--border);
   border-radius: 0;
-  padding: 22px 24px;
+  padding: 18px 22px;
+  gap: 8px;
   box-shadow: none;
   animation: none;
+}
+:root .gv-agenda .sa-feed-item,
+:root .gv-agenda .sa-row {
+  padding: 7px 0;
 }
 :root .app-dash .gv-agenda-daynum {
   font-size: 1.55rem;
@@ -585,8 +737,9 @@
 :root .gv-kpi-cell {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 18px 22px;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 16px 18px;
   border-right: 1px solid var(--border);
   text-decoration: none;
   color: var(--text);
@@ -604,11 +757,20 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  min-height: 24px;
 }
 :root .gv-kpi-cell-title {
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-2);
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+:root .gv-kpi-pill {
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 :root .gv-kpi-cell .gv-kpi-val {
   font-size: 1.5rem;
@@ -928,6 +1090,8 @@
 
 /* Jaga bidang kecil agar judul dan tombol tidak saling menekan. */
 .gv-hero-main, .gv-agenda, .bento-chart-panel, .bento-card { min-width: 0; }
+.gv-hero-actions { gap: 8px; }
+.gv-hero-actions .btn-sm { padding: 7px 11px; font-size: .78rem; gap: 5px; }
 .gv-hero-actions > *, .page-head .acts > * { flex-shrink: 0; }
 @media (min-width: 1180px) {
   .dash-content { padding: 20px 24px 44px; }
@@ -973,6 +1137,9 @@
   .gv-tab-btn { min-height: 44px; }
 }
 @media (max-width: 560px) {
+  :root .app-dash .gv-hero-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   :root .gv-kpi-strip {
     grid-template-columns: 1fr;
   }

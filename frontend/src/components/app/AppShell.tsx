@@ -18,8 +18,7 @@ import { BrandLockup } from "@/components/ui/BrandLogo";
 import ThemeToggle from "@/components/ui/ThemeToggle";
 import Modal from "@/components/ui/Modal";
 import { GlassyDashboardSkeleton } from "@/components/dashboard/GlassyWidgets";
-import { useUser, clearUserCache } from "@/hooks/useUser";
-import { auth as authApi, clearToken } from "@/lib/api";
+import { useUser, keluarDanKeLogin, sedangLogout } from "@/hooks/useUser";
 import { inisial } from "@/lib/format";
 import type { User } from "@/types";
 
@@ -55,6 +54,7 @@ const APP_ROUTE_PREFIXES = [
   "/rekam-medis",
   "/target-kesehatan",
   "/program",
+  "/progres-pribadi",
   "/edukasi",
   "/peringkat",
   "/insight",
@@ -296,21 +296,12 @@ function AppFrameView({ children, user, loading, noFab, onFab, roles }: FramePro
 
   async function handleLogout() {
     setKeluar(true);
-    const logoutReq = authApi.logout();
-    clearUserCache();
-    try {
-      await logoutReq;
-    } catch {
-      // token mungkin sudah mati — tetap bersihkan lokal
-    } finally {
-      clearToken();
-      clearUserCache();
-      router.replace("/login");
-    }
+    setKonfirmasiKeluar(false);
+    await keluarDanKeLogin(() => router.replace("/login"));
   }
 
   useEffect(() => {
-    if (!loading && !user) router.replace("/login");
+    if (!loading && !user && !sedangLogout()) router.replace("/login");
   }, [loading, user, router]);
 
   const roleTidakCocok = Boolean(roles && roles.length > 0 && user && !roles.includes(user.role));

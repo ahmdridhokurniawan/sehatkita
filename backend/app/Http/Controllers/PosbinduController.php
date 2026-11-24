@@ -500,8 +500,18 @@ class PosbinduController extends Controller
         $this->wajibPeran($user, ['kader', 'super_admin'], 'Hanya kader atau super admin yang dapat mencari warga berdasarkan NIK atau nama.');
 
         $kata = trim((string) ($request->query('q') ?? $request->query('nik') ?? ''));
+        $wilayahId = $request->filled('wilayah_id') ? (int) $request->query('wilayah_id') : null;
         $hanyaDigit = preg_replace('/[^0-9]/', '', $kata);
         $cariAngka = $kata !== '' && preg_match('/^[0-9\s-]+$/', $kata) === 1;
+        $bolehDaftarKosong = $user->role === 'kader' || ($user->role === 'super_admin' && $wilayahId !== null);
+
+        if ($kata === '' && ! $bolehDaftarKosong) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Ketik minimal 2 huruf nama atau 3 digit NIK',
+                'data' => [],
+            ]);
+        }
 
         if ($cariAngka && strlen($hanyaDigit) < 3) {
             return response()->json([
@@ -511,7 +521,7 @@ class PosbinduController extends Controller
             ]);
         }
 
-        if (! $cariAngka && mb_strlen($kata) < 2) {
+        if ($kata !== '' && ! $cariAngka && mb_strlen($kata) < 2) {
             return response()->json([
                 'success' => true,
                 'message' => 'Ketik minimal 2 huruf nama atau 3 digit NIK',
@@ -524,9 +534,12 @@ class PosbinduController extends Controller
             ->with('wilayah:id,nama')
             ->where('role', 'user')
             ->where('aktif', true)
-            ->when($user->role === 'kader', fn ($q) => $this->scopeBinaan($q, $user));
+            ->when($user->role === 'kader', fn ($q) => $this->scopeBinaan($q, $user))
+            ->when($user->role === 'super_admin' && $wilayahId !== null, fn ($q) => $q->where('wilayah_id', $wilayahId));
 
-        if ($cariAngka) {
+        if ($kata === '') {
+            $query->orderBy('name', 'asc');
+        } elseif ($cariAngka) {
             $query->whereNotNull('nik')
                 ->where('nik', 'like', "{$hanyaDigit}%")
                 ->orderBy('nik', 'asc');
@@ -538,7 +551,7 @@ class PosbinduController extends Controller
             })->orderBy('name', 'asc');
         }
 
-        $hasil = $query->limit(10)
+        $hasil = $query->limit($kata === '' ? 100 : 10)
             ->get()
             ->map(fn ($p) => [
                 'id' => $p->id,

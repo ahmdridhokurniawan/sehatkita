@@ -26,8 +26,10 @@ function tujuanSetelahLogin(): string {
 export default function LoginPage() {
   const router = useRouter();
   const [cekSesi, setCekSesi] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true;
-    return Boolean(getToken()) || typeof BroadcastChannel !== "undefined";
+    if (typeof window === "undefined") return false;
+    const dariLogout = new URLSearchParams(window.location.search).get("logout") === "1";
+    if (dariLogout) return false;
+    return Boolean(getToken());
   });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,9 +44,19 @@ export default function LoginPage() {
 
   useEffect(() => {
     let aktif = true;
+    const dariLogout =
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("logout") === "1";
+
+    if (dariLogout && typeof window !== "undefined") {
+      clearToken(false);
+      clearUserCache();
+      window.history.replaceState(null, "", "/login");
+    }
+
     (async () => {
-      let token = getToken();
-      if (!token) {
+      let token = dariLogout ? null : getToken();
+      if (!token && !dariLogout) {
         token = await mintaSesiDariTabLain();
       }
       if (!aktif) return;

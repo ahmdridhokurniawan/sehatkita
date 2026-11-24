@@ -43,7 +43,7 @@ export default function ProgresPribadiPage() {
     setLoading(true);
     try {
       const [progRes, targetRes, eduRes, achRes] = await Promise.all([
-        programApi.listPaged({ per_page: 50, exclude_jenis: "edukasi" }),
+        programApi.listPaged({ per_page: 50 }),
         targetApi.list({ per_page: 50 }),
         edukasiApi.listPaged({ per_page: 1 }),
         achievementApi.list(),
@@ -64,7 +64,7 @@ export default function ProgresPribadiPage() {
     if (loadingUser || !user) return;
     let aktif = true;
     Promise.all([
-      programApi.listPaged({ per_page: 50, exclude_jenis: "edukasi" }),
+      programApi.listPaged({ per_page: 50 }),
       targetApi.list({ per_page: 50 }),
       edukasiApi.listPaged({ per_page: 1 }),
       achievementApi.list(),
@@ -123,7 +123,7 @@ export default function ProgresPribadiPage() {
   });
 
   return (
-    <AppShell greet="Progres Pribadi" roles={["user"]}>
+    <AppShell noFab greet="Progres Pribadi" roles={["user"]}>
       <div
         className="mb-16"
         style={{
@@ -150,49 +150,59 @@ export default function ProgresPribadiPage() {
 
       {!tampilLoading && !error ? (
         <div style={{ display: "grid", gap: 16 }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
-              gap: 12,
-            }}
-          >
-            <div className="card">
-              <div className="tiny">Tantangan Diikuti</div>
-              <div className="metric-val">{angka(programs.length)}</div>
-              <div className="tiny mt-4">
-                {angka(programs.filter((p) => (p.peserta_saya?.status || p.status_saya) === "selesai").length)} selesai terverifikasi
+          <div className="grid-balanced-4">
+            {[
+              {
+                label: "Tantangan Diikuti",
+                nilai: angka(programs.length),
+                sub: `${angka(programs.filter((p) => (p.peserta_saya?.status || p.status_saya) === "selesai").length)} selesai terverifikasi`,
+                href: "/program",
+                tautan: "Lihat Tantangan →",
+              },
+              {
+                label: "Target Kesehatan",
+                nilai: `${angka(targetTercapai)} / ${angka(targets.length)}`,
+                sub: `${angka(targetTercapai)} target tercapai`,
+                href: "/target-kesehatan",
+                tautan: "Kelola Target →",
+              },
+              {
+                label: "Progres Edukasi",
+                nilai: `${eduRingkas?.persen_keseluruhan ?? 0}%`,
+                sub: `${angka(eduRingkas?.selesai ?? 0)} dari ${angka(eduRingkas?.total_materi ?? 0)} materi selesai`,
+                href: "/edukasi",
+                tautan: "Buka Edukasi →",
+              },
+              {
+                label: "Lencana Keaktifan",
+                nilai: `${angka(achievement?.ringkasan.diraih ?? 0)} / ${angka(achievement?.ringkasan.total ?? 0)}`,
+                sub: `${achievement?.ringkasan.persen ?? 0}% achievement diraih`,
+                href: "/peringkat",
+                tautan: "Lihat Peringkat →",
+              },
+            ].map((item) => (
+              <div
+                key={item.label}
+                className="card"
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  gap: 6,
+                }}
+              >
+                <div>
+                  <div className="tiny">{item.label}</div>
+                  <div className="metric-val">{item.nilai}</div>
+                  <div className="tiny mt-2">{item.sub}</div>
+                </div>
+                <div className="tiny mt-4">
+                  <Link href={item.href} className="text-primary fw-600">
+                    {item.tautan}
+                  </Link>
+                </div>
               </div>
-            </div>
-            <div className="card">
-              <div className="tiny">Target Kesehatan</div>
-              <div className="metric-val">
-                {angka(targetTercapai)} / {angka(targets.length)}
-              </div>
-              <div className="tiny mt-4">
-                <Link href="/target-kesehatan" className="text-primary fw-600">
-                  Kelola Target Kesehatan →
-                </Link>
-              </div>
-            </div>
-            <div className="card">
-              <div className="tiny">Progres Edukasi</div>
-              <div className="metric-val">{eduRingkas?.persen_keseluruhan ?? 0}%</div>
-              <div className="tiny mt-4">
-                {angka(eduRingkas?.selesai ?? 0)} dari {angka(eduRingkas?.total_materi ?? 0)} materi selesai
-              </div>
-            </div>
-            <div className="card">
-              <div className="tiny">Lencana Keaktifan</div>
-              <div className="metric-val">
-                {angka(achievement?.ringkasan.diraih ?? 0)} / {angka(achievement?.ringkasan.total ?? 0)}
-              </div>
-              <div className="tiny mt-4">
-                <Link href="/peringkat" className="text-primary fw-600">
-                  Lihat Achievement &amp; Peringkat →
-                </Link>
-              </div>
-            </div>
+            ))}
           </div>
 
           <section className="card">

@@ -6,8 +6,7 @@ import { useRouter } from "next/navigation";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
 import Modal from "@/components/ui/Modal";
-import { auth, clearToken } from "@/lib/api";
-import { clearUserCache } from "@/hooks/useUser";
+import { keluarDanKeLogin } from "@/hooks/useUser";
 
 const SETELAN_MENU = [
   {
@@ -31,17 +30,8 @@ export default function SetelanPage() {
 
   async function handleLogout() {
     setKeluar(true);
-    const logoutReq = auth.logout();
-    clearUserCache();
-    try {
-      await logoutReq;
-    } catch (err) {
-      console.error("Logout error:", err);
-    } finally {
-      clearToken();
-      clearUserCache();
-      router.push("/login");
-    }
+    setKonfirmasiKeluar(false);
+    await keluarDanKeLogin(() => router.push("/login"));
   }
 
   return (

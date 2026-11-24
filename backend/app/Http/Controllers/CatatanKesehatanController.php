@@ -50,6 +50,9 @@ class CatatanKesehatanController extends Controller
             $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $user->wilayah_id));
 
         } elseif ($user->role === 'super_admin') {
+            if ($request->filled('wilayah_id')) {
+                $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', (int) $request->query('wilayah_id')));
+            }
             if ($request->filled('user_id')) {
                 $query->where('user_id', $request->user_id);
             }

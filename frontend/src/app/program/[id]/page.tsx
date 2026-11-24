@@ -36,7 +36,8 @@ const TONE_PESERTA: Record<StatusPeserta, "primary" | "warning" | "safe" | "dang
   berhenti: "info",
 };
 
-function statusProgram(mulai: string, selesai: string | null) {
+function statusProgram(mulai: string, selesai: string | null, status?: string | null) {
+  if (status === "selesai") return { label: "Selesai", tone: "info" as const };
   const hariIni = todayLocalISO();
   const m = (mulai || "").slice(0, 10);
   const s = (selesai || "").slice(0, 10);
@@ -496,7 +497,8 @@ export default function ProgramDetailPage() {
     );
   }
 
-  const st = program ? statusProgram(program.mulai, program.selesai) : null;
+  const st = program ? statusProgram(program.mulai, program.selesai, program.status) : null;
+  const programSelesai = st?.label === "Selesai";
   const pSaya = program?.peserta_saya;
   const statusSaya = (pSaya?.status || program?.status_saya) as StatusPeserta | undefined;
   const daftarFotoSaya = pSaya?.bukti_foto_urls?.length
@@ -1021,8 +1023,12 @@ export default function ProgramDetailPage() {
             <div className="card mt-12">
               <div className="row-between mb-12">
                 <div>
-                  <h2 className="h4">Daftar Peserta &amp; Verifikasi Misi</h2>
-                  <p className="tiny">Periksa foto dokumentasi warga sebelum menyetujui hadiah EXP.</p>
+                  <h2 className="h4">Daftar Peserta{programSelesai ? "" : " & Verifikasi Misi"}</h2>
+                  <p className="tiny">
+                    {programSelesai
+                      ? "Periode tantangan telah berakhir; validasi peserta sudah ditutup."
+                      : "Periksa foto dokumentasi warga sebelum menyetujui hadiah EXP."}
+                  </p>
                 </div>
                 <span className="badge badge-primary">{angka(peserta.length)} peserta</span>
               </div>
@@ -1092,7 +1098,7 @@ export default function ProgramDetailPage() {
                           </p>
                         ) : null}
 
-                        {!selesai && p.status !== "berhenti" ? (
+                        {!programSelesai && !selesai && p.status !== "berhenti" ? (
                           <div className="row gap-8 wrap">
                             <Button
                               size="sm"

@@ -56,6 +56,7 @@ function formatAksiAudit(aksi: string): string {
 
 function formatNamaModel(model: string): string {
   const pendek = model.split("\\").pop() || model;
+  if (pendek === "CatatanKesehatan") return "Catatan";
   return pendek.replace(/([a-z])([A-Z])/g, "$1 $2");
 }
 
@@ -154,7 +155,7 @@ export default function DashboardSuperAdmin({ user: _user }: { user: User }) {
   const kpiItems: GlassyKpiItem[] = [
     {
       id: "pengguna",
-      title: "Total Pengguna",
+      title: "Pengguna",
       subtitle: `${angka(stats?.total_wilayah ?? 0)} wilayah binaan`,
       value: angka(stats?.total_users ?? 0),
       icon: "users",
@@ -164,11 +165,11 @@ export default function DashboardSuperAdmin({ user: _user }: { user: User }) {
     },
     {
       id: "catatan",
-      title: "Catatan Kesehatan",
+      title: "Total Catatan",
       subtitle: `${rasioTerverifikasi}% tervalidasi`,
       value: angka(totalCatatan),
       icon: "clipboard",
-      pillText: `+${angka(stats?.new_catatan_7d ?? 0)} (7 hari)`,
+      pillText: `+${angka(stats?.new_catatan_7d ?? 0)} (7h)`,
       pillTone: "safe",
       href: "/admin/statistik",
     },
@@ -184,11 +185,11 @@ export default function DashboardSuperAdmin({ user: _user }: { user: User }) {
     },
     {
       id: "audit",
-      title: "Log Audit Sistem",
+      title: "Log Audit",
       subtitle: "Jejak akses terkawal",
       value: angka(stats?.total_audit_logs_7d ?? 0),
       icon: "shield-check",
-      pillText: aduanMenunggu > 0 ? `${angka(aduanMenunggu)} aduan` : "7 hari terakhir",
+      pillText: aduanMenunggu > 0 ? `${angka(aduanMenunggu)} aduan` : "7 hari",
       pillTone: aduanMenunggu > 0 ? "warning" : "info",
       href: "/admin/log-audit",
     },
@@ -247,7 +248,7 @@ export default function DashboardSuperAdmin({ user: _user }: { user: User }) {
               <div className="gv-hero-metrics">
                 <div className="gv-hero-metric">
                   <strong>{stats?.avg_imt != null ? angka(stats.avg_imt, 1) : "—"}</strong>
-                  <span>Rata-rata IMT (kg/m²)</span>
+                  <span>Rata-rata IMT</span>
                 </div>
                 <div className="gv-hero-metric">
                   <strong>
@@ -255,7 +256,7 @@ export default function DashboardSuperAdmin({ user: _user }: { user: User }) {
                       ? `${angka(stats.avg_sistol, 0)}/${angka(stats.avg_diastol, 0)}`
                       : "—"}
                   </strong>
-                  <span>Rata-rata Tensi (mmHg)</span>
+                  <span>Rata-rata Tensi</span>
                 </div>
                 <div className="gv-hero-metric">
                   <strong>{angka(stats?.total_program ?? 0)}</strong>
@@ -265,7 +266,7 @@ export default function DashboardSuperAdmin({ user: _user }: { user: User }) {
 
               <div className="gv-hero-actions">
                 <Link href="/admin/statistik" className="btn btn-sm btn-outline">
-                  Statistik Lengkap <Icon name="chevron-right" size={14} />
+                  Lihat Statistik <Icon name="chevron-right" size={14} />
                 </Link>
                 <Link href="/admin/verifikasi" className="btn btn-sm btn-outline">
                   <Icon name="shield-check" size={14} /> Verifikasi Catatan
@@ -316,7 +317,7 @@ export default function DashboardSuperAdmin({ user: _user }: { user: User }) {
                 <p className="tiny center py-16">Belum ada aktivitas audit tercatat.</p>
               ) : (
                 <div className="sa-feed">
-                  {log.slice(0, 4).map((l) => (
+                  {log.slice(0, 3).map((l) => (
                     <Link key={l.id} href="/admin/log-audit" className="sa-feed-item">
                       <span className="sa-feed-ico">
                         <Icon name="activity" size={15} />
@@ -405,7 +406,7 @@ export default function DashboardSuperAdmin({ user: _user }: { user: User }) {
                   <p className="tiny center py-16">{distribusi.emptyText}</p>
                 ) : (
                   <div className="sa-dist-list">
-                    {distribusi.items.slice(0, 4).map((item, idx) => {
+                    {distribusi.items.slice(0, 3).map((item, idx) => {
                       const persen = Math.round((item.value / totalDistribusi) * 100);
                       const warna = PALET_DIST[idx % PALET_DIST.length];
                       return (

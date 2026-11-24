@@ -7,6 +7,7 @@ use App\Models\CatatanKesehatan;
 use App\Models\KunjunganPosbindu;
 use App\Models\Pengguna;
 use App\Models\PesertaProgram;
+use App\Models\Program;
 use App\Models\ProgresEdukasi;
 use App\Models\TargetKesehatan;
 
@@ -207,24 +208,70 @@ class BadgeKeaktifanService
                 'diraih' => $row !== null,
                 'diraih_pada' => $row?->created_at?->toIso8601String(),
                 'sumber' => 'keaktifan',
+                'program_id' => null,
+                'tenggat' => null,
+                'lewat_tenggat' => false,
+            ];
+        }
+
+        $hariIni = now()->toDateString();
+        $programBerbadge = Program::query()
+            ->whereNotNull('badge_reward')
+            ->where('badge_reward', '!=', '')
+            ->when(
+                $user->role !== 'super_admin' && $user->wilayah_id,
+                fn ($q) => $q->where(fn ($sub) => $sub->whereNull('wilayah_id')->orWhere('wilayah_id', $user->wilayah_id))
+            )
+            ->orderBy('id')
+            ->get();
+
+        $kodeSudahDitambah = $katalogKode;
+        foreach ($programBerbadge as $prog) {
+            $namaBadge = trim((string) $prog->badge_reward);
+            if ($namaBadge === '' || in_array($namaBadge, $kodeSudahDitambah, true)) {
+                continue;
+            }
+
+            $row = $dimiliki->get($namaBadge);
+            $diraih = $row !== null;
+            $selesaiStr = $prog->selesai?->toDateString();
+            $programLewat = $prog->status === 'selesai' || ($selesaiStr !== null && $selesaiStr < $hariIni);
+            $kodeSudahDitambah[] = $namaBadge;
+            $daftar[] = [
+                'kode' => $namaBadge,
+                'nama' => $namaBadge,
+                'deskripsi' => "Lencana hadiah dari tantangan {$prog->judul}.",
+                'ikon' => 'trophy',
+                'tier' => 'emas',
+                'kategori' => 'program',
+                'syarat' => "Selesaikan dan verifikasi tantangan \"{$prog->judul}\"",
+                'diraih' => $diraih,
+                'diraih_pada' => $row?->created_at?->toIso8601String(),
+                'sumber' => 'program',
+                'program_id' => $prog->id,
+                'tenggat' => $selesaiStr,
+                'lewat_tenggat' => ! $diraih && $programLewat,
             ];
         }
 
         foreach ($dimiliki as $kode => $row) {
-            if (in_array($kode, $katalogKode, true)) {
+            if (in_array($kode, $kodeSudahDitambah, true)) {
                 continue;
             }
             $daftar[] = [
                 'kode' => $kode,
                 'nama' => ucwords(str_replace('_', ' ', $kode)),
                 'deskripsi' => 'Lencana khusus dari penyelesaian tantangan kesehatan kelurahan.',
-                'ikon' => 'award',
+                'ikon' => 'trophy',
                 'tier' => 'emas',
                 'kategori' => 'program',
                 'syarat' => 'Disetujui pada program tantangan terkait',
                 'diraih' => true,
                 'diraih_pada' => $row->created_at?->toIso8601String(),
                 'sumber' => 'program',
+                'program_id' => $row->program_id,
+                'tenggat' => null,
+                'lewat_tenggat' => false,
             ];
         }
 

@@ -893,7 +893,23 @@ class WargaDummySeeder extends Seeder
                     $konten = $dibaca;
                 }
             }
-            Storage::disk('local')->put($path, $konten);
+            $disk = Storage::disk('local');
+            $disk->put($path, $konten);
+
+            // Saat seeder dijalankan sebagai root di Docker/CLI, Flysystem default
+            // membuat folder private mode 0700 sehingga php-fpm (www-data) gagal baca (404).
+            $fullFile = $disk->path($path);
+            $fullProgDir = dirname($fullFile);
+            $fullRootDir = dirname($fullProgDir);
+            if (is_dir($fullRootDir)) {
+                @chmod($fullRootDir, 0775);
+            }
+            if (is_dir($fullProgDir)) {
+                @chmod($fullProgDir, 0775);
+            }
+            if (is_file($fullFile)) {
+                @chmod($fullFile, 0664);
+            }
 
             return $path;
         };
@@ -956,29 +972,27 @@ class WargaDummySeeder extends Seeder
                     'diverifikasi_pada'       => Carbon::now()->subDay(),
                 ]
             );
-            // Program 4 (selesai - otomatis 1 kali): Budi selesai & dapat badge kedua
-            $buktiBudiP4 = $simpanBukti($programs[4]->id, $budi->id);
-            PesertaProgram::updateOrCreate(
-                ['program_id' => $programs[4]->id, 'user_id' => $budi->id],
-                [
-                    'status'                  => 'selesai',
-                    'progres_persen'          => 100,
-                    'capaian_nilai'           => 1,
-                    'catatan_progres'         => 'Sudah menyelesaikan 1 kali pemeriksaan Posbindu.',
-                    'progres_diperbarui_pada' => Carbon::now()->subDays(18),
-                    'bukti_foto'              => $buktiBudiP4,
-                    'bukti_foto_daftar'       => [$buktiBudiP4],
-                    'catatan_bukti'           => 'Hadir pada skrining Posbindu triwulan lalu.',
-                    'dikirim_pada'            => Carbon::now()->subDays(19),
-                    'selesai_pada'            => Carbon::now()->subDays(18),
-                    'diverifikasi_oleh'       => $adminLu?->id,
-                    'diverifikasi_pada'       => Carbon::now()->subDays(18),
-                ]
-            );
-            BadgePengguna::firstOrCreate(
-                ['user_id' => $budi->id, 'badge' => 'Pelopor Sehat'],
-                ['program_id' => $programs[4]->id]
-            );
+            // Program 4 (selesai - otomatis 1 kali): diselesaikan oleh warga aktif Loktabat Utara (Nurul & Lestari)
+            foreach ([$listWargaLu[0], $listWargaLu[8]] as $wP4) {
+                $buktiP4 = $simpanBukti($programs[4]->id, $wP4->id);
+                PesertaProgram::updateOrCreate(
+                    ['program_id' => $programs[4]->id, 'user_id' => $wP4->id],
+                    [
+                        'status'                  => 'selesai',
+                        'progres_persen'          => 100,
+                        'capaian_nilai'           => 1,
+                        'catatan_progres'         => 'Sudah menyelesaikan 1 kali pemeriksaan Posbindu.',
+                        'progres_diperbarui_pada' => Carbon::now()->subDays(18),
+                        'bukti_foto'              => $buktiP4,
+                        'bukti_foto_daftar'       => [$buktiP4],
+                        'catatan_bukti'           => 'Hadir pada skrining Posbindu triwulan lalu.',
+                        'dikirim_pada'            => Carbon::now()->subDays(19),
+                        'selesai_pada'            => Carbon::now()->subDays(18),
+                        'diverifikasi_oleh'       => $adminLu?->id,
+                        'diverifikasi_pada'       => Carbon::now()->subDays(18),
+                    ]
+                );
+            }
             // Program 6 (berjalan - otomatis 7 hari): Budi terdaftar dengan capaian 3/7 hari (43%)
             PesertaProgram::updateOrCreate(
                 ['program_id' => $programs[6]->id, 'user_id' => $budi->id],
@@ -1138,7 +1152,7 @@ class WargaDummySeeder extends Seeder
         $targetSeed = [
             ['judul' => 'Turunkan Berat Badan ke 70 kg', 'jenis_target' => 'berat_badan', 'nilai_awal' => 78.0, 'nilai_target' => 70.0, 'satuan' => 'kg', 'tenggat_waktu' => Carbon::now()->addDays(45)->toDateString(), 'tercapai' => false, 'tercapai_pada' => null, 'catatan_motivasi' => 'Sudah turun 4,6 kg! Tinggal 3,4 kg lagi menuju berat ideal.'],
             ['judul' => 'Jaga Tensi Sistolik di Bawah 130 mmHg', 'jenis_target' => 'tekanan_darah', 'nilai_awal' => 144.0, 'nilai_target' => 125.0, 'satuan' => 'mmHg', 'tenggat_waktu' => Carbon::now()->addDays(30)->toDateString(), 'tercapai' => false, 'tercapai_pada' => null, 'catatan_motivasi' => 'Kurangi garam dan tidur cukup 7 jam setiap malam.'],
-            ['judul' => 'Minum Air Putih 2.200 ml per Hari', 'jenis_target' => 'hidrasi', 'nilai_awal' => 1500.0, 'nilai_target' => 2200.0, 'satuan' => 'ml', 'tenggat_waktu' => Carbon::now()->addDays(14)->toDateString(), 'tercapai' => true, 'tercapai_pada' => Carbon::now()->subDays(2), 'catatan_motivasi' => 'Mantap! Kebutuhan cairan harianmu berhasil terpenuhi konsisten.'],
+            ['judul' => 'Minum Air Putih 2.200 ml per Hari', 'jenis_target' => 'hidrasi', 'nilai_awal' => 1500.0, 'nilai_target' => 2200.0, 'satuan' => 'ml', 'tenggat_waktu' => Carbon::now()->addDays(14)->toDateString(), 'tercapai' => false, 'tercapai_pada' => null, 'catatan_motivasi' => 'Sudah mendekati target harian, tinggal pertahankan hari ini.'],
             ['judul' => 'Gula Darah Puasa Stabil < 100 mg/dL', 'jenis_target' => 'gula_darah', 'nilai_awal' => 112.0, 'nilai_target' => 98.0, 'satuan' => 'mg/dL', 'tenggat_waktu' => Carbon::now()->subDay()->toDateString(), 'tercapai' => true, 'tercapai_pada' => Carbon::now()->subDays(3), 'catatan_motivasi' => 'Hasil cek terbaru 96 mg/dL! Pertahankan pola makan rendah gula.'],
         ];
         foreach ($targetSeed as $t) {
@@ -1259,8 +1273,8 @@ class WargaDummySeeder extends Seeder
         // ------------------------------------------------------------------
         $daftarEdukasi = Edukasi::where('aktif', true)->orderBy('urutan')->get()->values();
         if ($daftarEdukasi->isNotEmpty()) {
-            // Budi menuntaskan 3 materi pertama (memenuhi lencana Pembelajar Sehat) & 1 materi 60%
-            foreach ($daftarEdukasi->take(3) as $idxEdu => $edu) {
+            // Budi menuntaskan 2 materi pertama & sedang membaca materi ke-3 (1 materi lagi untuk Pembelajar Sehat)
+            foreach ($daftarEdukasi->take(2) as $idxEdu => $edu) {
                 ProgresEdukasi::updateOrCreate(
                     ['edukasi_id' => $edu->id, 'user_id' => $budi->id],
                     [
@@ -1271,13 +1285,13 @@ class WargaDummySeeder extends Seeder
                     ]
                 );
             }
-            if (isset($daftarEdukasi[3])) {
+            if (isset($daftarEdukasi[2])) {
                 ProgresEdukasi::updateOrCreate(
-                    ['edukasi_id' => $daftarEdukasi[3]->id, 'user_id' => $budi->id],
+                    ['edukasi_id' => $daftarEdukasi[2]->id, 'user_id' => $budi->id],
                     [
                         'progres_persen'  => 60,
                         'sudah_dibaca'    => false,
-                        'catatan_pribadi' => 'Sedang mencoba jadwal jalan cepat 30 menit.',
+                        'catatan_pribadi' => 'Sedang mempelajari panduan piring makan gizi seimbang.',
                         'selesai_pada'    => null,
                     ]
                 );
@@ -1318,7 +1332,6 @@ class WargaDummySeeder extends Seeder
         // 12. Survei Kepuasan Masyarakat (melengkapi fitur survei & lencana Sahabat Sehat)
         // ------------------------------------------------------------------
         $kepuasanSeed = [
-            [$budi,                     5, 'Pelayanan Kader Posbindu',    'Kader sangat ramah, pencatatan hasil skrining cepat dan mudah dipantau lewat aplikasi.'],
             [$listWargaLu[0] ?? null,   5, 'Kemudahan Aplikasi SehatKita', 'Grafik riwayat tensi dan pengingat target harian sangat membantu.'],
             [$listWargaLu[1] ?? null,   4, 'Kejelasan Informasi Edukasi',  'Materi pemeriksaan gula darah lengkap dan mudah dipahami.'],
             [$listWargaLu[4] ?? null,   4, 'Kecepatan Rujukan Faskes',     'Surat pengantar rujukan ke Puskesmas jelas dan praktis dibawa saat kontrol.'],
@@ -1344,8 +1357,21 @@ class WargaDummySeeder extends Seeder
         }
 
         // ------------------------------------------------------------------
-        // 13. Evaluasi seluruh lencana keaktifan & segarkan cache peringkat
+        // 13. Sinkronkan badge hadiah tantangan yang berstatus selesai + evaluasi semua lencana keaktifan
         // ------------------------------------------------------------------
+        $pesertaSelesai = PesertaProgram::with('program:id,badge_reward')
+            ->where('status', 'selesai')
+            ->get();
+        foreach ($pesertaSelesai as $ps) {
+            $namaBadge = trim((string) ($ps->program?->badge_reward ?? ''));
+            if ($namaBadge !== '') {
+                BadgePengguna::firstOrCreate(
+                    ['user_id' => $ps->user_id, 'badge' => $namaBadge],
+                    ['program_id' => $ps->program_id]
+                );
+            }
+        }
+
         $badgeService = app(BadgeKeaktifanService::class);
         $semuaWargaSeed = array_merge([$budi], $listWargaLu, $listWargaGp);
         foreach ($wargaKelurahanLain as $kelompokWarga) {

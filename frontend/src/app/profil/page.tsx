@@ -17,8 +17,8 @@ import type { JenisKelamin, TingkatAktivitas } from "@/lib/enums";
 import { RIWAYAT_KELUARGA_OPTIONS } from "@/lib/session";
 import { LABEL_FAKTOR, LABEL_JENIS_KELAMIN, LABEL_ROLE, LABEL_TINGKAT_AKTIVITAS } from "@/lib/labels";
 import { inisial, todayLocalISO } from "@/lib/format";
-import { profil as profilApi, auth as authApi, telegram as telegramApi, clearToken, ApiError, type TelegramStatus } from "@/lib/api";
-import { useUser, refreshUser, clearUserCache } from "@/hooks/useUser";
+import { profil as profilApi, telegram as telegramApi, ApiError, type TelegramStatus } from "@/lib/api";
+import { useUser, refreshUser, keluarDanKeLogin } from "@/hooks/useUser";
 import type { Profil } from "@/types";
 
 const PROFIL_KOSONG: Profil = {
@@ -691,17 +691,8 @@ export default function ProfilPage() {
           <Button
             variant="danger"
             onClick={async () => {
-              const logoutReq = authApi.logout();
-              clearUserCache();
-              try {
-                await logoutReq;
-              } catch {
-                /* token sudah mati */
-              } finally {
-                clearToken();
-                clearUserCache();
-                router.replace("/login");
-              }
+              setKonfirmasiKeluar(false);
+              await keluarDanKeLogin(() => router.replace("/login"));
             }}
           >
             Keluar

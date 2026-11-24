@@ -201,6 +201,7 @@ export interface CatatanQuery extends ListQuery {
   dari?: string;
   sampai?: string;
   user_id?: number;
+  wilayah_id?: number;
 }
 /* ============================================================
  * §8 — Dashboard Pribadi, Rekam Medis (dulu Tren), Insight
@@ -252,6 +253,9 @@ export interface AchievementItem {
   diraih: boolean;
   diraih_pada: string | null;
   sumber: "keaktifan" | "program";
+  program_id?: number | null;
+  tenggat?: string | null;
+  lewat_tenggat?: boolean;
 }
 export interface AchievementRingkasan {
   total: number;
@@ -516,6 +520,7 @@ export interface Program {
 }
 export interface ProgramQuery extends ListQuery {
   status?: StatusProgram;
+  progres?: "belum_diikuti" | "proses" | "selesai";
   jenis?: JenisProgram;
   exclude_jenis?: string;
   wilayah_id?: number;

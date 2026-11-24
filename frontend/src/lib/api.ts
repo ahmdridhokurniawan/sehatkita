@@ -572,10 +572,14 @@ export const posbindu = {
  * ============================================================ */
 export const pengguna = {
   /**
-   * GET /pengguna/cari-nik?nik=xxx (kader / super_admin)
-   * Mendukung pencarian nama warga (min. 2 huruf) atau awalan NIK (min. 3 digit). Hasil maksimal 10.
+   * GET /pengguna/cari-nik?nik=xxx&wilayah_id=yyy (kader / super_admin)
+   * Mendukung pencarian nama warga (min. 2 huruf) atau awalan NIK (min. 3 digit),
+   * serta daftar langsung saat kader atau super_admin memfilter kelurahan tertentu.
    */
-  cariNik: (nik: string) => request<WargaCari[]>("/pengguna/cari-nik", { query: { nik } }),
+  cariNik: (nik: string, wilayahId?: number | null) =>
+    request<WargaCari[]>("/pengguna/cari-nik", {
+      query: { nik, ...(wilayahId ? { wilayah_id: wilayahId } : {}) },
+    }),
 };
 /* ============================================================
  * §11 — Rujukan

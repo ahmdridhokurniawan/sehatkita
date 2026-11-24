@@ -156,6 +156,34 @@ function muatUser(): Promise<User | null> {
   return pending;
 }
 
+let sedangProsesKeluar = false;
+
+/** Menandakan apakah proses logout eksplisit sedang berjalan agar effect Shell tidak balapan redirect. */
+export function sedangLogout(): boolean {
+  return sedangProsesKeluar;
+}
+
+/** Akhiri sesi akun secara bersih lalu arahkan ke /login tanpa menyisakan state/modal lama. */
+export async function keluarDanKeLogin(fallbackNavigate?: () => void): Promise<void> {
+  sedangProsesKeluar = true;
+  const logoutReq = auth.logout();
+  clearUserCache();
+  try {
+    await logoutReq;
+  } catch {
+    // Sesi lokal sudah dibersihkan meski server gagal / token sudah mati.
+  } finally {
+    clearToken();
+    clearUserCache();
+    if (typeof window !== "undefined" && process.env.NODE_ENV !== "test") {
+      window.location.replace("/login?logout=1");
+    } else {
+      sedangProsesKeluar = false;
+      fallbackNavigate?.();
+    }
+  }
+}
+
 /** Panggil saat logout / token dihapus, atau isi langsung user baru setelah login/register. */
 export function clearUserCache(nextUser?: User | null): void {
   cacheEpoch += 1;

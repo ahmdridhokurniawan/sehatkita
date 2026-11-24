@@ -471,7 +471,7 @@ export default function DashboardUser({ user }: { user: User }) {
                 </div>
               ) : (
                 <div className="sa-feed">
-                  {riwayatItems.slice(0, 4).map((item) => {
+                  {riwayatItems.slice(0, 3).map((item) => {
                     const st = TONE_ICO_STYLE[item.tone];
                     return (
                       <Link key={item.id} href={item.href} className="sa-feed-item">
@@ -504,7 +504,7 @@ export default function DashboardUser({ user }: { user: User }) {
                 </div>
               ) : (
                 <div className="sa-feed">
-                  {notifikasiItems.slice(0, 4).map((item) => {
+                  {notifikasiItems.slice(0, 3).map((item) => {
                     const st = TONE_ICO_STYLE[item.tone];
                     return (
                       <Link key={item.id} href={item.href} className="sa-row">
@@ -542,7 +542,7 @@ export default function DashboardUser({ user }: { user: User }) {
                     labels={titikTerbaru.map((t) => tanggal(t.tanggal, "short"))}
                     values={titikTerbaru.map((t) => t.nilai)}
                     unit={seriAktif.satuan}
-                    height={158}
+                    height={128}
                   />
                 ) : (
                   <p className="tiny center py-16">Belum ada riwayat pemeriksaan dalam 3 bulan terakhir.</p>
