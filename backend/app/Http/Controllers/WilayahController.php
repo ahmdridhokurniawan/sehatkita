@@ -17,12 +17,12 @@ class WilayahController extends Controller
         $parentId = (string) $request->query('parent_id', '');
 
         if (! $adaCari) {
-            $cacheKey = 'wilayah:list:'.md5("{$tipe}|{$parentId}");
+            $cacheKey = 'wilayah:v2:list:'.md5("{$tipe}|{$parentId}");
             $data = Cache::remember($cacheKey, now()->addHour(), function () use ($tipe, $parentId) {
                 return $this->queryDasar($tipe, $parentId)
                     ->get(['id', 'nama', 'tipe', 'kode', 'parent_id'])
                     ->values()
-                    ->all();
+                    ->toArray();
             });
 
             return response()->json([

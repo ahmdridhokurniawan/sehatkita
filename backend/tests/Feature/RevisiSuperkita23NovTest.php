@@ -3,11 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\BadgePengguna;
+use App\Models\Faskes;
 use App\Models\Pengguna;
 use App\Models\Profil;
 use App\Models\Program;
 use App\Models\Wilayah;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
@@ -142,5 +144,45 @@ class RevisiSuperkita23NovTest extends TestCase
         $res->assertOk();
         $this->assertStringContainsString('application/vnd.ms-excel', (string) $res->headers->get('Content-Type'));
         $this->assertStringContainsString('<Workbook', $res->streamedContent());
+    }
+
+    public function test_cache_wilayah_dan_faskes_tersimpan_sebagai_array(): void
+    {
+        $wil = $this->buatWilayah();
+        $user = $this->buatUser('user', $wil->id);
+        Faskes::create([
+            'nama' => 'Puskesmas Uji',
+            'jenis' => 'puskesmas',
+            'wilayah_id' => $wil->id,
+        ]);
+
+        // Request ke-1 (isi cache) & ke-2 (baca dari cache) harus tetap mengembalikan id & nama.
+        $this->getJson('/api/v1/wilayah?tipe=kelurahan')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $wil->id)
+            ->assertJsonPath('data.0.nama', $wil->nama);
+
+        $this->getJson('/api/v1/wilayah?tipe=kelurahan')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $wil->id)
+            ->assertJsonPath('data.0.nama', $wil->nama);
+
+        $cachedWilayah = Cache::get('wilayah:v2:list:'.md5('kelurahan|'));
+        $this->assertIsArray($cachedWilayah);
+        $this->assertIsArray($cachedWilayah[0] ?? null);
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson('/api/v1/faskes')
+            ->assertOk()
+            ->assertJsonPath('data.0.nama', 'Puskesmas Uji');
+
+        $this->actingAs($user, 'sanctum')
+            ->getJson('/api/v1/faskes')
+            ->assertOk()
+            ->assertJsonPath('data.0.nama', 'Puskesmas Uji');
+
+        $cachedFaskes = Cache::get('faskes:v2:list:semua');
+        $this->assertIsArray($cachedFaskes);
+        $this->assertIsArray($cachedFaskes[0] ?? null);
     }
 }

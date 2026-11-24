@@ -55,7 +55,7 @@
   --safe-bg: rgba(73, 178, 128, 0.14);
   --info: #6892D4;
   --info-bg: rgba(104, 146, 212, 0.14);
-  --bg: #0E1117;
+  --bg: #0B0E14;
   --surface: #161B22;
   --surface-2: #1E2530;
   --surface-3: #27303F;
@@ -83,12 +83,12 @@
 /* Kanvas putih dominan & bersih khusus area aplikasi setelah login (.app-dash). */
 :root:not([data-theme="dark"]):has(.app-dash),
 :root:not([data-theme="dark"]) .app-dash {
-  --bg: #F8FAFC;
+  --bg: #EFF3F8;
   --surface: #FFFFFF;
-  --surface-2: #F1F5F9;
+  --surface-2: #F8FAFC;
   --surface-3: #E2E8F0;
-  --border: #E2E8F0;
-  --border-strong: #CBD5E1;
+  --border: #D5DEE9;
+  --border-strong: #B8C5D6;
   --text: #0F172A;
   --text-2: #334155;
   --text-3: #64748B;
@@ -314,10 +314,15 @@
 :root[data-theme="dark"] .app-dash > .sidebar,
 :root[data-theme="dark"] .sidebar {
   background: var(--surface);
-  border-color: var(--border);
-  border-right: 1px solid var(--border);
+  border-color: var(--border-strong);
+  border-right: 1.5px solid var(--border-strong);
   color: var(--text);
-  box-shadow: none;
+  box-shadow: 6px 0 24px -8px rgba(0, 0, 0, 0.55);
+}
+@media (min-width: 981px) {
+  :root .app-dash > .sidebar {
+    z-index: 25;
+  }
 }
 /* Hilangkan motif garis hijau lama agar sidebar bersih menyatu di mode terang maupun gelap. */
 :root .sidebar::before,
@@ -488,9 +493,9 @@
 /* Sidebar Mode Terang putih dominan dengan teks gelap dan aksen biru seperlunya. */
 :root:not([data-theme="dark"]) .app-dash .sidebar {
   background: var(--surface);
-  border-right: 1px solid var(--border);
+  border-right: 1.5px solid var(--border-strong);
   color: var(--text);
-  box-shadow: none;
+  box-shadow: 4px 0 20px -8px rgba(15, 23, 42, 0.14);
 }
 :root:not([data-theme="dark"]) .app-dash .sidebar::before {
   display: none;
@@ -586,12 +591,12 @@
   height: 60px;
   padding: 0 28px;
   background: var(--surface);
-  border-bottom: 1.5px solid var(--border);
-  box-shadow: 0 1px 4px rgba(15, 23, 42, .04);
+  border-bottom: 1.5px solid var(--border-strong);
+  box-shadow: 0 1px 6px rgba(15, 23, 42, .05);
   backdrop-filter: none;
 }
 :root[data-theme="dark"] .app-dash .app-topbar {
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1.5px solid var(--border-strong);
   box-shadow: none;
 }
 :root .app-topbar-avatar .ava-dot { background: var(--primary-050); color: var(--primary); border: 1px solid var(--border); }

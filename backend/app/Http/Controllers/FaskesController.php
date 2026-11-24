@@ -28,7 +28,7 @@ class FaskesController extends Controller
         $wilayahId = (string) $request->query('wilayah_id', '');
 
         if (! $adaCari) {
-            $cacheKey = 'faskes:list:'.($wilayahId !== '' ? $wilayahId : 'semua');
+            $cacheKey = 'faskes:v2:list:'.($wilayahId !== '' ? $wilayahId : 'semua');
             $keys = Cache::get(self::CACHE_KEYS_REGISTRY, []);
             if (! is_array($keys)) {
                 $keys = [];
@@ -46,7 +46,7 @@ class FaskesController extends Controller
 
                 return $query->get([
                     'id', 'nama', 'jenis', 'alamat', 'telepon', 'wilayah_id', 'lat', 'lng',
-                ])->values()->all();
+                ])->values()->toArray();
             });
 
             return response()->json([
