@@ -1,22 +1,22 @@
-/* Ambil gaya Arclo dengan palet Hijau Emerald Murni terpadu & gradasi elegan. */
+/* Palet bersih berfokus keterbacaan: putih dominan (light) & gelap tenang dengan aksen biru kalem (dark). */
 :root {
   --radius-sm: 10px;
   --radius: 16px;
   --radius-lg: 24px;
-  --grad-primary: linear-gradient(135deg, #168C58 0%, #0F7347 52%, #0A5233 100%);
-  --grad-primary-hover: linear-gradient(135deg, #1B9E64 0%, #128251 52%, #0C5F3B 100%);
-  --grad-hero: radial-gradient(420px 260px at 90% 12%, rgba(74, 222, 128, 0.22), transparent 68%), linear-gradient(135deg, #072E1E 0%, #0C5738 52%, #157D50 100%);
-  --grad-surface: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--surface-2) 34%, var(--surface)) 100%);
-  --grad-warning: radial-gradient(360px 220px at 88% 16%, rgba(251, 191, 36, 0.18), transparent 68%), linear-gradient(135deg, #7C2D12 0%, #A14114 54%, #C25E1A 100%);
-  --grad-danger: radial-gradient(360px 220px at 88% 16%, rgba(252, 165, 165, 0.18), transparent 68%), linear-gradient(135deg, #7F1D1D 0%, #9F2426 54%, #B93234 100%);
+  --grad-primary: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+  --grad-primary-hover: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+  --grad-hero: radial-gradient(420px 260px at 90% 12%, rgba(91, 135, 206, 0.18), transparent 68%), linear-gradient(135deg, #0F172A 0%, #1E293B 55%, #1E3A5F 100%);
+  --grad-surface: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--surface-2) 24%, var(--surface)) 100%);
+  --grad-warning: linear-gradient(135deg, #7C2D12 0%, #B45309 100%);
+  --grad-danger: linear-gradient(135deg, #7F1D1D 0%, #B91C1C 100%);
 }
 :root[data-theme="dark"] {
-  --grad-primary: linear-gradient(135deg, #4ADE80 0%, #22C55E 55%, #16A34A 100%);
-  --grad-primary-hover: linear-gradient(135deg, #6EE7A0 0%, #34D36E 55%, #1BB555 100%);
-  --grad-hero: radial-gradient(420px 260px at 90% 12%, rgba(74, 222, 128, 0.18), transparent 68%), linear-gradient(135deg, #062417 0%, #0B472D 54%, #116641 100%);
-  --grad-surface: linear-gradient(180deg, var(--surface) 0%, color-mix(in srgb, var(--surface-2) 48%, var(--surface)) 100%);
-  --grad-warning: linear-gradient(135deg, #6B2810 0%, #8C3B15 55%, #A64D1C 100%);
-  --grad-danger: linear-gradient(135deg, #6E1A1D 0%, #8E2327 55%, #A62F33 100%);
+  --grad-primary: linear-gradient(135deg, #3563AD 0%, #284D88 100%);
+  --grad-primary-hover: linear-gradient(135deg, #4273C0 0%, #3563AD 100%);
+  --grad-hero: radial-gradient(420px 260px at 90% 12%, rgba(91, 135, 206, 0.14), transparent 68%), linear-gradient(135deg, #111827 0%, #1A2436 55%, #1E2E47 100%);
+  --grad-surface: var(--surface);
+  --grad-warning: linear-gradient(135deg, #5D2D16 0%, #7A3E20 100%);
+  --grad-danger: linear-gradient(135deg, #5C1F22 0%, #7A2B2F 100%);
 }
 
 :root:not([data-theme="dark"]) body,
@@ -24,16 +24,10 @@
   background: var(--bg);
 }
 :root:not([data-theme="dark"]) .landing {
-  background:
-    radial-gradient(680px 380px at 94% 4%, rgba(22, 140, 88, 0.065), transparent 70%),
-    radial-gradient(540px 340px at 6% 92%, rgba(21, 128, 61, 0.045), transparent 72%),
-    linear-gradient(180deg, #F8FBF9 0%, var(--bg) 52%, #EFF6F1 100%);
+  background: linear-gradient(180deg, #FFFFFF 0%, var(--bg) 100%);
 }
 :root[data-theme="dark"] .landing {
-  background:
-    radial-gradient(680px 380px at 94% 4%, rgba(74, 222, 128, 0.08), transparent 70%),
-    radial-gradient(540px 340px at 6% 92%, rgba(34, 197, 94, 0.055), transparent 72%),
-    linear-gradient(180deg, #061810 0%, var(--bg) 55%, #092116 100%);
+  background: linear-gradient(180deg, #0E1117 0%, #121721 100%);
 }
 
 /* Palet Dark Mode Kesehatan yang tenang & minimalis khusus halaman aplikasi (landing tetap utuh). */
@@ -45,58 +39,58 @@
 :root[data-theme="dark"] .bottom-nav,
 :root[data-theme="dark"]:has(.dash),
 :root[data-theme="dark"]:has(.auth-wrap) {
-  --primary: #3DA075;
-  --primary-600: #2F8B64;
-  --primary-700: #246F4F;
-  --primary-050: rgba(61, 160, 117, 0.13);
-  --primary-100: rgba(61, 160, 117, 0.22);
-  --accent: #469B7C;
-  --accent-600: #348468;
-  --accent-700: #276A53;
-  --accent-050: rgba(70, 155, 124, 0.13);
-  --accent-100: rgba(70, 155, 124, 0.22);
-  --green: #3DA075;
-  --green-050: rgba(61, 160, 117, 0.14);
-  --safe: #43B082;
-  --safe-bg: rgba(67, 176, 130, 0.14);
-  --info: #5EB1A4;
-  --info-bg: rgba(94, 177, 164, 0.14);
-  --bg: #0F1413;
-  --surface: #151C1A;
-  --surface-2: #1B2421;
-  --surface-3: #222D2A;
-  --border: #25322D;
-  --border-strong: #32443E;
-  --text: #E8F0EC;
-  --text-2: #B6C7C0;
-  --text-3: #83978F;
-  --text-invert: #0A1410;
-  --on-primary: #F4FAF7;
-  --grad-primary: linear-gradient(135deg, #3DA075 0%, #2F8B64 100%);
-  --grad-primary-hover: linear-gradient(135deg, #4AB485 0%, #379A70 100%);
-  --grad-hero: linear-gradient(135deg, #163329 0%, #1F4B3B 100%);
+  --primary: #668CC7;
+  --primary-600: #2C508A;
+  --primary-700: #224070;
+  --primary-050: rgba(102, 140, 199, 0.14);
+  --primary-100: rgba(102, 140, 199, 0.22);
+  --accent: #43A074;
+  --accent-600: #35835E;
+  --accent-700: #286648;
+  --accent-050: rgba(67, 160, 116, 0.14);
+  --accent-100: rgba(67, 160, 116, 0.22);
+  --green: #43A074;
+  --green-050: rgba(67, 160, 116, 0.14);
+  --safe: #49B280;
+  --safe-bg: rgba(73, 178, 128, 0.14);
+  --info: #6892D4;
+  --info-bg: rgba(104, 146, 212, 0.14);
+  --bg: #0E1117;
+  --surface: #161B22;
+  --surface-2: #1E2530;
+  --surface-3: #27303F;
+  --border: #2A3444;
+  --border-strong: #3B485E;
+  --text: #F8FAFC;
+  --text-2: #CBD5E1;
+  --text-3: #94A3B8;
+  --text-invert: #0E1117;
+  --on-primary: #F8FAFC;
+  --grad-primary: linear-gradient(135deg, #2C508A 0%, #224070 100%);
+  --grad-primary-hover: linear-gradient(135deg, #3761A4 0%, #2C508A 100%);
+  --grad-hero: linear-gradient(135deg, #161E2B 0%, #1D293D 100%);
   --grad-surface: var(--surface);
   --grad-warning: linear-gradient(135deg, #5D2D16 0%, #7A3E20 100%);
   --grad-danger: linear-gradient(135deg, #5C1F22 0%, #7A2B2F 100%);
-  --c-1: #3DA075;
-  --c-2: #5EB1A4;
-  --c-3: #2B8A67;
-  --c-4: #2F8B64;
-  --c-5: #246F52;
-  --c-6: #1B5841;
+  --c-1: #668CC7;
+  --c-2: #43A074;
+  --c-3: #4F98A3;
+  --c-4: #7BA0DA;
+  --c-5: #63B58D;
+  --c-6: #2C508A;
 }
 
-/* Kanvas netral tenang bernuansa sage lembut khusus area aplikasi setelah login (.app-dash). */
+/* Kanvas putih dominan & bersih khusus area aplikasi setelah login (.app-dash). */
 :root:not([data-theme="dark"]):has(.app-dash),
 :root:not([data-theme="dark"]) .app-dash {
-  --bg: #EBF1EF;
+  --bg: #F8FAFC;
   --surface: #FFFFFF;
-  --surface-2: #F3F7F5;
-  --surface-3: #E2EAE6;
-  --border: #C4D1CC;
-  --border-strong: #94A8A0;
+  --surface-2: #F1F5F9;
+  --surface-3: #E2E8F0;
+  --border: #E2E8F0;
+  --border-strong: #CBD5E1;
   --text: #0F172A;
-  --text-2: #475569;
+  --text-2: #334155;
   --text-3: #64748B;
 }
 
@@ -111,10 +105,7 @@
   animation: none;
 }
 :root:not([data-theme="dark"]) .app-dash .dash-main {
-  background:
-    radial-gradient(620px 300px at 95% 0%, rgba(22, 140, 88, 0.055), transparent 72%),
-    radial-gradient(480px 260px at 4% 96%, rgba(22, 140, 88, 0.035), transparent 75%),
-    var(--bg);
+  background: var(--bg);
 }
 :root .app-dash .dash-main::before {
   display: none;
@@ -257,6 +248,15 @@
 :root .app-dash .btn-primary:hover:not(:disabled) {
   background: var(--primary-600);
 }
+:root[data-theme="dark"] .app-dash .btn-primary,
+:root[data-theme="dark"] .sidebar .snav.active,
+:root[data-theme="dark"] .sidebar .snav.active:hover {
+  background: var(--primary-600);
+  color: var(--on-primary);
+}
+:root[data-theme="dark"] .app-dash .btn-primary:hover:not(:disabled) {
+  background: var(--primary-700);
+}
 :root .app-dash .input,
 :root .app-dash .select,
 :root .app-dash .textarea {
@@ -295,35 +295,41 @@
 .gv-head-title, .page-head h1 { font-weight: 700; letter-spacing: -.035em; }
 .gv-kpi-value, .bento-card-val, .stat-value { font-weight: 700; }
 
-/* Kembalikan token warna emerald-mint asli untuk sidebar & preview-nya di light mode. */
+/* Kembalikan token putih bersih & teks gelap untuk sidebar & preview-nya di light mode. */
 :root:not([data-theme="dark"]) .app-dash .sidebar,
 :root:not([data-theme="dark"]) .snav-preview {
-  --bg: #F6FAF7;
+  --bg: #F8FAFC;
   --surface: #FFFFFF;
-  --surface-2: #EEF5F0;
-  --surface-3: #DCEBE1;
-  --border: #D4E4DA;
-  --border-strong: #B3CEBD;
-  --text: #072417;
-  --text-2: #3D574A;
-  --text-3: #607C6E;
+  --surface-2: #F1F5F9;
+  --surface-3: #E2E8F0;
+  --border: #E2E8F0;
+  --border-strong: #CBD5E1;
+  --text: #0F172A;
+  --text-2: #334155;
+  --text-3: #64748B;
 }
 
-/* Navigasi memakai icon pill + pengelompokan rapi agar sidebar lebih hidup. */
-:root .sidebar {
-  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+/* Navigasi memakai icon pill + pengelompokan rapi agar sidebar selaras dengan kanvas dark & light. */
+:root .sidebar,
+:root[data-theme="dark"] .app-dash > .sidebar,
+:root[data-theme="dark"] .sidebar {
+  background: var(--surface);
   border-color: var(--border);
+  border-right: 1px solid var(--border);
   color: var(--text);
-  box-shadow: 6px 0 28px -18px rgba(15, 23, 42, 0.12);
+  box-shadow: none;
 }
-/* Sidebar menampilkan motif kesehatan lembut di mode terang maupun gelap. */
-:root .sidebar::before {
-  display: block;
-  opacity: 0.32;
+/* Hilangkan motif garis hijau lama agar sidebar bersih menyatu di mode terang maupun gelap. */
+:root .sidebar::before,
+:root[data-theme="dark"] .app-dash > .sidebar::before,
+:root[data-theme="dark"] .sidebar::before {
+  display: none;
 }
-:root .sidebar .sidebar-brand {
+:root .sidebar .sidebar-brand,
+:root[data-theme="dark"] .app-dash > .sidebar .sidebar-brand,
+:root[data-theme="dark"] .sidebar .sidebar-brand {
   height: 60px;
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(16, 185, 129, 0.01) 100%);
+  background: transparent;
   border-bottom: 1px solid var(--border);
 }
 :root .sidebar .sidebar-brand .txt,
@@ -339,12 +345,12 @@
   border-top: 2px solid var(--border-strong);
 }
 :root .sidebar .nav-group-title {
-  color: var(--primary);
+  color: var(--text-3);
   font-size: 0.6875rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  opacity: 0.85;
+  opacity: 0.9;
   padding: 2px 10px 8px;
 }
 :root .dash.collapsed .sidebar .nav-group-title {
@@ -381,7 +387,7 @@
 }
 :root .sidebar .snav svg { color: currentColor; }
 :root .sidebar .snav:hover {
-  background: rgba(13, 98, 78, 0.06);
+  background: var(--primary-050);
   color: var(--primary);
   box-shadow: none;
   transform: translateX(2px);
@@ -479,100 +485,97 @@
 :root .sidebar-nav::-webkit-scrollbar-thumb { background: transparent; border-radius: 99px; }
 :root .sidebar-nav:hover::-webkit-scrollbar-thumb { background: var(--border-strong); }
 
-/* Sidebar Mode Terang memakai hijau olive/forest tenang khas SehatKita (teks putih, pill aktif putih). */
+/* Sidebar Mode Terang putih dominan dengan teks gelap dan aksen biru seperlunya. */
 :root:not([data-theme="dark"]) .app-dash .sidebar {
-  background:
-    radial-gradient(520px 300px at 92% 8%, rgba(220, 245, 210, 0.16), transparent 68%),
-    radial-gradient(360px 260px at 8% 92%, rgba(16, 32, 18, 0.34), transparent 70%),
-    linear-gradient(160deg, #4E6B36 0%, #364E25 52%, #223318 100%);
-  border-right: 1px solid rgba(255, 255, 255, 0.16);
-  color: #F4F7F0;
-  box-shadow: 6px 0 24px -14px rgba(20, 32, 12, 0.35);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  color: var(--text);
+  box-shadow: none;
 }
 :root:not([data-theme="dark"]) .app-dash .sidebar::before {
-  opacity: 0.38;
+  display: none;
 }
 :root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-brand {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%);
-  border-bottom: 1px solid rgba(236, 242, 221, 0.24);
+  background: transparent;
+  border-bottom: 1px solid var(--border);
 }
 :root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-brand .txt,
 :root:not([data-theme="dark"]) .app-dash .sidebar .user-chip .who strong {
-  color: #F4F7F0;
+  color: var(--text);
 }
 :root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-brand .txt small,
 :root:not([data-theme="dark"]) .app-dash .sidebar .user-chip .who span {
-  color: rgba(236, 242, 221, 0.84);
+  color: var(--text-2);
 }
 :root:not([data-theme="dark"]) .app-dash .sidebar .nav-group + .nav-group {
-  border-top: 1px solid rgba(236, 242, 221, 0.2);
+  border-top: 1px solid var(--border);
 }
 :root:not([data-theme="dark"]) .app-dash .sidebar .nav-group-title {
-  color: rgba(223, 230, 201, 0.72);
+  color: var(--text-3);
 }
 :root:not([data-theme="dark"]) .app-dash .sidebar .snav,
 :root:not([data-theme="dark"]) .app-dash .sidebar .snav-ico {
-  color: rgba(244, 247, 240, 0.9);
+  color: var(--text-2);
 }
 :root:not([data-theme="dark"]) .app-dash .sidebar .snav:hover {
-  background: rgba(255, 255, 255, 0.11);
-  color: #FFFFFF;
+  background: var(--primary-050);
+  color: var(--primary);
 }
 :root:not([data-theme="dark"]) .app-dash .sidebar .snav:hover .snav-ico {
-  color: #FFFFFF;
+  color: var(--primary);
 }
 :root:not([data-theme="dark"]) .app-dash .sidebar .snav.active,
 :root:not([data-theme="dark"]) .app-dash .sidebar .snav.active:hover {
-  background: #FFFFFF;
-  color: #23300E;
-  font-weight: 700;
-  box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.35);
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 600;
+  box-shadow: none;
 }
 :root:not([data-theme="dark"]) .app-dash .sidebar .snav.active .snav-ico,
 :root:not([data-theme="dark"]) .app-dash .sidebar .snav.active:hover .snav-ico {
-  color: #475B1D;
+  color: var(--on-primary);
 }
 :root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-collapse-btn,
 :root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-close-btn,
 :root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-theme-btn.theme-toggle {
-  background: rgba(255, 255, 255, 0.09);
-  color: rgba(244, 247, 240, 0.92);
-  border-color: rgba(223, 230, 201, 0.22);
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--border);
 }
 :root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-collapse-btn:hover:not(:disabled),
 :root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-close-btn:hover:not(:disabled),
 :root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-theme-btn.theme-toggle:hover {
-  background: rgba(255, 255, 255, 0.18);
-  color: #FFFFFF;
-  border-color: rgba(223, 230, 201, 0.42);
+  background: var(--primary-050);
+  color: var(--primary);
+  border-color: var(--primary);
 }
 :root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-foot {
-  border-top-color: rgba(236, 242, 221, 0.24);
-  background: rgba(16, 28, 12, 0.16);
+  border-top-color: var(--border);
+  background: var(--surface-2);
 }
 :root:not([data-theme="dark"]) .app-dash .sidebar .user-chip:hover {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(223, 230, 201, 0.22);
+  background: var(--surface);
+  border-color: var(--border);
 }
 :root:not([data-theme="dark"]) .app-dash .sidebar .user-chip .avatar,
 :root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-role-pill {
-  background: #556B24;
-  color: #F4F7F0;
-  border-color: rgba(223, 230, 201, 0.3);
+  background: var(--primary-050);
+  color: var(--primary);
+  border-color: var(--primary-100);
 }
 :root:not([data-theme="dark"]) .app-dash .sidebar .snav-skel-item {
-  background: rgba(236, 242, 221, 0.1);
-  border-color: rgba(223, 230, 201, 0.14);
+  background: var(--surface-2);
+  border-color: var(--border);
 }
 :root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-logout-btn {
-  background: rgba(185, 28, 28, 0.85);
-  color: #FFFFFF;
-  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: rgba(220, 38, 38, 0.22);
 }
 :root:not([data-theme="dark"]) .app-dash .sidebar .sidebar-logout-btn:hover:not(:disabled) {
-  background: #991b1b;
+  background: var(--danger);
   color: #FFFFFF;
-  border-color: rgba(255, 255, 255, 0.32);
+  border-color: var(--danger);
 }
 .sidebar-brand { padding-inline: 18px; }
 .sidebar-brand .txt small { letter-spacing: .07em; }
@@ -1074,18 +1077,18 @@
 }
 :root .auth-aside-bg { opacity: 1; }
 :root .auth-cursor-aura {
-  opacity: calc(.28 + var(--c-active, 0) * .62);
+  opacity: calc(.22 + var(--c-active, 0) * .5);
   filter: none;
   background:
-    radial-gradient(420px 350px at var(--cx, 76%) var(--cy, 26%), rgba(74, 222, 128, .28), rgba(110, 231, 160, .16) 44%, transparent 74%),
-    radial-gradient(300px 250px at calc(var(--cx, 76%) + 12%) calc(var(--cy, 26%) + 14%), rgba(187, 247, 208, .18), transparent 70%);
+    radial-gradient(420px 350px at var(--cx, 76%) var(--cy, 26%), rgba(91, 135, 206, .24), rgba(67, 160, 116, .12) 44%, transparent 74%),
+    radial-gradient(300px 250px at calc(var(--cx, 76%) + 12%) calc(var(--cy, 26%) + 14%), rgba(147, 197, 253, .14), transparent 70%);
 }
-:root .auth-orb { opacity: .35; }
-:root .auth-aside-grid { opacity: .28; }
+:root .auth-orb { opacity: .28; }
+:root .auth-aside-grid { opacity: .24; }
 :root .auth-slide-tag {
-  background: rgba(74, 222, 128, .18);
-  border-color: rgba(134, 239, 172, .35);
-  color: #DCFCE7;
+  background: rgba(91, 135, 206, .2);
+  border-color: rgba(147, 197, 253, .32);
+  color: #E2E8F0;
 }
 
 /* Jaga bidang kecil agar judul dan tombol tidak saling menekan. */
