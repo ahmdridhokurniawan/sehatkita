@@ -218,8 +218,9 @@
   bottom: -5px;
   border-bottom: 1px solid #163022;
 }
-.surat-logo-kiri { flex: none; }
+.surat-logo-kiri { flex: none; min-width: 60px; display: flex; align-items: center; justify-content: flex-start; }
 .surat-kop-tengah { flex: 1; text-align: center; }
+.surat-logo-kanan { flex: none; min-width: 60px; display: flex; align-items: center; justify-content: flex-end; }
 .surat-instansi { margin: 0; font-size: .78rem; font-weight: 700; letter-spacing: .04em; color: #163022; }
 .surat-dinas { margin: 1px 0; font-size: .98rem; font-weight: 700; letter-spacing: .03em; color: #163022; }
 .surat-unit { margin: 0; font-size: .78rem; font-weight: 700; color: #163022; }

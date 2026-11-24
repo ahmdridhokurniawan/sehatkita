@@ -274,9 +274,9 @@ const CSS_CETAK_SURAT = `
     bottom: -5px;
     border-bottom: 1px solid #163022;
   }
-  .surat-logo-kiri { flex: none; display: flex; align-items: center; }
+  .surat-logo-kiri { flex: none; min-width: 60px; display: flex; align-items: center; justify-content: flex-start; }
   .surat-kop-tengah { flex: 1; text-align: center; }
-  .surat-logo-kanan { flex: none; display: flex; align-items: center; justify-content: flex-end; }
+  .surat-logo-kanan { flex: none; min-width: 60px; display: flex; align-items: center; justify-content: flex-end; }
   .brand-logos { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
   .brand-city { display: block; object-fit: contain; }
   .brand-mark { display: inline-flex; align-items: center; }
