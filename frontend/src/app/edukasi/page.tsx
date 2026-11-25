@@ -34,6 +34,15 @@ const LABEL_KATEGORI: Record<EdukasiKategori, string> = {
 
 const ROLE_PETUGAS = ["kader", "admin_kelurahan", "super_admin"];
 
+async function ambilDaftarKelurahan(): Promise<Wilayah[]> {
+  const rows = await wilayahApi.list({ tipe: "kelurahan" });
+  const valid = (rows || []).filter((w) => Boolean(w?.id) && Boolean(w?.nama));
+  if (valid.length > 0) return valid;
+
+  const semua = await wilayahApi.list();
+  return (semua || []).filter((w) => w?.tipe === "kelurahan" && Boolean(w?.id) && Boolean(w?.nama));
+}
+
 export default function EdukasiPage() {
   const toast = useToast();
   const { user } = useUser();
@@ -129,10 +138,17 @@ export default function EdukasiPage() {
 
   useEffect(() => {
     if (user?.role !== "super_admin") return;
-    wilayahApi
-      .list({ tipe: "kelurahan" })
-      .then((rows) => setWilayahList(rows))
-      .catch(() => setWilayahList([]));
+    let aktif = true;
+    ambilDaftarKelurahan()
+      .then((rows) => {
+        if (aktif) setWilayahList(rows);
+      })
+      .catch(() => {
+        if (aktif) setWilayahList([]);
+      });
+    return () => {
+      aktif = false;
+    };
   }, [user?.role]);
 
   function bukaBaca(item: EdukasiItem) {
@@ -188,6 +204,9 @@ export default function EdukasiPage() {
   }
 
   function bukaTambah() {
+    if (user?.role === "super_admin" && wilayahList.length === 0) {
+      void ambilDaftarKelurahan().then(setWilayahList).catch(() => {});
+    }
     setEditItem(null);
     setFJudul("");
     setFKategori("umum");
@@ -204,6 +223,9 @@ export default function EdukasiPage() {
   }
 
   function bukaEdit(item: EdukasiItem) {
+    if (user?.role === "super_admin" && wilayahList.length === 0) {
+      void ambilDaftarKelurahan().then(setWilayahList).catch(() => {});
+    }
     setEditItem(item);
     setFJudul(item.judul);
     setFKategori(item.kategori);
