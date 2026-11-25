@@ -9,6 +9,7 @@ use App\Models\LogAudit;
 use App\Models\Pengguna;
 use App\Models\RiwayatWilayah;
 use App\Services\HealthCalculatorService;
+use App\Services\SingleIpSessionService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -18,7 +19,10 @@ use Illuminate\Validation\ValidationException;
 // Mengelola data utama aplikasi seperti indikator kesehatan, batas aman, pengguna, puskesmas, dan catatan aktivitas.
 class AdminMasterController extends Controller
 {
-    public function __construct(private HealthCalculatorService $kalkulator) {}
+    public function __construct(
+        private HealthCalculatorService $kalkulator,
+        private SingleIpSessionService $sessions
+    ) {}
 
     public function indexIndikator(Request $request)
     {
@@ -350,6 +354,9 @@ class AdminMasterController extends Controller
             $this->pastikanKaderSah((int) $data['kader_id'], $wilayahEfektif);
         }
 
+        $roleSebelumnya = $pengguna->role;
+        $wilayahSebelumnya = $pengguna->wilayah_id;
+
         $roleEfektif = $data['role'] ?? $pengguna->role;
         if ($roleEfektif !== 'user') {
             $data['nik'] = null;
@@ -358,8 +365,15 @@ class AdminMasterController extends Controller
 
         $pengguna->update($data);
 
-        if (($request->has('aktif') && ! $request->boolean('aktif')) || $request->filled('password')) {
-            $pengguna->tokens()->delete();
+        $roleBerubah = isset($data['role']) && $data['role'] !== $roleSebelumnya;
+        $wilayahBerubah = array_key_exists('wilayah_id', $data) && (int) $data['wilayah_id'] !== (int) $wilayahSebelumnya;
+
+        // Cabut token + cache sesi Redis saat akun dinonaktifkan, ganti password, ganti role, atau mutasi wilayah.
+        if (($request->has('aktif') && ! $request->boolean('aktif'))
+            || $request->filled('password')
+            || $roleBerubah
+            || $wilayahBerubah) {
+            $this->sessions->lepasSesi($pengguna);
         }
 
         return response()->json([
@@ -426,7 +440,7 @@ class AdminMasterController extends Controller
         }
 
         $pengguna->update(['aktif' => false]);
-        $pengguna->tokens()->delete();
+        $this->sessions->lepasSesi($pengguna);
 
         return response()->json([
             'success' => true,

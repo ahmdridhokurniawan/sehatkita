@@ -248,7 +248,7 @@ export default function DashboardAdminKelurahan({ user }: { user: User }) {
                 <Link href="/rujukan/kelurahan" className="btn btn-sm btn-outline">
                   Tinjau Rujukan <Icon name="chevron-right" size={14} />
                 </Link>
-                <Link href="/pengaduan" className="btn btn-sm btn-outline">
+                <Link href="/admin/pengaduan" className="btn btn-sm btn-outline">
                   <Icon name="alert-circle" size={14} /> Pengaduan Warga
                 </Link>
               </div>

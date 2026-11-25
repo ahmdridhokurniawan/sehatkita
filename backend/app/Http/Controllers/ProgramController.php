@@ -41,7 +41,8 @@ class ProgramController extends Controller
             $this->saringStatus($query, $statusFilter, $hariIni);
         }
 
-        if ($user->role !== 'super_admin' && $user->wilayah_id) {
+        if ($user->role !== 'super_admin') {
+            abort_unless($user->wilayah_id, 422, 'Akun Anda belum memiliki wilayah penugasan.');
             $query->where(fn ($q) => $q->whereNull('wilayah_id')->orWhere('wilayah_id', $user->wilayah_id));
         } elseif ($request->filled('wilayah_id')) {
             $query->where('wilayah_id', $request->query('wilayah_id'));
@@ -347,55 +348,64 @@ class ProgramController extends Controller
 
         abort_unless($user->role === 'user', 403, 'Hanya user yang dapat mengikuti program.');
 
-        $program = Program::findOrFail($id);
+        $fileLama = [];
 
-        if ($program->wilayah_id && (int) $program->wilayah_id !== (int) $user->wilayah_id) {
-            abort(403, 'Program ini hanya untuk warga kelurahan terkait.');
-        }
+        // Kunci baris program agar kuota target_peserta tidak tembus oleh pendaftaran paralel.
+        DB::transaction(function () use ($id, $user, &$fileLama) {
+            $program = Program::whereKey($id)->lockForUpdate()->firstOrFail();
 
-        if ($program->selesai && $program->selesai->isPast() && ! $program->selesai->isToday()) {
-            throw ValidationException::withMessages([
-                'program' => ['Program sudah berakhir.'],
-            ]);
-        }
+            if ($program->wilayah_id && (int) $program->wilayah_id !== (int) $user->wilayah_id) {
+                abort(403, 'Program ini hanya untuk warga kelurahan terkait.');
+            }
 
-        if ($program->target_peserta !== null
-            && $program->peserta()->where('status', '!=', 'berhenti')->count() >= $program->target_peserta) {
-            throw ValidationException::withMessages([
-                'program' => ['Kuota peserta program sudah penuh.'],
-            ]);
-        }
+            if ($program->selesai && $program->selesai->isPast() && ! $program->selesai->isToday()) {
+                throw ValidationException::withMessages([
+                    'program' => ['Program sudah berakhir.'],
+                ]);
+            }
 
-        $sudah = PesertaProgram::where('program_id', $program->id)
-            ->where('user_id', $user->id)
-            ->first();
+            if ($program->target_peserta !== null
+                && $program->peserta()->where('status', '!=', 'berhenti')->count() >= $program->target_peserta) {
+                throw ValidationException::withMessages([
+                    'program' => ['Kuota peserta program sudah penuh.'],
+                ]);
+            }
 
-        if ($sudah && $sudah->status !== 'berhenti') {
-            throw ValidationException::withMessages([
-                'program' => ['Anda sudah terdaftar pada program ini.'],
-            ]);
-        }
+            $sudah = PesertaProgram::where('program_id', $program->id)
+                ->where('user_id', $user->id)
+                ->lockForUpdate()
+                ->first();
 
-        if ($sudah) {
+            if ($sudah && $sudah->status !== 'berhenti') {
+                throw ValidationException::withMessages([
+                    'program' => ['Anda sudah terdaftar pada program ini.'],
+                ]);
+            }
 
-            $this->hapusSemuaFileBukti($this->daftarPathBukti($sudah));
-            $sudah->update([
-                'status' => 'terdaftar',
-                'selesai_pada' => null,
-                'bukti_foto' => null,
-                'bukti_foto_daftar' => null,
-                'catatan_bukti' => null,
-                'dikirim_pada' => null,
-                'catatan_verifikasi' => null,
-                'diverifikasi_oleh' => null,
-                'diverifikasi_pada' => null,
-            ]);
-        } else {
-            PesertaProgram::create([
-                'program_id' => $program->id,
-                'user_id' => $user->id,
-                'status' => 'terdaftar',
-            ]);
+            if ($sudah) {
+                $fileLama = $this->daftarPathBukti($sudah);
+                $sudah->update([
+                    'status' => 'terdaftar',
+                    'selesai_pada' => null,
+                    'bukti_foto' => null,
+                    'bukti_foto_daftar' => null,
+                    'catatan_bukti' => null,
+                    'dikirim_pada' => null,
+                    'catatan_verifikasi' => null,
+                    'diverifikasi_oleh' => null,
+                    'diverifikasi_pada' => null,
+                ]);
+            } else {
+                PesertaProgram::create([
+                    'program_id' => $program->id,
+                    'user_id' => $user->id,
+                    'status' => 'terdaftar',
+                ]);
+            }
+        });
+
+        if ($fileLama !== []) {
+            $this->hapusSemuaFileBukti($fileLama);
         }
 
         return response()->json([
@@ -593,18 +603,22 @@ class ProgramController extends Controller
     {
         $user = $request->user();
         $program = Program::findOrFail($id);
-        $peserta = PesertaProgram::with('pengguna:id,wilayah_id')
+        $peserta = PesertaProgram::with('pengguna:id,role,wilayah_id,kader_id')
             ->where('program_id', $program->id)
             ->where('id', $pesertaId)
             ->firstOrFail();
 
         $programSamaWilayah = ! $program->wilayah_id || (int) $program->wilayah_id === (int) $user->wilayah_id;
-        $wargaSamaWilayah = $peserta->pengguna?->wilayah_id !== null
+        $wargaSamaWilayah = $peserta->pengguna?->role === 'user'
+            && $peserta->pengguna?->wilayah_id !== null
             && (int) $peserta->pengguna->wilayah_id === (int) $user->wilayah_id;
+        $bolehPetugas = $user->role === 'kader'
+            ? ($peserta->pengguna && $this->dalamBinaan($user, $peserta->pengguna))
+            : $wargaSamaWilayah;
 
         $boleh = (int) $peserta->user_id === (int) $user->id
             || $user->role === 'super_admin'
-            || (in_array($user->role, ['admin_kelurahan', 'kader'], true) && $programSamaWilayah && $wargaSamaWilayah);
+            || (in_array($user->role, ['admin_kelurahan', 'kader'], true) && $programSamaWilayah && $bolehPetugas);
 
         abort_unless($boleh, 403, 'Anda tidak memiliki akses melihat dokumentasi ini.');
 
@@ -669,19 +683,32 @@ class ProgramController extends Controller
             }
         }
 
-        $peserta = PesertaProgram::with('pengguna:id,wilayah_id,exp_total,level_gamifikasi')
+        if ($user->role !== 'super_admin' && $program->wilayah_id && ($targetId !== (int) $user->id || in_array($data['status'], ['selesai', 'ditolak'], true))) {
+            abort_unless((int) $program->wilayah_id === (int) $user->wilayah_id, 403,
+                'Program ini bukan wilayah Anda.');
+        }
+
+        $peserta = PesertaProgram::with('pengguna:id,role,wilayah_id,kader_id,exp_total,level_gamifikasi')
             ->where('program_id', $program->id)
             ->where('user_id', $targetId)
             ->first();
 
         abort_unless($peserta, 404, 'Peserta belum terdaftar pada program ini.');
 
-        if (in_array($user->role, ['kader', 'admin_kelurahan'], true) && $targetId !== (int) $user->id) {
-            abort_unless(
-                $peserta->pengguna && (int) $peserta->pengguna->wilayah_id === (int) $user->wilayah_id,
-                403,
-                'Peserta ini bukan warga wilayah Anda.'
-            );
+        if ($targetId !== (int) $user->id) {
+            if ($user->role === 'kader') {
+                abort_unless(
+                    $peserta->pengguna && $this->dalamBinaan($user, $peserta->pengguna),
+                    403,
+                    'Peserta ini bukan warga binaan Anda.'
+                );
+            } elseif ($user->role === 'admin_kelurahan') {
+                abort_unless(
+                    $peserta->pengguna && $peserta->pengguna->role === 'user' && (int) $peserta->pengguna->wilayah_id === (int) $user->wilayah_id,
+                    403,
+                    'Peserta ini bukan warga wilayah Anda.'
+                );
+            }
         }
 
         $notifStatus = null;
@@ -826,39 +853,58 @@ class ProgramController extends Controller
         ]);
 
         $targetNilai = $program->target_nilai !== null ? (float) $program->target_nilai : null;
-        $capaianBaru = (float) ($peserta->capaian_nilai ?? 0);
 
-        if ($targetNilai !== null && $targetNilai > 0 && (array_key_exists('tambah_capaian', $data) || array_key_exists('capaian_nilai', $data))) {
-            if (($data['tambah_capaian'] ?? null) !== null) {
-                $capaianBaru += (float) $data['tambah_capaian'];
-            } elseif (($data['capaian_nilai'] ?? null) !== null) {
-                $capaianBaru = (float) $data['capaian_nilai'];
+        // Transaksi dengan lockForUpdate mencegah kehilangan nilai tambah_capaian saat update paralel.
+        $pesertaDiperbarui = DB::transaction(function () use ($program, $user, $data, $targetNilai) {
+            $terkunci = PesertaProgram::where('program_id', $program->id)
+                ->where('user_id', $user->id)
+                ->lockForUpdate()
+                ->first();
+
+            abort_unless($terkunci && $terkunci->status !== 'berhenti', 404, 'Anda belum terdaftar pada tantangan ini.');
+
+            if ($terkunci->status === 'selesai') {
+                throw ValidationException::withMessages([
+                    'progres_persen' => ['Tantangan ini sudah terverifikasi selesai oleh petugas.'],
+                ]);
             }
-            $persenBaru = (int) min(100, max(0, round(($capaianBaru / $targetNilai) * 100)));
-        } elseif (($data['progres_persen'] ?? null) !== null) {
-            $persenBaru = (int) $data['progres_persen'];
-            if ($targetNilai !== null && $targetNilai > 0) {
-                $capaianBaru = round(($persenBaru / 100) * $targetNilai, 2);
+
+            $capaianBaru = (float) ($terkunci->capaian_nilai ?? 0);
+
+            if ($targetNilai !== null && $targetNilai > 0 && (array_key_exists('tambah_capaian', $data) || array_key_exists('capaian_nilai', $data))) {
+                if (($data['tambah_capaian'] ?? null) !== null) {
+                    $capaianBaru += (float) $data['tambah_capaian'];
+                } elseif (($data['capaian_nilai'] ?? null) !== null) {
+                    $capaianBaru = (float) $data['capaian_nilai'];
+                }
+                $persenBaru = (int) min(100, max(0, round(($capaianBaru / $targetNilai) * 100)));
+            } elseif (($data['progres_persen'] ?? null) !== null) {
+                $persenBaru = (int) $data['progres_persen'];
+                if ($targetNilai !== null && $targetNilai > 0) {
+                    $capaianBaru = round(($persenBaru / 100) * $targetNilai, 2);
+                }
+            } else {
+                throw ValidationException::withMessages([
+                    'progres_persen' => ['Isi capaian target atau persentase progres.'],
+                ]);
             }
-        } else {
-            throw ValidationException::withMessages([
-                'progres_persen' => ['Isi capaian target atau persentase progres.'],
+
+            $terkunci->update([
+                'progres_persen' => $persenBaru,
+                'capaian_nilai' => $capaianBaru,
+                'catatan_progres' => array_key_exists('catatan_progres', $data)
+                    ? $data['catatan_progres']
+                    : $terkunci->catatan_progres,
+                'progres_diperbarui_pada' => now(),
             ]);
-        }
 
-        $peserta->update([
-            'progres_persen' => $persenBaru,
-            'capaian_nilai' => $capaianBaru,
-            'catatan_progres' => array_key_exists('catatan_progres', $data)
-                ? $data['catatan_progres']
-                : $peserta->catatan_progres,
-            'progres_diperbarui_pada' => now(),
-        ]);
+            return $terkunci->fresh();
+        });
 
         return response()->json([
             'success' => true,
             'message' => 'Progres mandiri berhasil diperbarui',
-            'data' => $this->ringkasanPesertaSaya($peserta->fresh(), $program->id),
+            'data' => $this->ringkasanPesertaSaya($pesertaDiperbarui, $program->id),
         ]);
     }
 
@@ -884,8 +930,10 @@ class ProgramController extends Controller
         $query = PesertaProgram::with('pengguna:id,name,email,wilayah_id')
             ->where('program_id', $program->id);
 
-        if (in_array($user->role, ['kader', 'admin_kelurahan'], true)) {
-            $query->whereHas('pengguna', fn ($q) => $q->where('wilayah_id', $user->wilayah_id));
+        if ($user->role === 'kader') {
+            $query->whereHas('pengguna', fn ($q) => $this->scopeBinaan($q, $user));
+        } elseif ($user->role === 'admin_kelurahan') {
+            $query->whereHas('pengguna', fn ($q) => $q->where('role', 'user')->where('wilayah_id', $user->wilayah_id));
         }
 
         return $query

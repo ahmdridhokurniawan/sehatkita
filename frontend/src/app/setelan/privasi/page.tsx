@@ -112,7 +112,7 @@ export default function SetelanPrivasiPage() {
   const consentAktif = Boolean(user?.consent_at);
 
   return (
-    <AppShell noFab>
+    <AppShell noFab roles={["user"]}>
       <div className="row-between mb-16">
         <div>
           <h1 className="h3">Privasi</h1>

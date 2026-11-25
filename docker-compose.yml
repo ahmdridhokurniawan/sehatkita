@@ -9,7 +9,7 @@ services:
       - "3000:3000"
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://pm-monitoring.test/api/v1}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://sehatkita.test/api/v1}
       NEXT_PUBLIC_APP_NAME: Sehatkita
     restart: unless-stopped
     healthcheck:
@@ -30,7 +30,7 @@ services:
       REDIS_CLIENT: predis
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      SANCTUM_EXPIRATION: 30
+      SANCTUM_EXPIRATION: 1440
     depends_on:
       - redis
     restart: unless-stopped

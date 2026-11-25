@@ -10,6 +10,10 @@ class PenggunaWilayahSeeder extends Seeder
 {
     public function run(): void
     {
+        if (app()->isProduction()) {
+            return;
+        }
+
         // Sandi seragam akun demo
         $password = 'demo1234';
 

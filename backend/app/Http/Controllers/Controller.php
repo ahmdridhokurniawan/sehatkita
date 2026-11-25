@@ -8,20 +8,24 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 // Berisi aturan dasar bersama seperti pengecekan peran pengguna, pembagian halaman, dan pencatatan aktivitas.
 abstract class Controller
 {
     protected function perHalaman(Request $request, int $default = 15): int
     {
-        $nilai = (int) $request->query('per_page', $default);
-
-        if ($nilai < 1) {
-            $nilai = $default;
+        if (! $request->filled('per_page')) {
+            return $default;
         }
 
-        return min($nilai, 100);
+        $validated = $request->validate([
+            'per_page' => 'integer|min:1|max:100',
+        ]);
+
+        return (int) $validated['per_page'];
     }
 
     protected function saringCari(Builder $query, array $kolom, Request $request): Builder
@@ -80,8 +84,14 @@ abstract class Controller
 
     protected function dalamBinaan(Pengguna $kader, Pengguna $warga): bool
     {
+        // Hanya warga (role 'user') di wilayah kerja kader yang valid sebagai warga binaan.
+        if ($kader->role !== 'kader' || $kader->wilayah_id === null || $warga->role !== 'user') {
+            return false;
+        }
+
         if ($warga->kader_id !== null) {
-            return (int) $warga->kader_id === (int) $kader->id;
+            return (int) $warga->kader_id === (int) $kader->id
+                && (int) $warga->wilayah_id === (int) $kader->wilayah_id;
         }
 
         return $warga->wilayah_id !== null && (int) $warga->wilayah_id === (int) $kader->wilayah_id;
@@ -89,6 +99,10 @@ abstract class Controller
 
     protected function scopeBinaan(Builder $query, Pengguna $kader): Builder
     {
+        if ($kader->role !== 'kader' || $kader->wilayah_id === null) {
+            return $query->whereRaw('1 = 0');
+        }
+
         return $query->where('role', 'user')
             ->where(function (Builder $q) use ($kader) {
                 $q->where('kader_id', $kader->id)->orWhereNull('kader_id');
@@ -111,11 +125,20 @@ abstract class Controller
 
     protected function saringRentangTanggal(Builder $query, Request $request, string $kolom = 'created_at'): Builder
     {
-        if ($request->filled('dari')) {
-            $query->whereDate($kolom, '>=', $request->query('dari'));
+        if (! $request->filled('dari') && ! $request->filled('sampai')) {
+            return $query;
         }
-        if ($request->filled('sampai')) {
-            $query->whereDate($kolom, '<=', $request->query('sampai'));
+
+        $validated = $request->validate([
+            'dari' => 'nullable|date',
+            'sampai' => 'nullable|date',
+        ]);
+
+        if (! empty($validated['dari'])) {
+            $query->whereDate($kolom, '>=', Carbon::parse($validated['dari'])->toDateString());
+        }
+        if (! empty($validated['sampai'])) {
+            $query->whereDate($kolom, '<=', Carbon::parse($validated['sampai'])->toDateString());
         }
 
         return $query;

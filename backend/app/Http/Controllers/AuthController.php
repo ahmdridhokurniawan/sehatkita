@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Pengguna;
 use App\Services\SingleIpSessionService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -39,36 +41,47 @@ class AuthController extends Controller
         ]);
 
         $ip = (string) $request->ip();
-        if ($this->sessions->cekKonflikIp($ip, 0)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Alamat IP ini masih memiliki sesi pengguna aktif. Silakan logout dari akun sebelumnya atau tunggu batas sesi 30 menit berakhir.',
-            ], 409);
+        $ttl = $this->sessions->ttlMenit();
+
+        // Kunci per IP mencegah dua permintaan paralel lolos cekKonflikIp sebelum sesi tertulis.
+        $hasil = Cache::lock('auth:ip_lock:'.sha1($ip), 10)->block(5, function () use ($ip, $ttl, $validated, $request) {
+            if ($this->sessions->cekKonflikIp($ip, 0)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Alamat IP ini masih memiliki sesi pengguna aktif. Silakan logout dari akun sebelumnya atau tunggu batas sesi {$ttl} menit berakhir.",
+                ], 409);
+            }
+
+            $user = Pengguna::create([
+                'name' => $validated['name'],
+                'nik' => $validated['nik'] ?? null,
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'wilayah_id' => $validated['wilayah_id'],
+                'role' => 'user',
+            ]);
+
+            $sesi = $this->sessions->daftarkanSesi(
+                $user,
+                $ip,
+                (string) ($request->input('device_name') ?: 'auth-token')
+            );
+
+            return ['user' => $user, 'sesi' => $sesi];
+        });
+
+        if ($hasil instanceof JsonResponse) {
+            return $hasil;
         }
-
-        $user = Pengguna::create([
-            'name' => $validated['name'],
-            'nik' => $validated['nik'] ?? null,
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'wilayah_id' => $validated['wilayah_id'],
-            'role' => 'user',
-        ]);
-
-        $sesi = $this->sessions->daftarkanSesi(
-            $user,
-            $ip,
-            (string) ($request->input('device_name') ?: 'auth-token')
-        );
 
         return response()->json([
             'success' => true,
             'message' => 'Registrasi berhasil',
             'data' => [
-                'user' => $user->load('profil', 'wilayah'),
-                'token' => $sesi['token'],
-                'token_expires_at' => $sesi['expires_at'],
-                'token_ttl_menit' => $sesi['token_ttl_menit'],
+                'user' => $hasil['user']->load('profil', 'wilayah'),
+                'token' => $hasil['sesi']['token'],
+                'token_expires_at' => $hasil['sesi']['expires_at'],
+                'token_ttl_menit' => $hasil['sesi']['token_ttl_menit'],
             ],
         ], 201);
     }
@@ -83,23 +96,35 @@ class AuthController extends Controller
         $email = strtolower(trim($validated['email']));
         $user = Pengguna::where('email', $email)->first();
 
-        if (! $user || ! $user->aktif || ! Hash::check($validated['password'], $user->password)) {
+        // Tetap jalankan Hash::check pada hash dummy bila user tidak ada agar waktu respons seragam.
+        $dummyHash = '$2y$04$usesomesillystringfore7hnbRJHxXVLeakoG8K30oukPsA.ztMG';
+        $passwordCocok = Hash::check($validated['password'], $user ? $user->password : $dummyHash);
+
+        if (! $user || ! $user->aktif || ! $passwordCocok) {
             throw ValidationException::withMessages(['email' => ['Email atau password salah']]);
         }
 
         $ip = (string) $request->ip();
-        if ($this->sessions->cekKonflikIp($ip, (int) $user->id)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Alamat IP ini sedang dipakai akun lain yang masih aktif (maksimal 1 IP 1 pengguna). Silakan logout akun sebelumnya atau tunggu 30 menit.',
-            ], 409);
-        }
+        $ttl = $this->sessions->ttlMenit();
 
-        $sesi = $this->sessions->daftarkanSesi(
-            $user,
-            $ip,
-            (string) ($request->input('device_name') ?: 'auth-token')
-        );
+        $sesi = Cache::lock('auth:ip_lock:'.sha1($ip), 10)->block(5, function () use ($ip, $user, $request, $ttl) {
+            if ($this->sessions->cekKonflikIp($ip, (int) $user->id)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Alamat IP ini sedang dipakai akun lain yang masih aktif (maksimal 1 IP 1 pengguna). Silakan logout akun sebelumnya atau tunggu {$ttl} menit.",
+                ], 409);
+            }
+
+            return $this->sessions->daftarkanSesi(
+                $user,
+                $ip,
+                (string) ($request->input('device_name') ?: 'auth-token')
+            );
+        });
+
+        if ($sesi instanceof JsonResponse) {
+            return $sesi;
+        }
 
         return response()->json([
             'success' => true,

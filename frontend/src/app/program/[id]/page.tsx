@@ -1205,7 +1205,7 @@ export default function ProgramDetailPage() {
                   Kerja bagus, <strong>{user?.name || "Warga"}</strong>! Misi ini resmi selesai dan hadiahnya
                   sudah masuk.
                 </p>
-                <p>+{angka(program?.exp || 0)} EXP{program?.badge ? ` · Badge baru: <strong>{program.badge}</strong>` : ""}</p>
+                <p>+{angka(program?.exp || 0)} EXP{program?.badge ? <> · Badge baru: <strong>{program.badge}</strong></> : null}</p>
                 <p className="tiny text-2">Terus tingkatkan aktivitas sehatmu untuk peringkat lebih tinggi.</p>
               </div>
             </Modal>

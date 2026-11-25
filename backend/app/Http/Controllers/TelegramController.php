@@ -17,7 +17,7 @@ class TelegramController extends Controller
         $this->wajibPeran($user, ['user'], 'Fitur integrasi Bot Telegram hanya untuk pengguna warga.');
 
         if (! $user->telegram_connect_token) {
-            $user->update(['telegram_connect_token' => Str::random(16)]);
+            $user->update(['telegram_connect_token' => Str::random(32)]);
         }
 
         $link = $this->telegram->linkHubungkan($user->telegram_connect_token);
@@ -41,7 +41,7 @@ class TelegramController extends Controller
 
         $user->update([
             'telegram_chat_id' => null,
-            'telegram_connect_token' => Str::random(16),
+            'telegram_connect_token' => Str::random(32),
         ]);
 
         return response()->json([
@@ -54,16 +54,14 @@ class TelegramController extends Controller
 
     public function webhook(Request $request)
     {
+        // Wajib verifikasi secret header Telegram di semua environment agar webhook palsu selalu ditolak.
         $secret = (string) config('services.telegram.webhook_secret', '');
-
-        if ($secret !== '' || app()->isProduction()) {
-            $headerToken = (string) $request->header('X-Telegram-Bot-Api-Secret-Token', '');
-            abort_unless(
-                $secret !== '' && $headerToken !== '' && hash_equals($secret, $headerToken),
-                403,
-                'Webhook secret tidak valid.'
-            );
-        }
+        $headerToken = (string) $request->header('X-Telegram-Bot-Api-Secret-Token', '');
+        abort_unless(
+            $secret !== '' && $headerToken !== '' && hash_equals($secret, $headerToken),
+            403,
+            'Webhook secret tidak valid.'
+        );
 
         $message = $request->input('message');
         if (! $message) {

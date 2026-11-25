@@ -34,6 +34,10 @@ class WargaDummySeeder extends Seeder
 
     public function run(): void
     {
+        if (app()->isProduction()) {
+            return;
+        }
+
         $this->kalkulator = app(HealthCalculatorService::class);
         $this->kalkulator->lupakanCache();
 

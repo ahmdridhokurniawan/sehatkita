@@ -71,12 +71,7 @@ class CatatanKesehatanController extends Controller
             $query->where('sumber', $request->sumber);
         }
 
-        if ($request->filled('dari')) {
-            $query->whereDate('dicatat_pada', '>=', $request->dari);
-        }
-        if ($request->filled('sampai')) {
-            $query->whereDate('dicatat_pada', '<=', $request->sampai);
-        }
+        $this->saringRentangTanggal($query, $request, 'dicatat_pada');
 
         if ($request->filled('indikator')) {
             $diminta = array_map('trim', explode(',', $request->indikator));

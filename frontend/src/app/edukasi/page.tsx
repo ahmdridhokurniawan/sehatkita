@@ -526,11 +526,11 @@ export default function EdukasiPage() {
                 controls
                 style={{ width: "100%", maxHeight: 340, borderRadius: 12, background: "#000" }}
               />
-            ) : bacaItem.media_video_url ? (
+            ) : bacaItem.media_video_url && /^https?:\/\//i.test(bacaItem.media_video_url.trim()) ? (
               <div className="alert alert-info">
                 <Icon name="video" size={16} />
                 <a
-                  href={bacaItem.media_video_url}
+                  href={bacaItem.media_video_url.trim()}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm fw-600"

@@ -36,7 +36,8 @@ class EdukasiController extends Controller
             $query->where('aktif', true);
         }
 
-        if ($user->role !== 'super_admin' && $user->wilayah_id) {
+        if ($user->role !== 'super_admin') {
+            abort_unless($user->wilayah_id, 422, 'Akun Anda belum memiliki wilayah penugasan.');
             $query->where(fn ($q) => $q->whereNull('wilayah_id')->orWhere('wilayah_id', $user->wilayah_id));
         } elseif ($request->filled('wilayah_id')) {
             $query->where('wilayah_id', (int) $request->query('wilayah_id'));
@@ -117,8 +118,8 @@ class EdukasiController extends Controller
             'urutan' => 'nullable|integer|min:0|max:9999',
             'aktif' => 'sometimes|boolean',
             'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-            'video' => 'nullable|file|mimetypes:video/mp4,video/webm,video/quicktime|max:51200',
-            'media_video_url' => 'nullable|url|max:500',
+            'video' => 'nullable|file|mimes:mp4,webm,mov|mimetypes:video/mp4,video/webm,video/quicktime|max:51200',
+            'media_video_url' => 'nullable|url:http,https|max:500',
         ]);
 
         if ($request->hasFile('foto')) {
@@ -172,8 +173,8 @@ class EdukasiController extends Controller
             'urutan' => 'sometimes|integer|min:0|max:9999',
             'aktif' => 'sometimes|boolean',
             'foto' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:5120',
-            'video' => 'nullable|file|mimetypes:video/mp4,video/webm,video/quicktime|max:51200',
-            'media_video_url' => 'nullable|url|max:500',
+            'video' => 'nullable|file|mimes:mp4,webm,mov|mimetypes:video/mp4,video/webm,video/quicktime|max:51200',
+            'media_video_url' => 'nullable|url:http,https|max:500',
             'hapus_foto' => 'sometimes|boolean',
             'hapus_video' => 'sometimes|boolean',
         ]);

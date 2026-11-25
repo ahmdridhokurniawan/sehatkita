@@ -561,6 +561,8 @@ class PosbinduController extends Controller
                 'wilayah' => $p->wilayah?->nama,
             ]);
 
+        $this->catatAudit($user, 'cari_warga', Pengguna::class, null);
+
         return response()->json([
             'success' => true,
             'message' => 'OK',

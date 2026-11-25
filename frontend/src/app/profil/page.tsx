@@ -643,16 +643,16 @@ export default function ProfilPage() {
                   <Button variant="danger" size="sm" onClick={putuskanTelegram} loading={tgPutus}>
                     Putuskan
                   </Button>
-                ) : (
+                ) : telegramStatus?.link_telegram && /^https?:\/\//i.test(telegramStatus.link_telegram.trim()) ? (
                   <a
-                    href={telegramStatus?.link_telegram ?? "#"}
+                    href={telegramStatus.link_telegram.trim()}
                     target="_blank"
                     rel="noreferrer"
                     className="btn btn-primary btn-sm"
                   >
                     Hubungkan Telegram
                   </a>
-                )
+                ) : null
               ) : null}
             </div>
           )}

@@ -54,9 +54,9 @@ class PengaduanController extends Controller
 
         $data = $request->validate([
             'judul' => 'required|string|max:150',
-            'isi' => 'required|string',
+            'isi' => 'required|string|max:5000',
             'kategori' => ['required', Rule::in(['layanan_posbindu', 'faskes', 'rujukan', 'aplikasi', 'lainnya'])],
-            'wilayah_id' => 'nullable|exists:wilayah,id',
+            'wilayah_id' => ['nullable', Rule::exists('wilayah', 'id')->where('tipe', 'kelurahan')],
         ]);
 
         $wilayahId = $data['wilayah_id'] ?? $user->wilayah_id;
@@ -117,7 +117,7 @@ class PengaduanController extends Controller
 
         $data = $request->validate([
             'status' => ['required', Rule::in(['diproses', 'selesai', 'ditolak'])],
-            'tanggapan' => 'required|string',
+            'tanggapan' => 'required|string|max:5000',
         ]);
 
         $pengaduan->update([

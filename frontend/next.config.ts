@@ -17,6 +17,44 @@ const target = (process.env.API_PROXY_TARGET ?? "http://pm-monitoring.test").rep
   "",
 );
 
+function ambilOrigin(url?: string): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
+
+const originApi = Array.from(
+  new Set(
+    [
+      "http://sehatkita.test",
+      "https://sehatkita.test",
+      "http://localhost:8000",
+      "http://127.0.0.1:8000",
+      ambilOrigin(target),
+      ambilOrigin(process.env.NEXT_PUBLIC_API_URL),
+    ].filter((v): v is string => Boolean(v)),
+  ),
+).join(" ");
+
+const isDev = process.env.NODE_ENV !== "production";
+
+const csp = [
+  "default-src 'self'",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' https://fonts.gstatic.com data:",
+  `img-src 'self' data: blob: ${originApi}`,
+  `media-src 'self' blob: ${originApi}`,
+  `connect-src 'self' ${originApi}${isDev ? " ws: wss:" : ""}`,
+  "object-src 'none'",
+  "base-uri 'self'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+].join("; ");
+
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["sehatkita.test"],
   // Proxy Next.js punya batas tunggu bawaan 30 detik. Login memanggil bcrypt
@@ -26,6 +64,20 @@ const nextConfig: NextConfig = {
   // Naikkan batasnya supaya proxy menunggu selama backend masih bekerja.
   experimental: {
     proxyTimeout: 180_000,
+  },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "Content-Security-Policy", value: csp },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+        ],
+      },
+    ];
   },
   async rewrites() {
     return [

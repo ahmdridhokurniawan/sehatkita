@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Cache;
 use Laravel\Sanctum\PersonalAccessToken;
 use Symfony\Component\HttpFoundation\Response;
 
-// Memastikan token Bearer tidak melewati batas 30 menit dan hanya dipakai dari IP tempat login.
+// Memastikan token Bearer tidak melewati batas masa sesi dan hanya dipakai dari IP tempat login.
 class EnsureSingleIpSession
 {
     public function __construct(private SingleIpSessionService $sessions) {}
@@ -42,7 +42,7 @@ class EnsureSingleIpSession
 
             return response()->json([
                 'success' => false,
-                'message' => 'Sesi token telah berakhir (batas 30 menit). Silakan masuk kembali.',
+                'message' => "Sesi token telah berakhir (batas {$ttl} menit). Silakan masuk kembali.",
             ], 401);
         }
 
