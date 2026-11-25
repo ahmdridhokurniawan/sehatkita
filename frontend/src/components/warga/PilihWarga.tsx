@@ -136,7 +136,13 @@ export default function PilihWarga({
     if (!q) return daftarBinaan;
     return daftarBinaan.filter((w) => {
       const cocokNama = w.name.toLowerCase().includes(q);
-      const cocokNik = digit !== "" && (w.nik || "").includes(digit);
+      const nikWarga = w.nik || "";
+      const cocokNik =
+        digit !== "" &&
+        (nikWarga.includes(digit) ||
+          (digit.length > 6 &&
+            nikWarga.startsWith(digit.slice(0, 6)) &&
+            (digit.length < 13 || nikWarga.endsWith(digit.slice(-4)))));
       return cocokNama || cocokNik;
     });
   }, [modeDropdown, daftarBinaan, nik]);

@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Services\TelegramService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 // Mengurus status sambungan Telegram warga, pemutusan akun, dan pesan masuk dari bot.
 class TelegramController extends Controller
 {
+    private const TTL_TOKEN_MENIT = 30;
+
     public function __construct(private TelegramService $telegram) {}
 
     public function status(Request $request)
@@ -16,8 +19,22 @@ class TelegramController extends Controller
         $user = $request->user();
         $this->wajibPeran($user, ['user'], 'Fitur integrasi Bot Telegram hanya untuk pengguna warga.');
 
-        if (! $user->telegram_connect_token) {
-            $user->update(['telegram_connect_token' => Str::random(32)]);
+        $meta = Cache::get("telegram:token_meta:{$user->id}");
+        $kedaluwarsa = is_array($meta) && isset($meta['expires_at']) && now()->timestamp > (int) $meta['expires_at'];
+
+        // Putar token pairing baru bila belum ada atau melewati batas 30 menit.
+        if (! $user->telegram_connect_token || $kedaluwarsa) {
+            $tokenBaru = Str::random(32);
+            $user->update(['telegram_connect_token' => $tokenBaru]);
+            Cache::put("telegram:token_meta:{$user->id}", [
+                'hash' => hash('sha256', $tokenBaru),
+                'expires_at' => now()->addMinutes(self::TTL_TOKEN_MENIT)->timestamp,
+            ], now()->addDays(7));
+        } elseif (! is_array($meta)) {
+            Cache::put("telegram:token_meta:{$user->id}", [
+                'hash' => hash('sha256', (string) $user->telegram_connect_token),
+                'expires_at' => now()->addMinutes(self::TTL_TOKEN_MENIT)->timestamp,
+            ], now()->addDays(7));
         }
 
         $link = $this->telegram->linkHubungkan($user->telegram_connect_token);
@@ -39,10 +56,15 @@ class TelegramController extends Controller
         $user = $request->user();
         $this->wajibPeran($user, ['user'], 'Fitur integrasi Bot Telegram hanya untuk pengguna warga.');
 
+        $tokenBaru = Str::random(32);
         $user->update([
             'telegram_chat_id' => null,
-            'telegram_connect_token' => Str::random(32),
+            'telegram_connect_token' => $tokenBaru,
         ]);
+        Cache::put("telegram:token_meta:{$user->id}", [
+            'hash' => hash('sha256', $tokenBaru),
+            'expires_at' => now()->addMinutes(self::TTL_TOKEN_MENIT)->timestamp,
+        ], now()->addDays(7));
 
         return response()->json([
             'success' => true,

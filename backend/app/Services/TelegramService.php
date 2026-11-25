@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Pengguna;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -162,6 +163,18 @@ class TelegramService
             $user = Pengguna::where('telegram_connect_token', $token)->first();
 
             if ($user) {
+                $meta = Cache::get("telegram:token_meta:{$user->id}");
+                if (is_array($meta)
+                    && isset($meta['hash'], $meta['expires_at'])
+                    && hash_equals((string) $meta['hash'], hash('sha256', $token))
+                    && now()->timestamp > (int) $meta['expires_at']) {
+                    $user->update(['telegram_connect_token' => null]);
+                    Cache::forget("telegram:token_meta:{$user->id}");
+                    $this->kirimPesan($chatId, 'Token penghubung tidak valid atau sudah dipakai/kedaluwarsa. Silakan muat ulang menu Profil di web SehatKita untuk mengambil tautan baru.');
+
+                    return false;
+                }
+
                 DB::transaction(function () use ($user, $chatId) {
 
                     Pengguna::where('telegram_chat_id', (string) $chatId)
@@ -173,6 +186,7 @@ class TelegramService
                         'telegram_connect_token' => null,
                     ]);
                 });
+                Cache::forget("telegram:token_meta:{$user->id}");
 
                 $namaAman = $this->escapeMarkdown($user->name);
                 $pesan = "Halo *{$namaAman}*!\n\nAkun SehatKita Anda berhasil terhubung dengan Bot Telegram resmi Dinas Kesehatan Kota Banjarbaru.\n\nAnda akan menerima notifikasi pengingat pemeriksaan bulanan dan rujukan kesehatan langsung di sini.";

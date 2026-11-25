@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\InjectBearerFromCookie;
 use App\Models\Pengguna;
 use App\Services\SingleIpSessionService;
 use Illuminate\Http\JsonResponse;
@@ -83,7 +84,7 @@ class AuthController extends Controller
                 'token_expires_at' => $hasil['sesi']['expires_at'],
                 'token_ttl_menit' => $hasil['sesi']['token_ttl_menit'],
             ],
-        ], 201);
+        ], 201)->withCookie($this->buatCookieToken($hasil['sesi']['token'], $ttl, $request, true));
     }
 
     public function login(Request $request)
@@ -135,14 +136,30 @@ class AuthController extends Controller
                 'token_expires_at' => $sesi['expires_at'],
                 'token_ttl_menit' => $sesi['token_ttl_menit'],
             ],
-        ]);
+        ])->withCookie($this->buatCookieToken($sesi['token'], $ttl, $request, $request->boolean('remember', true)));
     }
 
     public function logout(Request $request)
     {
         $this->sessions->lepasSesi($request->user(), (string) $request->ip());
 
-        return response()->json(['success' => true, 'message' => 'Logout berhasil', 'data' => null]);
+        return response()->json(['success' => true, 'message' => 'Logout berhasil', 'data' => null])
+            ->withCookie(cookie()->forget(InjectBearerFromCookie::NAMA_COOKIE, '/'));
+    }
+
+    private function buatCookieToken(string $token, int $ttlMenit, Request $request, bool $remember = true)
+    {
+        return cookie(
+            InjectBearerFromCookie::NAMA_COOKIE,
+            $token,
+            $remember ? $ttlMenit : 0,
+            '/',
+            null,
+            $request->isSecure(),
+            true,
+            false,
+            'Lax'
+        );
     }
 
     public function me(Request $request)

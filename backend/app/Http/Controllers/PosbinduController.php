@@ -556,7 +556,7 @@ class PosbinduController extends Controller
             ->map(fn ($p) => [
                 'id' => $p->id,
                 'name' => $p->name,
-                'nik' => $p->nik,
+                'nik' => $this->samarkanNik($p->nik),
                 'wilayah_id' => $p->wilayah_id,
                 'wilayah' => $p->wilayah?->nama,
             ]);
@@ -568,5 +568,19 @@ class PosbinduController extends Controller
             'message' => 'OK',
             'data' => $hasil,
         ]);
+    }
+
+    private function samarkanNik(?string $nik): ?string
+    {
+        if ($nik === null || $nik === '') {
+            return null;
+        }
+
+        $bersih = trim($nik);
+        if (strlen($bersih) <= 10) {
+            return substr($bersih, 0, 4).str_repeat('*', max(0, strlen($bersih) - 4));
+        }
+
+        return substr($bersih, 0, 6).str_repeat('*', strlen($bersih) - 10).substr($bersih, -4);
     }
 }

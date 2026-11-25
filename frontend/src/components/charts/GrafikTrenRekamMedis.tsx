@@ -39,10 +39,7 @@ export default function GrafikTrenRekamMedis({ user }: Props) {
 
   useEffect(() => {
     if (user.role === "admin_kelurahan") return;
-    if (bisaPilihWarga && !wargaDipilih) {
-      setGrafik(null);
-      return;
-    }
+    if (bisaPilihWarga && !wargaDipilih) return;
     let aktif = true;
     rekamMedis
       .get({ indikator, periode, user_id: wargaDipilih?.id })
@@ -60,7 +57,8 @@ export default function GrafikTrenRekamMedis({ user }: Props) {
   if (user.role === "admin_kelurahan") return null;
 
   const ind = INDIKATOR.find((i) => i.k === indikator) ?? INDIKATOR[0];
-  const seri = grafik?.series?.[0]?.titik ?? [];
+  const grafikAktif = bisaPilihWarga && !wargaDipilih ? null : grafik;
+  const seri = grafikAktif?.series?.[0]?.titik ?? [];
 
   return (
     <div className="card">

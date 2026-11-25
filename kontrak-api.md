@@ -1,6 +1,6 @@
 # Kontrak API — Sistem Monitoring Kesehatan PTM (Skala Kecamatan)
 
-**Versi 1.10.0** · 2026-11-23 · Base URL `http://sehatkita.test/api/v1` · Laravel + Sanctum (token 24 jam / 1440 menit, sesi Redis, rate limit 100/menit, 1 IP 1 user) · FE: SPA/desktop
+**Versi 1.10.1** · 2026-11-25 · Base URL `http://sehatkita.test/api/v1` · Laravel + Sanctum (token 24 jam / 1440 menit via `Authorization: Bearer` atau cookie `HttpOnly` `sehatkita_token`, sesi Redis, rate limit 100/menit, 1 IP 1 user) · FE: SPA/desktop
 
 > **Aturan pakai dokumen ini:**
 >
@@ -43,11 +43,11 @@
 
 ### 1.1 Header
 
-| Header          | Nilai              | Kapan                                   |
-| --------------- | ------------------ | --------------------------------------- |
-| `Accept`        | `application/json` | selalu                                  |
-| `Content-Type`  | `application/json` | saat kirim body                         |
-| `Authorization` | `Bearer {token}`   | semua endpoint kecuali register & login |
+| Header          | Nilai              | Kapan                                                             |
+| --------------- | ------------------ | ----------------------------------------------------------------- |
+| `Accept`        | `application/json` | selalu                                                            |
+| `Content-Type`  | `application/json` | saat kirim body                                                   |
+| `Authorization` | `Bearer {token}`   | semua endpoint kecuali register & login (opsional bila pakai cookie `HttpOnly` `sehatkita_token`) |
 
 ### 1.2 Amplop Response
 
@@ -1488,3 +1488,4 @@ Bagian ini bukan kontrak API.
 | 1.8.4 | 2026-11-15 | **Penyelarasan Ambang IMT ke Standar Resmi Kemenkes RI (Permenkes No. 41 Tahun 2014):**<br>Tabel `ambang_kategori` untuk indikator `imt` (§8.3 & `IndikatorSeeder`) disesuaikan menjadi `< 18,5` (`kurus`), `[18,5 ; 25,0)` (`normal`), `[25,0 ; 27,0)` (`gemuk`), dan `≥ 27,0` (`obesitas`) menggantikan ambang WHO global (`25–30` / `≥ 30`). | BE |
 | 1.9.0 | 2026-11-20 | **Revisi Pembimbing Lapangan (Sesi, Gula Darah 4 Jenis, Rujukan Resmi, Achievement, Edukasi Terpisah, Reset 3 Bulan, Redis, Paginasi):**<br>**(1)** **Keamanan Sesi Bearer:** TTL token dibatasi **30 menit** (`token_ttl_menit`) dan aturan **1 IP 1 user aktif** (`409` konflik login di IP sama, `401` token kedaluwarsa/IP berbeda).<br>**(2)** **Jenis Pemeriksaan Gula Darah (4 Opsi):** Enum `jenis_gula_darah` (§1.5, §7.1, §8.3) diperluas ke `puasa`, `sewaktu`, `2jam_pp` (`mg/dL`), dan `hba1c` (`%` desimal `3–25`, wajar `3–20`).<br>**(3)** **Edukasi Terpisah & Progres Pribadi:** Penambahan modul mandiri `/edukasi` + `/edukasi/{id}/progres` (beserta `ringkasan_progres`) terpisah dari Program Tantangan (`exclude_jenis`), serta endpoint `PATCH /program/{id}/progres`.<br>**(4)** **Achievement & Reset Peringkat 3 Bulan:** Penambahan `GET /achievement` (katalog simbol keaktifan), jadwal reset peringkat kuartalan (`peringkat:reset-kuartal`) yang mengarsipkan EXP/level/peringkat akhir ke `riwayat_saya` di `GET /peringkat` sambil menolkan `exp_total` aktif dan mempertahankan `badge_pengguna`.<br>**(5)** **Surat Pengantar Rujukan Formal & Redis Cache:** Penataan ulang layout HTML surat rujukan (§11.4), integrasi Redis (`predis/predis` + `failover` cache) untuk wilayah, faskes, peringkat, dan sesi IP, serta paginasi standar pada `GET /target-kesehatan`. | BE / FE |
 | 1.10.0 | 2026-11-23 | **Revisi Superkita 23 Nov (Keamanan, Sesi 24 Jam & Redis, Rate Limit 100, Kepuasan Masyarakat, Progres Otomatis Tantangan, Peringkat Badge, Edukasi Video/Foto, Export Excel):**<br>**(1)** **Sesi & Rate Limit:** Masa sesi & token Sanctum diperpanjang menjadi **24 jam (1440 menit)** dengan penyimpanan sesi di Redis (`SESSION_DRIVER=redis` + `auth:user_session:{id}`); seluruh endpoint API `v1` diberi rate limit **100 req/menit** (`throttle:api`).<br>**(2)** **Catatan Kesehatan:** `jenis_gula_darah` bersifat **opsional** bila `gula_darah` diisi (fallback ke ambang standar).<br>**(3)** **Tantangan & Peringkat:** Penambahan `target_nilai` & `satuan_target` pada `program` serta `capaian_nilai` pada `peserta_program` agar `PATCH /program/{id}/progres` menghitung persentase otomatis; urutan `GET /peringkat` kini didasarkan pada jumlah badge (`jumlah_badge`) dengan tambahan simbol badge keaktifan (`rutin_posbindu`, `sahabat_sehat`).<br>**(4)** **Edukasi & Export:** `POST/PUT /edukasi` mendukung upload `foto`, `video`, dan `media_video_url`; `GET /admin/export` mendukung `?format=csv\|excel`.<br>**(5)** **Kepuasan Masyarakat:** Endpoint baru `GET /kepuasan-masyarakat` (Admin Kelurahan & Super Admin) dan `POST /kepuasan-masyarakat` (Warga/Kader). | BE / FE |
+| 1.10.1 | 2026-11-25 | **Penguatan Keamanan & Privasi:**<br>**(1)** **Auth Cookie `HttpOnly` Dual-Mode:** `login`/`register` menyematkan cookie `sehatkita_token` (`HttpOnly`, `SameSite=Lax`) dan `logout` mencabutnya, sehingga mode same-origin `/api/v1` tidak menyimpan token rahasia di Web Storage.<br>**(2)** **Privasi NIK & Audit:** `GET /pengguna/cari-nik` menyamarkan digit tengah NIK (`637205******0001`) dan mencatat akses di `log_audit`.<br>**(3)** **Telegram & Proxy:** Token pairing `/telegram/status` dibatasi 30 menit + rotasi 32 karakter, webhook wajib menyertakan `TELEGRAM_WEBHOOK_SECRET`, serta `trustProxies` aktif untuk IP asli klien. | BE / FE |

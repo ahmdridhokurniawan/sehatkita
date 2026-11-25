@@ -88,14 +88,26 @@ export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   process.env.NEXT_PUBLIC_API_BASE_URL ??
   "/api/v1";
-// Nama kunci untuk menyimpan token di browser
+// Nama kunci untuk menyimpan token / penanda sesi di browser
 const TOKEN_KEY = "sehatkita_token";
+export const COOKIE_SESSION_MARKER = "__cookie__";
 const AUTH_CHANNEL = "sehatkita_auth";
 type AuthBroadcastMsg =
   | { type: "LOGIN"; token: string; remember: boolean }
   | { type: "SYNC_SESSION"; token: string; remember: boolean }
   | { type: "LOGOUT" }
   | { type: "REQUEST_SESSION" };
+
+/** True bila frontend berkomunikasi satu origin (/api/v1), sehingga token cukup disimpan di cookie HttpOnly. */
+export function gunakanSesiCookieSaja(): boolean {
+  return API_BASE_URL.startsWith("/") && process.env.NODE_ENV !== "test";
+}
+
+function sematkanHeaderToken(headers: Record<string, string>, token: string | null): void {
+  if (token && token !== COOKIE_SESSION_MARKER) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+}
 
 let channelAuth: BroadcastChannel | null = null;
 function dapatChannelAuth(): BroadcastChannel | null {
@@ -146,15 +158,20 @@ export function getToken(): string | null {
 }
 export function setToken(token: string, remember = true, broadcast = true): void {
   if (typeof window === "undefined") return;
+  const nilaiSimpan = gunakanSesiCookieSaja() ? COOKIE_SESSION_MARKER : token;
   if (remember) {
     sessionStorage.removeItem(TOKEN_KEY);
-    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(TOKEN_KEY, nilaiSimpan);
   } else {
     localStorage.removeItem(TOKEN_KEY);
-    sessionStorage.setItem(TOKEN_KEY, token);
+    sessionStorage.setItem(TOKEN_KEY, nilaiSimpan);
   }
   if (broadcast) {
-    dapatChannelAuth()?.postMessage({ type: "LOGIN", token, remember } satisfies AuthBroadcastMsg);
+    dapatChannelAuth()?.postMessage({
+      type: "LOGIN",
+      token: nilaiSimpan,
+      remember,
+    } satisfies AuthBroadcastMsg);
   }
 }
 export function clearToken(broadcast = true): void {
@@ -255,10 +272,10 @@ function buildUrl(path: string, query?: object): string {
   }
   return url.toString();
 }
-/** Wrapper fetch: ubah kegagalan jaringan jadi pesan yang bisa dimengerti. */
+/** Wrapper fetch: kirim kredensial cookie + ubah kegagalan jaringan jadi pesan yang bisa dimengerti. */
 async function kirim(url: string, init: RequestInit): Promise<Response> {
   try {
-    return await fetch(url, init);
+    return await fetch(url, { credentials: "include", ...init });
   } catch {
     // fetch melempar TypeError("Failed to fetch") bila server tidak terjangkau:
     // alamat salah (mis. hostname lokal di laptop lain), backend mati, atau
@@ -284,8 +301,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     headers["Content-Type"] = "application/json";
   }
   if (auth) {
-    const token = getToken();
-    if (token) headers["Authorization"] = `Bearer ${token}`;
+    sematkanHeaderToken(headers, getToken());
   }
   const response = await kirim(buildUrl(path, query), {
     method,
@@ -333,8 +349,7 @@ async function requestPaged<T>(
   const headers: Record<string, string> = { Accept: "application/json" };
   if (body !== undefined) headers["Content-Type"] = "application/json";
   if (auth) {
-    const token = getToken();
-    if (token) headers["Authorization"] = `Bearer ${token}`;
+    sematkanHeaderToken(headers, getToken());
   }
   const response = await kirim(buildUrl(path, query), {
     method,
@@ -434,12 +449,11 @@ export const auth = {
     clearToken();
     if (!token) return null;
     try {
+      const headers: Record<string, string> = { Accept: "application/json" };
+      sematkanHeaderToken(headers, token);
       await kirim(buildUrl("/auth/logout"), {
         method: "POST",
-        headers: {
-          Accept: "application/json",
-          Authorization: `Bearer ${token}`,
-        },
+        headers,
       });
     } catch {
       // Sesi lokal sudah dibersihkan meski server gagal / token sudah mati.
@@ -680,8 +694,7 @@ export const edukasiApi = {
     ringkasan_progres: RingkasanProgresEdukasi | null;
   }> => {
     const headers: Record<string, string> = { Accept: "application/json" };
-    const token = getToken();
-    if (token) headers["Authorization"] = `Bearer ${token}`;
+    sematkanHeaderToken(headers, getToken());
     const response = await kirim(buildUrl("/edukasi", query), { method: "GET", headers });
     let json: {
       data?: EdukasiItem[];
@@ -748,9 +761,8 @@ export async function fetchMediaBlobUrl(pathOrUrl: string): Promise<string> {
       ? `${API_BASE_URL}${pathOrUrl.slice("/api/v1".length)}`
       : `${API_BASE_URL}${pathOrUrl}`;
   const headers: Record<string, string> = {};
-  const token = getToken();
-  if (token) headers["Authorization"] = `Bearer ${token}`;
-  const res = await fetch(path, { headers });
+  sematkanHeaderToken(headers, getToken());
+  const res = await fetch(path, { credentials: "include", headers });
   if (!res.ok) {
     if (res.status === 401) tangani401();
     throw new ApiError("Gagal memuat dokumentasi", res.status);
@@ -850,10 +862,12 @@ export const admin = {
     tipe: "catatan" | "posbindu" | "rujukan",
     format: "csv" | "excel" = "csv",
   ): Promise<Blob> => {
-    const token = getToken();
     const headers: Record<string, string> = {};
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    const res = await fetch(`${API_BASE_URL}/admin/export?tipe=${tipe}&format=${format}`, { headers });
+    sematkanHeaderToken(headers, getToken());
+    const res = await fetch(`${API_BASE_URL}/admin/export?tipe=${tipe}&format=${format}`, {
+      credentials: "include",
+      headers,
+    });
     if (!res.ok) {
       if (res.status === 401) tangani401();
       let pesan = "Gagal mengunduh data.";
@@ -895,8 +909,7 @@ export const pengaduanApi = {
 export const kepuasanMasyarakatApi = {
   list: async (query?: { wilayah_id?: number; rating?: number; page?: number; per_page?: number }) => {
     const headers: Record<string, string> = { Accept: "application/json" };
-    const token = getToken();
-    if (token) headers["Authorization"] = `Bearer ${token}`;
+    sematkanHeaderToken(headers, getToken());
     const res = await kirim(buildUrl("/kepuasan-masyarakat", query), { method: "GET", headers });
     const json = (await res.json()) as {
       data?: KepuasanMasyarakatItem[];

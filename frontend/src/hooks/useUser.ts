@@ -29,6 +29,19 @@ let pending: Promise<User | null> | null = null;
 let clientSnapshot: UseUserResult = { user: null, loading: true };
 const listeners = new Set<() => void>();
 
+function ringkasSnapshotUser(u: User): User {
+  // Hindari menyimpan NIK atau profil klinis di localStorage/sessionStorage.
+  return {
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    wilayah_id: u.wilayah_id,
+    wilayah: u.wilayah,
+    consent_at: u.consent_at,
+  };
+}
+
 function simpanSnapshotSesi(u: User | null): string | null {
   if (typeof window === "undefined") return null;
   try {
@@ -37,7 +50,7 @@ function simpanSnapshotSesi(u: User | null): string | null {
       localStorage.removeItem(USER_SNAPSHOT_KEY);
       return null;
     }
-    const serialized = JSON.stringify(u);
+    const serialized = JSON.stringify(ringkasSnapshotUser(u));
     sessionStorage.setItem(USER_SNAPSHOT_KEY, serialized);
     if (localStorage.getItem("sehatkita_token")) {
       localStorage.setItem(USER_SNAPSHOT_KEY, serialized);

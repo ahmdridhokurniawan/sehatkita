@@ -8,6 +8,7 @@ use App\Models\PesertaProgram;
 use App\Models\Profil;
 use App\Models\Program;
 use App\Models\Wilayah;
+use App\Services\TelegramService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -226,5 +227,74 @@ class SecurityHardeningTest extends TestCase
                 'email' => $user2->email,
                 'password' => 'Rahasia123!',
             ])->assertOk();
+    }
+
+    public function test_httponly_cookie_auth_dan_logout_mencabut_cookie(): void
+    {
+        $user = $this->buatPengguna('user');
+
+        $loginRes = $this->postJson('/api/v1/auth/login', [
+            'email' => $user->email,
+            'password' => 'Rahasia123!',
+        ])->assertOk()
+            ->assertCookie('sehatkita_token');
+
+        $token = $loginRes->json('data.token');
+
+        $this->app['auth']->forgetGuards();
+        $this->withCredentials()
+            ->withUnencryptedCookie('sehatkita_token', $token)
+            ->getJson('/api/v1/auth/me')
+            ->assertOk()
+            ->assertJsonPath('data.id', $user->id);
+
+        $this->app['auth']->forgetGuards();
+        $this->withCredentials()
+            ->withUnencryptedCookie('sehatkita_token', $token)
+            ->postJson('/api/v1/auth/logout')
+            ->assertOk()
+            ->assertCookieExpired('sehatkita_token');
+    }
+
+    public function test_telegram_connect_token_kedaluwarsa_setelah_30_menit(): void
+    {
+        $warga = $this->buatPengguna('user');
+
+        $resAwal = $this->asUser($warga)->getJson('/api/v1/telegram/status')->assertOk();
+        $linkAwal = (string) $resAwal->json('data.link_telegram');
+        $tokenAwal = explode('?start=', $linkAwal)[1] ?? '';
+        $this->assertSame(32, strlen($tokenAwal));
+
+        $this->travel(31)->minutes();
+
+        $terhubung = app(TelegramService::class)->prosesPesan([
+            'chat' => ['id' => 777001],
+            'text' => '/start '.$tokenAwal,
+        ]);
+        $this->assertFalse($terhubung);
+        $this->assertNull($warga->fresh()->telegram_chat_id);
+
+        $resBaru = $this->asUser($warga)->getJson('/api/v1/telegram/status')->assertOk();
+        $tokenBaru = explode('?start=', (string) $resBaru->json('data.link_telegram'))[1] ?? '';
+        $this->assertNotSame($tokenAwal, $tokenBaru);
+    }
+
+    public function test_cari_nik_menyamarkan_nik_dan_mencatat_audit(): void
+    {
+        $kader = $this->buatPengguna('kader');
+        $warga = $this->buatPengguna('user', [
+            'kader_id' => $kader->id,
+            'nik' => '6372051206900001',
+        ]);
+
+        $res = $this->asUser($kader)->getJson('/api/v1/pengguna/cari-nik')->assertOk();
+        $baris = collect($res->json('data'))->firstWhere('id', $warga->id);
+
+        $this->assertNotNull($baris);
+        $this->assertSame('637205******0001', $baris['nik']);
+        $this->assertDatabaseHas('log_audit', [
+            'user_id' => $kader->id,
+            'aksi' => 'cari_warga',
+        ]);
     }
 }

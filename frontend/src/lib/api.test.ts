@@ -1,4 +1,4 @@
-import { adalahHalamanPublik, ApiError, auth, clearToken, getToken, setToken } from "./api";
+import { adalahHalamanPublik, ApiError, auth, clearToken, COOKIE_SESSION_MARKER, getToken, setToken } from "./api";
 
 describe("api token storage", () => {
   const originalFetch = global.fetch;
@@ -107,5 +107,22 @@ describe("penanganan 401 pada halaman publik", () => {
     expect(getToken()).toBeNull();
     expect(window.location.pathname).toBe("/");
     expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it("tidak mengirim marker __cookie__ di header Authorization dan menyertakan credentials include", async () => {
+    setToken(COOKIE_SESSION_MARKER);
+    const fetchMock = jest.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, message: "OK", data: { id: 1 } }),
+    });
+    global.fetch = fetchMock;
+
+    await auth.me();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.credentials).toBe("include");
+    expect((init.headers as Record<string, string>)["Authorization"]).toBeUndefined();
   });
 });

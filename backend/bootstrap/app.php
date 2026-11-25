@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Middleware\EnsureSingleIpSession;
+use App\Http\Middleware\InjectBearerFromCookie;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -29,6 +31,11 @@ return Application::configure(basePath: dirname(__DIR__))
         if ($proxies !== []) {
             $middleware->trustProxies(at: $proxies);
         }
+
+        $middleware->api(prepend: [
+            InjectBearerFromCookie::class,
+        ]);
+        $middleware->prependToPriorityList(Authenticate::class, InjectBearerFromCookie::class);
 
         $middleware->alias([
             'single.ip' => EnsureSingleIpSession::class,
