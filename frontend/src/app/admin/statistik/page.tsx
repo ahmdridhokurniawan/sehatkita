@@ -94,7 +94,7 @@ export default function AdminStatistikPage() {
   const segmenPengguna = stats
     ? [
         { label: "Warga", value: stats.users_by_role?.user || 0, color: "var(--primary)" },
-        { label: "Kader", value: stats.users_by_role?.kader || 0, color: "var(--info, #4B6251)" },
+        { label: "Kader", value: stats.users_by_role?.kader || 0, color: "var(--safe)" },
         { label: "Admin Kelurahan", value: stats.users_by_role?.admin_kelurahan || 0, color: "var(--warning)" },
       ].filter((s) => s.value > 0)
     : [];

@@ -43,13 +43,20 @@ export function FormKepuasanMasyarakat() {
   }
 
   return (
-    <div className="card">
+    <div id="survei-kepuasan" className="card" style={{ borderColor: "var(--primary-200, var(--border))" }}>
       <div className="row-between mb-8" style={{ flexWrap: "wrap", gap: 8 }}>
-        <div>
-          <strong className="text-sm">Survei Kepuasan Masyarakat</strong>
-          <div className="tiny">Masukan Anda tampil pada evaluasi Admin Kelurahan &amp; Super Admin.</div>
+        <div className="row gap-8 items-center">
+          <Icon name="star" size={18} className="text-warning" />
+          <div>
+            <strong className="text-sm">Beri Rating &amp; Survei Kepuasan Masyarakat</strong>
+            <div className="tiny">Nilai layanan Posbindu &amp; aplikasi untuk membantu evaluasi kelurahan.</div>
+          </div>
         </div>
-        {terkirim ? <span className="pill pill-safe">Penilaian terkirim</span> : null}
+        {terkirim ? (
+          <span className="pill pill-safe">Penilaian terkirim</span>
+        ) : (
+          <span className="pill">Rating Layanan Warga</span>
+        )}
       </div>
 
       <div className="row gap-6 mb-12" role="group" aria-label="Pilih rating bintang">
@@ -64,7 +71,7 @@ export function FormKepuasanMasyarakat() {
               setTerkirim(false);
             }}
           >
-            ★ {b}
+            <Icon name="star" size={14} /> {b}
           </button>
         ))}
       </div>

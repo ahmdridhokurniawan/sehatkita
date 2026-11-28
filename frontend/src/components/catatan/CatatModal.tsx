@@ -71,6 +71,7 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
   const [catatan, setCatatan] = useState("");
   const [err, setErr] = useState<Record<string, string>>({});
   const [simpan, setSimpan] = useState(false);
+  const [peringatanKosong, setPeringatanKosong] = useState(false);
 
   /* Sumber otomatis mengikuti peran akun yang sedang login (tanpa dropdown/tampilan waktu & sumber). */
   const efektifSumber = useMemo(() => {
@@ -183,13 +184,14 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
     if (merokok !== "") payload.merokok = merokok === "true";
     if (catatan.trim()) payload.catatan = catatan.trim();
 
-    if (!adaAngka) {
-      e.bb_kg = "Minimal satu pengukuran angka wajib diisi.";
-    }
-
     setErr(e);
     if (Object.keys(e).length > 0) {
       toast.warning("Periksa kembali field yang ditandai.");
+      return;
+    }
+
+    if (!adaAngka) {
+      setPeringatanKosong(true);
       return;
     }
 
@@ -233,7 +235,9 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={() => {
+        if (!peringatanKosong) onClose();
+      }}
       size="lg"
       title={
         <div>
@@ -470,6 +474,50 @@ export default function CatatModal({ open, onClose, onSaved }: Props) {
           <div className="hint">{catatan.length}/500 karakter · Catatan tersimpan tidak bisa diedit (hapus lalu buat baru bila perlu).</div>
         </div>
       </fieldset>
+
+      <Modal
+        open={peringatanKosong}
+        onClose={() => setPeringatanKosong(false)}
+        className="modal-logout"
+        size="sm"
+        title={
+          <span className="logout-modal-heading">
+            <span
+              className="logout-modal-icon"
+              style={{
+                color: "var(--warning)",
+                background: "var(--warning-bg)",
+                borderColor: "color-mix(in srgb, var(--warning) 24%, transparent)",
+              }}
+            >
+              <Icon name="alert-triangle" size={21} />
+            </span>
+            <span className="logout-modal-title">Catatan Masih Kosong</span>
+          </span>
+        }
+        footer={
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              setPeringatanKosong(false);
+              setTimeout(() => document.getElementById("bb_kg")?.focus(), 40);
+            }}
+          >
+            Oke, Lengkapi
+          </button>
+        }
+      >
+        <div className="logout-modal-copy">
+          <p>Isi minimal satu pengukuran angka sebelum menyimpan catatan kesehatan.</p>
+          <p className="logout-modal-note">
+            <Icon name="info" size={14} />
+            <span>
+              Misalnya berat badan, tekanan darah, gula darah, kolesterol, asam urat, lingkar perut, atau jam tidur.
+            </span>
+          </p>
+        </div>
+      </Modal>
     </Modal>
   );
 }

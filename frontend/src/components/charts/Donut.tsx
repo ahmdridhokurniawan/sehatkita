@@ -44,7 +44,7 @@ export default function Donut({ segments, centerLabel = "", centerValue = "" }: 
 
   return (
     <div className="donut-wrap" onMouseLeave={() => setAktif(null)}>
-      <div className="donut-svg">
+      <div className="donut-svg chart-wrap">
         <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} role="img" aria-label="Diagram donat">
           <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--border)" strokeWidth={stroke} />
           {busurData.map((b, i) => {
@@ -72,10 +72,21 @@ export default function Donut({ segments, centerLabel = "", centerValue = "" }: 
             );
           })}
         </svg>
-        <div className="donut-center">
+        <div className="donut-center" style={{ pointerEvents: "none" }}>
           <strong>{tampilValue}</strong>
           <span>{tampilLabel}</span>
         </div>
+        {fokus ? (
+          <div className="chart-tip" style={{ left: "50%", top: 8 }}>
+            <strong>{fokus.seg.label}</strong>
+            <div className="chart-tip-row">
+              <i style={{ background: fokus.warna }} />
+              <b>
+                {angka(fokus.seg.value)} ({Math.round(fokus.frac * 100)}%)
+              </b>
+            </div>
+          </div>
+        ) : null}
       </div>
       <ul className="donut-legend">
         {busurData.map((b, i) => (

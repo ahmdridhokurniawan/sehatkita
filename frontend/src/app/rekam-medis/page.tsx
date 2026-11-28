@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import AppShell from "@/components/app/AppShell";
 import Icon from "@/components/ui/Icon";
-import Badge from "@/components/ui/Badge";
+import Badge, { toneKategori } from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import Pagination, { type Meta } from "@/components/ui/Pagination";
 import CatatModal from "@/components/catatan/CatatModal";
@@ -16,7 +16,6 @@ import { useMinLoading } from "@/hooks/useMinLoading";
 import { admin as adminApi, catatanKesehatan, wilayah as wilayahApi, ApiError } from "@/lib/api";
 import { tanggal } from "@/lib/format";
 import {
-  LABEL_JENIS_GULA_DARAH,
   LABEL_STATUS_KESEHATAN,
   LABEL_SUMBER,
   labelKategoriIndikator,
@@ -57,6 +56,12 @@ function toneStatusKesehatan(s?: StatusKesehatan | null): "safe" | "warning" | "
   if (s === "perlu_perhatian") return "warning";
   if (s === "normal") return "safe";
   return "default";
+}
+
+function toneIndikator(kode?: string | null) {
+  if (!kode) return "default" as const;
+  if (kode === "perlu_perhatian") return "warning" as const;
+  return toneKategori(kode);
 }
 
 function ringkasAlasanRujukan(c: CatatanKesehatan): string {
@@ -1047,13 +1052,19 @@ export default function RekamMedisPage() {
                         </td>
                         <td style={{ textAlign: "left" }}>
                           <div className="row gap-6" style={{ justifyContent: "flex-start", alignItems: "center", flexWrap: "nowrap" }}>
-                            <button type="button" className="btn btn-sm btn-outline" onClick={() => setDetail(c)}>
-                              <Icon name="eye" size={14} /> Detail
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-icon btn-outline"
+                              onClick={() => setDetail(c)}
+                              title="Lihat detail catatan"
+                              aria-label="Lihat detail catatan"
+                            >
+                              <Icon name="eye" size={14} />
                             </button>
                             {bisaHapus ? (
                               <button
                                 type="button"
-                                className="btn btn-sm btn-danger"
+                                className="btn btn-sm btn-icon btn-danger"
                                 style={{ color: "#ffffff" }}
                                 onClick={() => setHapusItem(c)}
                                 title="Hapus catatan"
@@ -1063,33 +1074,38 @@ export default function RekamMedisPage() {
                               </button>
                             ) : null}
                             {layakRujuk ? (
-                              <Link href={urlRujukDariCatatan(c)} className="btn btn-sm btn-primary">
-                                <Icon name="send" size={14} /> Rujuk
+                              <Link
+                                href={urlRujukDariCatatan(c)}
+                                className="btn btn-sm btn-icon btn-primary"
+                                title="Buat rujukan"
+                                aria-label="Buat rujukan"
+                              >
+                                <Icon name="send" size={14} />
                               </Link>
                             ) : null}
                             {bisaVerifikasi && c.perlu_verifikasi ? (
                               <>
                                 <button
                                   type="button"
-                                  className="btn btn-sm btn-primary"
+                                  className="btn btn-sm btn-icon btn-primary"
                                   style={{ color: "#ffffff" }}
                                   disabled={verifikasiId === c.id}
                                   onClick={() => putuskanVerifikasi(c, true)}
                                   title="Setujui catatan"
                                   aria-label="Setujui catatan"
                                 >
-                                  <Icon name="check" size={14} /> Setujui
+                                  <Icon name="check" size={14} />
                                 </button>
                                 <button
                                   type="button"
-                                  className="btn btn-sm btn-danger"
+                                  className="btn btn-sm btn-icon btn-danger"
                                   style={{ color: "#ffffff" }}
                                   disabled={verifikasiId === c.id}
                                   onClick={() => putuskanVerifikasi(c, false)}
                                   title="Tolak catatan"
                                   aria-label="Tolak catatan"
                                 >
-                                  <Icon name="x" size={14} /> Tolak
+                                  <Icon name="x" size={14} />
                                 </button>
                               </>
                             ) : null}
@@ -1133,67 +1149,95 @@ export default function RekamMedisPage() {
         }
       >
         {detail ? (
-          <>
-            <p className="tiny">
-              {tanggal(detail.dicatat_pada, "day")} · {LABEL_SUMBER[detail.sumber] || detail.sumber}
-            </p>
+          <div>
+            {/* Ringkasan singkat tanpa kotak tambahan */}
+            <div className="row-between" style={{ gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <span className="tiny">
+                {tanggal(detail.dicatat_pada, "day")} · {LABEL_SUMBER[detail.sumber] || detail.sumber}
+              </span>
+              <div className="row gap-6" style={{ alignItems: "center" }}>
+                {detail.status_kesehatan ? (
+                  <Badge tone={toneStatusKesehatan(detail.status_kesehatan)} dot>
+                    {LABEL_STATUS_KESEHATAN[detail.status_kesehatan]}
+                  </Badge>
+                ) : null}
+                {detail.perlu_verifikasi ? <Badge tone="warning">Perlu Verifikasi</Badge> : null}
+              </div>
+            </div>
+
             {petugas && detail.pengguna ? (
-              <p className="tiny">
+              <p className="tiny mt-4" style={{ marginBottom: 0 }}>
                 <Icon name="user" size={12} /> {detail.pengguna.name}
                 {bisaPilihWarga && detail.pengguna.nik ? ` · NIK ${detail.pengguna.nik}` : ""}
                 {detail.pengguna.wilayah?.nama ? ` · ${detail.pengguna.wilayah.nama}` : ""}
                 {detail.dicatat_oleh ? ` · dicatat oleh ${detail.dicatat_oleh.name}` : ""}
               </p>
             ) : null}
-            {detail.status_kesehatan ? (
-              <div className="mt-8">
-                <Badge tone={toneStatusKesehatan(detail.status_kesehatan)}>
-                  Status: {LABEL_STATUS_KESEHATAN[detail.status_kesehatan]}
-                </Badge>
-              </div>
-            ) : null}
-            <dl className="dl mt-12">
-              {detail.bb_kg !== null && <Baris label="Berat badan" nilai={`${detail.bb_kg} kg`} />}
-              {detail.imt !== null && <Baris label="IMT" nilai={detail.imt} />}
-              {detail.kategori_imt && <Baris label="Kategori IMT" nilai={labelKategoriIndikator(detail.kategori_imt)} />}
-              {detail.sistol !== null && detail.diastol !== null && (
-                <Baris label="Tekanan darah" nilai={`${detail.sistol}/${detail.diastol} mmHg`} />
-              )}
-              {detail.kategori_tensi && <Baris label="Kategori tensi" nilai={labelKategoriIndikator(detail.kategori_tensi)} />}
-              {detail.gula_darah !== null && (
-                <Baris
-                  label="Gula darah"
-                  nilai={`${detail.gula_darah} ${satuanGulaDarah(detail.jenis_gula_darah)}${
-                    detail.jenis_gula_darah
-                      ? ` (${LABEL_JENIS_GULA_DARAH[detail.jenis_gula_darah] ?? detail.jenis_gula_darah})`
-                      : ""
-                  }`}
+
+            {/* Daftar metrik bersih: label kiri, nilai + kategori kanan */}
+            <dl className="dl-rows mt-12">
+              {detail.bb_kg !== null && (
+                <BarisDetail
+                  label="Berat badan"
+                  nilai={`${Number(detail.bb_kg)} kg${detail.tinggi_cm !== null ? ` · ${detail.tinggi_cm} cm` : ""}`}
                 />
               )}
-              {detail.kategori_gula_darah && (
-                <Baris label="Kategori gula darah" nilai={labelKategoriIndikator(detail.kategori_gula_darah)} />
+              {detail.imt !== null && (
+                <BarisDetail
+                  label="IMT"
+                  nilai={Number(detail.imt).toFixed(2)}
+                  kategori={detail.kategori_imt}
+                />
               )}
-              {detail.kolesterol !== null && <Baris label="Kolesterol" nilai={`${detail.kolesterol} mg/dL`} />}
-              {detail.kategori_kolesterol && (
-                <Baris label="Kategori kolesterol" nilai={labelKategoriIndikator(detail.kategori_kolesterol)} />
+              {detail.sistol !== null && detail.diastol !== null && (
+                <BarisDetail
+                  label="Tekanan darah"
+                  nilai={`${detail.sistol}/${detail.diastol} mmHg`}
+                  kategori={detail.kategori_tensi}
+                />
               )}
-              {detail.asam_urat !== null && <Baris label="Asam urat" nilai={`${detail.asam_urat} mg/dL`} />}
-              {detail.kategori_asam_urat && (
-                <Baris label="Kategori asam urat" nilai={labelKategoriIndikator(detail.kategori_asam_urat)} />
+              {detail.gula_darah !== null && (
+                <BarisDetail
+                  label={
+                    detail.jenis_gula_darah
+                      ? `Gula darah (${labelSingkatGula(detail.jenis_gula_darah)})`
+                      : "Gula darah"
+                  }
+                  nilai={`${detail.gula_darah} ${satuanGulaDarah(detail.jenis_gula_darah)}`}
+                  kategori={detail.kategori_gula_darah}
+                />
               )}
-              {detail.lingkar_perut !== null && <Baris label="Lingkar perut" nilai={`${detail.lingkar_perut} cm`} />}
-              {detail.tidur_jam !== null && <Baris label="Jam tidur" nilai={`${detail.tidur_jam} jam`} />}
+              {detail.kolesterol !== null && (
+                <BarisDetail
+                  label="Kolesterol"
+                  nilai={`${detail.kolesterol} mg/dL`}
+                  kategori={detail.kategori_kolesterol}
+                />
+              )}
+              {detail.asam_urat !== null && (
+                <BarisDetail
+                  label="Asam urat"
+                  nilai={`${detail.asam_urat} mg/dL`}
+                  kategori={detail.kategori_asam_urat}
+                />
+              )}
+              {detail.lingkar_perut !== null && (
+                <BarisDetail label="Lingkar perut" nilai={`${detail.lingkar_perut} cm`} />
+              )}
+              {detail.tidur_jam !== null && (
+                <BarisDetail label="Jam tidur" nilai={`${detail.tidur_jam} jam`} />
+              )}
             </dl>
+
             {detail.catatan ? (
-              <>
-                <div className="divider" />
-                <div>
-                  <div className="tiny">Catatan</div>
-                  <p className="text-sm mt-4">{detail.catatan}</p>
-                </div>
-              </>
+              <div style={{ borderTop: "1px solid var(--border)", paddingTop: 12, marginTop: 4 }}>
+                <div className="tiny">Catatan</div>
+                <p className="text-sm mt-4" style={{ margin: "4px 0 0", lineHeight: 1.5 }}>
+                  {detail.catatan}
+                </p>
+              </div>
             ) : null}
-          </>
+          </div>
         ) : null}
       </Modal>
 
@@ -1243,12 +1287,30 @@ export default function RekamMedisPage() {
   );
 }
 
-function Baris({ label, nilai }: { label: string; nilai: string | number }) {
+function BarisDetail({
+  label,
+  nilai,
+  kategori,
+}: {
+  label: string;
+  nilai: string | number;
+  kategori?: string | null;
+}) {
   if (nilai === null || nilai === undefined || nilai === "") return null;
   return (
-    <div>
+    <div className="dl-row">
       <dt>{label}</dt>
-      <dd>{nilai}</dd>
+      <dd
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        <span>{nilai}</span>
+        {kategori ? <Badge tone={toneIndikator(kategori)}>{labelKategoriIndikator(kategori)}</Badge> : null}
+      </dd>
     </div>
   );
 }

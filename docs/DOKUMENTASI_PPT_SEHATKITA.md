@@ -1,6 +1,6 @@
 # Materi Presentasi (PPT) — Proyek SehatKita
 
-Dokumentasi ini siap disalin langsung ke PowerPoint / Google Slides / Canva (12 Slide).
+Dokumentasi ini siap disalin langsung ke PowerPoint / Google Slides / Canva (10 Slide).
 
 ---
 
@@ -23,7 +23,7 @@ Dokumentasi ini siap disalin langsung ke PowerPoint / Google Slides / Canva (12 
 ## Slide 3 — Teknologi yang Digunakan
 - **Backend:**
   - **PHP 8.3 & Laravel 13** (REST API `/api/v1`)
-  - **Laravel Sanctum** (Bearer Token Auth, masa sesi **24 jam / 1440 menit**, pembatasan 1 IP 1 user aktif)
+  - **Laravel Sanctum** (Bearer Token & cookie `HttpOnly` `sehatkita_token`, masa sesi **24 jam / 1440 menit**, pembatasan 1 IP 1 user aktif)
   - **Redis (`predis/predis`)** (Penyimpanan sesi login, cache peringkat, wilayah, faskes, dan ambang kategori)
   - **MySQL / MariaDB** (Produksi/Dev) & **SQLite** (Automated Testing)
   - **Bot Telegram API** (Pengingat skrining PTM & notifikasi program)
@@ -32,12 +32,12 @@ Dokumentasi ini siap disalin langsung ke PowerPoint / Google Slides / Canva (12 
   - **TypeScript 5 & Tailwind CSS v4**
   - **Custom SVG Charts & Print-to-PDF / SpreadsheetML Excel Export** (Ringan tanpa bloat dependency)
 - **Testing & Quality:**
-  - **PHPUnit 12** (92 Feature Tests) & **Jest + React Testing Library** (37 Unit Tests)
+  - **PHPUnit 12** (103 Feature Tests) & **Jest + React Testing Library** (40 Unit Tests)
 
 ---
 
 ## Slide 4 — Arsitektur & Kontrak API
-- Pemisahan tegas **Frontend (`Next.js`)** dan **Backend (`Laravel REST API`)** yang diikat oleh dokumen tunggal `kontrak-api.md` (Versi 1.10.0).
+- Pemisahan tegas **Frontend (`Next.js`)** dan **Backend (`Laravel REST API`)** yang diikat oleh dokumen tunggal `kontrak-api.md` (Versi 1.10.1).
 - Next.js Proxy (`API_PROXY_TARGET`) meneruskan `/api/v1/*` ke backend agar bebas masalah CORS di browser.
 - **Rate Limiting:** Seluruh endpoint API dibatasi **100 request/menit** per user/IP (`throttle:api`).
 
@@ -61,10 +61,10 @@ Dokumentasi ini siap disalin langsung ke PowerPoint / Google Slides / Canva (12 
 ---
 
 ## Slide 7 — Audit Keamanan Sistem Web
-- **Autentikasi & Sesi:** Token Sanctum 24 jam, penyimpanan sesi di Redis, proteksi 1 IP 1 pengguna aktif.
-- **Rate Limit:** 100 request/menit di seluruh endpoint API.
-- **Otorisasi & Privasi Data Medis (UU PDP):** Pembatasan scope wilayah/binaan (mengembalikan `404` bila di luar scope), *k-anonymity* pada dashboard kelurahan, dan pencatatan `log_audit`.
-- **Proteksi Input & Upload:** Validasi ketat MIME/ukuran file upload, parameter binding SQL (anti-SQLi), sanitasi CSV/Excel (anti-Formula Injection), dan verifikasi secret webhook Telegram.
+- **Autentikasi & Sesi:** Dual-mode Sanctum (Bearer + cookie `HttpOnly` `sehatkita_token`) 24 jam, penyimpanan sesi di Redis, proteksi 1 IP 1 pengguna aktif.
+- **Rate Limit:** 100 request/menit di seluruh endpoint API (`trustProxies` aktif untuk IP asli klien).
+- **Otorisasi & Privasi Data Medis (UU PDP):** Pembatasan scope wilayah/binaan (mengembalikan `404` bila di luar scope), masking digit tengah NIK saat pencarian (`637205******0001`), *k-anonymity* pada dashboard kelurahan, dan pencatatan `log_audit`.
+- **Proteksi Input, Upload & Telegram:** Validasi ketat MIME/ukuran file upload, parameter binding SQL (anti-SQLi), sanitasi CSV/Excel (anti-Formula Injection), token pairing Telegram 30 menit, dan verifikasi `TELEGRAM_WEBHOOK_SECRET`.
 
 ---
 
@@ -85,8 +85,8 @@ Dokumentasi ini siap disalin langsung ke PowerPoint / Google Slides / Canva (12 
 ---
 
 ## Slide 9 — Hasil Pengujian Sistem
-- **Backend (PHPUnit):** 92 Feature Test kasus uji (Autentikasi, Kontrol Akses, Catatan Kesehatan, Rujukan, Posbindu, Program/Tantangan, Peringkat, Kepuasan Masyarakat, Export Excel) — **Lulus 100%**.
-- **Frontend (Jest & Next.js Build):** 37 Unit Test komponen/API + kompilasi TypeScript & produksi (`next build`) — **Lulus tanpa error**.
+- **Backend (PHPUnit):** 103 Feature Test kasus uji (Autentikasi, Kontrol Akses, Keamanan & CORS, Catatan Kesehatan, Rujukan, Posbindu, Program/Tantangan, Notifikasi Telegram, Dashboard Wilayah, Kepuasan Masyarakat, Export) — **Lulus 100%**.
+- **Frontend (Jest & Next.js Build):** 40 Unit Test komponen/API + kompilasi TypeScript & produksi (`next build`) — **Lulus tanpa error**.
 
 ---
 

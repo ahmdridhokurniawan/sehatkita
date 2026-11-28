@@ -587,11 +587,14 @@ export default function DashboardUser({ user }: { user: User }) {
         <Link href="/peringkat" className="btn btn-sm btn-outline">
           <Icon name="award" size={14} /> Peringkat &amp; Badge
         </Link>
+        <a href="#survei-kepuasan" className="btn btn-sm btn-outline">
+          <Icon name="star" size={14} /> Beri Rating Layanan
+        </a>
       </div>
 
       <div className="mt-16" style={{ display: "grid", gap: 16 }}>
-        <GrafikTrenRekamMedis user={user} />
         <FormKepuasanMasyarakat />
+        <GrafikTrenRekamMedis user={user} />
       </div>
 
       <CatatModal

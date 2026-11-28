@@ -43,13 +43,26 @@ export default function Bar({ labels, values, unit = "", height = 260, colors, h
 
   if (horizontal) {
     const max = niceMax(Math.max(...values, 1));
+    const hTipIdx = aktifIdx !== null && aktifIdx >= 0 && aktifIdx < labels.length ? aktifIdx : null;
+    const hFlip = hTipIdx === 0;
     return (
-      <div className="chart" ref={ref}>
+      <div className="chart chart-wrap" ref={ref} onMouseLeave={() => setAktifIdx(null)}>
         {labels.map((lb, i) => {
           const lebar = (values[i] / max) * 100;
           const warna = colors?.[i] || PALET[i % PALET.length];
+          const disorot = aktifIdx === i;
           return (
-            <div className="hbar" key={i}>
+            <div
+              className="hbar"
+              key={i}
+              style={{
+                cursor: "pointer",
+                opacity: aktifIdx !== null && !disorot ? 0.55 : 1,
+                transition: "opacity .15s ease",
+              }}
+              onMouseEnter={() => setAktifIdx(i)}
+              onClick={() => setAktifIdx((prev) => (prev === i ? null : i))}
+            >
               <div className="hbar-label">{lb}</div>
               <div className="hbar-track">
                 <div className="hbar-fill" style={{ width: `${lebar}%`, background: warna }}>
@@ -62,6 +75,25 @@ export default function Bar({ labels, values, unit = "", height = 260, colors, h
             </div>
           );
         })}
+        {hTipIdx !== null ? (
+          <div
+            className="chart-tip"
+            style={{
+              left: "50%",
+              top: hFlip ? 32 : hTipIdx * 37,
+              transform: hFlip ? "translate(-50%, 0)" : undefined,
+            }}
+          >
+            <strong>{labels[hTipIdx]}</strong>
+            <div className="chart-tip-row">
+              <i style={{ background: colors?.[hTipIdx] || PALET[hTipIdx % PALET.length] }} />
+              <b>
+                {angka(values[hTipIdx])}
+                {unit ? ` ${unit}` : ""}
+              </b>
+            </div>
+          </div>
+        ) : null}
       </div>
     );
   }

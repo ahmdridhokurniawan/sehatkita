@@ -59,7 +59,7 @@ const TUJUAN_KEAKTIFAN: Record<string, { href: string; label: string }> = {
   penakluk_target: { href: "/target-kesehatan", label: "Kelola Target →" },
   pejuang_tantangan: { href: "/program", label: "Lihat Tantangan →" },
   pembelajar_sehat: { href: "/edukasi", label: "Buka Edukasi →" },
-  sahabat_sehat: { href: "/dashboard", label: "Isi Survei di Beranda →" },
+  sahabat_sehat: { href: "/dashboard#survei-kepuasan", label: "Isi Survei di Beranda →" },
 };
 
 export default function PeringkatPage() {

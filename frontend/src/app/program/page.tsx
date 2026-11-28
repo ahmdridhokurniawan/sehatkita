@@ -430,88 +430,68 @@ export default function ProgramPage() {
 
       {aksiErr ? <div className="err-msg show mb-12">{aksiErr}</div> : null}
 
-      <div className="input-icon mb-12">
-        <Icon name="search" size={18} />
-        <input
-          className="input"
-          type="search"
-          placeholder="Cari judul tantangan atau kategori…"
-          value={cari}
-          onChange={(e) => {
-            setCari(e.target.value);
-            setPage(1);
-          }}
-        />
-      </div>
-
-      <div className="mb-12" style={{ display: "grid", gap: 8 }}>
-        <div className="chip-row" style={{ flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-          <span className="tiny fw-600" style={{ minWidth: 64 }}>Kategori:</span>
-          {[
-            { v: "", l: "Semua" },
-            { v: "olahraga", l: "Olahraga" },
-            { v: "edukasi", l: "Edukasi" },
-            { v: "pemeriksaan", l: "Pemeriksaan" },
-            { v: "lainnya", l: "Lainnya" },
-          ].map((kat) => (
-            <button
-              key={kat.v || "semua"}
-              type="button"
-              className={`chip${filterJenis === kat.v ? " is-active" : ""}`}
-              onClick={() => {
-                setFilterJenis(kat.v);
-                setPage(1);
-              }}
-            >
-              {kat.l}
-            </button>
-          ))}
+      <div className="filter-bar mb-12">
+        <div className="input-icon search">
+          <Icon name="search" size={18} />
+          <input
+            className="input"
+            style={{ width: "100%" }}
+            type="search"
+            placeholder="Cari judul tantangan atau kategori…"
+            value={cari}
+            onChange={(e) => {
+              setCari(e.target.value);
+              setPage(1);
+            }}
+          />
         </div>
 
+        <select
+          className="select"
+          aria-label="Filter kategori tantangan"
+          value={filterJenis}
+          onChange={(e) => {
+            setFilterJenis(e.target.value);
+            setPage(1);
+          }}
+        >
+          <option value="">Semua Kategori</option>
+          <option value="olahraga">Olahraga</option>
+          <option value="edukasi">Edukasi</option>
+          <option value="pemeriksaan">Pemeriksaan</option>
+          <option value="lainnya">Lainnya</option>
+        </select>
+
         {bolehIkut ? (
-          <div className="chip-row" style={{ flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-            <span className="tiny fw-600" style={{ minWidth: 64 }}>Progres:</span>
-            {[
-              { v: "" as const, l: "Semua" },
-              { v: "belum_diikuti" as const, l: "Belum Diikuti" },
-              { v: "proses" as const, l: "Sedang Diikuti" },
-              { v: "selesai" as const, l: "Sudah Selesai" },
-            ].map((st) => (
-              <button
-                key={st.v || "semua-progres"}
-                type="button"
-                className={`chip${filterProgres === st.v ? " is-active" : ""}`}
-                onClick={() => {
-                  setFilterProgres(st.v);
-                  setPage(1);
-                }}
-              >
-                {st.l}
-              </button>
-            ))}
-          </div>
+          <select
+            className="select"
+            aria-label="Filter progres tantangan"
+            value={filterProgres}
+            onChange={(e) => {
+              setFilterProgres(e.target.value as "" | "belum_diikuti" | "proses" | "selesai");
+              setPage(1);
+            }}
+          >
+            <option value="">Semua Progres</option>
+            <option value="belum_diikuti">Belum Diikuti</option>
+            <option value="proses">Sedang Diikuti</option>
+            <option value="selesai">Sudah Selesai</option>
+          </select>
         ) : bolehKelola ? (
-          <div className="chip-row" style={{ flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-            <span className="tiny fw-600" style={{ minWidth: 64 }}>Status:</span>
-            {[
-              { v: "" as const, l: "Semua" },
-              { v: "berjalan" as const, l: "Berjalan" },
-              { v: "akan_datang" as const, l: "Akan Datang" },
-              { v: "selesai" as const, l: "Selesai" },
-            ].map((st) => (
-              <button
-                key={st.v || "semua-status"}
-                type="button"
-                className={`chip${filterStatus === st.v ? " is-active" : ""}`}
-                onClick={() => {
-                  setFilterStatus(st.v);
-                  setPage(1);
-                }}
-              >
-                {st.l}
-              </button>
-            ))}
-          </div>
+          <select
+            className="select"
+            aria-label="Filter status tantangan"
+            value={filterStatus}
+            onChange={(e) => {
+              setFilterStatus(e.target.value as "" | "berjalan" | "akan_datang" | "selesai");
+              setPage(1);
+            }}
+          >
+            <option value="">Semua Status</option>
+            <option value="berjalan">Berjalan</option>
+            <option value="akan_datang">Akan Datang</option>
+            <option value="selesai">Selesai</option>
+          </select>
         ) : null}
       </div>
 
